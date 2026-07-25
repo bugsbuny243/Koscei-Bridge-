@@ -5,12 +5,24 @@ on:
     paths:
       - ".github/workflows/actor-reference-case.yml"
       - "koschei/api/scripts/run-actor-acceptance.mjs"
+      - "koschei/api/internal/handlers/public_dossier_cases.go"
+      - "koschei/api/internal/http/dossier_routes.go"
+      - "koschei/api/migrations/083_public_dossier_publications.sql"
+      - "koschei/api/public/cases.html"
+      - "koschei/api/public/live.html"
+      - "koschei/api/public/js/public-soc.js"
       - "oss/verifier/typescript/verify-dossier.mjs"
   push:
     branches: [main]
     paths:
       - ".github/workflows/actor-reference-case.yml"
       - "koschei/api/scripts/run-actor-acceptance.mjs"
+      - "koschei/api/internal/handlers/public_dossier_cases.go"
+      - "koschei/api/internal/http/dossier_routes.go"
+      - "koschei/api/migrations/083_public_dossier_publications.sql"
+      - "koschei/api/public/cases.html"
+      - "koschei/api/public/live.html"
+      - "koschei/api/public/js/public-soc.js"
       - "oss/verifier/typescript/verify-dossier.mjs"
   workflow_dispatch:
 
@@ -36,14 +48,15 @@ jobs:
         run: |
           set -euo pipefail
           node --check koschei/api/scripts/run-actor-acceptance.mjs
+          node --check koschei/api/public/js/public-soc.js
           node --check oss/verifier/typescript/verify-dossier.mjs
 
   production-reference:
-    name: Production acceptance and immutable dossier
+    name: Production acceptance, immutable dossier and public case
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     env:
       KOSCHEI_BASE_URL: https://tradepigloball.co
       KOSCHEI_OWNER_SECRET: ${{ secrets.KOSCHEI_OWNER_SECRET }}
@@ -63,20 +76,46 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for production service
+      - name: Wait for deployed Public SOC contract
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 90); do
+            version_ok=false
+            cases_ok=false
+            pages_ok=false
+
             if curl --fail --silent --show-error --max-time 15 \
               "${KOSCHEI_BASE_URL}/api/version" > api-version.json; then
-              node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync("api-version.json","utf8")); if(v.status!=="ok") process.exit(1)'
+              if node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync("api-version.json","utf8")); if(v.status!=="ok") process.exit(1)'; then
+                version_ok=true
+              fi
+            fi
+
+            if curl --fail --silent --show-error --max-time 15 \
+              "${KOSCHEI_BASE_URL}/api/public/cases?limit=1" > public-cases-readiness.json; then
+              if node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync("public-cases-readiness.json","utf8")); if(v.ok!==true || !Array.isArray(v.cases)) process.exit(1)'; then
+                cases_ok=true
+              fi
+            fi
+
+            if curl --fail --silent --show-error --max-time 15 \
+                 "${KOSCHEI_BASE_URL}/cases" > cases-readiness.html \
+               && curl --fail --silent --show-error --max-time 15 \
+                 "${KOSCHEI_BASE_URL}/live" > live-readiness.html \
+               && grep -Fq 'Immutable Case Registry' cases-readiness.html \
+               && grep -Fq 'ARVIS Public SOC' live-readiness.html; then
+              pages_ok=true
+            fi
+
+            if [ "${version_ok}" = true ] && [ "${cases_ok}" = true ] && [ "${pages_ok}" = true ]; then
+              echo "Deployed Public SOC contract is ready."
               exit 0
             fi
-            echo "Production not ready yet (attempt ${attempt}/60)."
+            echo "Production contract not ready yet (attempt ${attempt}/90; version=${version_ok}; api=${cases_ok}; pages=${pages_ok})."
             sleep 10
           done
-          echo "Production service did not become ready." >&2
+          echo "Production Public SOC contract did not become ready." >&2
           exit 1
 
       - name: Run deterministic actor acceptance twice
@@ -86,18 +125,37 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          set +e
-          node scripts/run-actor-acceptance.mjs \
-            "${REFERENCE_WALLET}" \
-            actor-engine-v1-yHCx.json \
-            > actor-acceptance.stdout \
-            2> actor-acceptance.stderr
-          exit_code=$?
-          printf '%s\n' "${exit_code}" > actor-acceptance.exit-code
-          cat actor-acceptance.stdout
-          cat actor-acceptance.stderr >&2
+          final_exit=1
+          : > actor-acceptance.stdout
+          : > actor-acceptance.stderr
 
-          if [ "${exit_code}" -ne 0 ]; then
+          for attempt in 1 2 3; do
+            set +e
+            node scripts/run-actor-acceptance.mjs \
+              "${REFERENCE_WALLET}" \
+              actor-engine-v1-yHCx.json \
+              > "actor-acceptance-attempt-${attempt}.stdout" \
+              2> "actor-acceptance-attempt-${attempt}.stderr"
+            exit_code=$?
+            set -e
+
+            cp "actor-acceptance-attempt-${attempt}.stdout" actor-acceptance.stdout
+            cp "actor-acceptance-attempt-${attempt}.stderr" actor-acceptance.stderr
+            printf '%s\n' "${exit_code}" > actor-acceptance.exit-code
+            cat actor-acceptance.stdout
+            cat actor-acceptance.stderr >&2
+
+            if [ "${exit_code}" -eq 0 ]; then
+              final_exit=0
+              break
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              echo "Transient acceptance attempt ${attempt}/3 failed; retrying after 30 seconds." >&2
+              sleep 30
+            fi
+          done
+
+          if [ "${final_exit}" -ne 0 ]; then
             node <<'NODE'
           const fs = require('fs');
           const stdout = fs.existsSync('actor-acceptance.stdout')
@@ -115,7 +173,7 @@ jobs:
           NODE
           fi
 
-          exit "${exit_code}"
+          exit "${final_exit}"
 
       - name: Export immutable dossier
         if: steps.actor_acceptance.outcome == 'success'
@@ -159,12 +217,115 @@ jobs:
           set -euo pipefail
           public_url="$(cat public-url.txt)"
           case_ref="$(cat case-ref.txt)"
+          verified=false
+
+          for attempt in $(seq 1 12); do
+            http_code="$(curl --silent --show-error --max-time 30 \
+              --dump-header public-dossier.headers \
+              --output public-dossier.html \
+              --write-out '%{http_code}' \
+              "${public_url}" || true)"
+            printf '%s\n' "${http_code}" > public-dossier.http-code
+
+            if [ "${http_code}" = "200" ] \
+               && grep -Fq "${case_ref}" public-dossier.html \
+               && grep -Eiq '^etag: ' public-dossier.headers; then
+              verified=true
+              break
+            fi
+            echo "Public dossier not verifiable yet (attempt ${attempt}/12; HTTP ${http_code})." >&2
+            sleep 5
+          done
+
+          if [ "${verified}" != true ]; then
+            echo "Public dossier failed unauthenticated immutable verification." >&2
+            cat public-dossier.headers >&2 || true
+            head -c 2000 public-dossier.html >&2 || true
+            exit 1
+          fi
+
+      - name: Publish first actor case to Public SOC
+        if: steps.actor_acceptance.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CASE_REF="$(cat case-ref.txt)"
+          node <<'NODE' > publication-request.json
+          process.stdout.write(JSON.stringify({
+            case_ref: process.env.CASE_REF,
+            status: 'public',
+            public_title: 'ARVIS Actor Evidence Case · yHCx…6PRe',
+            public_summary: 'Created-token history, funding origin, transfer evidence and cross-token actor observations bounded by immutable on-chain references.',
+            featured: true,
+            redaction_profile: 'public-onchain-v1'
+          }));
+          NODE
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-koschei-secret: ${KOSCHEI_OWNER_SECRET}" \
+            --data-binary @publication-request.json \
+            "${KOSCHEI_BASE_URL}/api/owner/dossier/publications" \
+            --dump-header publication-response.headers \
+            --output publication-response.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('publication-response.json', 'utf8'));
+          const expected = fs.readFileSync('case-ref.txt', 'utf8').trim();
+          if (payload.ok !== true || payload.status !== 'public' || payload.case?.case_ref !== expected) {
+            throw new Error(`unexpected publication response: ${JSON.stringify(payload)}`);
+          }
+          if (payload.immutable_dossier_unchanged !== true) {
+            throw new Error('publication did not affirm immutable dossier preservation');
+          }
+          NODE
+
+      - name: Verify Public SOC APIs and pages
+        if: steps.actor_acceptance.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          case_ref="$(cat case-ref.txt)"
+
           curl --fail --silent --show-error --max-time 30 \
-            --dump-header public-dossier.headers \
-            --output public-dossier.html \
-            "${public_url}"
-          grep -Fq "${case_ref}" public-dossier.html
-          grep -Eiq '^etag: ' public-dossier.headers
+            --dump-header public-cases.headers \
+            --output public-cases.json \
+            "${KOSCHEI_BASE_URL}/api/public/cases?limit=100"
+          curl --fail --silent --show-error --max-time 30 \
+            --dump-header public-soc-feed.headers \
+            --output public-soc-feed.json \
+            "${KOSCHEI_BASE_URL}/api/public/soc/feed"
+          curl --fail --silent --show-error --max-time 30 \
+            --dump-header cases-page.headers \
+            --output cases-page.html \
+            "${KOSCHEI_BASE_URL}/cases"
+          curl --fail --silent --show-error --max-time 30 \
+            --dump-header live-page.headers \
+            --output live-page.html \
+            "${KOSCHEI_BASE_URL}/live"
+
+          export EXPECTED_CASE_REF="${case_ref}"
+          node <<'NODE'
+          const fs = require('fs');
+          const expected = process.env.EXPECTED_CASE_REF;
+          const cases = JSON.parse(fs.readFileSync('public-cases.json', 'utf8'));
+          const feed = JSON.parse(fs.readFileSync('public-soc-feed.json', 'utf8'));
+          const item = Array.isArray(cases.cases) ? cases.cases.find((row) => row.case_ref === expected) : null;
+          const event = Array.isArray(feed.events) ? feed.events.find((row) => row.case_ref === expected) : null;
+          if (cases.ok !== true || !item || item.featured !== true || item.bundle_hash === '') {
+            throw new Error(`reference case missing from public cases: ${JSON.stringify(cases)}`);
+          }
+          if (feed.ok !== true || !event || event.verifiable !== true || event.bundle_hash !== item.bundle_hash) {
+            throw new Error(`reference case missing or inconsistent in public SOC feed: ${JSON.stringify(feed)}`);
+          }
+          NODE
+
+          grep -Fq 'Immutable Case Registry' cases-page.html
+          grep -Fq 'ARVIS Public SOC' live-page.html
+          grep -Eiq '^cache-control: ' public-cases.headers
+          grep -Eiq '^cache-control: ' public-soc-feed.headers
 
       - name: Write reference record
         if: steps.actor_acceptance.outcome == 'success'
@@ -175,8 +336,9 @@ jobs:
           const fs = require('fs');
           const acceptance = JSON.parse(fs.readFileSync('koschei/api/actor-engine-v1-yHCx.json', 'utf8'));
           const dossier = JSON.parse(fs.readFileSync('actor-dossier.json', 'utf8'));
+          const publication = JSON.parse(fs.readFileSync('publication-response.json', 'utf8'));
           const record = {
-            version: 'koschei-production-reference-v1',
+            version: 'koschei-production-reference-v2',
             generated_at: new Date().toISOString(),
             commit_sha: process.env.GITHUB_SHA,
             base_url: process.env.KOSCHEI_BASE_URL,
@@ -185,7 +347,11 @@ jobs:
             acceptance_status: acceptance.status,
             case_ref: fs.readFileSync('case-ref.txt', 'utf8').trim(),
             public_url: fs.readFileSync('public-url.txt', 'utf8').trim(),
-            bundle_hash: dossier.bundle_hash
+            cases_url: `${process.env.KOSCHEI_BASE_URL}/cases`,
+            live_url: `${process.env.KOSCHEI_BASE_URL}/live`,
+            bundle_hash: dossier.bundle_hash,
+            publication_status: publication.status,
+            featured: publication.case?.featured === true
           };
           fs.writeFileSync('production-reference.json', JSON.stringify(record, null, 2) + '\n');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
@@ -195,25 +361,39 @@ jobs:
             `- Acceptance hash: \`${record.acceptance_hash}\`\n` +
             `- Case: \`${record.case_ref}\`\n` +
             `- Public dossier: ${record.public_url}\n` +
+            `- Case registry: ${record.cases_url}\n` +
+            `- Live SOC: ${record.live_url}\n` +
             `- Bundle hash: \`${record.bundle_hash}\`\n`);
           NODE
 
       - name: Upload immutable reference artifacts
-        if: steps.actor_acceptance.outcome == 'success'
+        if: always() && steps.actor_acceptance.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: koschei-actor-reference-case
+          name: koschei-actor-reference-case-${{ github.run_attempt }}
           path: |
             koschei/api/actor-engine-v1-yHCx.json
             actor-dossier.json
             actor-dossier.headers
             public-dossier.html
             public-dossier.headers
+            public-dossier.http-code
+            publication-request.json
+            publication-response.json
+            publication-response.headers
+            public-cases.json
+            public-cases.headers
+            public-soc-feed.json
+            public-soc-feed.headers
+            cases-page.html
+            cases-page.headers
+            live-page.html
+            live-page.headers
             production-reference.json
             case-ref.txt
             public-path.txt
             public-url.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
 
       - name: Upload actor acceptance diagnostics
@@ -222,11 +402,15 @@ jobs:
         with:
           name: koschei-actor-reference-diagnostics-${{ github.run_attempt }}
           path: |
-            koschei/api/actor-acceptance.stdout
-            koschei/api/actor-acceptance.stderr
+            koschei/api/actor-acceptance*.stdout
+            koschei/api/actor-acceptance*.stderr
             koschei/api/actor-acceptance-error.txt
-            koschei/api/actor-acceptance-exit-code
+            koschei/api/actor-acceptance.exit-code
             koschei/api/actor-acceptance-diff.json
+            api-version.json
+            public-cases-readiness.json
+            cases-readiness.html
+            live-readiness.html
           if-no-files-found: warn
           retention-days: 30
 
@@ -240,7 +424,7 @@ jobs:
         run: |
           set -euo pipefail
           state="failure"
-          description="Actor reference case failed; inspect the workflow run"
+          description="Actor reference publication failed; inspect the workflow run"
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           if [ "${ACCEPTANCE_OUTCOME}" != "success" ]; then
@@ -254,7 +438,7 @@ jobs:
             state="success"
             case_ref="$(cat case-ref.txt)"
             target_url="$(cat public-url.txt)"
-            description="Verified public actor dossier ${case_ref}"
+            description="Verified featured Public SOC case ${case_ref}"
           fi
 
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
