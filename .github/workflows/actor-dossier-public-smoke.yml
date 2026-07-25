@@ -1,0 +1,181 @@
+name: Actor Dossier Public Smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/actor-dossier-public-smoke.yml"
+      - "oss/verifier/typescript/verify-dossier.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/actor-dossier-public-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    name: Validate public-smoke contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node --check oss/verifier/typescript/verify-dossier.mjs
+
+  production-smoke:
+    name: Export stored dossier and inspect public page
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KOSCHEI_BASE_URL: https://tradepigloball.co
+      KOSCHEI_OWNER_SECRET: ${{ secrets.KOSCHEI_OWNER_SECRET }}
+      REFERENCE_WALLET: yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Require owner secret
+        run: |
+          set -euo pipefail
+          test -n "${KOSCHEI_OWNER_SECRET:-}"
+
+      - name: Export stored immutable dossier
+        id: export_dossier
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "x-koschei-secret: ${KOSCHEI_OWNER_SECRET}" \
+            "${KOSCHEI_BASE_URL}/api/v1/dossier/${REFERENCE_WALLET}" \
+            --dump-header actor-dossier.headers \
+            --output actor-dossier.json
+
+          case_ref="$(awk -F': ' 'tolower($1)=="x-koschei-case-ref" {gsub("\\r", "", $2); print $2}' actor-dossier.headers | tail -n1)"
+          public_path="$(awk -F': ' 'tolower($1)=="x-koschei-public-dossier" {gsub("\\r", "", $2); print $2}' actor-dossier.headers | tail -n1)"
+          test -n "${case_ref}"
+          test "${public_path}" = "/dossier/${case_ref}"
+
+          printf '%s\n' "${case_ref}" > case-ref.txt
+          printf '%s\n' "${public_path}" > public-path.txt
+          printf '%s%s\n' "${KOSCHEI_BASE_URL}" "${public_path}" > public-url.txt
+
+      - name: Verify immutable JSON independently
+        run: node oss/verifier/typescript/verify-dossier.mjs ./actor-dossier.json
+
+      - name: Capture and verify public dossier
+        id: public_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          public_url="$(tr -d '\r\n' < public-url.txt)"
+          case_ref="$(tr -d '\r\n' < case-ref.txt)"
+
+          set +e
+          http_code="$(curl --silent --show-error --max-time 30 \
+            --dump-header public-dossier.headers \
+            --output public-dossier.html \
+            --write-out '%{http_code}' \
+            "${public_url}")"
+          curl_exit=$?
+          set -e
+
+          printf '%s\n' "${http_code}" > public-http-code.txt
+          printf '%s\n' "${curl_exit}" > public-curl-exit.txt
+
+          case_ref_present=false
+          etag_present=false
+          if [ -f public-dossier.html ] && grep -Fq "${case_ref}" public-dossier.html; then
+            case_ref_present=true
+          fi
+          if [ -f public-dossier.headers ] && grep -Eiq '^etag:[[:space:]]*' public-dossier.headers; then
+            etag_present=true
+          fi
+
+          export HTTP_CODE="${http_code}" CURL_EXIT="${curl_exit}"
+          export CASE_REF_PRESENT="${case_ref_present}" ETAG_PRESENT="${etag_present}"
+          node <<'NODE'
+          const fs = require('fs');
+          const result = {
+            version: 'koschei-public-dossier-smoke-v1',
+            public_url: fs.readFileSync('public-url.txt', 'utf8').trim(),
+            case_ref: fs.readFileSync('case-ref.txt', 'utf8').trim(),
+            http_code: process.env.HTTP_CODE,
+            curl_exit: Number(process.env.CURL_EXIT),
+            case_ref_present: process.env.CASE_REF_PRESENT === 'true',
+            etag_present: process.env.ETAG_PRESENT === 'true'
+          };
+          fs.writeFileSync('public-dossier-check.json', JSON.stringify(result, null, 2) + '\n');
+          NODE
+
+          test "${curl_exit}" -eq 0
+          test "${http_code}" = "200"
+          test "${case_ref_present}" = "true"
+          test "${etag_present}" = "true"
+
+      - name: Upload public-smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: koschei-actor-dossier-public-smoke-${{ github.run_attempt }}
+          path: |
+            actor-dossier.json
+            actor-dossier.headers
+            case-ref.txt
+            public-path.txt
+            public-url.txt
+            public-dossier.html
+            public-dossier.headers
+            public-http-code.txt
+            public-curl-exit.txt
+            public-dossier-check.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish public-smoke status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLIC_OUTCOME: ${{ steps.public_check.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="failure"
+          description="Stored actor dossier public smoke failed"
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ "${PUBLIC_OUTCOME}" = "success" ] && [ -s public-url.txt ]; then
+            state="success"
+            target_url="$(tr -d '\r\n' < public-url.txt)"
+            description="Verified stored actor dossier public page"
+          fi
+          export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
+          payload="$(node <<'NODE'
+          process.stdout.write(JSON.stringify({
+            state: process.env.STATE,
+            context: 'koschei/dossier-public',
+            description: process.env.DESCRIPTION,
+            target_url: process.env.TARGET_URL
+          }));
+          NODE
+          )"
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -d "${payload}" > /dev/null
+
+      - name: Fail if public dossier is not verified
+        if: steps.public_check.outcome != 'success'
+        run: exit 1
