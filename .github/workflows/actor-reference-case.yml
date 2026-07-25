@@ -1,0 +1,179 @@
+name: Actor Reference Case
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/actor-reference-case.yml"
+      - "koschei/api/scripts/run-actor-acceptance.mjs"
+      - "oss/verifier/typescript/verify-dossier.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/actor-reference-case.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actor-reference-case-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate reference-run contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate scripts
+        run: |
+          set -euo pipefail
+          node --check koschei/api/scripts/run-actor-acceptance.mjs
+          node --check oss/verifier/typescript/verify-dossier.mjs
+
+  production-reference:
+    name: Production acceptance and immutable dossier
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KOSCHEI_BASE_URL: https://tradepigloball.co
+      KOSCHEI_OWNER_SECRET: ${{ secrets.KOSCHEI_OWNER_SECRET || secrets.OWNER_SECRET }}
+      REFERENCE_WALLET: yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Require owner secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${KOSCHEI_OWNER_SECRET:-}" ]; then
+            echo "Missing repository secret: set KOSCHEI_OWNER_SECRET or OWNER_SECRET." >&2
+            exit 1
+          fi
+
+      - name: Wait for production service
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error --max-time 15 \
+              "${KOSCHEI_BASE_URL}/api/version" > api-version.json; then
+              node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync("api-version.json","utf8")); if(v.status!=="ok") process.exit(1)'
+              exit 0
+            fi
+            echo "Production not ready yet (attempt ${attempt}/60)."
+            sleep 10
+          done
+          echo "Production service did not become ready." >&2
+          exit 1
+
+      - name: Run deterministic actor acceptance twice
+        working-directory: koschei/api
+        run: |
+          set -euo pipefail
+          node scripts/run-actor-acceptance.mjs \
+            "${REFERENCE_WALLET}" \
+            actor-engine-v1-yHCx.json
+
+      - name: Export immutable dossier
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "x-koschei-secret: ${KOSCHEI_OWNER_SECRET}" \
+            "${KOSCHEI_BASE_URL}/api/v1/dossier/${REFERENCE_WALLET}" \
+            --dump-header actor-dossier.headers \
+            --output actor-dossier.json
+
+          case_ref="$(awk -F': ' 'tolower($1)=="x-koschei-case-ref" {gsub("\\r", "", $2); print $2}' actor-dossier.headers | tail -n1)"
+          public_path="$(awk -F': ' 'tolower($1)=="x-koschei-public-dossier" {gsub("\\r", "", $2); print $2}' actor-dossier.headers | tail -n1)"
+
+          if [ -z "${case_ref}" ] || [ -z "${public_path}" ]; then
+            echo "Dossier response did not include the immutable case headers." >&2
+            cat actor-dossier.headers >&2
+            exit 1
+          fi
+          if [ "${public_path}" != "/dossier/${case_ref}" ]; then
+            echo "Public dossier path does not match case reference." >&2
+            exit 1
+          fi
+
+          printf '%s' "${case_ref}" > case-ref.txt
+          printf '%s' "${public_path}" > public-path.txt
+          printf '%s%s' "${KOSCHEI_BASE_URL}" "${public_path}" > public-url.txt
+
+      - name: Verify immutable JSON independently
+        run: |
+          set -euo pipefail
+          node oss/verifier/typescript/verify-dossier.mjs ./actor-dossier.json
+
+      - name: Verify public dossier is unauthenticated and immutable
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_url="$(cat public-url.txt)"
+          case_ref="$(cat case-ref.txt)"
+          curl --fail --silent --show-error --max-time 30 \
+            --dump-header public-dossier.headers \
+            --output public-dossier.html \
+            "${public_url}"
+          grep -Fq "${case_ref}" public-dossier.html
+          grep -Eiq '^etag: ' public-dossier.headers
+
+      - name: Write reference record
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const acceptance = JSON.parse(fs.readFileSync('koschei/api/actor-engine-v1-yHCx.json', 'utf8'));
+          const dossier = JSON.parse(fs.readFileSync('actor-dossier.json', 'utf8'));
+          const record = {
+            version: 'koschei-production-reference-v1',
+            generated_at: new Date().toISOString(),
+            commit_sha: process.env.GITHUB_SHA,
+            base_url: process.env.KOSCHEI_BASE_URL,
+            wallet: process.env.REFERENCE_WALLET,
+            acceptance_hash: acceptance.acceptance_hash,
+            acceptance_status: acceptance.status,
+            case_ref: fs.readFileSync('case-ref.txt', 'utf8').trim(),
+            public_url: fs.readFileSync('public-url.txt', 'utf8').trim(),
+            bundle_hash: dossier.bundle_hash
+          };
+          fs.writeFileSync('production-reference.json', JSON.stringify(record, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `## Koschei actor reference case\n\n` +
+            `- Wallet: \`${record.wallet}\`\n` +
+            `- Acceptance: \`${record.acceptance_status}\`\n` +
+            `- Acceptance hash: \`${record.acceptance_hash}\`\n` +
+            `- Case: \`${record.case_ref}\`\n` +
+            `- Public dossier: ${record.public_url}\n` +
+            `- Bundle hash: \`${record.bundle_hash}\`\n`);
+          NODE
+
+      - name: Upload immutable reference artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: koschei-actor-reference-case
+          path: |
+            koschei/api/actor-engine-v1-yHCx.json
+            actor-dossier.json
+            actor-dossier.headers
+            public-dossier.html
+            public-dossier.headers
+            production-reference.json
+            case-ref.txt
+            public-path.txt
+            public-url.txt
+          if-no-files-found: error
+          retention-days: 90
