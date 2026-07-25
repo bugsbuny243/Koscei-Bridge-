@@ -61,7 +61,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 300*time.Second)
 	defer cancel()
 	store := services.NewActorDefenseStore(h.DB)
 	initial, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 100)
@@ -75,6 +75,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		liveEnabled = *input.LiveEvidence
 	}
 	coverage := actorDefenseLiveCoverage{Status: "stored_evidence_only", Limitations: []string{}}
+	distribution := actorAcceptanceEnrichmentCoverage{Status: "stored_evidence_only", Limitations: []string{}}
 	fundingOrigin := services.ActorFundingOrigin{
 		Wallet: wallet, Status: "stored_evidence_only", VerificationStatus: "unverified",
 		TrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only", Limitations: []string{},
@@ -82,6 +83,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 	fundingPersistence := "not_requested"
 	if liveEnabled {
 		fundingOrigin, fundingPersistence = h.collectActorFundingOrigin(ctx, store, wallet, network)
+		distribution = h.collectActorAcceptanceDistribution(ctx, store, initial)
 		coverage = h.collectActorDefenseLiveEvidence(ctx, store, initial)
 		if fundingPersistence == "failed" {
 			coverage.PersistenceFailures++
@@ -90,6 +92,10 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 			}
 			coverage.Limitations = append(coverage.Limitations, "Funding-origin evidence could not be persisted.")
 		}
+		if distribution.PersistenceFailures > 0 {
+			coverage.PersistenceFailures += distribution.PersistenceFailures
+			coverage.Limitations = append(coverage.Limitations, "One or more mint-specific recipient evidence rows could not be persisted.")
+		}
 	}
 
 	final, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 200)
@@ -97,6 +103,10 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Actor defense dossier could not be refreshed")
 		return
 	}
+	if final.Coverage == nil {
+		final.Coverage = map[string]any{}
+	}
+	final.Coverage["acceptance_distribution"] = distribution
 	actorVerdict := services.EvaluateEvidenceBoundActorDefenseRules(final.Track, final.Evidence)
 	verdictPersistence := "persisted"
 	if err := store.PersistRuleVerdict(ctx, final.Track, actorVerdict); err != nil {
@@ -105,7 +115,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		coverage.Limitations = append(coverage.Limitations, "Deterministic actor verdict could not be persisted.")
 	}
 
-	acceptance := services.EvaluateActorAcceptance(services.ActorAcceptanceInput{
+	acceptance := services.EvaluateOperationalActorAcceptance(services.ActorAcceptanceInput{
 		Wallet: wallet, Network: network, TargetKind: "wallet", Dossier: final,
 		FundingOrigin: fundingOrigin, Verdict: actorVerdict,
 	})
@@ -130,6 +140,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		"final_verdict_persistence": unifiedPersistence,
 		"final_verdict_history": unifiedHistory,
 		"actor_acceptance": acceptance,
+		"acceptance_distribution": distribution,
 		"full_scan_live_evidence": map[string]any{
 			"status": coverage.Status,
 			"wallet": wallet,
@@ -142,6 +153,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 			"dossier": final,
 			"funding_origin": fundingOrigin,
 			"funding_origin_persistence": fundingPersistence,
+			"distribution_enrichment": distribution,
 			"actor_live_evidence": coverage,
 			"live_evidence": coverage,
 			"evidence_graph": evidenceGraph,
@@ -175,6 +187,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		"network": network,
 		"target_classification": classification,
 		"live_evidence": coverage,
+		"distribution_enrichment": distribution,
 		"funding_origin_persistence": fundingPersistence,
 		"rule_verdict_persistence": verdictPersistence,
 		"final_verdict": unifiedVerdict,
