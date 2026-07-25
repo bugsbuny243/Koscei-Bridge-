@@ -78,14 +78,45 @@ jobs:
           exit 1
 
       - name: Run deterministic actor acceptance twice
+        id: actor_acceptance
+        continue-on-error: true
         working-directory: koschei/api
+        shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           node scripts/run-actor-acceptance.mjs \
             "${REFERENCE_WALLET}" \
-            actor-engine-v1-yHCx.json
+            actor-engine-v1-yHCx.json \
+            > actor-acceptance.stdout \
+            2> actor-acceptance.stderr
+          exit_code=$?
+          printf '%s\n' "${exit_code}" > actor-acceptance.exit-code
+          cat actor-acceptance.stdout
+          cat actor-acceptance.stderr >&2
+
+          if [ "${exit_code}" -ne 0 ]; then
+            node <<'NODE'
+          const fs = require('fs');
+          const stdout = fs.existsSync('actor-acceptance.stdout')
+            ? fs.readFileSync('actor-acceptance.stdout', 'utf8')
+            : '';
+          const stderr = fs.existsSync('actor-acceptance.stderr')
+            ? fs.readFileSync('actor-acceptance.stderr', 'utf8')
+            : '';
+          const lines = `${stderr}\n${stdout}`
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+          const message = lines.at(-1) || 'actor acceptance failed without a diagnostic message';
+          fs.writeFileSync('actor-acceptance-error.txt', `${message.slice(0, 2000)}\n`);
+          NODE
+          fi
+
+          exit "${exit_code}"
 
       - name: Export immutable dossier
+        if: steps.actor_acceptance.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -114,11 +145,13 @@ jobs:
           printf '%s%s' "${KOSCHEI_BASE_URL}" "${public_path}" > public-url.txt
 
       - name: Verify immutable JSON independently
+        if: steps.actor_acceptance.outcome == 'success'
         run: |
           set -euo pipefail
           node oss/verifier/typescript/verify-dossier.mjs ./actor-dossier.json
 
       - name: Verify public dossier is unauthenticated and immutable
+        if: steps.actor_acceptance.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -132,6 +165,7 @@ jobs:
           grep -Eiq '^etag: ' public-dossier.headers
 
       - name: Write reference record
+        if: steps.actor_acceptance.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -163,6 +197,7 @@ jobs:
           NODE
 
       - name: Upload immutable reference artifacts
+        if: steps.actor_acceptance.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: koschei-actor-reference-case
@@ -179,19 +214,40 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Upload actor acceptance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: koschei-actor-reference-diagnostics-${{ github.run_attempt }}
+          path: |
+            koschei/api/actor-acceptance.stdout
+            koschei/api/actor-acceptance.stderr
+            koschei/api/actor-acceptance-error.txt
+            koschei/api/actor-acceptance.exit-code
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Publish machine-readable reference status
         if: always()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
+          ACCEPTANCE_OUTCOME: ${{ steps.actor_acceptance.outcome }}
         run: |
           set -euo pipefail
           state="failure"
           description="Actor reference case failed; inspect the workflow run"
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-          if [ "${JOB_STATUS}" = "success" ]; then
+          if [ "${ACCEPTANCE_OUTCOME}" != "success" ]; then
+            if [ -s koschei/api/actor-acceptance-error.txt ]; then
+              error="$(tr '\n' ' ' < koschei/api/actor-acceptance-error.txt | sed -E 's/[[:space:]]+/ /g' | cut -c1-100)"
+              description="Acceptance failed: ${error}"
+            else
+              description="Actor acceptance failed without a diagnostic message"
+            fi
+          elif [ "${JOB_STATUS}" = "success" ]; then
             state="success"
             case_ref="$(cat case-ref.txt)"
             target_url="$(cat public-url.txt)"
@@ -216,3 +272,7 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
             -d "${payload}" > /dev/null
+
+      - name: Fail after publishing acceptance diagnostics
+        if: steps.actor_acceptance.outcome != 'success'
+        run: exit 1
