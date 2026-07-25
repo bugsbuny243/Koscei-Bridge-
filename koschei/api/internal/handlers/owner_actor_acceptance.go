@@ -61,7 +61,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 480*time.Second)
 	defer cancel()
 	store := services.NewActorDefenseStore(h.DB)
 	initial, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 100)
@@ -76,6 +76,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 	}
 	coverage := actorDefenseLiveCoverage{Status: "stored_evidence_only", Limitations: []string{}}
 	distribution := actorAcceptanceEnrichmentCoverage{Status: "stored_evidence_only", Limitations: []string{}}
+	liquidity := actorAcceptanceLiquidityCoverage{Status: "stored_evidence_only", Limitations: []string{}}
 	fundingOrigin := services.ActorFundingOrigin{
 		Wallet: wallet, Status: "stored_evidence_only", VerificationStatus: "unverified",
 		TrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only", Limitations: []string{},
@@ -84,6 +85,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 	if liveEnabled {
 		fundingOrigin, fundingPersistence = h.collectActorFundingOrigin(ctx, store, wallet, network)
 		distribution = h.collectActorAcceptanceDistribution(ctx, store, initial)
+		liquidity = h.collectActorAcceptanceLiquidity(ctx, store, initial)
 		coverage = h.collectActorDefenseLiveEvidence(ctx, store, initial)
 		if fundingPersistence == "failed" {
 			coverage.PersistenceFailures++
@@ -96,9 +98,13 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 			coverage.PersistenceFailures += distribution.PersistenceFailures
 			coverage.Limitations = append(coverage.Limitations, "One or more mint-specific recipient evidence rows could not be persisted.")
 		}
+		if liquidity.PersistenceFailures > 0 {
+			coverage.PersistenceFailures += liquidity.PersistenceFailures
+			coverage.Limitations = append(coverage.Limitations, "One or more explicit liquidity evidence rows could not be persisted.")
+		}
 	}
 
-	final, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 200)
+	final, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 300)
 	if err != nil {
 		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Actor defense dossier could not be refreshed")
 		return
@@ -107,6 +113,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		final.Coverage = map[string]any{}
 	}
 	final.Coverage["acceptance_distribution"] = distribution
+	final.Coverage["acceptance_liquidity"] = liquidity
 	actorVerdict := services.EvaluateEvidenceBoundActorDefenseRules(final.Track, final.Evidence)
 	verdictPersistence := "persisted"
 	if err := store.PersistRuleVerdict(ctx, final.Track, actorVerdict); err != nil {
@@ -141,6 +148,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		"final_verdict_history": unifiedHistory,
 		"actor_acceptance": acceptance,
 		"acceptance_distribution": distribution,
+		"acceptance_liquidity": liquidity,
 		"full_scan_live_evidence": map[string]any{
 			"status": coverage.Status,
 			"wallet": wallet,
@@ -154,6 +162,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 			"funding_origin": fundingOrigin,
 			"funding_origin_persistence": fundingPersistence,
 			"distribution_enrichment": distribution,
+			"liquidity_enrichment": liquidity,
 			"actor_live_evidence": coverage,
 			"live_evidence": coverage,
 			"evidence_graph": evidenceGraph,
@@ -188,6 +197,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		"target_classification": classification,
 		"live_evidence": coverage,
 		"distribution_enrichment": distribution,
+		"liquidity_enrichment": liquidity,
 		"funding_origin_persistence": fundingPersistence,
 		"rule_verdict_persistence": verdictPersistence,
 		"final_verdict": unifiedVerdict,
