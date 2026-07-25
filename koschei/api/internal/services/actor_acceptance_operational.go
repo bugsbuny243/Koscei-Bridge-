@@ -303,7 +303,20 @@ func operationalCrossTokenAcceptance(dossier ActorDefenseDossier) ActorAcceptanc
 	completed := actorAcceptanceCoverageInt(coverage, "mints_completed")
 	recipients := actorAcceptanceCoverageInt(coverage, "recipients_resolved")
 	comparisons := actorAcceptanceCoverageInt(coverage, "holder_comparisons")
-	if status == "no_creator_mints" || discovered < 2 {
+
+	// Never infer not_applicable from zero-valued counters when the worker did not
+	// run. Completion status is the authority for coverage semantics.
+	if status == "" || status == "not_investigated" || status == "stored_evidence_only" || status == "rpc_unavailable" || status == "database_unavailable" {
+		return actorAcceptanceItemWithLimit(
+			"AC-08",
+			"Creator and dominant-holder recurrence is found across tokens",
+			ActorAcceptanceNotInvestigated,
+			"not_investigated",
+			"Cross-token creator and holder recurrence was not investigated.",
+			actorAcceptanceCoverageLimitation(coverage, "Distribution and holder comparison coverage was not available."),
+		)
+	}
+	if status == "no_creator_mints" || (status == "complete" && discovered < 2) {
 		return actorAcceptanceItem(
 			"AC-08",
 			"Creator and dominant-holder recurrence is found across tokens",
@@ -321,16 +334,6 @@ func operationalCrossTokenAcceptance(dossier ActorDefenseDossier) ActorAcceptanc
 			"not_observed",
 			fmt.Sprintf("Cross-token comparison completed across %d creator mint(s); no owner-resolved recipient was a top holder across two or more creator mints.", completed),
 			[]ActorAcceptanceEvidenceLine{},
-		)
-	}
-	if status == "" || status == "not_investigated" || status == "stored_evidence_only" || status == "rpc_unavailable" {
-		return actorAcceptanceItemWithLimit(
-			"AC-08",
-			"Creator and dominant-holder recurrence is found across tokens",
-			ActorAcceptanceNotInvestigated,
-			"not_investigated",
-			"Cross-token creator and holder recurrence was not investigated.",
-			actorAcceptanceCoverageLimitation(coverage, "Distribution and holder comparison coverage was not available."),
 		)
 	}
 	return actorAcceptanceItemWithLimit(
