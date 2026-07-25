@@ -1,7 +1,10 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -40,16 +43,66 @@ func bindActorDefenseRuleEvidence(track ActorDefenseTrack, evidence []ActorDefen
 
 	actorRuleSortHits(triggered)
 	watch = actorRuleMergeHits(watch)
+	actorRuleSortHits(watch)
 	verdict.TriggeredRules = triggered
 	verdict.WatchFlags = watch
 	verdict.Grade, verdict.Verdict, verdict.DecisionPath = evidenceBoundActorDecision(triggered, watch)
-	verdict.Signed = false
+	verdict.Signed = evidenceBoundActorDecisionSignable(track, verdict)
 	verdict.Signature = ""
-	if verdict.Grade != "-" && len(triggered) > 0 {
-		verdict.Signed = true
-		verdict.Signature = signActorDefenseRuleVerdict(track, verdict)
+	if verdict.Signed {
+		verdict.Signature = signEvidenceBoundActorDecision(track, verdict)
 	}
 	return verdict
+}
+
+func evidenceBoundActorDecisionSignable(track ActorDefenseTrack, verdict ActorDefenseRuleVerdict) bool {
+	return strings.TrimSpace(track.Network) != "" &&
+		strings.TrimSpace(track.TargetKind) != "" &&
+		strings.TrimSpace(track.TargetID) != "" &&
+		strings.TrimSpace(verdict.RulesetVersion) != "" &&
+		strings.TrimSpace(verdict.Verdict) != "" &&
+		len(verdict.DecisionPath) > 0
+}
+
+// signEvidenceBoundActorDecision signs both letter grades and WITHHOLD states.
+// Watch flags and the decision path are included so watch_only,
+// single_observation and no_grade_trigger cannot collapse to the same signature.
+func signEvidenceBoundActorDecision(track ActorDefenseTrack, verdict ActorDefenseRuleVerdict) string {
+	parts := []string{
+		strings.TrimSpace(verdict.RulesetVersion),
+		strings.TrimSpace(track.Network),
+		strings.TrimSpace(track.TargetKind),
+		strings.TrimSpace(track.TargetID),
+		strings.TrimSpace(verdict.Grade),
+		strings.TrimSpace(verdict.Verdict),
+	}
+	parts = append(parts, evidenceBoundActorHitParts("triggered", verdict.TriggeredRules)...)
+	parts = append(parts, evidenceBoundActorHitParts("watch", verdict.WatchFlags)...)
+	for _, step := range verdict.DecisionPath {
+		parts = append(parts, "decision:"+strings.TrimSpace(step))
+	}
+	payload := strings.Join(parts, "|")
+	hash := sha256.Sum256([]byte(payload))
+	return "koschei-actor-decision:" + hex.EncodeToString(hash[:])
+}
+
+func evidenceBoundActorHitParts(prefix string, hits []ActorDefenseRuleHit) []string {
+	parts := make([]string, 0, len(hits))
+	for _, hit := range hits {
+		parts = append(parts, strings.Join([]string{
+			prefix,
+			strings.TrimSpace(hit.RuleID),
+			strings.TrimSpace(hit.Tier),
+			strings.TrimSpace(hit.EvidenceStatus),
+			strings.TrimSpace(hit.GradeCap),
+			strings.TrimSpace(hit.GradeEffect),
+			fmt.Sprint(hit.Count),
+			strings.Join(actorRuleUniqueStrings(hit.EvidenceKeys), ","),
+			strings.Join(actorRuleUniqueStrings(hit.Signatures), ","),
+		}, ":"))
+	}
+	sort.Strings(parts)
+	return parts
 }
 
 func actorDefenseEvidenceForRule(ruleID string, evidence []ActorDefenseEvidenceRecord) ([]string, []string) {
