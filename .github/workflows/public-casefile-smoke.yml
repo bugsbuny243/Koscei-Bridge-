@@ -1,0 +1,122 @@
+name: Public Casefile Smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/public-casefile-smoke.yml"
+      - "koschei/api/internal/handlers/public_case_page.go"
+      - "koschei/api/internal/handlers/public_case_page_test.go"
+      - "koschei/api/internal/http/dossier_routes.go"
+      - "koschei/api/public/css/public-casefile.css"
+      - "koschei/api/public/js/public-soc.js"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/public-casefile-smoke.yml"
+      - "koschei/api/internal/handlers/public_case_page.go"
+      - "koschei/api/internal/handlers/public_case_page_test.go"
+      - "koschei/api/internal/http/dossier_routes.go"
+      - "koschei/api/public/css/public-casefile.css"
+      - "koschei/api/public/js/public-soc.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-casefile-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate casefile contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate public client and static contract
+        run: |
+          set -euo pipefail
+          node --check koschei/api/public/js/public-soc.js
+          grep -Fq '/case/' koschei/api/public/js/public-soc.js
+          grep -Fq 'Ham dossier' koschei/api/public/js/public-soc.js
+          grep -Fq 'ARVIS evidence coverage' koschei/api/internal/handlers/public_case_page.go
+          grep -Fq 'Evidence timeline' koschei/api/internal/handlers/public_case_page.go
+          if grep -Eq '<script|<pre>' koschei/api/internal/handlers/public_case_page.go; then
+            echo 'Readable casefile contains raw/executable presentation tags.' >&2
+            exit 1
+          fi
+
+  production-smoke:
+    name: Verify readable casefile in production
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_URL: https://tradepigloball.co
+      CASE_REF: KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz
+    steps:
+      - name: Wait for and verify public casefile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=false
+          for attempt in $(seq 1 90); do
+            code="$(curl --silent --show-error --max-time 20 \
+              --dump-header casefile.headers \
+              --output casefile.html \
+              --write-out '%{http_code}' \
+              "${BASE_URL}/case/${CASE_REF}" || true)"
+            css_code="$(curl --silent --show-error --max-time 20 \
+              --output public-casefile.css \
+              --write-out '%{http_code}' \
+              "${BASE_URL}/css/public-casefile.css?v=1" || true)"
+            js_code="$(curl --silent --show-error --max-time 20 \
+              --output public-soc.js \
+              --write-out '%{http_code}' \
+              "${BASE_URL}/js/public-soc.js?v=1" || true)"
+
+            if [ "${code}" = "200" ] \
+               && [ "${css_code}" = "200" ] \
+               && [ "${js_code}" = "200" ] \
+               && grep -Fq "${CASE_REF}" casefile.html \
+               && grep -Fq 'Bu vaka ne söylüyor?' casefile.html \
+               && grep -Fq 'ARVIS evidence coverage' casefile.html \
+               && grep -Fq 'Evidence timeline' casefile.html \
+               && grep -Fq 'Ham teknik dossier' casefile.html \
+               && grep -Fq '.case-hero' public-casefile.css \
+               && grep -Fq 'Vakayı incele' public-soc.js \
+               && grep -Fq '/case/' public-soc.js \
+               && ! grep -Eq '<pre>|window\.|<script' casefile.html; then
+              ready=true
+              break
+            fi
+
+            echo "Casefile not ready (attempt ${attempt}/90; page=${code}; css=${css_code}; js=${js_code})."
+            sleep 10
+          done
+
+          if [ "${ready}" != true ]; then
+            echo 'Readable public casefile failed production verification.' >&2
+            cat casefile.headers >&2 || true
+            head -c 4000 casefile.html >&2 || true
+            exit 1
+          fi
+
+          grep -Eiq '^content-security-policy: ' casefile.headers
+          grep -Eiq '^cache-control: ' casefile.headers
+          echo "Verified ${BASE_URL}/case/${CASE_REF}"
+
+      - name: Upload production casefile evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-casefile-production-smoke
+          path: |
+            casefile.html
+            casefile.headers
+            public-casefile.css
+            public-soc.js
+          retention-days: 30
