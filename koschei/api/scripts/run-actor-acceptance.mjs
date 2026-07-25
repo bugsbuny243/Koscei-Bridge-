@@ -111,7 +111,9 @@ if (firstHash !== secondHash) {
     second_hash: secondHash,
     differences: collectDiffs(first.acceptance, second.acceptance)
   };
-  await writeFile("actor-acceptance-diff.json", `${JSON.stringify(diagnostic, null, 2)}\n`, "utf8");
+  const encodedDiagnostic = `${JSON.stringify(diagnostic, null, 2)}\n`;
+  await writeFile("actor-acceptance-diff.json", encodedDiagnostic, "utf8");
+  process.stderr.write(`[actor-acceptance-diff]\n${encodedDiagnostic}`);
   throw new Error(`deterministic acceptance mismatch: ${firstHash} != ${secondHash}`);
 }
 
