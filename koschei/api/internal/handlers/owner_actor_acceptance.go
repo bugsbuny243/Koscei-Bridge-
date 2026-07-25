@@ -131,7 +131,10 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		"", wallet, services.TokenMarketSnapshot{}, services.HolderIntelligence{},
 		services.HolderClusterAnalysis{}, services.CreatorSellAcceleration{}, now,
 	)
-	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior)
+	unifiedVerdict := services.FinalizeUnifiedRadarVerdictContract(
+		wallet,
+		services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior),
+	)
 	unifiedPersistence, unifiedHistory := h.persistUnifiedRadarVerdict(ctx, h.DB, network, "wallet", wallet, unifiedVerdict, behavior)
 	evidenceGraph := services.BuildActorEvidenceGraph(final)
 	report := map[string]any{
@@ -181,12 +184,9 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	attachCanonicalWalletIntegrationCoverage(report)
-	snapshotPersistence := "not_signed"
-	if unifiedVerdict.Signed && strings.TrimSpace(unifiedVerdict.Signature) != "" {
-		snapshotPersistence = "persisted_or_existing"
-		if err := h.persistDossierSourceSnapshot(ctx, report); err != nil {
-			snapshotPersistence = "failed"
-		}
+	snapshotPersistence := "persisted_or_existing"
+	if err := h.persistDossierSourceSnapshot(ctx, report); err != nil {
+		snapshotPersistence = "failed"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true,
