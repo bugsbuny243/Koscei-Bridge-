@@ -89,10 +89,18 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	w.Header().Set("ETag", `"`+bundle.BundleHash+`"`)
+	// The global CSP writer normally rewrites HTML and correctly disables
+	// caching because a fresh nonce changes the response bytes. This document is
+	// deliberately byte-stable and contains no inline executable/style surface,
+	// so committing it through the writer's safe passthrough preserves the
+	// immutable ETag without weakening CSP for any other page.
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
 	_ = dossierHTML.Execute(w, data)
 }
 
 // The dossier document deliberately contains no inline script, inline style or
-// javascript URL. That keeps the rendered bytes stable after the global CSP
-// middleware and allows the immutable bundle ETag/cache contract to survive.
+// javascript URL. Its only presentation dependency is a same-origin static CSS
+// file allowed by the base CSP.
 var dossierHTML = template.Must(template.New("dossier").Parse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Koschei {{.Bundle.CaseRef}}</title><link rel="stylesheet" href="/css/dossier-print.css?v=1"></head><body><header><h1>{{if .TR}}Koschei Teknik Kanıt Çıktısı{{else}}{{if .Actor}}Koschei Actor Evidence Case{{else}}Koschei Technical Evidence Export{{end}}{{end}}</h1><div class="meta"><div class="box mono">{{.Bundle.CaseRef}}</div><div class="box mono">{{.Bundle.BundleHash}}</div></div></header>{{range .Sections}}<section><h2>{{.Title}}</h2><pre>{{.Content}}</pre></section>{{end}}<footer>{{.Bundle.CaseRef}} · Koschei evidence-first export</footer></body></html>`))
