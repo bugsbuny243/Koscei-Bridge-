@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 45
     env:
       KOSCHEI_BASE_URL: https://tradepigloball.co
-      KOSCHEI_OWNER_SECRET: ${{ secrets.KOSCHEI_OWNER_SECRET || secrets.OWNER_SECRET }}
+      KOSCHEI_OWNER_SECRET: ${{ secrets.KOSCHEI_OWNER_SECRET }}
       REFERENCE_WALLET: yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${KOSCHEI_OWNER_SECRET:-}" ]; then
-            echo "Missing repository secret: set KOSCHEI_OWNER_SECRET or OWNER_SECRET." >&2
+            echo "Missing repository secret: set KOSCHEI_OWNER_SECRET under repository Actions secrets." >&2
             exit 1
           fi
 
