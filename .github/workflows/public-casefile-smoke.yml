@@ -6,8 +6,11 @@ on:
       - ".github/workflows/public-casefile-smoke.yml"
       - "koschei/api/internal/handlers/public_case_page.go"
       - "koschei/api/internal/handlers/public_case_page_test.go"
+      - "koschei/api/internal/handlers/public_case_summary.go"
+      - "koschei/api/internal/handlers/public_case_summary_test.go"
       - "koschei/api/internal/http/dossier_routes.go"
       - "koschei/api/public/css/public-casefile.css"
+      - "koschei/api/public/css/public-case-summary.css"
       - "koschei/api/public/js/public-soc.js"
   push:
     branches: [main]
@@ -15,8 +18,11 @@ on:
       - ".github/workflows/public-casefile-smoke.yml"
       - "koschei/api/internal/handlers/public_case_page.go"
       - "koschei/api/internal/handlers/public_case_page_test.go"
+      - "koschei/api/internal/handlers/public_case_summary.go"
+      - "koschei/api/internal/handlers/public_case_summary_test.go"
       - "koschei/api/internal/http/dossier_routes.go"
       - "koschei/api/public/css/public-casefile.css"
+      - "koschei/api/public/css/public-case-summary.css"
       - "koschei/api/public/js/public-soc.js"
   workflow_dispatch:
 
@@ -30,7 +36,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate casefile contract
+    name: Validate plain-language case contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,16 +48,21 @@ jobs:
           set -euo pipefail
           node --check koschei/api/public/js/public-soc.js
           grep -Fq '/case/' koschei/api/public/js/public-soc.js
-          grep -Fq 'Ham dossier' koschei/api/public/js/public-soc.js
-          grep -Fq 'ARVIS evidence coverage' koschei/api/internal/handlers/public_case_page.go
-          grep -Fq 'Evidence timeline' koschei/api/internal/handlers/public_case_page.go
-          if grep -Eq '<script|<pre>' koschei/api/internal/handlers/public_case_page.go; then
-            echo 'Readable casefile contains raw/executable presentation tags.' >&2
+          grep -Fq 'Anlaşılır özeti aç' koschei/api/public/js/public-soc.js
+          grep -Fq 'currentCases' koschei/api/public/js/public-soc.js
+          grep -Fq 'NE BULDUK?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'NE BULAMADIK?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'NE YAPMALI?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'güvenli anlamına gelmez' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'ARVIS evidence coverage' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'Evidence timeline' koschei/api/internal/handlers/public_case_summary.go
+          if grep -Eq '<script|<pre>' koschei/api/internal/handlers/public_case_summary.go; then
+            echo 'Plain-language summary contains raw/executable presentation tags.' >&2
             exit 1
           fi
 
   production-smoke:
-    name: Verify readable casefile in production
+    name: Verify plain-language case in production
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
@@ -60,7 +71,7 @@ jobs:
       BASE_URL: https://tradepigloball.co
       CASE_REF: KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz
     steps:
-      - name: Wait for and verify public casefile
+      - name: Wait for and verify public case summary
         shell: bash
         run: |
           set -euo pipefail
@@ -72,9 +83,9 @@ jobs:
               --write-out '%{http_code}' \
               "${BASE_URL}/case/${CASE_REF}" || true)"
             css_code="$(curl --silent --show-error --max-time 20 \
-              --output public-casefile.css \
+              --output public-case-summary.css \
               --write-out '%{http_code}' \
-              "${BASE_URL}/css/public-casefile.css?v=1" || true)"
+              "${BASE_URL}/css/public-case-summary.css?v=1" || true)"
             js_code="$(curl --silent --show-error --max-time 20 \
               --output public-soc.js \
               --write-out '%{http_code}' \
@@ -84,24 +95,28 @@ jobs:
                && [ "${css_code}" = "200" ] \
                && [ "${js_code}" = "200" ] \
                && grep -Fq "${CASE_REF}" casefile.html \
-               && grep -Fq 'Bu vaka ne söylüyor?' casefile.html \
+               && grep -Fq 'NE BULDUK?' casefile.html \
+               && grep -Fq 'NE BULAMADIK?' casefile.html \
+               && grep -Fq 'NE YAPMALI?' casefile.html \
+               && grep -Fq 'İNCELEME GEREKLİ' casefile.html \
+               && grep -Fq 'güvenli anlamına gelmez' casefile.html \
                && grep -Fq 'ARVIS evidence coverage' casefile.html \
                && grep -Fq 'Evidence timeline' casefile.html \
                && grep -Fq 'Ham teknik dossier' casefile.html \
-               && grep -Fq '.case-hero' public-casefile.css \
-               && grep -Fq 'Vakayı incele' public-soc.js \
-               && grep -Fq '/case/' public-soc.js \
+               && grep -Fq '.summary-hero' public-case-summary.css \
+               && grep -Fq 'Anlaşılır özeti aç' public-soc.js \
+               && grep -Fq 'currentCases' public-soc.js \
                && ! grep -Eq '<pre>|window\.|<script' casefile.html; then
               ready=true
               break
             fi
 
-            echo "Casefile not ready (attempt ${attempt}/90; page=${code}; css=${css_code}; js=${js_code})."
+            echo "Plain-language case not ready (attempt ${attempt}/90; page=${code}; css=${css_code}; js=${js_code})."
             sleep 10
           done
 
           if [ "${ready}" != true ]; then
-            echo 'Readable public casefile failed production verification.' >&2
+            echo 'Plain-language public case failed production verification.' >&2
             cat casefile.headers >&2 || true
             head -c 4000 casefile.html >&2 || true
             exit 1
@@ -111,7 +126,7 @@ jobs:
           grep -Eiq '^cache-control: ' casefile.headers
           echo "Verified ${BASE_URL}/case/${CASE_REF}"
 
-      - name: Upload production casefile evidence
+      - name: Upload production case evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -119,7 +134,7 @@ jobs:
           path: |
             casefile.html
             casefile.headers
-            public-casefile.css
+            public-case-summary.css
             public-soc.js
           if-no-files-found: warn
           retention-days: 30
@@ -133,11 +148,11 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Readable public casefile verification failed'
+          description='Plain-language public case verification failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description="Verified readable public case ${CASE_REF}"
+            description="Verified plain-language public case ${CASE_REF}"
             target_url="${BASE_URL}/case/${CASE_REF}"
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
