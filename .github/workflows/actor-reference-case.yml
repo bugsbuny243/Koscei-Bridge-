@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: actor-reference-case-${{ github.ref }}
@@ -177,3 +178,41 @@ jobs:
             public-url.txt
           if-no-files-found: error
           retention-days: 90
+
+      - name: Publish machine-readable reference status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          state="failure"
+          description="Actor reference case failed; inspect the workflow run"
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "${JOB_STATUS}" = "success" ]; then
+            state="success"
+            case_ref="$(cat case-ref.txt)"
+            target_url="$(cat public-url.txt)"
+            description="Verified public actor dossier ${case_ref}"
+          fi
+
+          export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
+          payload="$(node <<'NODE'
+          process.stdout.write(JSON.stringify({
+            state: process.env.STATE,
+            context: 'koschei/actor-reference',
+            description: process.env.DESCRIPTION.slice(0, 140),
+            target_url: process.env.TARGET_URL
+          }));
+          NODE
+          )"
+
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -d "${payload}" > /dev/null
