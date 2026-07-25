@@ -97,7 +97,7 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Actor defense dossier could not be refreshed")
 		return
 	}
-	actorVerdict := services.EvaluateActorDefenseRules(final.Track, final.Evidence)
+	actorVerdict := services.EvaluateEvidenceBoundActorDefenseRules(final.Track, final.Evidence)
 	verdictPersistence := "persisted"
 	if err := store.PersistRuleVerdict(ctx, final.Track, actorVerdict); err != nil {
 		verdictPersistence = "failed"
