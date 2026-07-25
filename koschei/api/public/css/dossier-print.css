@@ -1,0 +1,11 @@
+@page{size:A4;margin:16mm}
+body{font:12px/1.5 Arial,sans-serif;color:#111;background:#fff;margin:0}
+h1{font-size:24px}
+h2{font-size:16px;border-bottom:2px solid;padding-bottom:4px}
+header,section{margin-bottom:18px;break-inside:avoid}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.box,pre{border:1px solid #888;padding:9px}
+.mono,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;font-size:9px}
+footer{position:fixed;bottom:0;font-size:9px;color:#555}
+@media(max-width:640px){.meta{grid-template-columns:1fr}}

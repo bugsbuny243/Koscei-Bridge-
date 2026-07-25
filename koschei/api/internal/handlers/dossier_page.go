@@ -89,7 +89,18 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	w.Header().Set("ETag", `"`+bundle.BundleHash+`"`)
+	// The global CSP writer normally rewrites HTML and correctly disables
+	// caching because a fresh nonce changes the response bytes. This document is
+	// deliberately byte-stable and contains no inline executable/style surface,
+	// so committing it through the writer's safe passthrough preserves the
+	// immutable ETag without weakening CSP for any other page.
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
 	_ = dossierHTML.Execute(w, data)
 }
 
-var dossierHTML = template.Must(template.New("dossier").Parse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Koschei {{.Bundle.CaseRef}}</title><style>@page{size:A4;margin:16mm}body{font:12px/1.5 Arial;color:#111;margin:0}h1{font-size:24px}h2{font-size:16px;border-bottom:2px solid;padding-bottom:4px}header,section{margin-bottom:18px;break-inside:avoid}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}.box,pre{border:1px solid #888;padding:9px}.mono,pre{font-family:monospace;overflow-wrap:anywhere}pre{white-space:pre-wrap;font-size:9px}footer{position:fixed;bottom:0;font-size:9px;color:#555}@media(max-width:640px){.meta{grid-template-columns:1fr}}</style></head><body><header><h1>{{if .TR}}Koschei Teknik Kanıt Çıktısı{{else}}{{if .Actor}}Koschei Actor Evidence Case{{else}}Koschei Technical Evidence Export{{end}}{{end}}</h1><div class="meta"><div class="box mono">{{.Bundle.CaseRef}}</div><div class="box mono">{{.Bundle.BundleHash}}</div></div></header>{{range .Sections}}<section><h2>{{.Title}}</h2><pre>{{.Content}}</pre></section>{{end}}<footer>{{.Bundle.CaseRef}} · Koschei evidence-first export</footer></body></html>`))
+// The dossier document deliberately contains no inline script, inline style or
+// javascript URL. Its only presentation dependency is a same-origin static CSS
+// file allowed by the base CSP.
+var dossierHTML = template.Must(template.New("dossier").Parse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Koschei {{.Bundle.CaseRef}}</title><link rel="stylesheet" href="/css/dossier-print.css?v=1"></head><body><header><h1>{{if .TR}}Koschei Teknik Kanıt Çıktısı{{else}}{{if .Actor}}Koschei Actor Evidence Case{{else}}Koschei Technical Evidence Export{{end}}{{end}}</h1><div class="meta"><div class="box mono">{{.Bundle.CaseRef}}</div><div class="box mono">{{.Bundle.BundleHash}}</div></div></header>{{range .Sections}}<section><h2>{{.Title}}</h2><pre>{{.Content}}</pre></section>{{end}}<footer>{{.Bundle.CaseRef}} · Koschei evidence-first export</footer></body></html>`))
