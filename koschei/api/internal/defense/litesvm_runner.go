@@ -39,15 +39,15 @@ func ProcessWorkerJobWithRuntime(ctx context.Context, db *sql.DB, job WorkerJob,
 		return nil, err
 	}
 	return map[string]any{
-		"action": job.Action,
-		"attempt": attempt,
-		"worker_execution": true,
-		"network_access": false,
-		"dependency_resolution": false,
+		"action":                   job.Action,
+		"attempt":                  attempt,
+		"worker_execution":         true,
+		"network_access":           false,
+		"dependency_resolution":    false,
 		"wallet_material_accessed": false,
-		"mainnet_rpc_accessed": false,
+		"mainnet_rpc_accessed":     false,
 		"mainnet_transaction_sent": false,
-		"verdict_authority": false,
+		"verdict_authority":        false,
 	}, nil
 }
 
@@ -77,6 +77,14 @@ func ExecuteLiteSVMWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, run
 	}
 
 	startedAt := time.Now().UTC()
+	dependencies, err := AuthorizeOfflineDependencyRuntime(ctx, db, runtime.WorkerID, runtime.WorkerImageDigest, job.MaterializationRef)
+	if err != nil {
+		return persistLiteSVMStartRejection(ctx, db, plan, job.Attempts, startedAt, OfflineDependencyTerminationReason(err), err)
+	}
+	if err := BindOfflineDependencyAuthorizationToPlan(&plan, dependencies); err != nil {
+		return persistLiteSVMStartRejection(ctx, db, plan, job.Attempts, startedAt, OfflineDependencyTerminationReason(err), err)
+	}
+
 	inputRoot, err := os.MkdirTemp(workRoot, "input-")
 	if err != nil {
 		return persistLiteSVMStartRejection(ctx, db, plan, job.Attempts, startedAt, "sandbox_unavailable", err)
@@ -103,6 +111,10 @@ func ExecuteLiteSVMWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, run
 	args, err := buildLiteSVMBubblewrapArgs(plan, inputRoot, scratchRoot, environment, false)
 	if err != nil {
 		return persistLiteSVMStartRejection(ctx, db, plan, job.Attempts, startedAt, "sandbox_unavailable", err)
+	}
+	args, err = AppendOfflineDependencySandboxArgs(args, dependencies)
+	if err != nil {
+		return persistLiteSVMStartRejection(ctx, db, plan, job.Attempts, startedAt, OfflineDependencyTerminationReason(err), err)
 	}
 
 	maxDuration := time.Duration(plan.MaxDurationSeconds) * time.Second
@@ -154,6 +166,7 @@ func ExecuteLiteSVMWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, run
 	}
 	limitations := []string{
 		"The command ran in a Bubblewrap network/PID namespace and the worker reported a configured no-egress deployment boundary; application evidence cannot independently prove the external deployment policy.",
+		"The exact offline dependency inventory and read-only Cargo vendor/config mounts are retained in immutable sandbox-policy evidence.",
 		"CPU, memory and writable-storage ceilings also depend on the separately reviewed worker/container resource policy.",
 		"A single deterministic harness result does not establish exploitability, reachability, asset impact, proof-of-fix or program safety.",
 	}
@@ -161,19 +174,19 @@ func ExecuteLiteSVMWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, run
 		limitations = append(limitations, "Process output exceeded the immutable profile bound and was truncated deterministically.")
 	}
 	attempt, persistErr := PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: job.Attempts,
-		Status: status,
-		StartedAt: startedAt,
-		CompletedAt: completedAt,
-		ExitCode: &exitCode,
+		AttemptNumber:     job.Attempts,
+		Status:            status,
+		StartedAt:         startedAt,
+		CompletedAt:       completedAt,
+		ExitCode:          &exitCode,
 		TerminationReason: terminationReason,
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		StdoutTruncated: stdout.Truncated(),
-		StderrTruncated: stderr.Truncated(),
-		SourceExecuted: true,
-		HarnessExecuted: true,
-		Limitations: limitations,
+		Stdout:            stdout.String(),
+		Stderr:            stderr.String(),
+		StdoutTruncated:   stdout.Truncated(),
+		StderrTruncated:   stderr.Truncated(),
+		SourceExecuted:    true,
+		HarnessExecuted:   true,
+		Limitations:       limitations,
 	})
 	if persistErr != nil {
 		return LiteSVMExecutionAttempt{}, persistErr
@@ -295,6 +308,12 @@ func buildLiteSVMEnvironment(plan LiteSVMExecutionPlan, scratchRoot string) ([]s
 			return nil, err
 		}
 	}
+	// Bubblewrap overlays the immutable Cargo configuration on this placeholder.
+	// Creating it inside the bounded scratch tree avoids relying on implicit file
+	// creation behavior at the namespace boundary.
+	if err := os.WriteFile(filepath.Join(scratchRoot, "cargo-home", "config.toml"), nil, 0o600); err != nil {
+		return nil, err
+	}
 	if len(plan.EnvironmentTemplate) == 0 || plan.EnvironmentHash == "" || plan.EnvironmentHash != hashValue(plan.EnvironmentTemplate) {
 		return nil, errors.New("LiteSVM environment template evidence is invalid")
 	}
@@ -374,19 +393,19 @@ func validateLiteSVMWorkRoot(value string) (string, error) {
 
 func persistLiteSVMRejectedProcessResult(ctx context.Context, db *sql.DB, plan LiteSVMExecutionPlan, attemptNumber int, startedAt, completedAt time.Time, exitCode int, stdout, stderr *boundedExecutionBuffer, reason string) (LiteSVMExecutionAttempt, error) {
 	return PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: attemptNumber,
-		Status: "rejected",
-		StartedAt: startedAt,
-		CompletedAt: completedAt,
-		ExitCode: &exitCode,
+		AttemptNumber:     attemptNumber,
+		Status:            "rejected",
+		StartedAt:         startedAt,
+		CompletedAt:       completedAt,
+		ExitCode:          &exitCode,
 		TerminationReason: reason,
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		StdoutTruncated: stdout.Truncated(),
-		StderrTruncated: stderr.Truncated(),
-		SourceExecuted: false,
-		HarnessExecuted: false,
-		Limitations: []string{"Bubblewrap failed before the fixed Cargo command could be treated as launched."},
+		Stdout:            stdout.String(),
+		Stderr:            stderr.String(),
+		StdoutTruncated:   stdout.Truncated(),
+		StderrTruncated:   stderr.Truncated(),
+		SourceExecuted:    false,
+		HarnessExecuted:   false,
+		Limitations:       []string{"Bubblewrap failed before the fixed Cargo command could be treated as launched."},
 	})
 }
 
@@ -396,14 +415,14 @@ func persistLiteSVMStartRejection(ctx context.Context, db *sql.DB, plan LiteSVME
 		limitations = append(limitations, boundedFailureText(cause.Error()))
 	}
 	return PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: attemptNumber,
-		Status: "rejected",
-		StartedAt: startedAt,
-		CompletedAt: time.Now().UTC(),
+		AttemptNumber:     attemptNumber,
+		Status:            "rejected",
+		StartedAt:         startedAt,
+		CompletedAt:       time.Now().UTC(),
 		TerminationReason: reason,
-		SourceExecuted: false,
-		HarnessExecuted: false,
-		Limitations: limitations,
+		SourceExecuted:    false,
+		HarnessExecuted:   false,
+		Limitations:       limitations,
 	})
 }
 

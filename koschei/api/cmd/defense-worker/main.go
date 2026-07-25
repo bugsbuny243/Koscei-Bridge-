@@ -44,15 +44,17 @@ func main() {
 	}
 	workerImageDigest := strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_WORKER_IMAGE_DIGEST"))
 	runtime := defense.LiteSVMWorkerRuntime{
-		WorkerID: workerID,
-		WorkerImageDigest: workerImageDigest,
-		WorkerEnabled: workerEnabled,
-		SandboxEnabled: sandboxEnabled,
+		WorkerID:                workerID,
+		WorkerImageDigest:       workerImageDigest,
+		WorkRoot:                strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_WORK_ROOT")),
+		WorkerEnabled:           workerEnabled,
+		SandboxEnabled:          sandboxEnabled,
 		HarnessExecutionEnabled: envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false),
 		LiteSVMExecutionEnabled: envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false),
-		NetworkIsolated: envBool("KOSCHEI_DEFENSE_NETWORK_ISOLATED", false),
+		NetworkIsolated:         envBool("KOSCHEI_DEFENSE_NETWORK_ISOLATED", false),
 	}
-	if runtime.HarnessExecutionEnabled || runtime.LiteSVMExecutionEnabled {
+	phase12CEnabled := runtime.HarnessExecutionEnabled || runtime.LiteSVMExecutionEnabled
+	if phase12CEnabled {
 		if !runtime.HarnessExecutionEnabled || !runtime.LiteSVMExecutionEnabled {
 			log.Fatal("both Phase 12C execution gates must be true together")
 		}
@@ -62,17 +64,35 @@ func main() {
 		if workerImageDigest == "" {
 			log.Fatal("KOSCHEI_DEFENSE_WORKER_IMAGE_DIGEST is required before Phase 12C execution")
 		}
+		if runtime.WorkRoot == "" {
+			log.Fatal("KOSCHEI_DEFENSE_WORK_ROOT is required before Phase 12C execution")
+		}
 	}
 
 	attestCtx, attestCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	attestations, attestErr := defense.AttestPinnedLocalToolchain(attestCtx, conn, workerID)
 	attestCancel()
 	if attestErr != nil {
+		if phase12CEnabled {
+			log.Fatalf("defense worker toolchain attestation failed while Phase 12C is enabled: %v", attestErr)
+		}
 		log.Printf("defense worker toolchain attestation failed: %v", attestErr)
 	} else {
 		for _, item := range attestations {
 			log.Printf("defense worker toolchain tool=%s available=%t pinned=%t version=%q image=%q", item.ToolName, item.Available, item.Pinned, item.VersionOutput, item.WorkerImageDigest)
 		}
+	}
+
+	if phase12CEnabled {
+		dependencyCtx, dependencyCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		dependencyEvidence, dependencyErr := defense.AttestOfflineDependencyRuntimeStore(dependencyCtx, conn, workerID, workerImageDigest)
+		dependencyCancel()
+		if dependencyErr != nil {
+			log.Fatalf("defense worker offline dependency attestation failed: %v", dependencyErr)
+		}
+		log.Printf("defense worker offline dependencies verified ref=%s inventory=%s vendor=%s files=%d bytes=%d image=%s",
+			dependencyEvidence.InventoryRef, dependencyEvidence.InventoryHash, dependencyEvidence.VendorTreeHash,
+			dependencyEvidence.FileCount, dependencyEvidence.TotalBytes, dependencyEvidence.WorkerImageDigest)
 	}
 
 	pollInterval := envDurationSeconds("KOSCHEI_DEFENSE_WORKER_POLL_SECONDS", 2, 1, 60)
