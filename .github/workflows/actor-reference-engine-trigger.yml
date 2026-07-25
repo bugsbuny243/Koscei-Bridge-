@@ -16,6 +16,7 @@ on:
 permissions:
   contents: read
   actions: write
+  statuses: write
 
 concurrency:
   group: trigger-actor-reference-main
@@ -32,6 +33,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          publish_status() {
+            export STATE="$1" DESCRIPTION="$2" TARGET_URL="$3"
+            status_payload="$(node <<'NODE'
+          process.stdout.write(JSON.stringify({
+            state: process.env.STATE,
+            context: 'koschei/actor-reference-dispatch',
+            description: process.env.DESCRIPTION.slice(0, 140),
+            target_url: process.env.TARGET_URL
+          }));
+          NODE
+            )"
+            curl --fail --silent --show-error \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+              -d "${status_payload}" > /dev/null
+          }
+
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          trap 'publish_status failure "Actor reference dispatch failed" "${run_url}"' ERR
+          publish_status pending "Dispatching canonical Actor Reference Case" "${run_url}"
+
           payload='{"ref":"main"}'
           curl --fail --silent --show-error \
             -X POST \
@@ -40,4 +66,7 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/workflows/actor-reference-case.yml/dispatches" \
             -d "${payload}"
+
+          trap - ERR
+          publish_status success "Canonical Actor Reference Case dispatched" "${run_url}"
           echo "Canonical Actor Reference Case dispatched for main."
