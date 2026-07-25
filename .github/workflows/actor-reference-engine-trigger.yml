@@ -8,6 +8,8 @@ on:
       - "koschei/api/internal/handlers/owner_actor_acceptance.go"
       - "koschei/api/internal/handlers/actor_acceptance_enrichment.go"
       - "koschei/api/internal/handlers/actor_acceptance_enrichment_test.go"
+      - "koschei/api/internal/handlers/actor_acceptance_liquidity.go"
+      - "koschei/api/internal/handlers/actor_acceptance_liquidity_test.go"
       - "koschei/api/internal/services/actor_acceptance*.go"
       - "koschei/api/internal/services/actor_defense_evidence_bound*.go"
       - "koschei/api/internal/services/actor_defense_rules*.go"
