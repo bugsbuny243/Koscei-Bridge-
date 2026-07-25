@@ -23,6 +23,7 @@ func collectProtocolLPControlEvidence(ctx context.Context, rpc solanaRPCCall, ne
 		Status: services.LPControlUnverified, PoolAddress: strings.TrimSpace(pool), TokenMint: strings.TrimSpace(mint),
 		CreatorWallet: strings.TrimSpace(creator),
 		ObservedAt:    time.Now().UTC(), LargestLPHolders: []services.LPHolderEvidence{},
+		LockedPositions: []services.CLMMLockedPositionEvidence{},
 		LiquidityMovements: []services.LiquidityMovementEvidence{}, EvidenceKeys: []string{}, Limitations: []string{},
 	}
 	if rpc == nil || out.PoolAddress == "" {
@@ -43,6 +44,8 @@ func collectProtocolLPControlEvidence(ctx context.Context, rpc solanaRPCCall, ne
 		return out
 	}
 	switch out.PoolProgram {
+	case raydiumCLMMProgram:
+		return decodeRaydiumCLMMLPControl(ctx, rpc, network, out, data)
 	case pumpSwapProgram:
 		return decodePumpSwapLPControl(ctx, rpc, network, creator, out, data)
 	case meteoraDAMMV2Program:

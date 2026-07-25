@@ -20,7 +20,7 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 	attachCreatorReportProjections(report)
 
 	if _, attached := report["defense_agent_runtime"]; !attached {
-		target := strings.TrimSpace(dossierString(report["target"]))
+		target := dossierSnapshotTarget(report)
 		network := firstNonEmptyString(dossierString(report["network"]), "solana-mainnet")
 		generatedAt := dossierParseTime(dossierString(report["generated_at"]))
 		if generatedAt.IsZero() {
@@ -32,7 +32,7 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 	// Diagnostics mutate the exact canonical report before hashing. Wallet targets
 	// never fabricate token-only ARVIS coverage; token targets keep the complete
 	// token + actor reachability contract.
-	if strings.EqualFold(strings.TrimSpace(dossierString(report["analysis_scope"])), "wallet_actor_investigation") {
+	if isActorDossierReport(report) {
 		attachCanonicalWalletIntegrationCoverage(report)
 	} else {
 		attachCanonicalInvestigationDiagnostics(report)
@@ -42,11 +42,11 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 		return nil
 	}
 	final := dossierMap(report["final_verdict"])
-	signature := strings.TrimSpace(dossierString(final["signature"]))
-	if signature == "" || !dossierBool(final["signed"]) {
+	verdictSignature := strings.TrimSpace(dossierString(final["signature"]))
+	if verdictSignature == "" || !dossierBool(final["signed"]) {
 		return nil
 	}
-	target := strings.TrimSpace(dossierString(report["target"]))
+	target := dossierSnapshotTarget(report)
 	if target == "" {
 		return nil
 	}
@@ -64,19 +64,45 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 		return err
 	}
 	sourceHash := dossierSHA256(canonical)
+	snapshotIdentity := dossierSnapshotIdentity(report, verdictSignature)
 	verdictID := strings.TrimSpace(dossierString(final["id"]))
+	if verdictID == "" && isActorDossierReport(report) {
+		verdictID = verdictSignature
+	}
 	_, err = h.DB.ExecContext(ctx, `
 		INSERT INTO dossier_source_snapshots
 		(mint,network,verdict_id,verdict_signature,ruleset_version,produced_at,source_hash,canonical_source,source_payload)
 		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9::jsonb)
 		ON CONFLICT (verdict_signature) DO NOTHING`,
-		target, network, verdictID, signature, ruleset, producedAt.UTC(), sourceHash, canonical, string(canonical),
+		target, network, verdictID, snapshotIdentity, ruleset, producedAt.UTC(), sourceHash, canonical, string(canonical),
 	)
 	return err
 }
 
+func dossierSnapshotTarget(report map[string]any) string {
+	if isActorDossierReport(report) {
+		if wallet := strings.TrimSpace(dossierString(report["wallet"])); wallet != "" {
+			return wallet
+		}
+	}
+	return strings.TrimSpace(dossierString(report["target"]))
+}
+
+func dossierSnapshotIdentity(report map[string]any, verdictSignature string) string {
+	verdictSignature = strings.TrimSpace(verdictSignature)
+	if !isActorDossierReport(report) {
+		return verdictSignature
+	}
+	acceptanceHash := strings.TrimSpace(dossierString(dossierMap(report["actor_acceptance"])["acceptance_hash"]))
+	if acceptanceHash == "" {
+		return verdictSignature
+	}
+	identity := dossierSHA256([]byte(verdictSignature + "\n" + acceptanceHash))
+	return "actor-case:" + strings.TrimPrefix(identity, "sha256:")
+}
+
 func attachCreatorReportProjections(report map[string]any) {
-	if report == nil || strings.EqualFold(strings.TrimSpace(dossierString(report["analysis_scope"])), "wallet_actor_investigation") {
+	if report == nil || isActorDossierReport(report) {
 		return
 	}
 	actor := dossierMap(report["actor_investigation"])

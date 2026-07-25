@@ -60,6 +60,10 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 	if err := store.PersistRuleVerdict(ctx, final.Track, actorVerdict); err != nil {
 		actorVerdictPersistence = "failed"
 	}
+	acceptance := services.EvaluateActorAcceptance(services.ActorAcceptanceInput{
+		Wallet: wallet, Network: network, TargetKind: "wallet", Dossier: final,
+		FundingOrigin: funding, Verdict: actorVerdict,
+	})
 	now := time.Now().UTC()
 	behavior := services.EvaluateUnifiedRadarBehavior(
 		"", wallet, services.TokenMarketSnapshot{}, services.HolderIntelligence{},
@@ -79,6 +83,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 		"final_verdict": unifiedVerdict,
 		"final_verdict_persistence": unifiedPersistence,
 		"final_verdict_history": unifiedHistory,
+		"actor_acceptance": acceptance,
 		"full_scan_live_evidence": map[string]any{
 			"status": coverage.Status,
 			"wallet": wallet,

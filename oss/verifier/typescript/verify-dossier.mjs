@@ -9,6 +9,8 @@ export const DOSSIER_ROW_IDS = [
   'track','creator-sell','dominant-exit','liq-move','program','metadata','claim','mev','distribution','signed'
 ];
 
+export const ACTOR_DOSSIER_ROW_IDS = Array.from({ length: 10 }, (_, index) => `AC-${String(index + 1).padStart(2, '0')}`);
+
 const sha256Hex = value => createHash('sha256').update(value).digest('hex');
 const strings = value => Array.isArray(value) ? value.map(item => String(item ?? '').trim()).filter(Boolean) : [];
 const positiveSlots = value => Array.isArray(value) ? value.map(Number).filter(item => Number.isSafeInteger(item) && item > 0) : [];
@@ -30,14 +32,44 @@ function base32NoPadding(bytes) {
   return output;
 }
 
-export function dossierCaseRef(mint, signature) {
-  const digest = createHash('sha256').update(`${String(mint ?? '').trim()}\n${String(signature ?? '').trim()}`).digest();
+export function dossierCaseRef(targetID, snapshotIdentity) {
+  const digest = createHash('sha256').update(`${String(targetID ?? '').trim()}\n${String(snapshotIdentity ?? '').trim()}`).digest();
   return `KD1-${base32NoPadding(digest.subarray(0, 20)).toLowerCase()}`;
 }
 
 function refsPresent(refs) {
   refs = refs && typeof refs === 'object' && !Array.isArray(refs) ? refs : {};
   return strings(refs.wallets).length + strings(refs.accounts).length + strings(refs.signatures).length + positiveSlots(refs.slots).length + strings(refs.evidence_keys).length > 0;
+}
+
+function verifyRows(bundle, errors) {
+  const targetKind = String(bundle.target?.kind ?? (bundle.token?.mint ? 'token_mint' : '')).trim();
+  const expectedIDs = targetKind === 'wallet' ? ACTOR_DOSSIER_ROW_IDS : DOSSIER_ROW_IDS;
+  const rows = bundle.verdict_card?.signal_rows;
+  if (!Array.isArray(rows) || rows.length !== expectedIDs.length) {
+    errors.push('signal_row_count_mismatch');
+    return;
+  }
+  const ids = rows.map(row => String(row?.id ?? ''));
+  if (new Set(ids).size !== ids.length) errors.push('duplicate_signal_row_id');
+  for (let index = 0; index < expectedIDs.length; index++) {
+    if (ids[index] !== expectedIDs[index]) errors.push(`signal_row_order_mismatch:${index}`);
+  }
+  for (const row of rows) {
+    const state = String(row?.state ?? '');
+    if ((state === 'verified' || state === 'observed') && !refsPresent(row?.refs)) {
+      errors.push(`populated_signal_missing_refs:${String(row?.id ?? '')}`);
+    }
+    if (targetKind === 'wallet') {
+      const acceptanceStatus = String(row?.acceptance_status ?? '');
+      if (!['pass', 'fail', 'not_investigated'].includes(acceptanceStatus)) {
+        errors.push(`actor_acceptance_status_invalid:${String(row?.id ?? '')}`);
+      }
+      if (!Array.isArray(row?.limitations)) {
+        errors.push(`actor_limitations_missing:${String(row?.id ?? '')}`);
+      }
+    }
+  }
 }
 
 export function verifyDossierObject(bundle) {
@@ -51,26 +83,19 @@ export function verifyDossierObject(bundle) {
   const actualHash = `sha256:${sha256Hex(Buffer.from(JSON.stringify(body), 'utf8'))}`;
   if (expectedHash !== actualHash) errors.push('bundle_hash_mismatch');
 
-  const mint = bundle.token?.mint;
+  const targetID = bundle.target?.id || bundle.token?.mint;
   const verdictSignature = bundle.verification?.verdict_signature || bundle.verdict?.signature;
-  const expectedCaseRef = dossierCaseRef(mint, verdictSignature);
+  const snapshotIdentity = bundle.verification?.snapshot_identity || verdictSignature;
+  const expectedCaseRef = dossierCaseRef(targetID, snapshotIdentity);
   if (bundle.case_ref !== expectedCaseRef) errors.push('case_ref_mismatch');
 
-  const rows = bundle.verdict_card?.signal_rows;
-  if (!Array.isArray(rows) || rows.length !== DOSSIER_ROW_IDS.length) {
-    errors.push('signal_row_count_mismatch');
-  } else {
-    const ids = rows.map(row => String(row?.id ?? ''));
-    if (new Set(ids).size !== ids.length) errors.push('duplicate_signal_row_id');
-    for (let index = 0; index < DOSSIER_ROW_IDS.length; index++) {
-      if (ids[index] !== DOSSIER_ROW_IDS[index]) errors.push(`signal_row_order_mismatch:${index}`);
-    }
-    for (const row of rows) {
-      const state = String(row?.state ?? '');
-      if ((state === 'verified' || state === 'observed') && !refsPresent(row?.refs)) {
-        errors.push(`populated_signal_missing_refs:${String(row?.id ?? '')}`);
-      }
-    }
+  verifyRows(bundle, errors);
+
+  const targetKind = String(bundle.target?.kind ?? (bundle.token?.mint ? 'token_mint' : '')).trim();
+  if (targetKind === 'wallet') {
+    if (!bundle.actor_acceptance || typeof bundle.actor_acceptance !== 'object') errors.push('actor_acceptance_missing');
+    if (!Array.isArray(bundle.evidence_log)) errors.push('actor_evidence_log_missing');
+    if (!bundle.section_limitations || typeof bundle.section_limitations !== 'object') errors.push('actor_section_limitations_missing');
   }
 
   if (!Array.isArray(bundle.limitations) || bundle.limitations.length < 3) errors.push('limitations_missing');

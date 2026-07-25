@@ -3,6 +3,9 @@ package handlers
 import "strings"
 
 func buildDossierSignalRows(report map[string]any) []DossierSignalRow {
+	if isActorDossierReport(report) {
+		return buildActorDossierSignalRows(report)
+	}
 	launch := report["launch_forensics"]
 	holder := report["holder_intelligence"]
 	market := report["market"]

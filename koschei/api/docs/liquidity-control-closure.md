@@ -7,6 +7,7 @@ Koschei collects protocol-specific pool evidence during full token investigation
 | Protocol | Pool identity | Vault reserves | Control model | Lock / burn evidence |
 |---|---|---|---|---|
 | Raydium CPMM | Pinned program owner and decoded pool account | Direct token-account balances | Fungible LP token | LP supply, resolved largest LP holders, burn-address share, creator-observed share, pinned Burn & Earn custody share, supported time-lock programs |
+| Raydium CLMM | Pinned Anchor `PoolState` owner/discriminator and decoded mints/vaults | Direct token-account balances | Position NFT | Pool-filtered Burn & Earn lock states, linked personal-position accounts, and program-authority custody of the original position NFT |
 | Raydium AMM v4 | Pinned program owner and fixed LiquidityStateV4 fields | Direct token-account balances | Fungible LP token | LP supply, resolved largest LP holders, burn-address share, creator-observed share, supported time-lock programs; Burn & Earn permanent-lock status is not asserted for this model |
 | PumpSwap | Official Pool account layout and canonical pool index | Direct base/quote vault balances plus separately labelled virtual quote reserve | Fungible LP token | LP supply, resolved largest LP holders, burn-address share, creator-observed share |
 | Meteora DAMM v2 | Official Pool account layout | Direct token A/B vault balances | Position NFT | Pool liquidity and permanent-locked liquidity are read from the pool account; no LP mint is invented |
@@ -30,9 +31,29 @@ The report stores the summed `locked_lp_amount`, `locked_lp_share_pct`, contribu
 
 Burn-address share and Burn & Earn custody share remain separate evidence. When both are observed, both numeric fields are retained; the overall control status reports the verified permanent custody surface. The percentage is explicitly bounded to LP token accounts returned by the largest-account RPC and is not a claim that every LP account was enumerated.
 
-Raydium AMM v4 is deliberately excluded from this permanent-lock rule. Raydium CLMM uses position NFTs rather than fungible LP tokens and requires a separate position-account and locked-position implementation. Until that collector exists, Koschei must not reuse the CPMM rule or infer CLMM lock state from a market label.
+Raydium AMM v4 is deliberately excluded from this permanent-lock rule. Streamflow remains a separate time-lock model. A Streamflow-owned authority is reported as `locked_until` only when its schedule account yields a conservatively decoded future unlock time; it is never promoted through the Raydium CPMM permanent-lock rule.
 
-Streamflow remains a separate time-lock model. A Streamflow-owned authority is reported as `locked_until` only when its schedule account yields a conservatively decoded future unlock time; it is never promoted through the Raydium CPMM permanent-lock rule.
+## Raydium CLMM position-NFT permanent lock evidence
+
+Raydium CLMM does not expose a fungible LP mint. Koschei therefore uses a separate position-NFT proof chain and reports one position as `VERIFIED` only when all of the following match:
+
+1. the pool account is owned by the pinned Raydium CLMM program and matches the Anchor `PoolState` discriminator;
+2. the pool contains the investigated mint and exposes decoded token/quote vaults;
+3. a current account owned by the pinned Raydium Burn & Earn program matches the exact locked-position account size, discriminator and pool field;
+4. the lock state references a personal-position account owned by the pinned Raydium CLMM program;
+5. that personal-position account matches the exact `PersonalPositionState` layout and the same pool;
+6. the linked locked NFT token account is owned by SPL Token or Token-2022;
+7. the token account contains exactly one zero-decimal token whose mint equals the personal position's NFT mint;
+8. the token-account authority equals the pinned Raydium CLMM lock-authority account;
+9. the tick range is ordered and the position liquidity integer is positive.
+
+The current lock-state query is bounded in three ways: exact program, exact account size and pool-ID memcmp filter. A data slice returns only the fields needed for verification. More than 200 matching records causes fail-closed `limit_exceeded`; results are never silently truncated. Linked accounts are fetched in batches of at most 100.
+
+The report stores each verified lock-state account, original position owner, personal-position account, position NFT mint, custody token account, program authority, fee NFT mint, tick range, raw position-liquidity integer and evidence keys. Invalid linked records are excluded and make enumeration `verified_partial_bounded_filter` rather than being treated as verified.
+
+`PoolState.liquidity` is active-tick liquidity, not total liquidity across every CLMM position. Koschei therefore reports pool active-liquidity raw and summed verified locked-position liquidity raw as separate integers. It does **not** calculate or display a locked-liquidity percentage for CLMM.
+
+No current matching lock state means only that no current Burn & Earn lock account was observed for that pool at the reported RPC context. It is not a historical unlock statement.
 
 ## Recent liquidity movement window
 
@@ -64,21 +85,15 @@ Each accepted row contains:
 - evidence key;
 - verification status (`VERIFIED`).
 
-For fungible-LP pools the report also exposes the largest resolved LP-token
-account, its owner wallet, observed supply share and classification (holder,
-creator, burn address or supported locker). Raydium CPMM decodes the pool
-creator and quote mint from the pinned pool layout, so quote-vault reserve
-deltas and creator-signer relations are evaluated against the actual pool
-accounts rather than a market label. Burn and owner shares remain explicitly
-bounded to the LP token accounts returned by Solana's largest-account RPC.
+For fungible-LP pools the report also exposes the largest resolved LP-token account, its owner wallet, observed supply share and classification (holder, creator, burn address or supported locker). Raydium CPMM decodes the pool creator and quote mint from the pinned pool layout, so quote-vault reserve deltas and creator-signer relations are evaluated against actual pool accounts rather than a market label. Burn and owner shares remain explicitly bounded to the LP token accounts returned by Solana's largest-account RPC.
 
 No observed row means only that no qualifying trace was found in the bounded window. It is not a claim about older activity.
 
 ## Position-based ownership boundary
 
-Meteora DAMM v2 and DLMM do not use a fungible LP mint as the ownership source. Koschei therefore does not display LP supply, burn percentage or creator LP share for these models.
+Raydium CLMM, Meteora DAMM v2 and Meteora DLMM do not use a fungible LP mint as the ownership source. Koschei therefore does not display LP supply, burn percentage or creator LP share for these models.
 
-DAMM v2 permanent-lock liquidity is a pool-level field and can be reported directly. Enumerating every current DAMM v2 or DLMM position owner requires a separately bounded position index. This PR does not issue an unbounded `getProgramAccounts` request during a user scan and does not infer position ownership from pool data.
+DAMM v2 permanent-lock liquidity is a pool-level field and can be reported directly. Raydium CLMM current locked positions are queried through the narrowly filtered Burn & Earn account index described above. Meteora DAMM v2 and DLMM current owner enumeration remains withheld because no equivalent bounded index is used during a user scan.
 
 Recent add/remove transaction signers are still shown as observed transaction actors. They are not asserted to be the current owner of every position.
 
