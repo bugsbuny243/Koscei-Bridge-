@@ -9,17 +9,59 @@ import (
 // EvaluateOperationalActorAcceptance applies the canonical ten-item contract
 // and then tightens operational checks whose success depends on collector
 // completion metadata. A stored false value is not treated as a completed
-// comparison unless the holder source itself was available.
+// comparison unless the holder source itself was available. A signed,
+// evidence-bounded WITHHOLD is a valid deterministic verdict, not a letter
+// grade or safety label.
 func EvaluateOperationalActorAcceptance(input ActorAcceptanceInput) ActorAcceptanceResult {
 	result := EvaluateActorAcceptance(input)
 	for index := range result.Items {
-		if result.Items[index].ID != "AC-06" {
-			continue
+		switch result.Items[index].ID {
+		case "AC-06":
+			result.Items[index] = operationalRecipientHolderAcceptance(input.Dossier)
+		case "AC-10":
+			result.Items[index] = operationalActorVerdictAcceptance(input.Verdict)
 		}
-		result.Items[index] = operationalRecipientHolderAcceptance(input.Dossier)
 	}
 	recountOperationalActorAcceptance(&result)
 	return result
+}
+
+func operationalActorVerdictAcceptance(verdict ActorDefenseRuleVerdict) ActorAcceptanceItem {
+	view := actorAcceptanceVerdict(verdict)
+	if view.Grade != "-" {
+		return actorAcceptanceVerdictItem(view)
+	}
+	allowed := map[string]bool{
+		"single_observation": true,
+		"watch_only":         true,
+		"no_grade_trigger":   true,
+	}
+	if view.Signed && strings.TrimSpace(view.Signature) != "" &&
+		strings.TrimSpace(view.RulesetVersion) != "" &&
+		allowed[strings.TrimSpace(view.Verdict)] && len(view.DecisionPath) > 0 {
+		return actorAcceptanceItem(
+			"AC-10",
+			"One evidence-backed deterministic verdict is produced",
+			ActorAcceptancePass,
+			"withheld",
+			"Deterministic verdict: WITHHOLD — available evidence does not justify a letter grade; absence of evidence is not an A grade.",
+			[]ActorAcceptanceEvidenceLine{{
+				Kind: "control", EvidenceKey: "actor-withhold:" + view.Signature,
+				Relation: "deterministic_withhold_verdict", SourceWallet: "koschei-rules",
+				DestinationWallet: "actor-case", Amount: "not_applicable",
+				Program: "koschei-actor-defense-rules", VerificationStatus: "withheld",
+				EvidenceSource: view.RulesetVersion,
+			}},
+		)
+	}
+	return actorAcceptanceItemWithLimit(
+		"AC-10",
+		"One evidence-backed deterministic verdict is produced",
+		ActorAcceptanceFail,
+		"not_verified",
+		"Neither an evidence-backed letter grade nor a signed deterministic WITHHOLD satisfies the actor ruleset contract.",
+		"WITHHOLD requires a target-bound signature, ruleset version, explicit verdict state and deterministic decision path.",
+	)
 }
 
 func operationalRecipientHolderAcceptance(dossier ActorDefenseDossier) ActorAcceptanceItem {
