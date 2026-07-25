@@ -99,6 +99,8 @@ async function runAcceptance() {
   return payload;
 }
 
+// Two live passes are intentional: persistent chain evidence must be idempotent,
+// so an unchanged evidence set produces the same acceptance hash.
 const first = await runAcceptance();
 const second = await runAcceptance();
 const firstHash = String(first.acceptance.acceptance_hash);
