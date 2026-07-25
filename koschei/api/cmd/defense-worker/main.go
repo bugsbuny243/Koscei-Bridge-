@@ -16,10 +16,12 @@ import (
 
 func main() {
 	log.Printf("koschei defense worker starting")
-	if !envBool("KOSCHEI_DEFENSE_WORKER_ENABLED", false) {
+	workerEnabled := envBool("KOSCHEI_DEFENSE_WORKER_ENABLED", false)
+	sandboxEnabled := envBool("KOSCHEI_DEFENSE_SANDBOX_ENABLED", false)
+	if !workerEnabled {
 		log.Fatal("KOSCHEI_DEFENSE_WORKER_ENABLED is false")
 	}
-	if !envBool("KOSCHEI_DEFENSE_SANDBOX_ENABLED", false) {
+	if !sandboxEnabled {
 		log.Fatal("KOSCHEI_DEFENSE_SANDBOX_ENABLED must be true on the isolated worker")
 	}
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
@@ -40,6 +42,28 @@ func main() {
 		}
 		workerID = "defense-" + host
 	}
+	workerImageDigest := strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_WORKER_IMAGE_DIGEST"))
+	runtime := defense.LiteSVMWorkerRuntime{
+		WorkerID: workerID,
+		WorkerImageDigest: workerImageDigest,
+		WorkerEnabled: workerEnabled,
+		SandboxEnabled: sandboxEnabled,
+		HarnessExecutionEnabled: envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false),
+		LiteSVMExecutionEnabled: envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false),
+		NetworkIsolated: envBool("KOSCHEI_DEFENSE_NETWORK_ISOLATED", false),
+	}
+	if runtime.HarnessExecutionEnabled || runtime.LiteSVMExecutionEnabled {
+		if !runtime.HarnessExecutionEnabled || !runtime.LiteSVMExecutionEnabled {
+			log.Fatal("both Phase 12C execution gates must be true together")
+		}
+		if !runtime.NetworkIsolated {
+			log.Fatal("KOSCHEI_DEFENSE_NETWORK_ISOLATED must be true before Phase 12C execution")
+		}
+		if workerImageDigest == "" {
+			log.Fatal("KOSCHEI_DEFENSE_WORKER_IMAGE_DIGEST is required before Phase 12C execution")
+		}
+	}
+
 	attestCtx, attestCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	attestations, attestErr := defense.AttestPinnedLocalToolchain(attestCtx, conn, workerID)
 	attestCancel()
@@ -54,7 +78,7 @@ func main() {
 	pollInterval := envDurationSeconds("KOSCHEI_DEFENSE_WORKER_POLL_SECONDS", 2, 1, 60)
 	jobTimeout := envDurationSeconds("KOSCHEI_DEFENSE_WORKER_JOB_TIMEOUT_SECONDS", 900, 30, 3600)
 	lease := jobTimeout + 60*time.Second
-	log.Printf("defense worker ready id=%s poll=%s job_timeout=%s", workerID, pollInterval, jobTimeout)
+	log.Printf("defense worker ready id=%s poll=%s job_timeout=%s litesvm_enabled=%t network_isolated=%t", workerID, pollInterval, jobTimeout, runtime.LiteSVMExecutionEnabled, runtime.NetworkIsolated)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -79,7 +103,7 @@ func main() {
 		}
 		log.Printf("defense worker claimed job=%s action=%s attempt=%d/%d", job.JobRef, job.Action, job.Attempts, job.MaxAttempts)
 		jobCtx, jobCancel := context.WithTimeout(ctx, jobTimeout)
-		result, processErr := defense.ProcessWorkerJob(jobCtx, conn, job, true)
+		result, processErr := defense.ProcessWorkerJobWithRuntime(jobCtx, conn, job, runtime)
 		jobCancel()
 		if processErr != nil {
 			if err := defense.FailWorkerJob(context.Background(), conn, job, workerID, "worker_execution_failed", processErr.Error()); err != nil {

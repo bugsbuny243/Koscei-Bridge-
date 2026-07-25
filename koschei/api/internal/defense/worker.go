@@ -16,41 +16,45 @@ const (
 )
 
 type WorkerJobRequest struct {
-	Action            string            `json:"action"`
-	SourceArtifactRef string            `json:"source_artifact_ref"`
-	FindingRef        string            `json:"finding_ref,omitempty"`
-	PatchRef          string            `json:"patch_ref,omitempty"`
-	Commands          []string          `json:"commands"`
-	Replacements      map[string]string `json:"replacements,omitempty"`
-	MaxAttempts       int               `json:"max_attempts,omitempty"`
+	Action             string            `json:"action"`
+	SourceArtifactRef  string            `json:"source_artifact_ref,omitempty"`
+	ProfileRef         string            `json:"profile_ref,omitempty"`
+	MaterializationRef string            `json:"materialization_ref,omitempty"`
+	FindingRef         string            `json:"finding_ref,omitempty"`
+	PatchRef           string            `json:"patch_ref,omitempty"`
+	Commands           []string          `json:"commands,omitempty"`
+	Replacements       map[string]string `json:"replacements,omitempty"`
+	MaxAttempts        int               `json:"max_attempts,omitempty"`
 }
 
 type WorkerJob struct {
-	JobRef            string            `json:"job_ref"`
-	Action            string            `json:"action"`
-	ProgramID         string            `json:"program_id"`
-	Network           string            `json:"network"`
-	SourceArtifactRef string            `json:"source_artifact_ref"`
-	FindingRef        string            `json:"finding_ref,omitempty"`
-	PatchRef          string            `json:"patch_ref,omitempty"`
-	Commands          []string          `json:"commands"`
-	Replacements      map[string]string `json:"replacements,omitempty"`
-	RequestHash       string            `json:"request_hash"`
-	Status            string            `json:"status"`
-	Progress          int               `json:"progress"`
-	Attempts          int               `json:"attempts"`
-	MaxAttempts       int               `json:"max_attempts"`
-	WorkerID          string            `json:"worker_id,omitempty"`
-	LeaseExpiresAt    *time.Time         `json:"lease_expires_at,omitempty"`
-	Result            map[string]any    `json:"result,omitempty"`
-	ResultHash        string            `json:"result_hash,omitempty"`
-	ErrorCode         string            `json:"error_code,omitempty"`
-	ErrorMessage      string            `json:"error_message,omitempty"`
-	QueuedAt          time.Time         `json:"queued_at"`
-	StartedAt         *time.Time         `json:"started_at,omitempty"`
-	CompletedAt       *time.Time         `json:"completed_at,omitempty"`
-	FailedAt          *time.Time         `json:"failed_at,omitempty"`
-	UpdatedAt         time.Time         `json:"updated_at"`
+	JobRef             string            `json:"job_ref"`
+	Action             string            `json:"action"`
+	ProgramID          string            `json:"program_id"`
+	Network            string            `json:"network"`
+	SourceArtifactRef  string            `json:"source_artifact_ref"`
+	ProfileRef         string            `json:"profile_ref,omitempty"`
+	MaterializationRef string            `json:"materialization_ref,omitempty"`
+	FindingRef         string            `json:"finding_ref,omitempty"`
+	PatchRef           string            `json:"patch_ref,omitempty"`
+	Commands           []string          `json:"commands,omitempty"`
+	Replacements       map[string]string `json:"replacements,omitempty"`
+	RequestHash        string            `json:"request_hash"`
+	Status             string            `json:"status"`
+	Progress           int               `json:"progress"`
+	Attempts           int               `json:"attempts"`
+	MaxAttempts        int               `json:"max_attempts"`
+	WorkerID           string            `json:"worker_id,omitempty"`
+	LeaseExpiresAt     *time.Time         `json:"lease_expires_at,omitempty"`
+	Result             map[string]any    `json:"result,omitempty"`
+	ResultHash         string            `json:"result_hash,omitempty"`
+	ErrorCode          string            `json:"error_code,omitempty"`
+	ErrorMessage       string            `json:"error_message,omitempty"`
+	QueuedAt           time.Time         `json:"queued_at"`
+	StartedAt          *time.Time         `json:"started_at,omitempty"`
+	CompletedAt        *time.Time         `json:"completed_at,omitempty"`
+	FailedAt           *time.Time         `json:"failed_at,omitempty"`
+	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
 func EnqueueWorkerJob(ctx context.Context, db *sql.DB, request WorkerJobRequest) (WorkerJob, error) {
@@ -59,13 +63,83 @@ func EnqueueWorkerJob(ctx context.Context, db *sql.DB, request WorkerJobRequest)
 	}
 	request.Action = strings.ToLower(strings.TrimSpace(request.Action))
 	request.SourceArtifactRef = strings.TrimSpace(request.SourceArtifactRef)
+	request.ProfileRef = strings.TrimSpace(request.ProfileRef)
+	request.MaterializationRef = strings.TrimSpace(request.MaterializationRef)
 	request.FindingRef = strings.TrimSpace(request.FindingRef)
 	request.PatchRef = strings.TrimSpace(request.PatchRef)
-	if request.Action != WorkerActionVerifyBundle {
+
+	var artifact Artifact
+	var err error
+	switch request.Action {
+	case WorkerActionVerifyBundle:
+		artifact, err = validateVerifyBundleWorkerRequest(ctx, db, &request)
+	case WorkerActionRunLiteSVMHarness:
+		artifact, err = validateLiteSVMWorkerRequest(ctx, db, &request)
+	default:
 		return WorkerJob{}, errors.New("unsupported defense worker action")
 	}
+	if err != nil {
+		return WorkerJob{}, err
+	}
+
+	payload := map[string]any{
+		"action": request.Action,
+		"source_artifact_ref": artifact.ArtifactRef,
+		"profile_ref": request.ProfileRef,
+		"materialization_ref": request.MaterializationRef,
+		"finding_ref": request.FindingRef,
+		"patch_ref": request.PatchRef,
+		"commands": request.Commands,
+		"replacements": request.Replacements,
+	}
+	requestHash := hashJSON(payload)
+	now := time.Now().UTC()
+	identityPayload := map[string]any{"request_hash": requestHash, "queued_at": now.UnixNano()}
+	if request.Action == WorkerActionVerifyBundle {
+		payload["nonce"] = now.UnixNano()
+		requestHash = hashJSON(payload)
+		identityPayload = payload
+	}
+	jobRef := prefixedID("KDW1-", identityPayload)
+	request.SourceArtifactRef = artifact.ArtifactRef
+	requestRaw, _ := json.Marshal(request)
+
+	_, err = db.ExecContext(ctx, `INSERT INTO defense_worker_jobs
+		(job_ref,action,program_id,network,source_artifact_ref,finding_ref,patch_ref,request_payload,request_hash,status,progress,attempts,max_attempts,queued_at,updated_at,created_by)
+		VALUES($1,$2,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),$8::jsonb,$9,'queued',0,0,$10,$11,$11,'owner')
+		ON CONFLICT DO NOTHING`,
+		jobRef, request.Action, artifact.ProgramID, artifact.Network, artifact.ArtifactRef, request.FindingRef, request.PatchRef,
+		string(requestRaw), requestHash, request.MaxAttempts, now)
+	if err != nil {
+		return WorkerJob{}, err
+	}
+	if request.Action == WorkerActionRunLiteSVMHarness {
+		var activeRef string
+		lookupErr := db.QueryRowContext(ctx, `SELECT job_ref FROM defense_worker_jobs
+			WHERE action=$1 AND request_hash=$2 AND status IN ('queued','running')
+			ORDER BY queued_at ASC LIMIT 1`, WorkerActionRunLiteSVMHarness, requestHash).Scan(&activeRef)
+		if lookupErr != nil {
+			return WorkerJob{}, lookupErr
+		}
+		if activeRef != jobRef {
+			return GetWorkerJob(ctx, db, activeRef)
+		}
+	}
+	job := WorkerJob{JobRef: jobRef, Action: request.Action, ProgramID: artifact.ProgramID, Network: artifact.Network,
+		SourceArtifactRef: artifact.ArtifactRef, ProfileRef: request.ProfileRef, MaterializationRef: request.MaterializationRef,
+		FindingRef: request.FindingRef, PatchRef: request.PatchRef, Commands: request.Commands, Replacements: request.Replacements,
+		RequestHash: requestHash, Status: "queued", Progress: 0, Attempts: 0, MaxAttempts: request.MaxAttempts,
+		QueuedAt: now, UpdatedAt: now}
+	_ = appendWorkerEvent(ctx, db, jobRef, "queued", "", map[string]any{"request_hash": requestHash})
+	return job, nil
+}
+
+func validateVerifyBundleWorkerRequest(ctx context.Context, db *sql.DB, request *WorkerJobRequest) (Artifact, error) {
 	if request.SourceArtifactRef == "" {
-		return WorkerJob{}, errors.New("source_artifact_ref is required")
+		return Artifact{}, errors.New("source_artifact_ref is required")
+	}
+	if request.ProfileRef != "" || request.MaterializationRef != "" {
+		return Artifact{}, errors.New("verification job cannot include harness execution references")
 	}
 	if request.MaxAttempts <= 0 || request.MaxAttempts > 5 {
 		request.MaxAttempts = 2
@@ -75,57 +149,74 @@ func EnqueueWorkerJob(ctx context.Context, db *sql.DB, request WorkerJobRequest)
 	}
 	for path, content := range request.Replacements {
 		if _, err := safeRelativePath(path); err != nil {
-			return WorkerJob{}, err
+			return Artifact{}, err
 		}
 		if len(content) > 300000 {
-			return WorkerJob{}, errors.New("worker replacement file exceeds 300 KiB")
+			return Artifact{}, errors.New("worker replacement file exceeds 300 KiB")
 		}
 	}
 	if len(request.Replacements) > 20 {
-		return WorkerJob{}, errors.New("too many worker replacement files")
+		return Artifact{}, errors.New("too many worker replacement files")
 	}
 	if len(request.Commands) == 0 || len(request.Commands) > 5 {
-		return WorkerJob{}, errors.New("one to five verification commands are required")
+		return Artifact{}, errors.New("one to five verification commands are required")
 	}
 	for _, command := range request.Commands {
 		if _, ok := allowedCommand(command); !ok {
-			return WorkerJob{}, fmt.Errorf("command is not allowlisted: %s", command)
+			return Artifact{}, fmt.Errorf("command is not allowlisted: %s", command)
 		}
 	}
 	artifact, err := LoadArtifact(ctx, db, request.SourceArtifactRef)
 	if err != nil {
-		return WorkerJob{}, err
+		return Artifact{}, err
 	}
 	if artifact.ArtifactType != "source_bundle" && artifact.ArtifactType != "synthetic_source_bundle" {
-		return WorkerJob{}, errors.New("defense worker requires a source bundle artifact")
+		return Artifact{}, errors.New("defense worker requires a source bundle artifact")
 	}
-	payload := map[string]any{
-		"action": request.Action,
-		"source_artifact_ref": request.SourceArtifactRef,
-		"finding_ref": request.FindingRef,
-		"patch_ref": request.PatchRef,
-		"commands": request.Commands,
-		"replacements": request.Replacements,
-		"nonce": time.Now().UTC().UnixNano(),
+	return artifact, nil
+}
+
+func validateLiteSVMWorkerRequest(ctx context.Context, db *sql.DB, request *WorkerJobRequest) (Artifact, error) {
+	if request.ProfileRef == "" || request.MaterializationRef == "" {
+		return Artifact{}, errors.New("profile_ref and materialization_ref are required")
 	}
-	requestHash := hashJSON(payload)
-	jobRef := prefixedID("KDW1-", payload)
-	requestRaw, _ := json.Marshal(request)
-	now := time.Now().UTC()
-	_, err = db.ExecContext(ctx, `INSERT INTO defense_worker_jobs
-		(job_ref,action,program_id,network,source_artifact_ref,finding_ref,patch_ref,request_payload,request_hash,status,progress,attempts,max_attempts,queued_at,updated_at,created_by)
-		VALUES($1,$2,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),$8::jsonb,$9,'queued',0,0,$10,$11,$11,'owner')`,
-		jobRef, request.Action, artifact.ProgramID, artifact.Network, artifact.ArtifactRef, request.FindingRef, request.PatchRef,
-		string(requestRaw), requestHash, request.MaxAttempts, now)
+	if request.SourceArtifactRef != "" || request.FindingRef != "" || request.PatchRef != "" || len(request.Commands) != 0 || len(request.Replacements) != 0 {
+		return Artifact{}, errors.New("LiteSVM execution accepts only profile_ref and materialization_ref")
+	}
+	profile, err := LoadHarnessExecutionProfile(ctx, db, request.ProfileRef)
 	if err != nil {
-		return WorkerJob{}, err
+		return Artifact{}, errors.New("harness execution profile not found")
 	}
-	job := WorkerJob{JobRef: jobRef, Action: request.Action, ProgramID: artifact.ProgramID, Network: artifact.Network,
-		SourceArtifactRef: artifact.ArtifactRef, FindingRef: request.FindingRef, PatchRef: request.PatchRef,
-		Commands: request.Commands, Replacements: request.Replacements, RequestHash: requestHash, Status: "queued",
-		Progress: 0, Attempts: 0, MaxAttempts: request.MaxAttempts, QueuedAt: now, UpdatedAt: now}
-	_ = appendWorkerEvent(ctx, db, jobRef, "queued", "", map[string]any{"request_hash": requestHash})
-	return job, nil
+	if profile.ReadinessStatus != "ready" || !profile.ExecutionAllowed || profile.Engine != HarnessEngineLiteSVM || !fixedLiteSVMProfileCommand(profile.CommandPolicy) {
+		return Artifact{}, errors.New("harness execution profile is blocked or not a fixed LiteSVM profile")
+	}
+	materialization, err := LoadHarnessMaterialization(ctx, db, request.MaterializationRef)
+	if err != nil {
+		return Artifact{}, errors.New("harness materialization not found")
+	}
+	if materialization.ProfileRef != profile.ProfileRef || materialization.ProgramID != profile.ProgramID || materialization.Network != profile.Network ||
+		materialization.Engine != HarnessEngineLiteSVM || materialization.Status != "ready" || materialization.NetworkAccess ||
+		materialization.DependencyResolution || materialization.SourceExecuted || materialization.HarnessExecuted ||
+		materialization.MainnetTransactionSent || materialization.VerdictAuthority {
+		return Artifact{}, errors.New("harness materialization does not match the ready LiteSVM profile")
+	}
+	artifact, err := LoadArtifact(ctx, db, materialization.MaterializedArtifactRef)
+	if err != nil {
+		return Artifact{}, errors.New("materialized harness artifact not found")
+	}
+	if artifact.ArtifactType != "source_bundle" || artifact.ProgramID != profile.ProgramID || artifact.Network != profile.Network ||
+		artifact.ContentHash != materialization.MaterializedBundleHash ||
+		strings.ToLower(harnessArtifactMetadataString(artifact.Metadata, "artifact_role")) != "materialized_harness" ||
+		harnessArtifactMetadataString(artifact.Metadata, "harness_profile_ref") != profile.ProfileRef {
+		return Artifact{}, errors.New("materialized harness artifact does not match the execution evidence")
+	}
+	request.SourceArtifactRef = artifact.ArtifactRef
+	request.Commands = []string{"cargo test --locked --offline"}
+	request.Replacements = map[string]string{}
+	if request.MaxAttempts <= 0 || request.MaxAttempts > 2 {
+		request.MaxAttempts = 2
+	}
+	return artifact, nil
 }
 
 func ClaimWorkerJob(ctx context.Context, db *sql.DB, workerID string, lease time.Duration) (WorkerJob, bool, error) {
@@ -175,6 +266,8 @@ func ClaimWorkerJob(ctx context.Context, db *sql.DB, workerID string, lease time
 	if err := json.Unmarshal(requestRaw, &request); err != nil {
 		return WorkerJob{}, false, err
 	}
+	job.ProfileRef = request.ProfileRef
+	job.MaterializationRef = request.MaterializationRef
 	job.Commands = request.Commands
 	job.Replacements = request.Replacements
 	eventType := "claimed"
@@ -247,6 +340,8 @@ func ProcessWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, sandboxEna
 			"mainnet_transaction_sent": false,
 			"verdict_authority": false,
 		}, nil
+	case WorkerActionRunLiteSVMHarness:
+		return nil, errors.New("Phase 12C LiteSVM execution runner is not enabled in this implementation slice")
 	default:
 		return nil, errors.New("unsupported worker action")
 	}
@@ -271,13 +366,27 @@ func GetWorkerJob(ctx context.Context, db *sql.DB, jobRef string) (WorkerJob, er
 	}
 	var request WorkerJobRequest
 	_ = json.Unmarshal(requestRaw, &request)
+	job.ProfileRef = request.ProfileRef
+	job.MaterializationRef = request.MaterializationRef
 	job.Commands = request.Commands
 	job.Replacements = request.Replacements
 	_ = json.Unmarshal(resultRaw, &job.Result)
-	if lease.Valid { value := lease.Time; job.LeaseExpiresAt = &value }
-	if started.Valid { value := started.Time; job.StartedAt = &value }
-	if completed.Valid { value := completed.Time; job.CompletedAt = &value }
-	if failed.Valid { value := failed.Time; job.FailedAt = &value }
+	if lease.Valid {
+		value := lease.Time
+		job.LeaseExpiresAt = &value
+	}
+	if started.Valid {
+		value := started.Time
+		job.StartedAt = &value
+	}
+	if completed.Valid {
+		value := completed.Time
+		job.CompletedAt = &value
+	}
+	if failed.Valid {
+		value := failed.Time
+		job.FailedAt = &value
+	}
 	return job, nil
 }
 
@@ -297,13 +406,17 @@ func ListWorkerJobs(ctx context.Context, db *sql.DB, status string, limit int) (
 	refs := []string{}
 	for rows.Next() {
 		var ref string
-		if err := rows.Scan(&ref); err != nil { return nil, err }
+		if err := rows.Scan(&ref); err != nil {
+			return nil, err
+		}
 		refs = append(refs, ref)
 	}
 	out := make([]WorkerJob, 0, len(refs))
 	for _, ref := range refs {
 		job, err := GetWorkerJob(ctx, db, ref)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, job)
 	}
 	return out, rows.Err()

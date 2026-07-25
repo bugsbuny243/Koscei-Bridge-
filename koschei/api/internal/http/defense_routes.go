@@ -18,4 +18,5 @@ func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
 	mux.HandleFunc("/api/owner/defense/harness", requiresDB(h, ownerOnly(h, h.OwnerDefenseHarness)))
 	mux.HandleFunc("/api/owner/defense/harness-execution", requiresDB(h, ownerOnly(h, h.OwnerDefenseHarnessExecution)))
 	mux.HandleFunc("/api/owner/defense/harness-materialization", requiresDB(h, ownerOnly(h, h.OwnerDefenseHarnessMaterialization)))
+	mux.HandleFunc("/api/owner/defense/litesvm-execution", requiresDB(h, ownerOnly(h, h.OwnerDefenseLiteSVMExecution)))
 }

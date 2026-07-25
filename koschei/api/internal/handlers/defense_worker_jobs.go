@@ -40,6 +40,16 @@ func (h *Handler) OwnerDefenseWorkerJobs(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid_defense_worker_job"})
 			return
 		}
+		if strings.EqualFold(strings.TrimSpace(request.Action), defense.WorkerActionRunLiteSVMHarness) &&
+			(!envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false) || !envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false)) {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+				"error": "defense_litesvm_execution_gate_disabled",
+				"web_executed": false,
+				"mainnet_transaction_sent": false,
+				"verdict_authority": false,
+			})
+			return
+		}
 		job, err := defense.EnqueueWorkerJob(r.Context(), h.DB, request)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "defense_worker_job_rejected", "details": err.Error()})
@@ -50,6 +60,10 @@ func (h *Handler) OwnerDefenseWorkerJobs(w http.ResponseWriter, r *http.Request)
 			"job": job,
 			"execution_service": "railway-defense-worker",
 			"web_executed": false,
+			"network_access": false,
+			"dependency_resolution": false,
+			"wallet_material_accessed": false,
+			"mainnet_rpc_accessed": false,
 			"mainnet_transaction_sent": false,
 			"verdict_authority": false,
 		})

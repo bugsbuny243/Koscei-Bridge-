@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o koschei-defense-worker ./cmd/defense-wo
 FROM rust:1.82-bookworm
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git pkg-config \
+    && apt-get install -y --no-install-recommends bubblewrap ca-certificates git pkg-config \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/koschei-defense-worker ./koschei-defense-worker
 ENV KOSCHEI_DEFENSE_WORKER_ENABLED=true
