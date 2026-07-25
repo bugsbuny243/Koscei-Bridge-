@@ -23,6 +23,7 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 		"rules": []string{
 			"A handler is live only when registered in the server boot chain.",
 			"Public Safe Check and basic token fundamentals are available without KOSCH.",
+			"Public SOC discovery exposes only owner-published immutable dossiers; a stored dossier is private by default.",
 			"A customer session identifies the account; a verified wallet proves KOSCH ownership for premium tools.",
 			"Radar history, graph, exposure, automation and developer API require Basic-or-higher KOSCH holder access.",
 			"Developer API keys remain identity credentials and do not bypass live KOSCH verification.",
@@ -40,7 +41,7 @@ func productionRouteInventory() []routeInventoryGroup {
 	return []routeInventoryGroup{
 		{Name: "free_core", Auth: "public_rate_limited", Routes: []string{
 			"POST /api/arvis/preflight", "POST /api/token/scan", "GET /api/v1/risk/badge",
-			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/web3/health",
+			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/public/cases", "GET /api/public/soc/feed", "GET /api/web3/health",
 		}},
 		{Name: "identity", Auth: "mixed", Routes: []string{
 			"GET /health", "GET /api/config", "POST /api/auth/register", "POST /api/auth/login", "GET /api/me",
@@ -55,7 +56,7 @@ func productionRouteInventory() []routeInventoryGroup {
 			"POST /api/owner/login", "POST /api/owner/logout", "GET /api/owner/command-center", "GET /api/owner/route-map",
 			"POST /api/owner/radar/unified", "POST /api/owner/radar/jobs", "GET /api/owner/radar/jobs/{id}",
 			"GET /api/owner/defense/tracks", "POST /api/owner/defense/investigate", "POST /api/owner/defense/distribution",
-			"GET|POST /api/owner/defense/litesvm-execution",
+			"POST /api/owner/dossier/publications", "GET|POST /api/owner/defense/litesvm-execution",
 			"GET /api/owner/users", "POST /api/owner/users/ban", "POST /api/owner/users/remove", "POST /api/owner/command",
 			"POST /api/owner/brain", "/api/owner/chat", "GET /api/owner/health", "GET /api/owner/status",
 		}},

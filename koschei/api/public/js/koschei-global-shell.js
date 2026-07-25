@@ -96,7 +96,7 @@
   }
 
   ready(function(){
-    var links=[['/scan','Token Tara'],['/transaction-shield','İşlem Kalkanı'],['/safe-check','Güvenli Kontrol'],['/security-radar','Güvenlik Radarı'],['/dashboard','Panel'],['/kosch','KOSCH']];
+    var links=[['/live','Canlı SOC'],['/cases','Vakalar'],['/scan','Token Tara'],['/transaction-shield','İşlem Kalkanı'],['/safe-check','Güvenli Kontrol'],['/security-radar','Güvenlik Radarı'],['/dashboard','Panel'],['/kosch','KOSCH']];
     var current=(location.pathname||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';
     var existing=document.querySelector('.top .nav, header.top nav.nav, nav.top .nav');
     var nav=existing||document.createElement('nav');
@@ -107,7 +107,7 @@
     if(!existing){var top=document.querySelector('header.top,.top');if(top){nav.className+=' detached';top.parentNode.insertBefore(nav,top.nextSibling);}}
     if(current==='/dashboard'&&!document.querySelector('.koschei-safety-strip')){var strip=document.createElement('section');strip.className='koschei-safety-strip';strip.innerHTML='<div><b>Satın almadan veya imzalamadan önce Koschei’ye sor.</b><span>Token mintini canlı tara ya da Solana işlemini gönderilmeden önce simüle et.</span></div><span><a href="/scan">Token Tara</a> <a href="/transaction-shield">İşlem Kalkanı</a></span>';var anchor=document.querySelector('.koschei-global-nav')||document.querySelector('header.top,.top');if(anchor&&anchor.parentNode){anchor.parentNode.insertBefore(strip,anchor.nextSibling);}}
     var bottom=document.querySelector('nav.bottom');if(bottom)bottom.remove();
-    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei ARVIS · Solana güvenlik merkezi</span><span><a href="/scan">Token Tara</a> · <a href="/transaction-shield">İşlem Kalkanı</a> · <a href="/safe-check">Güvenli Kontrol</a> · <a href="/kosch">KOSCH</a></span>';document.body.appendChild(footer);}
+    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei ARVIS · Solana güvenlik merkezi</span><span><a href="/live">Canlı SOC</a> · <a href="/cases">Vakalar</a> · <a href="/scan">Token Tara</a> · <a href="/transaction-shield">İşlem Kalkanı</a> · <a href="/safe-check">Güvenli Kontrol</a> · <a href="/kosch">KOSCH</a></span>';document.body.appendChild(footer);}
     if(current==='/safe-check')document.title='Güvenli Kontrol — Koschei ARVIS';
     if(current==='/security-radar')document.title='Koschei ARVIS — Tam Güvenlik Radarı';
     translate(document.body);
