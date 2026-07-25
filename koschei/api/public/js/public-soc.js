@@ -36,6 +36,30 @@
     return `/case/${encodeURIComponent(item.case_ref || '')}`;
   }
 
+  function caseTime(item) {
+    const value = new Date(item.produced_at || item.published_at || 0).getTime();
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  // Immutable dossiers remain separately verifiable, but the public showcase
+  // presents one current investigation per target. Older bundles are revisions,
+  // not separate actors or separate incidents.
+  function currentCases(items) {
+    const groups = new Map();
+    for (const item of Array.isArray(items) ? items : []) {
+      const key = `${item.target_kind || 'unknown'}:${item.target_id || item.case_ref || ''}`;
+      const group = groups.get(key) || [];
+      group.push(item);
+      groups.set(key, group);
+    }
+    const out = [];
+    for (const group of groups.values()) {
+      group.sort((a, b) => caseTime(b) - caseTime(a));
+      out.push({ ...group[0], revision_count: group.length, previous_case_refs: group.slice(1).map(item => item.case_ref) });
+    }
+    return out.sort((a, b) => caseTime(b) - caseTime(a));
+  }
+
   function empty(message, className = 'soc-empty') {
     contentNode.replaceChildren(el('div', className, message));
   }
@@ -47,24 +71,27 @@
     identity.append(el('span', 'soc-tag', item.target_kind || 'unknown'));
     identity.append(el('h3', '', item.title || item.case_ref));
     identity.append(el('p', '', item.summary || 'Değişmez ARVIS kanıt vakası.'));
+    if (Number(item.revision_count || 1) > 1) {
+      identity.append(el('span', 'soc-tag', `${number.format(item.revision_count)} teknik sürüm · en güncel gösteriliyor`));
+    }
     const verdict = el('span', 'soc-tag', item.verdict_grade || item.verdict_status || 'WITHHOLD');
     top.append(identity, verdict);
 
-    const ref = el('div', 'soc-case-ref', `${item.case_ref} · ${item.target_display || 'target withheld'}`);
+    const ref = el('div', 'soc-case-ref', `${item.case_ref} · ${item.target_display || 'hedef gizlendi'}`);
     const proofs = el('div', 'soc-proof');
     proofs.append(
-      proof('Evidence', item.evidence_rows),
-      proof('Verified', item.verified_rows, 'verified'),
-      proof('Observed', item.observed_rows, 'observed'),
-      proof('Unknown', item.unknown_rows, 'unknown')
+      proof('Kanıt satırı', item.evidence_rows),
+      proof('Doğrulandı', item.verified_rows, 'verified'),
+      proof('Gözlendi', item.observed_rows, 'observed'),
+      proof('Eksik', item.unknown_rows, 'unknown')
     );
-    const hash = el('div', 'soc-hash', `Immutable ETag / bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
+    const hash = el('div', 'soc-hash', `Değişmez bundle hash\n${item.bundle_hash || 'kullanılamıyor'}\nYayın ${safeDate(item.published_at)}`);
     const actions = el('div', 'soc-card-actions');
-    const open = el('a', 'soc-btn primary', 'Vakayı incele');
+    const open = el('a', 'soc-btn primary', 'Anlaşılır özeti aç');
     open.href = caseURL(item);
-    const raw = el('a', 'soc-btn soc-mono', 'Ham dossier');
+    const raw = el('a', 'soc-btn soc-mono', 'Ham teknik dosya');
     raw.href = item.public_url || `/dossier/${encodeURIComponent(item.case_ref)}`;
-    const verifier = el('span', 'soc-btn soc-mono', 'Independent verifier');
+    const verifier = el('span', 'soc-btn soc-mono', 'Bağımsız doğrulama');
     verifier.title = item.independent_verification_path || '';
     actions.append(open, raw, verifier);
     card.append(top, ref, proofs, hash, actions);
@@ -72,7 +99,7 @@
   }
 
   function renderCases(payload) {
-    const cases = Array.isArray(payload.cases) ? payload.cases : [];
+    const cases = currentCases(payload.cases);
     const featured = cases.filter(item => item.featured).length;
     const verified = cases.reduce((sum, item) => sum + Number(item.verified_rows || 0), 0);
     const observed = cases.reduce((sum, item) => sum + Number(item.observed_rows || 0), 0);
@@ -98,16 +125,20 @@
     title.style.textDecoration = 'none';
     const strong = el('strong');
     strong.append(title);
-    body.append(strong, el('p', '', `${item.target_kind || 'target'} · ${item.target || 'withheld'} · ${item.description || ''}`));
-    const proofNode = el('div', 'soc-event-proof', `${number.format(Number(item.evidence_rows || 0))} evidence\n${item.verifiable ? 'HASH VERIFIED' : 'WITHHELD'}`);
+    body.append(strong, el('p', '', `${item.target_kind || 'hedef'} · ${item.target || 'gizlendi'} · ${item.description || ''}`));
+    const proofNode = el('div', 'soc-event-proof', `${number.format(Number(item.evidence_rows || 0))} kanıt\n${item.verifiable ? 'HASH DOĞRULANABİLİR' : 'DOĞRULAMA BEKLİYOR'}`);
     row.append(body, proofNode);
     return row;
   }
 
   function renderLive(payload) {
     const summary = payload.summary || {};
-    const events = Array.isArray(payload.events) ? payload.events : [];
-    setText('metric-cases', number.format(Number(summary.published_cases || 0)));
+    const events = currentCases(Array.isArray(payload.events) ? payload.events.map(item => ({
+      ...item,
+      target_id: item.target,
+      produced_at: item.occurred_at
+    })) : []);
+    setText('metric-cases', number.format(events.length));
     setText('metric-featured', number.format(Number(summary.featured_cases || 0)));
     setText('metric-verified', number.format(Number(summary.verified_evidence_rows || 0)));
     setText('metric-observed', number.format(Number(summary.observed_evidence_rows || 0)));
@@ -122,19 +153,19 @@
   }
 
   async function load() {
-    if (statusNode) statusNode.textContent = 'ARVIS public evidence feed güncelleniyor';
+    if (statusNode) statusNode.textContent = 'ARVIS açık kanıt akışı güncelleniyor';
     try {
       const endpoint = page === 'live' ? '/api/public/soc/feed' : '/api/public/cases?limit=100';
       const response = await fetch(endpoint, { cache: 'no-store', headers: { Accept: 'application/json' } });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok !== true) throw new Error(payload.error || `HTTP ${response.status}`);
       if (page === 'live') renderLive(payload); else renderCases(payload);
-      if (statusNode) statusNode.textContent = 'ARVIS public evidence feed operational';
+      if (statusNode) statusNode.textContent = 'ARVIS açık kanıt akışı çalışıyor';
       if (updatedNode) updatedNode.textContent = `Son güncelleme: ${safeDate(payload.generated_at)}`;
     } catch (error) {
       empty('Canlı kanıt akışı şu anda doğrulanamadı. Eski veya uydurma veri gösterilmiyor.', 'soc-error');
-      if (statusNode) statusNode.textContent = 'Public evidence feed unavailable';
-      if (updatedNode) updatedNode.textContent = String(error?.message || 'unknown error');
+      if (statusNode) statusNode.textContent = 'Açık kanıt akışına ulaşılamıyor';
+      if (updatedNode) updatedNode.textContent = String(error?.message || 'bilinmeyen hata');
     } finally {
       window.setTimeout(load, page === 'live' ? 15000 : 60000);
     }
