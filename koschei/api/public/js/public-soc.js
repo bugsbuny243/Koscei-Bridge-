@@ -54,7 +54,7 @@
       proof('Observed', item.observed_rows, 'observed'),
       proof('Unknown', item.unknown_rows, 'unknown')
     );
-    const hash = el('div', 'soc-hash', `Bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
+    const hash = el('div', 'soc-hash', `Immutable ETag / bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
     const actions = el('div', 'soc-card-actions');
     const open = el('a', 'soc-btn primary', 'Kanıt dosyasını aç');
     open.href = item.public_url || `/dossier/${encodeURIComponent(item.case_ref)}`;
@@ -74,7 +74,7 @@
     setText('metric-featured', number.format(featured));
     setText('metric-verified', number.format(verified));
     setText('metric-observed', number.format(observed));
-    setText('metric-refresh', '15 sn');
+    setText('metric-refresh', '60 sn');
     if (!cases.length) {
       empty('Henüz açıkça yayınlanmış doğrulanabilir vaka yok. Özel taramalar otomatik olarak burada görünmez.');
       return;
