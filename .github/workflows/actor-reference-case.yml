@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/actor-reference-case.yml"
+      - "koschei/api/scripts/run-actor-acceptance.mjs"
+      - "oss/verifier/typescript/verify-dossier.mjs"
   workflow_dispatch:
 
 permissions:
@@ -223,7 +225,8 @@ jobs:
             koschei/api/actor-acceptance.stdout
             koschei/api/actor-acceptance.stderr
             koschei/api/actor-acceptance-error.txt
-            koschei/api/actor-acceptance.exit-code
+            koschei/api/actor-acceptance-exit-code
+            koschei/api/actor-acceptance-diff.json
           if-no-files-found: warn
           retention-days: 30
 
