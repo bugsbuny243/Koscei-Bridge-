@@ -11,6 +11,53 @@ const allowedStatuses = new Set(["pass", "fail", "not_investigated"]);
 if (!ownerSecret) throw new Error("KOSCHEI_OWNER_SECRET is required");
 if (!wallet) throw new Error("wallet is required");
 
+function compactDiffValue(value) {
+  if (typeof value === "string") return value.length > 500 ? `${value.slice(0, 500)}…` : value;
+  if (value === null || typeof value === "number" || typeof value === "boolean") return value;
+  const encoded = JSON.stringify(value);
+  return encoded.length > 1000 ? `${encoded.slice(0, 1000)}…` : value;
+}
+
+function collectDiffs(first, second, path = "$", out = []) {
+  if (out.length >= 250) return out;
+  if (Object.is(first, second)) return out;
+
+  const firstArray = Array.isArray(first);
+  const secondArray = Array.isArray(second);
+  if (firstArray || secondArray) {
+    if (!firstArray || !secondArray) {
+      out.push({ path, first: compactDiffValue(first), second: compactDiffValue(second) });
+      return out;
+    }
+    if (first.length !== second.length) {
+      out.push({ path: `${path}.length`, first: first.length, second: second.length });
+    }
+    const length = Math.max(first.length, second.length);
+    for (let index = 0; index < length && out.length < 250; index += 1) {
+      collectDiffs(first[index], second[index], `${path}[${index}]`, out);
+    }
+    return out;
+  }
+
+  const firstObject = first !== null && typeof first === "object";
+  const secondObject = second !== null && typeof second === "object";
+  if (firstObject || secondObject) {
+    if (!firstObject || !secondObject) {
+      out.push({ path, first: compactDiffValue(first), second: compactDiffValue(second) });
+      return out;
+    }
+    const keys = [...new Set([...Object.keys(first), ...Object.keys(second)])].sort();
+    for (const key of keys) {
+      if (out.length >= 250) break;
+      collectDiffs(first[key], second[key], `${path}.${key}`, out);
+    }
+    return out;
+  }
+
+  out.push({ path, first: compactDiffValue(first), second: compactDiffValue(second) });
+  return out;
+}
+
 async function runAcceptance() {
   const response = await fetch(`${baseURL}/api/owner/defense/actor-acceptance`, {
     method: "POST",
@@ -57,6 +104,14 @@ const second = await runAcceptance();
 const firstHash = String(first.acceptance.acceptance_hash);
 const secondHash = String(second.acceptance.acceptance_hash);
 if (firstHash !== secondHash) {
+  const diagnostic = {
+    version: "koschei-actor-acceptance-diff-v1",
+    wallet,
+    first_hash: firstHash,
+    second_hash: secondHash,
+    differences: collectDiffs(first.acceptance, second.acceptance)
+  };
+  await writeFile("actor-acceptance-diff.json", `${JSON.stringify(diagnostic, null, 2)}\n`, "utf8");
   throw new Error(`deterministic acceptance mismatch: ${firstHash} != ${secondHash}`);
 }
 
