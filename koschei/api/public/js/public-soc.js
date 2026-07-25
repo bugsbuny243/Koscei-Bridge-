@@ -32,6 +32,10 @@
     return box;
   }
 
+  function caseURL(item) {
+    return `/case/${encodeURIComponent(item.case_ref || '')}`;
+  }
+
   function empty(message, className = 'soc-empty') {
     contentNode.replaceChildren(el('div', className, message));
   }
@@ -56,11 +60,13 @@
     );
     const hash = el('div', 'soc-hash', `Immutable ETag / bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
     const actions = el('div', 'soc-card-actions');
-    const open = el('a', 'soc-btn primary', 'Kanıt dosyasını aç');
-    open.href = item.public_url || `/dossier/${encodeURIComponent(item.case_ref)}`;
+    const open = el('a', 'soc-btn primary', 'Vakayı incele');
+    open.href = caseURL(item);
+    const raw = el('a', 'soc-btn soc-mono', 'Ham dossier');
+    raw.href = item.public_url || `/dossier/${encodeURIComponent(item.case_ref)}`;
     const verifier = el('span', 'soc-btn soc-mono', 'Independent verifier');
     verifier.title = item.independent_verification_path || '';
-    actions.append(open, verifier);
+    actions.append(open, raw, verifier);
     card.append(top, ref, proofs, hash, actions);
     return card;
   }
@@ -87,7 +93,7 @@
     row.append(el('time', '', safeDate(item.occurred_at)));
     const body = el('div');
     const title = el('a', '', item.title || item.case_ref);
-    title.href = item.public_url || '#';
+    title.href = caseURL(item);
     title.style.color = 'inherit';
     title.style.textDecoration = 'none';
     const strong = el('strong');
