@@ -48,6 +48,20 @@ func TestOperationalAcceptanceTreatsCompletedNegativeCollectorsAsPass(t *testing
 	}
 }
 
+func TestOperationalCrossTokenZeroCountersWithoutCollectorStatusRemainUninvestigated(t *testing.T) {
+	item := operationalCrossTokenAcceptance(ActorDefenseDossier{
+		Coverage: map[string]any{
+			"acceptance_distribution": map[string]any{
+				"mints_discovered": 0, "mints_completed": 0,
+				"recipients_resolved": 0, "holder_comparisons": 0,
+			},
+		},
+	})
+	if item.Status != ActorAcceptanceNotInvestigated || item.EvidenceState != "not_investigated" {
+		t.Fatalf("zero-valued counters without a completion status must not become not_applicable: %+v", item)
+	}
+}
+
 func TestOperationalAcceptanceFailsPartialCollectorsWithReason(t *testing.T) {
 	verdict := EvaluateEvidenceBoundActorDefenseRules(ActorDefenseTrack{
 		Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet",
