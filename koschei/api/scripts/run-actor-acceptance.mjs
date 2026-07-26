@@ -8,13 +8,17 @@ const wallet = String(process.argv[2] || "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHc
 const outputPath = String(process.argv[3] || "").trim();
 const allowedStatuses = new Set(["pass", "fail", "not_investigated"]);
 
-if (!ownerSecret) throw new Error("KOSCHEI_OWNER_SECRET is required");
-if (!wallet) throw new Error("wallet is required");
-
 function compactDiffValue(value) {
+  if (value === undefined) return "<undefined>";
   if (typeof value === "string") return value.length > 500 ? `${value.slice(0, 500)}…` : value;
   if (value === null || typeof value === "number" || typeof value === "boolean") return value;
-  const encoded = JSON.stringify(value);
+  let encoded;
+  try {
+    encoded = JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+  if (typeof encoded !== "string") return String(value);
   return encoded.length > 1000 ? `${encoded.slice(0, 1000)}…` : value;
 }
 
@@ -99,39 +103,50 @@ async function runAcceptance() {
   return payload;
 }
 
-// Two live passes are intentional: persistent chain evidence must be idempotent,
-// so an unchanged evidence set produces the same acceptance hash.
-const first = await runAcceptance();
-const second = await runAcceptance();
-const firstHash = String(first.acceptance.acceptance_hash);
-const secondHash = String(second.acceptance.acceptance_hash);
-if (firstHash !== secondHash) {
-  const diagnostic = {
-    version: "koschei-actor-acceptance-diff-v1",
+async function main() {
+  if (!ownerSecret) throw new Error("KOSCHEI_OWNER_SECRET is required");
+  if (!wallet) throw new Error("wallet is required");
+
+  // Two live passes are intentional: persistent chain evidence must be idempotent,
+  // so an unchanged evidence set produces the same acceptance hash.
+  const first = await runAcceptance();
+  const second = await runAcceptance();
+  const firstHash = String(first.acceptance.acceptance_hash);
+  const secondHash = String(second.acceptance.acceptance_hash);
+  if (firstHash !== secondHash) {
+    const diagnostic = {
+      version: "koschei-actor-acceptance-diff-v1",
+      wallet,
+      first_hash: firstHash,
+      second_hash: secondHash,
+      differences: collectDiffs(first.acceptance, second.acceptance)
+    };
+    const encodedDiagnostic = `${JSON.stringify(diagnostic, null, 2)}\n`;
+    await writeFile("actor-acceptance-diff.json", encodedDiagnostic, "utf8");
+    process.stderr.write(`[actor-acceptance-diff]\n${encodedDiagnostic}`);
+    throw new Error(`deterministic acceptance mismatch: ${firstHash} != ${secondHash}`);
+  }
+
+  const result = {
+    version: "koschei-actor-acceptance-run-v1",
+    base_url: baseURL,
     wallet,
-    first_hash: firstHash,
-    second_hash: secondHash,
-    differences: collectDiffs(first.acceptance, second.acceptance)
+    acceptance_hash: firstHash,
+    status: first.acceptance.status,
+    pass_count: first.acceptance.pass_count,
+    fail_count: first.acceptance.fail_count,
+    not_investigated_count: first.acceptance.not_investigated_count,
+    items: first.acceptance.items,
+    verdict: first.acceptance.verdict
   };
-  const encodedDiagnostic = `${JSON.stringify(diagnostic, null, 2)}\n`;
-  await writeFile("actor-acceptance-diff.json", encodedDiagnostic, "utf8");
-  process.stderr.write(`[actor-acceptance-diff]\n${encodedDiagnostic}`);
-  throw new Error(`deterministic acceptance mismatch: ${firstHash} != ${secondHash}`);
+
+  const encoded = `${JSON.stringify(result, null, 2)}\n`;
+  if (outputPath) await writeFile(outputPath, encoded, "utf8");
+  process.stdout.write(encoded);
 }
 
-const result = {
-  version: "koschei-actor-acceptance-run-v1",
-  base_url: baseURL,
-  wallet,
-  acceptance_hash: firstHash,
-  status: first.acceptance.status,
-  pass_count: first.acceptance.pass_count,
-  fail_count: first.acceptance.fail_count,
-  not_investigated_count: first.acceptance.not_investigated_count,
-  items: first.acceptance.items,
-  verdict: first.acceptance.verdict
-};
-
-const encoded = `${JSON.stringify(result, null, 2)}\n`;
-if (outputPath) await writeFile(outputPath, encoded, "utf8");
-process.stdout.write(encoded);
+main().catch(error => {
+  const message = String(error?.message || error || "actor acceptance failed").trim();
+  process.stderr.write(`[actor-acceptance-error] ${message}\n`);
+  process.exitCode = 1;
+});
