@@ -67,7 +67,9 @@ func (h *Handler) loadPublicProgramRisks(ctx context.Context, limit int) ([]publ
 
 	snapshotRows, err := db.QueryContext(ctx, `
 		WITH latest AS (
-			SELECT DISTINCT ON (program_id,network) `+publicProgramSnapshotColumns+`
+			SELECT DISTINCT ON (program_id,network)
+			       snapshot_ref,program_id,network,loader_kind,programdata_address,upgrade_authority,
+			       upgrade_authority_open,executable,canonical_binary_hash,match_status,snapshot_hash,created_at
 			FROM defense_program_deployments
 			ORDER BY program_id,network,created_at DESC
 		)
