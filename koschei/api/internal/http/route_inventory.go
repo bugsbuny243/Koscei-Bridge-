@@ -22,9 +22,10 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 		"groups":       productionRouteInventory(),
 		"rules": []string{
 			"A handler is live only when registered in the server boot chain.",
-			"Safe Check, public cases, live SOC and published program-risk evidence are public product surfaces.",
-			"A dossier or program-risk record is private by default; its creator controls visibility and owner access is moderation only.",
-			"A customer session or API key identifies the creator of scans, dossiers, monitors and publications.",
+			"Safe Check, public cases, live SOC, Program Audit and published program-risk evidence are public product surfaces.",
+			"A dossier, artifact or program-risk record is private by default; its creator controls visibility and owner access is moderation only.",
+			"A customer session or API key identifies the creator of scans, dossiers, artifacts, monitors and publications.",
+			"Customer Program Lab analysis is deterministic and static-only; it cannot execute commands, deploy programs or send transactions.",
 			"Radar history, graph, exposure, automation and developer API may require the configured KOSCH tier.",
 			"Developer API keys remain identity credentials and never bypass evidence or entitlement checks.",
 			"Evidence-backed verdicts must not be signed without verified evidence.",
@@ -40,7 +41,7 @@ func productionRouteInventory() []routeInventoryGroup {
 		{Name: "free_core", Auth: "public_rate_limited", Routes: []string{
 			"POST /api/arvis/preflight", "POST /api/token/scan", "GET /api/v1/risk/badge",
 			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/public/cases", "GET /api/public/soc/feed",
-			"GET /api/public/program-risks", "GET /api/public/program-risks/{ref}", "GET /program-risk/{ref}", "GET /case/{ref}", "GET /dossier/{ref}", "GET /api/web3/health",
+			"GET /api/public/program-risks", "GET /api/public/program-risks/{ref}", "GET /program-risk/{ref}", "GET /case/{ref}", "GET /dossier/{ref}", "GET /program-audit", "GET /api/web3/health",
 		}},
 		{Name: "identity", Auth: "mixed", Routes: []string{
 			"GET /health", "GET /api/config", "POST /api/auth/register", "POST /api/auth/login", "GET /api/me",
@@ -48,7 +49,7 @@ func productionRouteInventory() []routeInventoryGroup {
 		}},
 		{Name: "authenticated_security_creation", Auth: "customer_session_or_api_key", Routes: []string{
 			"POST /api/v1/dossier/{target}", "POST /api/v1/dossier/publications", "GET|POST /api/v1/defense/sentinel",
-			"POST /api/v1/program-risks/publications",
+			"GET|POST /api/v1/defense/artifacts", "GET|POST /api/v1/defense/lab", "POST /api/v1/program-risks/publications",
 		}},
 		{Name: "account_and_kosch_access", Auth: "customer_session_plus_kosch_for_api_keys", Routes: []string{
 			"GET /api/account/api-keys", "POST /api/account/api-keys", "POST /api/account/api-keys/{id}/revoke",
