@@ -24,7 +24,7 @@ func TestActorWalletPersistentClassificationAcceptsExactKnownWalletAfterRPCFailu
 }
 
 func TestActorWalletPersistentClassificationRejectsUnknownOrUnverifiedTarget(t *testing.T) {
-	for _, test := range []struct {
+	tests := []struct {
 		name           string
 		classification radarTargetClassification
 		target         string
@@ -51,7 +51,7 @@ func TestActorWalletPersistentClassificationRejectsUnknownOrUnverifiedTarget(t *
 			target: "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "verified",
 		},
 	}
-	for _, test := range test {
+	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resolved, ok := actorWalletPersistentClassification(test.classification, test.target, test.state)
 			if ok || resolved != test.classification {
