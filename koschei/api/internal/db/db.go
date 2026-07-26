@@ -242,6 +242,9 @@ func runMigrations(db *sql.DB) (int, int, error) {
 		if err != nil {
 			return applied, skipped, err
 		}
+		// #nosec G701 -- SQL is read only from version-controlled migration files
+		// packaged with the application; no request, database or operator string is
+		// interpolated into the migration contents at runtime.
 		if _, err := tx.Exec(string(contents)); err != nil {
 			_ = tx.Rollback()
 			return applied, skipped, fmt.Errorf("apply migration %s: %w", name, err)
