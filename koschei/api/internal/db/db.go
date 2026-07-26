@@ -46,7 +46,7 @@ func open(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxOpen := envInt("DB_MAX_OPEN_CONNS", 10)
+	maxOpen := envInt("DB_MAX_OPEN_CONNS", 5)
 	maxIdle := envNonNegativeInt("DB_MAX_IDLE_CONNS", 0)
 	maxLifetime := time.Duration(envNonNegativeInt("DB_CONN_MAX_LIFETIME_SECONDS", 300)) * time.Second
 	maxIdleTime := time.Duration(envNonNegativeInt("DB_CONN_MAX_IDLE_TIME_SECONDS", 60)) * time.Second
@@ -65,24 +65,31 @@ func open(databaseURL string) (*sql.DB, error) {
 }
 
 func normalizeDatabaseURL(databaseURL string) string {
-	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) == "1" {
-		return databaseURL
-	}
 	parsed, err := url.Parse(strings.TrimSpace(databaseURL))
 	if err != nil || parsed.Host == "" {
 		return databaseURL
 	}
-	host := parsed.Hostname()
-	if !strings.Contains(host, "-pooler.") {
-		return databaseURL
+	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) != "1" {
+		host := parsed.Hostname()
+		if strings.Contains(host, "-pooler.") {
+			directHost := strings.Replace(host, "-pooler.", ".", 1)
+			if port := parsed.Port(); port != "" {
+				parsed.Host = directHost + ":" + port
+			} else {
+				parsed.Host = directHost
+			}
+			log.Printf("database host normalized from neon pooler to direct connection")
+		}
 	}
-	directHost := strings.Replace(host, "-pooler.", ".", 1)
-	if port := parsed.Port(); port != "" {
-		parsed.Host = directHost + ":" + port
-	} else {
-		parsed.Host = directHost
+	query := parsed.Query()
+	if strings.TrimSpace(query.Get("application_name")) == "" {
+		applicationName := strings.TrimSpace(os.Getenv("DB_APPLICATION_NAME"))
+		if applicationName == "" {
+			applicationName = "koschei-api"
+		}
+		query.Set("application_name", applicationName)
+		parsed.RawQuery = query.Encode()
 	}
-	log.Printf("database host normalized from neon pooler to direct connection")
 	return parsed.String()
 }
 
@@ -167,16 +174,17 @@ func ensureCanonicalPlans(db *sql.DB) error {
 	`); err != nil {
 		return err
 	}
+
 	if _, err := db.Exec(`
-		UPDATE entitlements
-		SET plan_id = CASE lower(COALESCE(plan_id,''))
+		UPDATE users
+		SET plan = CASE lower(COALESCE(plan,''))
 			WHEN 'builder' THEN 'professional'
 			WHEN 'pro' THEN 'professional'
 			WHEN 'studio' THEN 'enterprise'
-			ELSE plan_id
+			ELSE plan
 		END,
 		updated_at = now()
-		WHERE lower(COALESCE(plan_id,'')) IN ('builder','pro','studio')
+		WHERE lower(COALESCE(plan,'')) IN ('builder','pro','studio')
 	`); err != nil {
 		return err
 	}
@@ -185,37 +193,64 @@ func ensureCanonicalPlans(db *sql.DB) error {
 }
 
 func runMigrations(db *sql.DB) (int, int, error) {
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+		version text PRIMARY KEY,
+		applied_at timestamptz NOT NULL DEFAULT now()
+	)`); err != nil {
+		return 0, 0, err
+	}
+
+	migrationDir := os.Getenv("MIGRATIONS_DIR")
+	if migrationDir == "" {
+		migrationDir = filepath.Join(".", "migrations")
+	}
+	entries, err := os.ReadDir(migrationDir)
+	if err != nil {
+		fallback := filepath.Join("/app", "migrations")
+		entries, err = os.ReadDir(fallback)
+		if err != nil {
+			return 0, 0, fmt.Errorf("read migrations dir: %w", err)
+		}
+		migrationDir = fallback
+	}
+
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		files = append(files, entry.Name())
+	}
+	sort.Strings(files)
+
 	applied := 0
 	skipped := 0
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`); err != nil {
-		return 0, 0, err
-	}
-	files, err := migrationSQLFiles()
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(files) == 0 {
-		log.Printf("warning: no migrations found in known paths; continuing with schema verification")
-	}
-	for _, f := range files {
-		v := filepath.Base(f)
-		var exists string
-		err = db.QueryRow(`SELECT version FROM schema_migrations WHERE version=$1`, v).Scan(&exists)
-		if err == nil {
+	for _, name := range files {
+		var exists bool
+		if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, name).Scan(&exists); err != nil {
+			return applied, skipped, err
+		}
+		if exists {
 			skipped++
 			continue
 		}
-		if err != sql.ErrNoRows {
-			return applied, skipped, err
-		}
-		b, err := os.ReadFile(f)
+		contents, err := os.ReadFile(filepath.Join(migrationDir, name))
 		if err != nil {
 			return applied, skipped, err
 		}
-		if _, err := db.Exec(string(b)); err != nil {
-			return applied, skipped, fmt.Errorf("migration failed: %s %w", v, err)
+		tx, err := db.Begin()
+		if err != nil {
+			return applied, skipped, err
 		}
-		if _, err := db.Exec(`INSERT INTO schema_migrations (version) VALUES ($1)`, v); err != nil {
+		if _, err := tx.Exec(string(contents)); err != nil {
+			_ = tx.Rollback()
+			return applied, skipped, fmt.Errorf("apply migration %s: %w", name, err)
+		}
+		if _, err := tx.Exec(`INSERT INTO schema_migrations(version) VALUES($1)`, name); err != nil {
+			_ = tx.Rollback()
+			return applied, skipped, err
+		}
+		if err := tx.Commit(); err != nil {
 			return applied, skipped, err
 		}
 		applied++
@@ -223,55 +258,21 @@ func runMigrations(db *sql.DB) (int, int, error) {
 	return applied, skipped, nil
 }
 
-func migrationSQLFiles() ([]string, error) {
-	candidates := []string{
-		"migrations",
-		filepath.Join("/app", "migrations"),
-		filepath.Join("koschei", "api", "migrations"),
-	}
-	if configured := strings.TrimSpace(os.Getenv("MIGRATIONS_DIR")); configured != "" {
-		candidates = append([]string{configured}, candidates...)
-	}
-	seen := map[string]bool{}
-	for _, dir := range candidates {
-		dir = strings.TrimSpace(dir)
-		if dir == "" || seen[dir] {
-			continue
-		}
-		seen[dir] = true
-		files, err := filepath.Glob(filepath.Join(dir, "*.sql"))
-		if err != nil {
-			return nil, err
-		}
-		if len(files) == 0 {
-			continue
-		}
-		sort.Strings(files)
-		log.Printf("migrations path selected: %s (%d files)", dir, len(files))
-		return files, nil
-	}
-	return nil, nil
-}
-
 func verifySchema(db *sql.DB) error {
-	required := []string{"schema_migrations", "plans", "app_user_profiles", "entitlements", "payment_requests", "credit_events", "generation_jobs", "model_route_logs", "runtime_projects", "runtime_tasks", "runtime_logs", "owner_client_orders", "owner_order_requirements", "owner_order_assets", "owner_delivery_packages", "owner_revision_requests", "owner_profit_records", "owner_service_templates", "analytics_events", "grant_opportunities", "koschei_modules", "risk_assessments", "tx_decodes", "web3_jobs", "mev_protection_events", "whale_clusters", "cex_flows", "liquidity_drain_alerts", "dao_treasuries", "proposal_risks", "exploit_simulation_runs", "bridge_risk_events", "por_monitor_snapshots"}
-	for _, t := range required {
-		var ok bool
-		if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name=$1)`, t).Scan(&ok); err != nil || !ok {
-			return fmt.Errorf("required table missing: %s", t)
-		}
+	checks := []struct {
+		name string
+		sql  string
+	}{
+		{name: "users", sql: `SELECT 1 FROM users LIMIT 1`},
+		{name: "plans", sql: `SELECT 1 FROM plans LIMIT 1`},
+		{name: "entitlements", sql: `SELECT 1 FROM entitlements LIMIT 1`},
+		{name: "api_keys", sql: `SELECT 1 FROM api_keys LIMIT 1`},
+		{name: "usage_events", sql: `SELECT 1 FROM usage_events LIMIT 1`},
+		{name: "security_audit_log", sql: `SELECT 1 FROM security_audit_log LIMIT 1`},
 	}
-	requiredColumns := map[string][]string{
-		"app_user_profiles": {"id", "auth_subject", "email", "plan_id", "credits", "created_at", "updated_at"},
-		"entitlements":      {"id", "email", "plan_id", "outputs_total", "outputs_remaining", "status", "created_at", "updated_at"},
-		"api_keys":          {"id", "auth_subject", "email", "name", "key_prefix", "key_hash", "status", "monthly_limit", "rate_limit_per_minute", "created_at"},
-	}
-	for table, columns := range requiredColumns {
-		for _, column := range columns {
-			var ok bool
-			if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=$1 AND column_name=$2)`, table, column).Scan(&ok); err != nil || !ok {
-				return fmt.Errorf("required column missing: %s.%s", table, column)
-			}
+	for _, check := range checks {
+		if _, err := db.Exec(check.sql); err != nil {
+			return fmt.Errorf("required table %s unavailable: %w", check.name, err)
 		}
 	}
 	return nil
