@@ -72,10 +72,13 @@ func TestRetentionArchiveDeletePostgres17(t *testing.T) {
 	}
 	insertRows := func(first, second string) {
 		t.Helper()
+		// Use a fixed timestamp so the resumed pass really reconstructs the
+		// identical JSON payload. A fresh now()-interval value differs at
+		// microsecond precision and correctly fails exact-payload verification.
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO ci_retention_source (id,created_at,payload) VALUES
-			('11111111-1111-4111-8111-111111111111',now()-interval '48 hours',$1),
-			('22222222-2222-4222-8222-222222222222',now()-interval '48 hours',$2)`, first, second); err != nil {
+			('11111111-1111-4111-8111-111111111111',TIMESTAMPTZ '2026-01-01 00:00:00+00',$1),
+			('22222222-2222-4222-8222-222222222222',TIMESTAMPTZ '2026-01-01 00:00:00+00',$2)`, first, second); err != nil {
 			t.Fatal(err)
 		}
 	}
