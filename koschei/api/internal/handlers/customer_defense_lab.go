@@ -44,6 +44,20 @@ func customerSafeArtifactView(item defense.Artifact) customerArtifactView {
 	}
 }
 
+func (h *Handler) allowCustomerDefenseAction(w http.ResponseWriter, subject, action string, limit int) bool {
+	if h == nil || h.Limiter == nil {
+		return true
+	}
+	if h.Limiter.allow("customer-defense:"+action+":"+subject, limit, time.Hour) {
+		return true
+	}
+	w.Header().Set("Retry-After", "3600")
+	writeJSON(w, http.StatusTooManyRequests, map[string]any{
+		"ok": false, "error": "customer_defense_rate_limited", "action": action, "window_seconds": 3600,
+	})
+	return false
+}
+
 // CustomerDefenseArtifacts stores and lists only artifacts subscribed to the
 // authenticated user/API principal. Source content, original creator identity,
 // source URI, commit and metadata are never returned by this customer surface.
@@ -67,6 +81,9 @@ func (h *Handler) CustomerDefenseArtifacts(w http.ResponseWriter, r *http.Reques
 			"private_by_default": true,
 		})
 	case http.MethodPost:
+		if !h.allowCustomerDefenseAction(w, subject, "artifact_upload", 20) {
+			return
+		}
 		var input defense.ArtifactInput
 		if err := decodeJSON(r, &input); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid_customer_artifact"})
@@ -107,6 +124,9 @@ func (h *Handler) CustomerDefenseLab(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if !h.allowCustomerDefenseAction(w, subject, "static_analysis", 60) {
 		return
 	}
 	var input customerDefenseLabRequest
