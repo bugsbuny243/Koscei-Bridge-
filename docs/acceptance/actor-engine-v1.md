@@ -3,7 +3,7 @@
 Status: implementation complete; production reference run pending deployment  
 Canonical contract: `ACTOR_INVESTIGATION_ENGINE.md` v1.0  
 Acceptance schema: `koschei-actor-acceptance-v1`  
-Actor ruleset: `koschei-actor-defense-rules-v1.0.1`
+Actor ruleset: `koschei-actor-defense-rules-v1.0.2`
 
 ## Reference actor
 
@@ -82,6 +82,8 @@ relation + counterpart_kind + counterpart_id
 ```
 
 Within that group, instruction rows are deduplicated by transaction signature. SOL movement, token movement, fees or multiple parsed instructions from one transaction must not manufacture recurrence. `occurrence_count` on one stored instruction row is not sufficient to activate `ARD-C004`.
+
+Each qualifying group is emitted as its own audit row. The row `count`, `facts.distinct_signature_count` and unique `signatures` length must agree for that exact relation/counterpart group. Multiple C004 groups remain separately inspectable but count as one compounding rule ID in the grade decision; repeated instances of one rule cannot manufacture a second distinct compounding rule.
 
 ## Dust and address-poisoning boundary
 
