@@ -46,43 +46,62 @@ func open(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", 10))
-	db.SetMaxIdleConns(envInt("DB_MAX_IDLE_CONNS", 5))
-	db.SetConnMaxLifetime(time.Duration(envInt("DB_CONN_MAX_LIFETIME_SECONDS", 1800)) * time.Second)
-	db.SetConnMaxIdleTime(5 * time.Minute)
+	// Cost-safe defaults keep enough concurrency for the current API while
+	// allowing Neon's compute endpoint to become connection-idle quickly.
+	db.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", 5))
+	db.SetMaxIdleConns(envNonNegativeInt("DB_MAX_IDLE_CONNS", 1))
+	db.SetConnMaxLifetime(time.Duration(envInt("DB_CONN_MAX_LIFETIME_SECONDS", 600)) * time.Second)
+	db.SetConnMaxIdleTime(time.Duration(envInt("DB_CONN_MAX_IDLE_SECONDS", 60)) * time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("db ping failed: %w", err)
 	}
 	return db, nil
 }
 
 func normalizeDatabaseURL(databaseURL string) string {
-	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) == "1" {
-		return databaseURL
-	}
 	parsed, err := url.Parse(strings.TrimSpace(databaseURL))
 	if err != nil || parsed.Host == "" {
 		return databaseURL
 	}
-	host := parsed.Hostname()
-	if !strings.Contains(host, "-pooler.") {
-		return databaseURL
+	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) != "1" {
+		host := parsed.Hostname()
+		if strings.Contains(host, "-pooler.") {
+			directHost := strings.Replace(host, "-pooler.", ".", 1)
+			if port := parsed.Port(); port != "" {
+				parsed.Host = directHost + ":" + port
+			} else {
+				parsed.Host = directHost
+			}
+			log.Printf("database host normalized from neon pooler to direct connection")
+		}
 	}
-	directHost := strings.Replace(host, "-pooler.", ".", 1)
-	if port := parsed.Port(); port != "" {
-		parsed.Host = directHost + ":" + port
-	} else {
-		parsed.Host = directHost
+	query := parsed.Query()
+	if strings.TrimSpace(query.Get("application_name")) == "" {
+		applicationName := strings.TrimSpace(os.Getenv("DB_APPLICATION_NAME"))
+		if applicationName == "" {
+			applicationName = "koschei-api"
+		}
+		query.Set("application_name", applicationName)
+		parsed.RawQuery = query.Encode()
 	}
-	log.Printf("database host normalized from neon pooler to direct connection")
 	return parsed.String()
 }
 
 func envInt(name string, fallback int) int {
 	if v := strings.TrimSpace(os.Getenv(name)); v != "" {
 		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func envNonNegativeInt(name string, fallback int) int {
+	if v := strings.TrimSpace(os.Getenv(name)); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
 			return parsed
 		}
 	}
