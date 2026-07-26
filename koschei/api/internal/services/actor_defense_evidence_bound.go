@@ -153,9 +153,11 @@ func evidenceBoundActorDecision(triggered, watch []ActorDefenseRuleHit) (string,
 			compound = append(compound, hit)
 		}
 	}
+	compoundRuleCount := actorRuleDistinctRuleCount(compound)
 
 	decision := []string{
 		"Only rules with canonical evidence references may change the grade.",
+		"Multiple evidence groups for one rule ID count once in the grade decision.",
 		"INFERRED and evidence-less observations remain watch-only.",
 		"UNVERIFIED evidence is excluded from the verdict.",
 	}
@@ -164,12 +166,12 @@ func evidenceBoundActorDecision(triggered, watch []ActorDefenseRuleHit) (string,
 		decision = append(decision, fmt.Sprintf("Evidence-backed hard-trigger ceiling applied: grade %s.", grade))
 		return grade, "hard_trigger", decision
 	}
-	if len(compound) >= 2 {
-		decision = append(decision, "Two or more distinct evidence-backed VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B.")
+	if compoundRuleCount >= 2 {
+		decision = append(decision, "Two or more distinct evidence-backed VERIFIED/OBSERVED compounding rule IDs lowered the baseline by one grade to B.")
 		return "B", "compounding_rule", decision
 	}
-	if len(compound) == 1 {
-		decision = append(decision, "Only one evidence-backed compounding observation remains; no letter grade is issued.")
+	if compoundRuleCount == 1 {
+		decision = append(decision, "Only one distinct evidence-backed compounding rule ID remains; no letter grade is issued.")
 		return "-", "single_observation", decision
 	}
 	if len(watch) > 0 {
