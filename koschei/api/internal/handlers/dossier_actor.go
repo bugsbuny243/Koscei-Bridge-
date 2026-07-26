@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const dossierActorMapperVersion = "koschei-actor-acceptance-v1+evidence-log-v1"
+const dossierActorMapperVersion = "koschei-actor-acceptance-v1+evidence-log-v1+address-similarity-v1"
 
 func isActorDossierReport(report map[string]any) bool {
 	return strings.EqualFold(strings.TrimSpace(dossierString(report["analysis_scope"])), "wallet_actor_investigation")
@@ -158,6 +158,7 @@ func actorDossierConnections(report map[string]any) map[string]any {
 			"limitation": "Observed recurrence is not identity, intent or common-control proof.",
 		})
 	}
+	addressSimilarity := actorDossierAddressSimilarityClusters(dossier["evidence"])
 	return map[string]any{
 		"acceptance_status": acceptance["status"],
 		"evidence_state": acceptance["evidence_state"],
@@ -165,14 +166,16 @@ func actorDossierConnections(report map[string]any) map[string]any {
 		"evidence": dossierFirst(acceptance["evidence"], []any{}),
 		"limitations": dossierStrings(acceptance["limitations"]),
 		"related_actor_observations": related,
+		"address_similarity_clusters": addressSimilarity,
 		"evidence_graph": dossierFirst(actor["evidence_graph"], map[string]any{}),
 		"counts": map[string]any{
 			"verification_status": "observed",
 			"created_tokens": track["created_token_count"],
 			"dominant_holder_tokens": track["dominant_holder_token_count"],
 			"related_actors": track["related_actor_count"],
+			"address_similarity_clusters": len(addressSimilarity),
 		},
-		"boundary": "Observed recurrence does not prove identity, intent or common control.",
+		"boundary": "Observed recurrence does not prove identity, intent or common control. Address similarity clusters are deterministic visual candidates and remain INFERRED/watch-only.",
 	}
 }
 
@@ -208,9 +211,11 @@ func actorDossierSectionLimitations(report map[string]any) map[string]any {
 		},
 		"cross_token_connections": []string{
 			"Cross-token recurrence is relationship evidence only; it is not a real-world identity or intent claim.",
+			"Base58 vanity/address similarity is a deterministic visual candidate only; it remains INFERRED, has no grade effect and does not prove common control.",
 		},
 		"evidence_log": []string{
 			"Collection remains bounded by persisted source windows and mint-specific ATA policy; missing rows are not treated as absence of activity.",
+			"Possible dust and address-poisoning candidates remain visible in the evidence log but are excluded from grade-changing direct-transfer rules.",
 		},
 	}
 }
