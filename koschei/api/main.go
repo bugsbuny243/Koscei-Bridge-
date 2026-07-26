@@ -93,10 +93,6 @@ func main() {
 		log.Printf("automatic scanning disabled: no Pump discovery, radar polling, background stream, actor correlation or watchlist refresh; manual scans and Safe Check remain available")
 	}
 
-	stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-	defer stopWebhookDeliveries()
-	stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-	defer stopSecurityAlertDeliveries()
 	jobStore := jobs.NewStore(conn)
 	jobQueue := jobs.Queue(jobs.NoopQueue{})
 	if natsURL := os.Getenv("NATS_URL"); natsURL != "" {
@@ -104,12 +100,27 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	// Existing web3_jobs rows now have a real consumer. Deep canonical scans are
-	// detached from HTTP request lifetime and processed sequentially by default.
-	stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
-	defer stopCanonicalWorker()
-	stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
-	defer stopCanonicalPumpScheduler()
+	// Empty database-backed queues previously polled Neon every 2-4 seconds and
+	// prevented scale-to-zero even with zero traffic. Production now fails closed
+	// to cost-safe manual/API operation unless polling workers are explicitly
+	// enabled. Deploy polling consumers as a dedicated worker service and set
+	// KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED=true there.
+	pollingDefault := !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
+	if envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", pollingDefault) {
+		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
+		defer stopWebhookDeliveries()
+		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
+		defer stopSecurityAlertDeliveries()
+
+		// Existing web3_jobs rows now have a real consumer. Deep canonical scans
+		// are detached from HTTP request lifetime and processed sequentially.
+		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
+		defer stopCanonicalWorker()
+		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
+		defer stopCanonicalPumpScheduler()
+	} else {
+		log.Printf("database polling workers disabled: Neon cost guard active; manual scans, synchronous API routes and public SOC remain available")
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -134,6 +145,21 @@ func firstEnv(keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func envBoolDefault(name string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func resolveStaticDir(configured string) string {
