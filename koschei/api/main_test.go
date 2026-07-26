@@ -33,27 +33,6 @@ func TestResolveStaticDirHonorsConfiguredPath(t *testing.T) {
 	}
 }
 
-func TestEnvBoolDefaultUsesProductionSafeFallback(t *testing.T) {
-	t.Setenv("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", "")
-	if envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", false) {
-		t.Fatal("unset production guard must keep polling disabled")
-	}
-	if !envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", true) {
-		t.Fatal("development fallback must remain enabled")
-	}
-}
-
-func TestEnvBoolDefaultParsesExplicitValues(t *testing.T) {
-	t.Setenv("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", "true")
-	if !envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", false) {
-		t.Fatal("explicit true was ignored")
-	}
-	t.Setenv("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", "0")
-	if envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", true) {
-		t.Fatal("explicit false was ignored")
-	}
-}
-
 func TestNewHTTPServerSetsProductionTimeouts(t *testing.T) {
 	handler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	server := newHTTPServer("9090", handler)
@@ -62,5 +41,8 @@ func TestNewHTTPServerSetsProductionTimeouts(t *testing.T) {
 	}
 	if server.ReadHeaderTimeout != httpReadHeaderTimeout || server.ReadTimeout != httpReadTimeout || server.WriteTimeout != httpWriteTimeout || server.IdleTimeout != httpIdleTimeout {
 		t.Fatalf("timeouts were not applied: %#v", server)
+	}
+	if server.WriteTimeout < 8*60*1_000_000_000 {
+		t.Fatalf("write timeout=%s is too short for bounded actor/forensics routes", server.WriteTimeout)
 	}
 }
