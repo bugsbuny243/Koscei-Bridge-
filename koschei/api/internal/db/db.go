@@ -174,17 +174,16 @@ func ensureCanonicalPlans(db *sql.DB) error {
 	`); err != nil {
 		return err
 	}
-
 	if _, err := db.Exec(`
-		UPDATE users
-		SET plan = CASE lower(COALESCE(plan,''))
+		UPDATE entitlements
+		SET plan_id = CASE lower(COALESCE(plan_id,''))
 			WHEN 'builder' THEN 'professional'
 			WHEN 'pro' THEN 'professional'
 			WHEN 'studio' THEN 'enterprise'
-			ELSE plan
+			ELSE plan_id
 		END,
 		updated_at = now()
-		WHERE lower(COALESCE(plan,'')) IN ('builder','pro','studio')
+		WHERE lower(COALESCE(plan_id,'')) IN ('builder','pro','studio')
 	`); err != nil {
 		return err
 	}
@@ -193,48 +192,21 @@ func ensureCanonicalPlans(db *sql.DB) error {
 }
 
 func runMigrations(db *sql.DB) (int, int, error) {
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		version text PRIMARY KEY,
-		applied_at timestamptz NOT NULL DEFAULT now()
-	)`); err != nil {
-		return 0, 0, err
-	}
-
-	migrationDir := os.Getenv("MIGRATIONS_DIR")
-	if migrationDir == "" {
-		migrationDir = filepath.Join(".", "migrations")
-	}
-	entries, err := os.ReadDir(migrationDir)
-	if err != nil {
-		fallback := filepath.Join("/app", "migrations")
-		entries, err = os.ReadDir(fallback)
-		if err != nil {
-			return 0, 0, fmt.Errorf("read migrations dir: %w", err)
-		}
-		migrationDir = fallback
-	}
-
-	files := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
-			continue
-		}
-		files = append(files, entry.Name())
-	}
-	sort.Strings(files)
-
 	applied := 0
 	skipped := 0
-	for _, name := range files {
-		var exists bool
-		if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, name).Scan(&exists); err != nil {
-			return applied, skipped, err
-		}
-		if exists {
-			skipped++
-			continue
-		}
-		contents, err := os.ReadFile(filepath.Join(migrationDir, name))
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`); err != nil {
+		return 0, 0, err
+	}
+	files, err := migrationSQLFiles()
+	if err != nil {
+		return 0, 0, err
+	}
+	if len(files) == 0 {
+		log.Printf("warning: no migrations found in known paths; continuing with schema verification")
+	}
+	for _, f := range files {
+		v := filepath.Base(f)
+		b, err := os.ReadFile(f)
 		if err != nil {
 			return applied, skipped, err
 		}
@@ -242,14 +214,24 @@ func runMigrations(db *sql.DB) (int, int, error) {
 		if err != nil {
 			return applied, skipped, err
 		}
+		var exists bool
+		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, v).Scan(&exists); err != nil {
+			_ = tx.Rollback()
+			return applied, skipped, err
+		}
+		if exists {
+			_ = tx.Rollback()
+			skipped++
+			continue
+		}
 		// #nosec G701 -- SQL is read only from version-controlled migration files
 		// packaged with the application; no request, database or operator string is
 		// interpolated into the migration contents at runtime.
-		if _, err := tx.Exec(string(contents)); err != nil {
+		if _, err := tx.Exec(string(b)); err != nil {
 			_ = tx.Rollback()
-			return applied, skipped, fmt.Errorf("apply migration %s: %w", name, err)
+			return applied, skipped, fmt.Errorf("migration failed: %s %w", v, err)
 		}
-		if _, err := tx.Exec(`INSERT INTO schema_migrations(version) VALUES($1)`, name); err != nil {
+		if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES ($1)`, v); err != nil {
 			_ = tx.Rollback()
 			return applied, skipped, err
 		}
@@ -261,21 +243,55 @@ func runMigrations(db *sql.DB) (int, int, error) {
 	return applied, skipped, nil
 }
 
-func verifySchema(db *sql.DB) error {
-	checks := []struct {
-		name string
-		sql  string
-	}{
-		{name: "users", sql: `SELECT 1 FROM users LIMIT 1`},
-		{name: "plans", sql: `SELECT 1 FROM plans LIMIT 1`},
-		{name: "entitlements", sql: `SELECT 1 FROM entitlements LIMIT 1`},
-		{name: "api_keys", sql: `SELECT 1 FROM api_keys LIMIT 1`},
-		{name: "usage_events", sql: `SELECT 1 FROM usage_events LIMIT 1`},
-		{name: "security_audit_log", sql: `SELECT 1 FROM security_audit_log LIMIT 1`},
+func migrationSQLFiles() ([]string, error) {
+	candidates := []string{
+		"migrations",
+		filepath.Join("/app", "migrations"),
+		filepath.Join("koschei", "api", "migrations"),
 	}
-	for _, check := range checks {
-		if _, err := db.Exec(check.sql); err != nil {
-			return fmt.Errorf("required table %s unavailable: %w", check.name, err)
+	if configured := strings.TrimSpace(os.Getenv("MIGRATIONS_DIR")); configured != "" {
+		candidates = append([]string{configured}, candidates...)
+	}
+	seen := map[string]bool{}
+	for _, dir := range candidates {
+		dir = strings.TrimSpace(dir)
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		files, err := filepath.Glob(filepath.Join(dir, "*.sql"))
+		if err != nil {
+			return nil, err
+		}
+		if len(files) == 0 {
+			continue
+		}
+		sort.Strings(files)
+		log.Printf("migrations path selected: %s (%d files)", dir, len(files))
+		return files, nil
+	}
+	return nil, nil
+}
+
+func verifySchema(db *sql.DB) error {
+	required := []string{"schema_migrations", "plans", "app_user_profiles", "entitlements", "payment_requests", "credit_events", "generation_jobs", "model_route_logs", "runtime_projects", "runtime_tasks", "runtime_logs", "owner_client_orders", "owner_order_requirements", "owner_order_assets", "owner_delivery_packages", "owner_revision_requests", "owner_profit_records", "owner_service_templates", "analytics_events", "grant_opportunities", "koschei_modules", "risk_assessments", "tx_decodes", "web3_jobs", "mev_protection_events", "whale_clusters", "cex_flows", "liquidity_drain_alerts", "dao_treasuries", "proposal_risks", "exploit_simulation_runs", "bridge_risk_events", "por_monitor_snapshots"}
+	for _, t := range required {
+		var ok bool
+		if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name=$1)`, t).Scan(&ok); err != nil || !ok {
+			return fmt.Errorf("required table missing: %s", t)
+		}
+	}
+	requiredColumns := map[string][]string{
+		"app_user_profiles": {"id", "auth_subject", "email", "plan_id", "credits", "created_at", "updated_at"},
+		"entitlements":      {"id", "email", "plan_id", "outputs_total", "outputs_remaining", "status", "created_at", "updated_at"},
+		"api_keys":          {"id", "auth_subject", "email", "name", "key_prefix", "key_hash", "status", "monthly_limit", "rate_limit_per_minute", "created_at"},
+	}
+	for table, columns := range requiredColumns {
+		for _, column := range columns {
+			var ok bool
+			if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=$1 AND column_name=$2)`, table, column).Scan(&ok); err != nil || !ok {
+				return fmt.Errorf("required column missing: %s.%s", table, column)
+			}
 		}
 	}
 	return nil
