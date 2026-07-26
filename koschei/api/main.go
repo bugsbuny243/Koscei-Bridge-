@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"koschei/api/internal/alerts"
 	"koschei/api/internal/cache"
@@ -20,12 +24,23 @@ import (
 	"koschei/api/internal/webhooks"
 )
 
+const (
+	httpReadHeaderTimeout = 5 * time.Second
+	httpReadTimeout       = 15 * time.Second
+	httpWriteTimeout      = 60 * time.Second
+	httpIdleTimeout       = 60 * time.Second
+	httpShutdownTimeout   = 15 * time.Second
+)
+
 func main() {
 	log.Printf("koschei api starting")
 	log.Printf("migrations path: /app/migrations")
 	if missing := services.MissingProductionSecurityEnv(); len(missing) > 0 {
 		log.Fatalf("CRITICAL: missing required production security env vars: %s", strings.Join(missing, ", "))
 	}
+
+	appCtx, stopApp := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopApp()
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	var conn *sql.DB
@@ -70,7 +85,6 @@ func main() {
 		web3.RPCProviderHost(solanaRPC.URL("solana-mainnet")),
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
-	appCtx := context.Background()
 
 	// Retention remains active because it performs database hygiene only. Every
 	// quota-consuming automatic scanner is opt-in through the master switch.
@@ -93,10 +107,6 @@ func main() {
 		log.Printf("automatic scanning disabled: no Pump discovery, radar polling, background stream, actor correlation or watchlist refresh; manual scans and Safe Check remain available")
 	}
 
-	stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-	defer stopWebhookDeliveries()
-	stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-	defer stopSecurityAlertDeliveries()
 	jobStore := jobs.NewStore(conn)
 	jobQueue := jobs.Queue(jobs.NoopQueue{})
 	if natsURL := os.Getenv("NATS_URL"); natsURL != "" {
@@ -104,12 +114,23 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	// Existing web3_jobs rows now have a real consumer. Deep canonical scans are
-	// detached from HTTP request lifetime and processed sequentially by default.
-	stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
-	defer stopCanonicalWorker()
-	stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
-	defer stopCanonicalPumpScheduler()
+	// Empty database-backed queues previously polled Neon every few seconds and
+	// prevented scale-to-zero. Production web/API service now defaults to quiet
+	// synchronous operation. Polling consumers belong in a dedicated worker
+	// service with this flag explicitly enabled.
+	pollingDefault := !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
+	if envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", pollingDefault) {
+		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
+		defer stopWebhookDeliveries()
+		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
+		defer stopSecurityAlertDeliveries()
+		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
+		defer stopCanonicalWorker()
+		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
+		defer stopCanonicalPumpScheduler()
+	} else {
+		log.Printf("database polling workers disabled: Neon cost guard active; manual scans, synchronous API routes and public SOC remain available")
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -120,10 +141,62 @@ func main() {
 	}
 	staticDir := resolveStaticDir(os.Getenv("STATIC_DIR"))
 	log.Printf("static public path: %s", staticDir)
-	srv := apihttp.NewServer(conn, dbInitError, os.Getenv("ADMIN_PASSWORD"), firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"), staticDir, apihttp.WithReadDB(readConn), apihttp.WithCache(appCache), apihttp.WithSolanaRPC(solanaRPC), apihttp.WithJobStore(jobStore), apihttp.WithJobQueue(jobQueue))
-	log.Printf("api listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, srv); err != nil {
-		log.Fatal(err)
+	handler := apihttp.NewServer(conn, dbInitError, os.Getenv("ADMIN_PASSWORD"), firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"), staticDir, apihttp.WithReadDB(readConn), apihttp.WithCache(appCache), apihttp.WithSolanaRPC(solanaRPC), apihttp.WithJobStore(jobStore), apihttp.WithJobQueue(jobQueue))
+	server := newHTTPServer(port, handler)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		log.Printf("api listening on %s", server.Addr)
+		serverErrors <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErrors:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("http server failed: %v", err)
+		}
+	case <-appCtx.Done():
+		log.Printf("shutdown signal received")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("graceful shutdown failed: %v", err)
+			_ = server.Close()
+		}
+		select {
+		case err := <-serverErrors:
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("http server stopped with error: %v", err)
+			}
+		case <-shutdownCtx.Done():
+			log.Printf("http server shutdown deadline reached")
+		}
+	}
+}
+
+func newHTTPServer(port string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              ":" + strings.TrimSpace(port),
+		Handler:           handler,
+		ReadHeaderTimeout: httpReadHeaderTimeout,
+		ReadTimeout:       httpReadTimeout,
+		WriteTimeout:      httpWriteTimeout,
+		IdleTimeout:       httpIdleTimeout,
+	}
+}
+
+func envBoolDefault(name string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
 	}
 }
 
