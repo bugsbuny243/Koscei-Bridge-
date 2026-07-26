@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"koschei/api/internal/webhooks"
+	"koschei/api/internal/workerwake"
 )
 
 const webhookEndpointLimit = 10
@@ -205,6 +206,7 @@ func (h *Handler) WebhookDeliveryItem(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "delivery_not_retryable"})
 		return
 	}
+	workerwake.Signal(workerwake.WebhookDelivery)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "delivery_id": parts[0]})
 }
 
@@ -297,9 +299,9 @@ func (h *Handler) createWebhookEndpoint(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok": true,
-		"endpoint": map[string]any{"id": id, "name": req.Name, "url": parsed.String(), "status": "active", "event_types": events, "secret_last4": webhooks.Last4(secret)},
-		"secret": secret,
+		"ok":            true,
+		"endpoint":      map[string]any{"id": id, "name": req.Name, "url": parsed.String(), "status": "active", "event_types": events, "secret_last4": webhooks.Last4(secret)},
+		"secret":        secret,
 		"secret_notice": "This secret is shown once. Store it securely before leaving this page.",
 	})
 }
@@ -440,27 +442,30 @@ func (h *Handler) enqueueWebhookTest(w http.ResponseWriter, r *http.Request, id 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db_failed"})
 		return
 	}
+	// Wake the delivery worker immediately (#697): the worker is idle-blocked
+	// rather than polling, so enqueue paths must announce new work.
+	workerwake.Signal(workerwake.WebhookDelivery)
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "delivery_id": deliveryID, "status": "pending"})
 }
 
 func enqueueWatchlistWebhookDeliveries(ctx context.Context, tx *sql.Tx, authSubject, alertID string, target watchlistTarget, alert watchlistAlertCandidate) error {
 	payload, err := json.Marshal(map[string]any{
-		"id": alertID,
-		"type": "watchlist.alert.created",
+		"id":         alertID,
+		"type":       "watchlist.alert.created",
 		"created_at": time.Now().UTC().Format(time.RFC3339),
 		"data": map[string]any{
-			"watchlist_id": target.ID,
-			"target": target.Target,
-			"target_type": target.TargetType,
-			"network": target.Network,
-			"label": target.Label,
-			"event_type": alert.EventType,
-			"severity": alert.Severity,
-			"title": alert.Title,
-			"message": alert.Message,
+			"watchlist_id":   target.ID,
+			"target":         target.Target,
+			"target_type":    target.TargetType,
+			"network":        target.Network,
+			"label":          target.Label,
+			"event_type":     alert.EventType,
+			"severity":       alert.Severity,
+			"title":          alert.Title,
+			"message":        alert.Message,
 			"previous_value": alert.PreviousValue,
-			"current_value": alert.CurrentValue,
-			"evidence": alert.Evidence,
+			"current_value":  alert.CurrentValue,
+			"evidence":       alert.Evidence,
 		},
 	})
 	if err != nil {
@@ -485,9 +490,18 @@ func scanWebhookEndpoint(rows *sql.Rows) (webhookEndpoint, error) {
 		return item, err
 	}
 	item.EventTypes = parsePGTextArray(string(eventTypes))
-	if lastDelivery.Valid { value := lastDelivery.Time; item.LastDeliveryAt = &value }
-	if lastSuccess.Valid { value := lastSuccess.Time; item.LastSuccessAt = &value }
-	if lastFailure.Valid { value := lastFailure.Time; item.LastFailureAt = &value }
+	if lastDelivery.Valid {
+		value := lastDelivery.Time
+		item.LastDeliveryAt = &value
+	}
+	if lastSuccess.Valid {
+		value := lastSuccess.Time
+		item.LastSuccessAt = &value
+	}
+	if lastFailure.Valid {
+		value := lastFailure.Time
+		item.LastFailureAt = &value
+	}
 	return item, nil
 }
 
