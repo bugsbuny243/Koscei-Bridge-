@@ -46,13 +46,19 @@ func open(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", 10))
-	db.SetMaxIdleConns(envInt("DB_MAX_IDLE_CONNS", 5))
-	db.SetConnMaxLifetime(time.Duration(envInt("DB_CONN_MAX_LIFETIME_SECONDS", 1800)) * time.Second)
-	db.SetConnMaxIdleTime(5 * time.Minute)
+	maxOpen := envInt("DB_MAX_OPEN_CONNS", 10)
+	maxIdle := envNonNegativeInt("DB_MAX_IDLE_CONNS", 0)
+	maxLifetime := time.Duration(envNonNegativeInt("DB_CONN_MAX_LIFETIME_SECONDS", 300)) * time.Second
+	maxIdleTime := time.Duration(envNonNegativeInt("DB_CONN_MAX_IDLE_TIME_SECONDS", 60)) * time.Second
+	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxIdleConns(maxIdle)
+	db.SetConnMaxLifetime(maxLifetime)
+	db.SetConnMaxIdleTime(maxIdleTime)
+	log.Printf("database pool configured: max_open=%d max_idle=%d max_lifetime=%s max_idle_time=%s", maxOpen, maxIdle, maxLifetime, maxIdleTime)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("db ping failed: %w", err)
 	}
 	return db, nil
@@ -83,6 +89,15 @@ func normalizeDatabaseURL(databaseURL string) string {
 func envInt(name string, fallback int) int {
 	if v := strings.TrimSpace(os.Getenv(name)); v != "" {
 		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func envNonNegativeInt(name string, fallback int) int {
+	if v := strings.TrimSpace(os.Getenv(name)); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
 			return parsed
 		}
 	}

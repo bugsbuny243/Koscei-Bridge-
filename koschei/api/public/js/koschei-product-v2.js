@@ -3,6 +3,7 @@
   if(window.__koscheiProductV2)return;
   window.__koscheiProductV2=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
+  const HEALTH_TIMEOUT_MS=10000;
 
   function installReveal(){
     const nodes=[...document.querySelectorAll('[data-reveal]')];
@@ -19,19 +20,29 @@
   async function hydrateHealth(){
     const indicators=[...document.querySelectorAll('[data-koschei-live]')];
     if(!indicators.length)return;
+    const controller=new AbortController();
+    const timer=window.setTimeout(()=>controller.abort('koschei_health_timeout'),HEALTH_TIMEOUT_MS);
     try{
-      const response=await fetch('/health',{cache:'no-store',credentials:'same-origin'});
-      if(!response.ok)throw new Error('health_unavailable');
+      const response=await fetch('/health',{cache:'no-store',credentials:'same-origin',signal:controller.signal});
       const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.details||data.error||`HTTP ${response.status}`);
       const arvis=data.arvis||{};
       const status=String(arvis.pipeline_status||arvis.status||data.status||'ready').toLowerCase();
       const isLive=['ready','healthy','live','connected','ok','manual'].some(value=>status.includes(value));
       indicators.forEach(node=>{
         node.classList.toggle('is-live',isLive);
-        node.textContent=isLive?'ARVIS üretim hattı hazır':'ARVIS durumu kontrol ediliyor';
+        node.dataset.koscheiDependencyState=isLive?'ready':'degraded';
+        node.textContent=isLive?'ARVIS üretim hattı hazır':'DEGRADED · üretim hattı doğrulanamadı';
       });
-    }catch{
-      indicators.forEach(node=>{node.textContent='Canlı durum alınamadı';node.classList.remove('is-live')});
+    }catch(error){
+      indicators.forEach(node=>{
+        node.textContent='DEGRADED · kanıt servisi erişilemiyor';
+        node.title=error?.name==='AbortError'?`Sağlık kontrolü ${HEALTH_TIMEOUT_MS/1000} saniyede yanıt vermedi`:String(error?.message||'bağımlılık hatası');
+        node.dataset.koscheiDependencyState='degraded';
+        node.classList.remove('is-live');
+      });
+    }finally{
+      window.clearTimeout(timer);
     }
   }
 

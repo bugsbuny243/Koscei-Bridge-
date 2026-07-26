@@ -8,6 +8,7 @@
   const boundariesNode = document.getElementById('soc-boundaries');
   const number = new Intl.NumberFormat('tr-TR');
   const date = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'medium' });
+  const REQUEST_TIMEOUT_MS = 12000;
 
   function setText(id, value) {
     const node = document.getElementById(id);
@@ -39,6 +40,26 @@
   function caseTime(item) {
     const value = new Date(item.produced_at || item.published_at || 0).getTime();
     return Number.isFinite(value) ? value : 0;
+  }
+
+  async function fetchJSON(endpoint) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort('koschei_api_timeout'), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok !== true) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    } catch (error) {
+      if (error?.name === 'AbortError') throw new Error(`kanıt servisi ${REQUEST_TIMEOUT_MS / 1000} saniyede yanıt vermedi`);
+      throw error;
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   // Immutable dossiers remain separately verifiable, but the public showcase
@@ -152,20 +173,25 @@
     if (boundariesNode) boundariesNode.replaceChildren(...boundaries.map(value => el('div', '', value)));
   }
 
+  function renderDegraded(error) {
+    empty('DEGRADED DEPENDENCY — Kanıt servisine erişilemiyor. Güncel doğrulanmış sonuç üretilmedi; boş sayaçlar güvenli veya olaysız anlamına gelmez.', 'soc-error');
+    ['metric-cases', 'metric-featured', 'metric-verified', 'metric-observed'].forEach(id => setText(id, 'DOĞRULANAMADI'));
+    setText('metric-refresh', page === 'live' ? '15 sn sonra tekrar' : '60 sn sonra tekrar');
+    if (statusNode) statusNode.textContent = 'DEGRADED · açık kanıt servisi erişilemiyor';
+    if (updatedNode) updatedNode.textContent = `Son deneme: ${safeDate(new Date())} · ${String(error?.message || 'bağımlılık hatası')}`;
+    if (boundariesNode) boundariesNode.replaceChildren(el('div', 'soc-error', 'Yayın sınırları da güncel API yanıtı olmadan doğrulanamadı.'));
+  }
+
   async function load() {
     if (statusNode) statusNode.textContent = 'ARVIS açık kanıt akışı güncelleniyor';
     try {
       const endpoint = page === 'live' ? '/api/public/soc/feed' : '/api/public/cases?limit=100';
-      const response = await fetch(endpoint, { cache: 'no-store', headers: { Accept: 'application/json' } });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok !== true) throw new Error(payload.error || `HTTP ${response.status}`);
+      const payload = await fetchJSON(endpoint);
       if (page === 'live') renderLive(payload); else renderCases(payload);
       if (statusNode) statusNode.textContent = 'ARVIS açık kanıt akışı çalışıyor';
       if (updatedNode) updatedNode.textContent = `Son güncelleme: ${safeDate(payload.generated_at)}`;
     } catch (error) {
-      empty('Canlı kanıt akışı şu anda doğrulanamadı. Eski veya uydurma veri gösterilmiyor.', 'soc-error');
-      if (statusNode) statusNode.textContent = 'Açık kanıt akışına ulaşılamıyor';
-      if (updatedNode) updatedNode.textContent = String(error?.message || 'bilinmeyen hata');
+      renderDegraded(error);
     } finally {
       window.setTimeout(load, page === 'live' ? 15000 : 60000);
     }

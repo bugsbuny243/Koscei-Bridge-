@@ -1,6 +1,44 @@
 (function(){
   function ready(fn){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});}else{fn();}}
 
+  function installBoundedAPIFetch(){
+    if(window.__koscheiBoundedAPIFetchInstalled)return;
+    window.__koscheiBoundedAPIFetchInstalled=true;
+    var nativeFetch=window.fetch.bind(window);
+    function timeoutFor(path){
+      if(path==='/health')return 10000;
+      if(path.indexOf('/api/token/scan')===0||path.indexOf('/api/v1/radar/')===0||path.indexOf('/api/owner/')===0||path.indexOf('/api/jobs/')===0)return 45000;
+      return 15000;
+    }
+    window.fetch=function(input,init){
+      var raw=typeof input==='string'?input:(input&&input.url)||'';
+      var url;
+      try{url=new URL(raw,window.location.origin);}catch{return nativeFetch(input,init);}
+      var bounded=url.origin===window.location.origin&&(url.pathname==='/health'||url.pathname.indexOf('/api/')===0);
+      if(!bounded)return nativeFetch(input,init);
+      var controller=new AbortController();
+      var externalSignal=init&&init.signal;
+      var timedOut=false;
+      var onExternalAbort=function(){controller.abort(externalSignal&&externalSignal.reason);};
+      if(externalSignal){
+        if(externalSignal.aborted)onExternalAbort();
+        else externalSignal.addEventListener('abort',onExternalAbort,{once:true});
+      }
+      var timeoutMs=timeoutFor(url.pathname);
+      var timer=window.setTimeout(function(){timedOut=true;controller.abort('koschei_api_timeout');},timeoutMs);
+      var requestInit=Object.assign({},init||{},{signal:controller.signal});
+      return nativeFetch(input,requestInit).catch(function(error){
+        if(timedOut){throw new Error('DEGRADED DEPENDENCY — Kanıt servisi '+Math.round(timeoutMs/1000)+' saniyede yanıt vermedi. Güncel sonuç üretilmedi.');}
+        throw error;
+      }).finally(function(){
+        window.clearTimeout(timer);
+        if(externalSignal)externalSignal.removeEventListener('abort',onExternalAbort);
+      });
+    };
+  }
+
+  installBoundedAPIFetch();
+
   var translations={
     'Dashboard':'Panel','Radar':'Güvenlik Radarı','Token-2022':'Token-2022','Firewall':'İşlem Güvenliği','Watchlist':'İzleme Listesi','Webhooks':'Webhooklar','Integrate':'Entegrasyon','Plans':'Paketler',
     'Architecture':'Mimari','Developers':'Geliştiriciler','Integration Pilot':'Entegrasyon Pilotu','KOSCH Access':'KOSCH Erişimi','Token':'Token','Account':'Hesap','Reports':'Raporlar','Chain Health':'Zincir Sağlığı','Safe Check':'Güvenli Kontrol',
@@ -81,7 +119,7 @@
         var reasons=(Array.isArray(data.reasons)?data.reasons:[]).concat(Array.isArray(data.next_steps)?data.next_steps:[]).slice(0,5);
         result.innerHTML='<div class="score '+riskClass(score)+'">'+esc(score)+'</div><b>'+esc(decisionLabel)+' · '+esc(level==='medium'?'orta':level==='high'?'yüksek':level==='low'?'düşük':level)+'</b><p class="sub" style="margin-top:6px">'+esc(data.human_message||data.verdict||'ARVIS ön kontrolü tamamlandı.')+'</p>'+reasons.map(function(item){return '<div class="line">'+esc(item)+'</div>';}).join('')+'<div class="actions" style="margin-top:12px"><a class="btn primary" href="/safe-check">Ayrıntılı kontrol</a><a class="btn" href="/security-radar?target='+encodeURIComponent(value)+'">Derin tarama</a></div>';
       }catch(error){
-        result.innerHTML='<div class="line">Canlı güvenlik kanıtı alınamadı. Güvenli hüküm üretilmedi; şüpheli işlemi yapma ve daha sonra tekrar dene.</div>';
+        result.innerHTML='<div class="line">DEGRADED DEPENDENCY — Canlı güvenlik kanıtı alınamadı. Güvenli hüküm üretilmedi; şüpheli işlemi yapma ve daha sonra tekrar dene.</div>';
       }finally{run.disabled=false;run.textContent='ARVIS ile kontrol et';}
     };
   }

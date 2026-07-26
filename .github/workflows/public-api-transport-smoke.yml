@@ -1,0 +1,115 @@
+name: Public API Transport Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/**"
+      - "Dockerfile"
+      - ".github/workflows/public-api-transport-smoke.yml"
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: public-api-transport-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Distinguish proxy, application and database health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://tradepigloball.co
+    steps:
+      - name: Probe public API transport
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+
+          probe() {
+            local name="$1"
+            local path="$2"
+            curl --silent --show-error --max-time 20 \
+              --dump-header "diagnostics/${name}.headers" \
+              --output "diagnostics/${name}.body" \
+              --write-out '%{http_code}' \
+              "${BASE_URL}${path}" || true
+          }
+
+          version_code="$(probe version /api/version)"
+          config_code="$(probe config /api/config)"
+          health_code="$(probe health /health)"
+
+          {
+            echo "version_code=${version_code}"
+            echo "config_code=${config_code}"
+            echo "health_code=${health_code}"
+          } | tee diagnostics/result.txt
+
+          if [ "${version_code}" != "200" ]; then
+            echo "TRANSPORT_FAILURE: /api/version did not reach the Railway application (HTTP ${version_code})." >&2
+            exit 11
+          fi
+          grep -Fq '"status":"ok"' diagnostics/version.body || {
+            echo 'APPLICATION_FAILURE: /api/version returned an unexpected body.' >&2
+            exit 12
+          }
+
+          if [ "${config_code}" != "200" ]; then
+            echo "APPLICATION_CONFIG_FAILURE: /api/config returned HTTP ${config_code}." >&2
+            exit 13
+          fi
+
+          if [ "${health_code}" = "503" ]; then
+            echo 'DATABASE_DEPENDENCY_DEGRADED: transport and application are reachable, but /health reports an unavailable dependency.' >&2
+            exit 14
+          fi
+          if [ "${health_code}" != "200" ]; then
+            echo "HEALTH_TRANSPORT_FAILURE: /health returned HTTP ${health_code}." >&2
+            exit 15
+          fi
+
+          echo 'PUBLIC_API_HEALTHY: proxy, application and database health checks passed.'
+
+      - name: Upload transport diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-api-transport-diagnostics
+          path: diagnostics
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish machine-readable status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description='Public API transport or dependency check failed'
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ "${JOB_STATUS}" = success ]; then
+            state=success
+            description='Proxy, application and database health verified'
+            target_url="${BASE_URL}/health"
+          fi
+          export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
+          payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-api-transport",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))')"
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -d "${payload}" >/dev/null
