@@ -7,6 +7,7 @@ import (
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
+	mux.HandleFunc("/api/v1/defense/sentinel", requiresDB(h, h.DossierPublicationAccess(h.CustomerDefenseSentinel)))
 	mux.HandleFunc("/api/owner/defense/artifacts", requiresDB(h, ownerOnly(h, h.OwnerDefenseArtifacts)))
 	mux.HandleFunc("/api/owner/defense/knowledge", requiresDB(h, ownerOnly(h, h.OwnerDefenseKnowledge)))
 	mux.HandleFunc("/api/owner/defense/lab", requiresDB(h, ownerOnly(h, h.OwnerDefenseLab)))

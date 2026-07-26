@@ -6,11 +6,9 @@ on:
       - ".github/workflows/public-casefile-smoke.yml"
       - "koschei/api/internal/handlers/public_case_page.go"
       - "koschei/api/internal/handlers/public_case_summary.go"
-      - "koschei/api/internal/handlers/public_case_operational.go"
-      - "koschei/api/internal/handlers/public_case_operational_test.go"
+      - "koschei/api/internal/handlers/public_security_cases.go"
       - "koschei/api/internal/http/dossier_routes.go"
       - "koschei/api/public/css/public-case-summary.css"
-      - "koschei/api/public/css/public-case-operational.css"
       - "koschei/api/public/js/public-soc.js"
   push:
     branches: [main]
@@ -18,11 +16,9 @@ on:
       - ".github/workflows/public-casefile-smoke.yml"
       - "koschei/api/internal/handlers/public_case_page.go"
       - "koschei/api/internal/handlers/public_case_summary.go"
-      - "koschei/api/internal/handlers/public_case_operational.go"
-      - "koschei/api/internal/handlers/public_case_operational_test.go"
+      - "koschei/api/internal/handlers/public_security_cases.go"
       - "koschei/api/internal/http/dossier_routes.go"
       - "koschei/api/public/css/public-case-summary.css"
-      - "koschei/api/public/css/public-case-operational.css"
       - "koschei/api/public/js/public-soc.js"
   workflow_dispatch:
 
@@ -36,36 +32,32 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate ARVIS operational case contract
+    name: Validate public security result contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Validate public client and operational ownership
+      - name: Validate decision, evidence and action surface
         run: |
           set -euo pipefail
           node --check koschei/api/public/js/public-soc.js
-          grep -Fq '/case/' koschei/api/public/js/public-soc.js
-          grep -Fq 'currentCases' koschei/api/public/js/public-soc.js
-          grep -Fq 'ARVIS ŞİMDİ NE YAPACAK?' koschei/api/internal/handlers/public_case_operational.go
-          grep -Fq 'Sorumlu worker' koschei/api/internal/handlers/public_case_operational.go
-          grep -Fq 'Kullanıcıdan gereken' koschei/api/internal/handlers/public_case_operational.go
-          grep -Fq 'müşterinin manuel görevi değildir' koschei/api/internal/handlers/public_case_operational.go
-          grep -Fq 'PublicCaseOperationalPage' koschei/api/internal/http/dossier_routes.go
-          grep -Fq '.job-list' koschei/api/public/css/public-case-operational.css
-          if grep -Fq 'NE YAPMALI?' koschei/api/internal/handlers/public_case_operational.go; then
-            echo 'Operational case still assigns investigation homework to the customer.' >&2
-            exit 1
-          fi
-          if grep -Eq '<script|<pre>' koschei/api/internal/handlers/public_case_operational.go; then
-            echo 'Operational case contains raw/executable presentation tags.' >&2
-            exit 1
-          fi
+          grep -Fq 'PublicCaseSummaryPage' koschei/api/internal/http/dossier_routes.go
+          grep -Fq 'ARVIS KARARI' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'NE BULDUK?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'NEDEN ÖNEMLİ?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'NE YAPMALISIN?' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'Değişmez kanıt dosyasını aç' koschei/api/internal/handlers/public_case_summary.go
+          grep -Fq 'Güvenlik sonucunu aç' koschei/api/public/js/public-soc.js
+          grep -Fq '.grade>b.word' koschei/api/public/css/public-case-summary.css
+          ! grep -Fq 'PublicCaseOperationalPage' koschei/api/internal/http/dossier_routes.go
+          ! grep -Fq 'Sorumlu worker' koschei/api/internal/handlers/public_case_summary.go
+          ! grep -Fq 'ARVIS ŞİMDİ NE YAPACAK?' koschei/api/internal/handlers/public_case_summary.go
+          ! grep -Eq '<pre>|<script' koschei/api/internal/handlers/public_case_summary.go
 
   production-smoke:
-    name: Verify ARVIS operational case in production
+    name: Verify public security result in production
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
@@ -74,65 +66,43 @@ jobs:
       BASE_URL: https://tradepigloball.co
       CASE_REF: KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz
     steps:
-      - name: Wait for and verify public operational case
+      - name: Wait for and verify public result
         shell: bash
         run: |
           set -euo pipefail
           ready=false
           for attempt in $(seq 1 90); do
-            page_code="$(curl --silent --show-error --max-time 20 \
-              --dump-header casefile.headers \
-              --output casefile.html \
-              --write-out '%{http_code}' \
-              "${BASE_URL}/case/${CASE_REF}" || true)"
-            base_css_code="$(curl --silent --show-error --max-time 20 \
-              --output public-case-summary.css \
-              --write-out '%{http_code}' \
-              "${BASE_URL}/css/public-case-summary.css?v=1" || true)"
-            ops_css_code="$(curl --silent --show-error --max-time 20 \
-              --output public-case-operational.css \
-              --write-out '%{http_code}' \
-              "${BASE_URL}/css/public-case-operational.css?v=1" || true)"
-            js_code="$(curl --silent --show-error --max-time 20 \
-              --output public-soc.js \
-              --write-out '%{http_code}' \
-              "${BASE_URL}/js/public-soc.js?v=1" || true)"
-
+            page_code="$(curl --silent --show-error --max-time 20 --dump-header casefile.headers --output casefile.html --write-out '%{http_code}' "${BASE_URL}/case/${CASE_REF}" || true)"
+            css_code="$(curl --silent --show-error --max-time 20 --output public-case-summary.css --write-out '%{http_code}' "${BASE_URL}/css/public-case-summary.css?v=3" || true)"
+            js_code="$(curl --silent --show-error --max-time 20 --output public-soc.js --write-out '%{http_code}' "${BASE_URL}/js/public-soc.js?v=3" || true)"
             if [ "${page_code}" = "200" ] \
-               && [ "${base_css_code}" = "200" ] \
-               && [ "${ops_css_code}" = "200" ] \
+               && [ "${css_code}" = "200" ] \
                && [ "${js_code}" = "200" ] \
                && grep -Fq "${CASE_REF}" casefile.html \
-               && grep -Fq 'ARVIS ŞİMDİ NE YAPACAK?' casefile.html \
-               && grep -Fq 'Açık otomatik işler' casefile.html \
-               && grep -Fq 'Sorumlu worker' casefile.html \
-               && grep -Fq 'Otomatik işlem' casefile.html \
-               && grep -Fq 'Neden açık?' casefile.html \
-               && grep -Fq 'Kullanıcıdan gereken' casefile.html \
-               && grep -Fq 'Koschei worker' casefile.html \
-               && grep -Fq 'Ham teknik dossier' casefile.html \
-               && grep -Fq '.job-list' public-case-operational.css \
-               && grep -Fq 'currentCases' public-soc.js \
-               && ! grep -Fq 'NE YAPMALI?' casefile.html \
+               && grep -Fq 'ARVIS KARARI' casefile.html \
+               && grep -Fq 'NE BULDUK?' casefile.html \
+               && grep -Fq 'NEDEN ÖNEMLİ?' casefile.html \
+               && grep -Fq 'NE YAPMALISIN?' casefile.html \
+               && grep -Fq 'Değişmez kanıt dosyasını aç' casefile.html \
+               && grep -Fq '.grade>b.word' public-case-summary.css \
+               && grep -Fq 'Güvenlik sonucunu aç' public-soc.js \
+               && ! grep -Fq 'Sorumlu worker' casefile.html \
+               && ! grep -Fq 'ARVIS ŞİMDİ NE YAPACAK?' casefile.html \
                && ! grep -Eq '<pre>|window\.|<script' casefile.html; then
               ready=true
               break
             fi
-
-            echo "Operational case not ready (attempt ${attempt}/90; page=${page_code}; base_css=${base_css_code}; ops_css=${ops_css_code}; js=${js_code})."
+            echo "Public security result not ready (attempt ${attempt}/90; page=${page_code}; css=${css_code}; js=${js_code})."
             sleep 10
           done
-
           if [ "${ready}" != true ]; then
-            echo 'ARVIS operational public case failed production verification.' >&2
+            echo 'Public security result failed production verification.' >&2
             cat casefile.headers >&2 || true
             head -c 5000 casefile.html >&2 || true
             exit 1
           fi
-
           grep -Eiq '^content-security-policy: ' casefile.headers
           grep -Eiq '^cache-control: ' casefile.headers
-          echo "Verified ${BASE_URL}/case/${CASE_REF}"
 
       - name: Upload production case evidence
         if: always()
@@ -143,7 +113,6 @@ jobs:
             casefile.html
             casefile.headers
             public-case-summary.css
-            public-case-operational.css
             public-soc.js
           if-no-files-found: warn
           retention-days: 30
@@ -157,11 +126,11 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='ARVIS operational public case verification failed'
+          description='Public ARVIS security result verification failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description="Verified ARVIS worker ownership for ${CASE_REF}"
+            description="Verified public ARVIS security result ${CASE_REF}"
             target_url="${BASE_URL}/case/${CASE_REF}"
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"

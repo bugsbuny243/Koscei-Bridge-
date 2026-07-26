@@ -18,21 +18,19 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 		"ok":           true,
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
 		"source":       "server_boot_chain",
-		"access_model": "public_free_core_plus_verified_kosch_premium",
+		"access_model": "public_security_core_plus_authenticated_creation_and_premium_automation",
 		"groups":       productionRouteInventory(),
 		"rules": []string{
 			"A handler is live only when registered in the server boot chain.",
-			"Public Safe Check and basic token fundamentals are available without KOSCH.",
-			"Public SOC discovery exposes only owner-published immutable dossiers; a stored dossier is private by default.",
-			"A customer session identifies the account; a verified wallet proves KOSCH ownership for premium tools.",
-			"Radar history, graph, exposure, automation and developer API require Basic-or-higher KOSCH holder access.",
-			"Developer API keys remain identity credentials and do not bypass live KOSCH verification.",
-			"Legacy Shopier, Paddle, package purchase and owner payment routes are not registered.",
+			"Safe Check, public cases, live SOC and published program-risk evidence are public product surfaces.",
+			"A dossier or program-risk record is private by default; its creator controls visibility and owner access is moderation only.",
+			"A customer session or API key identifies the creator of scans, dossiers, monitors and publications.",
+			"Radar history, graph, exposure, automation and developer API may require the configured KOSCH tier.",
+			"Developer API keys remain identity credentials and never bypass evidence or entitlement checks.",
 			"Evidence-backed verdicts must not be signed without verified evidence.",
-			"Recipient fate investigation is mint-specific ATA-only and never queries recipient-wide signature history.",
+			"Public pages show security decisions, findings, evidence and actions; internal worker and acceptance state remains operational telemetry.",
 			"Canonical investigation jobs accept token mint, wallet or token-account targets and continue after the HTTP request ends.",
-			"Owner, customer and automatic Pump discovery routes feed the same canonical investigation worker.",
-			"Signed medium-or-higher ARVIS verdicts and non-allow transaction guard decisions enter the durable alert pipeline.",
+			"Signed ARVIS decisions and non-allow transaction guard results enter the durable alert pipeline.",
 		},
 	})
 }
@@ -41,18 +39,23 @@ func productionRouteInventory() []routeInventoryGroup {
 	return []routeInventoryGroup{
 		{Name: "free_core", Auth: "public_rate_limited", Routes: []string{
 			"POST /api/arvis/preflight", "POST /api/token/scan", "GET /api/v1/risk/badge",
-			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/public/cases", "GET /api/public/soc/feed", "GET /api/web3/health",
+			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/public/cases", "GET /api/public/soc/feed",
+			"GET /api/public/program-risks", "GET /api/public/program-risks/{ref}", "GET /program-risk/{ref}", "GET /case/{ref}", "GET /dossier/{ref}", "GET /api/web3/health",
 		}},
 		{Name: "identity", Auth: "mixed", Routes: []string{
 			"GET /health", "GET /api/config", "POST /api/auth/register", "POST /api/auth/login", "GET /api/me",
 			"GET /api/web3/health/logs", "POST /api/analytics/event",
+		}},
+		{Name: "authenticated_security_creation", Auth: "customer_session_or_api_key", Routes: []string{
+			"POST /api/v1/dossier/{target}", "POST /api/v1/dossier/publications", "GET|POST /api/v1/defense/sentinel",
+			"POST /api/v1/program-risks/publications",
 		}},
 		{Name: "account_and_kosch_access", Auth: "customer_session_plus_kosch_for_api_keys", Routes: []string{
 			"GET /api/account/api-keys", "POST /api/account/api-keys", "POST /api/account/api-keys/{id}/revoke",
 			"POST /api/auth/wallet/challenge", "POST /api/auth/wallet/verify", "GET /api/auth/wallet/status",
 			"POST /api/auth/wallet/unlink", "GET /api/auth/token-access", "GET /api/auth/premium-access",
 		}},
-		{Name: "owner", Auth: "owner_session", Routes: []string{
+		{Name: "owner_moderation_and_operations", Auth: "owner_session", Routes: []string{
 			"POST /api/owner/login", "POST /api/owner/logout", "GET /api/owner/command-center", "GET /api/owner/route-map",
 			"POST /api/owner/radar/unified", "POST /api/owner/radar/jobs", "GET /api/owner/radar/jobs/{id}",
 			"GET /api/owner/defense/tracks", "POST /api/owner/defense/investigate", "POST /api/owner/defense/distribution",
