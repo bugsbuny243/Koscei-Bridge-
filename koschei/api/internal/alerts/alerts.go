@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	EventSecurityAlertCreated      = "security.alert.created"
-	EventARVISVerdictCreated       = "arvis.verdict.created"
+	EventSecurityAlertCreated     = "security.alert.created"
+	EventARVISVerdictCreated      = "arvis.verdict.created"
 	EventTransactionGuardDecision = "transaction.guard.decision"
 )
 
