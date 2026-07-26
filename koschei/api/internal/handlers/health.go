@@ -14,6 +14,8 @@ import (
 
 const arvisHealthCacheTTL = 15 * time.Second
 
+var arvisHealthRefreshTimeout = 3 * time.Second
+
 var arvisHealthCache = struct {
 	sync.RWMutex
 	data      map[string]any
@@ -57,7 +59,10 @@ func (h *Handler) cachedArvisHealth(ctx context.Context) map[string]any {
 	if arvisHealthCache.data != nil && now.Before(arvisHealthCache.expiresAt) {
 		return arvisHealthCache.data
 	}
-	stats := h.securityRadarStreamStats(ctx)
+
+	refreshCtx, cancel := context.WithTimeout(ctx, arvisHealthRefreshTimeout)
+	defer cancel()
+	stats := h.securityRadarStreamStats(refreshCtx)
 	data := map[string]any{
 		"pipeline_status":         stats["pipeline_status"],
 		"architecture_arm_count":  stats["architecture_arm_count"],
@@ -74,9 +79,16 @@ func (h *Handler) cachedArvisHealth(ctx context.Context) map[string]any {
 		"last_stream_event_at":    stats["last_stream_event_at"],
 		"last_processed_at":       stats["last_processed_at"],
 		"runtime_window_minutes":  stats["runtime_window_minutes"],
-		"sources":                 h.arvisSourceHealth(ctx),
-		"failures":                h.arvisFailureHealth(ctx),
+		"sources":                 h.arvisSourceHealth(refreshCtx),
+		"failures":                h.arvisFailureHealth(refreshCtx),
 		"cached_for_seconds":      int(arvisHealthCacheTTL.Seconds()),
+		"refresh_timeout_seconds": int(arvisHealthRefreshTimeout.Seconds()),
+		"detail_status":           "complete",
+	}
+	if err := refreshCtx.Err(); err != nil {
+		data["pipeline_status"] = "degraded_dependency"
+		data["detail_status"] = "degraded_timeout"
+		data["refresh_error"] = err.Error()
 	}
 	arvisHealthCache.data = data
 	arvisHealthCache.expiresAt = now.Add(arvisHealthCacheTTL)
