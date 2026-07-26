@@ -9,6 +9,37 @@
   const originalSignIn = auth.signIn.bind(auth);
   const originalSignUp = auth.signUp.bind(auth);
 
+  function installBoundedAuthFetch() {
+    if (window.__koscheiBoundedAPIFetchInstalled) return;
+    window.__koscheiBoundedAPIFetchInstalled = true;
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = function (input, init = {}) {
+      let url;
+      try { url = new URL(typeof input === 'string' ? input : input?.url || '', window.location.origin); } catch { return nativeFetch(input, init); }
+      const bounded = url.origin === window.location.origin && (url.pathname === '/health' || url.pathname.startsWith('/api/'));
+      if (!bounded) return nativeFetch(input, init);
+      const controller = new AbortController();
+      const externalSignal = init.signal;
+      let timedOut = false;
+      const onExternalAbort = () => controller.abort(externalSignal?.reason);
+      if (externalSignal) {
+        if (externalSignal.aborted) onExternalAbort();
+        else externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+      }
+      const timeoutMs = 15000;
+      const timer = window.setTimeout(() => { timedOut = true; controller.abort('koschei_api_timeout'); }, timeoutMs);
+      return nativeFetch(input, { ...init, signal: controller.signal }).catch(error => {
+        if (timedOut) throw new Error('DEGRADED DEPENDENCY — Koschei oturum servisi 15 saniyede yanıt vermedi.');
+        throw error;
+      }).finally(() => {
+        window.clearTimeout(timer);
+        if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
+      });
+    };
+  }
+
+  installBoundedAuthFetch();
+
   function clearLocalSession() {
     try {
       for (const key of JWT_KEYS) localStorage.removeItem(key);
