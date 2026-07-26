@@ -44,10 +44,18 @@ func (h *Handler) PublicUnifiedSOCFeed(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	findings, err := h.loadPublicContractFindings(r.Context(), 40)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok": false, "status": "unavailable", "events": []publicUnifiedSOCEvent{},
+		})
+		return
+	}
 
 	actorCases, tokenCases, verified, observed, featured := 0, 0, 0, 0, 0
 	criticalPrograms, highPrograms := 0, 0
-	events := make([]publicUnifiedSOCEvent, 0, len(cases)+len(risks))
+	criticalFindings, highFindings := 0, 0
+	events := make([]publicUnifiedSOCEvent, 0, len(cases)+len(risks)+len(findings))
 	seenTargets := map[string]struct{}{}
 	publishedCases := 0
 	for _, item := range cases {
@@ -94,6 +102,20 @@ func (h *Handler) PublicUnifiedSOCFeed(w http.ResponseWriter, r *http.Request) {
 			EventHash: item.EvidenceHash, Verifiable: item.EvidenceHash != "", Description: item.Summary,
 		})
 	}
+	for _, item := range findings {
+		if item.Severity == "critical" {
+			criticalFindings++
+		} else if item.Severity == "high" {
+			highFindings++
+		}
+		events = append(events, publicUnifiedSOCEvent{
+			Type: item.Type, IdentityKey: item.FindingRef, EventRef: item.FindingRef,
+			Title: item.Title, TargetKind: "solana_program_source", Target: item.ProgramID,
+			Severity: item.Severity, ChangeTypes: []string{item.RuleID, item.Confidence, item.LifecycleStatus},
+			Evidence: item.EvidenceRows, OccurredAt: item.PublishedAt, PublicURL: item.PublicURL,
+			EventHash: item.EvidenceHash, Verifiable: item.EvidenceHash != "", Description: item.Summary,
+		})
+	}
 	sort.SliceStable(events, func(i, j int) bool { return events[i].OccurredAt.After(events[j].OccurredAt) })
 	if len(events) > 50 {
 		events = events[:50]
@@ -113,6 +135,8 @@ func (h *Handler) PublicUnifiedSOCFeed(w http.ResponseWriter, r *http.Request) {
 			"actor_cases": actorCases, "token_cases": tokenCases,
 			"program_risk_events": len(risks), "critical_program_events": criticalPrograms,
 			"high_program_events": highPrograms,
+			"contract_finding_events": len(findings), "critical_contract_findings": criticalFindings,
+			"high_contract_findings": highFindings,
 			"verified_evidence_rows": verified, "observed_evidence_rows": observed,
 			"last_published_at": lastPublished,
 		},
@@ -120,6 +144,8 @@ func (h *Handler) PublicUnifiedSOCFeed(w http.ResponseWriter, r *http.Request) {
 		"boundaries": []string{
 			"Özel müşteri taramaları ve iç worker ayrıntıları yayımlanmaz.",
 			"Program alarmı yalnızca değişmez snapshot/event hash'i bulunan HIGH veya CRITICAL zincir üstü teknik durumdan üretilir.",
+			"Akıllı kontrat kaynak bulgusu yalnız owner açıkça yayınladığında görünür; kaynak yolu ve eşleşen kod parçası redakte edilir.",
+			"Statik bulgu exploit, erişilebilirlik, varlık etkisi, kötü niyet veya suç kanıtı değildir.",
 			"Açık upgrade authority teknik kontrol riski demektir; tek başına kötü niyet, saldırı veya dolandırıcılık iddiası değildir.",
 			"Kaynak doğrulanmamışsa uyuşmazlık varmış gibi gösterilmez; yalnızca açıkça doğrulanan manifest-bytecode çelişkisi yayımlanır.",
 		},
