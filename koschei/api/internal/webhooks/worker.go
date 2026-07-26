@@ -13,11 +13,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"koschei/api/internal/workerwake"
 )
 
 const (
-	deliveryPollInterval = 4 * time.Second
-	deliveryBatchSize    = 10
+	deliveryBatchSize = 10
+	// deliveryErrorBackoff is the retry delay after a failed claim: short enough
+	// that a pending delivery is not stranded, long enough to avoid a hot loop.
+	deliveryErrorBackoff = 5 * time.Second
 	maxResponseBytes     = 32 << 10
 )
 
@@ -49,34 +53,57 @@ func StartDeliveryWorker(parent context.Context, db *sql.DB) func() {
 			SET status='retry', locked_at=NULL, next_attempt_at=now(), updated_at=now(),
 			    last_error=COALESCE(last_error,'delivery worker recovered stale lock')
 			WHERE status='processing' AND locked_at < now()-interval '2 minutes'`)
-		ticker := time.NewTicker(deliveryPollInterval)
-		defer ticker.Stop()
+		gate := workerwake.Get(workerwake.WebhookDelivery)
+		log.Printf("webhook delivery worker started mode=event-driven recovery-ceiling=%s", workerwake.RecoveryCeiling())
 		for {
-			if err := processDeliveryBatch(ctx, db, client); err != nil && ctx.Err() == nil {
-				log.Printf("webhook delivery worker: %v", err)
-			}
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				return
-			case <-ticker.C:
 			}
+			gate.Drain()
+			processed, err := processDeliveryBatch(ctx, db, client)
+			if err != nil {
+				if ctx.Err() == nil {
+					log.Printf("webhook delivery worker: %v", err)
+				}
+				// A claim failure is not an empty queue. Back off briefly rather
+				// than re-deriving a due time and spinning against a database that
+				// is failing, waking or degraded.
+				gate.Wait(ctx, deliveryErrorBackoff)
+				continue
+			}
+			// A full batch means the queue is still backed up: continue draining
+			// without sleeping. Anything less means the queue is empty or the
+			// remaining rows are scheduled for later.
+			if processed >= deliveryBatchSize {
+				continue
+			}
+			sleep := workerwake.NextDueSleep(ctx, db, workerwake.WebhookDelivery)
+			if sleep <= 0 {
+				continue
+			}
+			gate.Wait(ctx, sleep)
 		}
 	}()
 	return func() { once.Do(cancel) }
 }
 
-func processDeliveryBatch(ctx context.Context, db *sql.DB, client *http.Client) error {
+// processDeliveryBatch claims and delivers up to deliveryBatchSize rows and
+// reports how many it processed, so the caller can distinguish "queue drained"
+// from "batch limit reached".
+func processDeliveryBatch(ctx context.Context, db *sql.DB, client *http.Client) (int, error) {
+	processed := 0
 	for i := 0; i < deliveryBatchSize; i++ {
 		delivery, err := claimDelivery(ctx, db)
 		if err == sql.ErrNoRows {
-			return nil
+			return processed, nil
 		}
 		if err != nil {
-			return err
+			return processed, err
 		}
 		processDelivery(ctx, db, client, delivery)
+		processed++
 	}
-	return nil
+	return processed, nil
 }
 
 func claimDelivery(ctx context.Context, db *sql.DB) (deliveryRecord, error) {

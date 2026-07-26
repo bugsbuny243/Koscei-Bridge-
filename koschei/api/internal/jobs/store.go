@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"koschei/api/internal/workerwake"
 )
 
 type Store struct{ DB *sql.DB }
@@ -26,7 +28,7 @@ func (s *Store) Create(ctx context.Context, in CreateInput) (Job, error) {
 	if err != nil {
 		return Job{}, err
 	}
-	return scanJob(s.DB.QueryRowContext(ctx, `
+	job, err := scanJob(s.DB.QueryRowContext(ctx, `
 		INSERT INTO web3_jobs (user_id,email,job_type,status,network,target,request_payload,progress)
 		VALUES ($1,$2,$3,'queued',$4,$5,$6,0)
 		RETURNING id,user_id,email,job_type,status,network,target,request_payload,
@@ -34,6 +36,10 @@ func (s *Store) Create(ctx context.Context, in CreateInput) (Job, error) {
 		          progress,attempts,queued_at,updated_at`,
 		in.UserID, in.Email, in.Type, in.Network, in.Target, payload,
 	))
+	if err == nil {
+		signalCanonicalInvestigationJob(in.Type)
+	}
+	return job, err
 }
 
 // CreateUniqueActive serializes one logical investigation branch with a
@@ -85,6 +91,9 @@ func (s *Store) CreateUniqueActive(ctx context.Context, in CreateInput, dedupeKe
 		if commitErr := tx.Commit(); commitErr != nil {
 			return Job{}, false, commitErr
 		}
+		if existing.Status == "queued" {
+			signalCanonicalInvestigationJob(existing.Type)
+		}
 		return existing, false, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -104,6 +113,9 @@ func (s *Store) CreateUniqueActive(ctx context.Context, in CreateInput, dedupeKe
 	if err := tx.Commit(); err != nil {
 		return Job{}, false, err
 	}
+	// Signal only after commit (#697): a wake before the row is visible would be
+	// coalesced away and the job would wait for the recovery ceiling.
+	signalCanonicalInvestigationJob(created.Type)
 	return created, true, nil
 }
 
@@ -230,7 +242,17 @@ func (s *Store) RetryOrFail(ctx context.Context, id, code, message string) (stri
 		    updated_at=now()
 		WHERE id=$1
 		RETURNING status`, id, code, message).Scan(&status)
+	if err == nil && status == "queued" {
+		workerwake.Signal(workerwake.CanonicalInvestigation)
+	}
 	return status, err
+}
+
+func signalCanonicalInvestigationJob(jobType string) {
+	switch strings.TrimSpace(jobType) {
+	case "canonical_investigation", "token_scan":
+		workerwake.Signal(workerwake.CanonicalInvestigation)
+	}
 }
 
 func scanJob(row jobScanner) (Job, error) {

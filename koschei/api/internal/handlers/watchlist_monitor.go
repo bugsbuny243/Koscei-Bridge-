@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"koschei/api/internal/services"
+	"koschei/api/internal/workerwake"
 )
 
 type dueWatchlistTarget struct {
@@ -66,6 +67,10 @@ func runWatchlistMonitorBatch(ctx context.Context, h *Handler, limit int) {
 			continue
 		}
 		if alerts > 0 {
+			// watchlist_alerts has an AFTER INSERT trigger that queues webhook
+			// deliveries. refreshWatchlistTarget returns only after its transaction
+			// commits, so the trigger-created rows are visible before this wake.
+			workerwake.Signal(workerwake.WebhookDelivery)
 			log.Printf("watchlist monitor created alerts id=%s count=%d", target.ID, alerts)
 		}
 	}

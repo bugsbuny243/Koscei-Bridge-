@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"koschei/api/internal/handlers"
+	"koschei/api/internal/workerwake"
 )
 
 func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered routeGate, enterprise routeGate) {
@@ -19,10 +20,13 @@ func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered
 	mux.HandleFunc("/api/auth/token-access", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.TokenAccessStatus))))
 	mux.HandleFunc("/api/auth/premium-access", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.PremiumAccessStatus))))
 
-	mux.HandleFunc("/api/watchlist", requiresDB(h, proMetered(h.WatchlistCollection)))
-	mux.HandleFunc("/api/watchlist/refresh", requiresDB(h, proMetered(method(http.MethodPost, h.WatchlistRefresh))))
+	// Watchlist alerts enqueue webhook deliveries through a PostgreSQL AFTER
+	// INSERT trigger. Wake after the request handler returns, which is after the
+	// transaction commits and the trigger-created delivery rows are visible.
+	mux.HandleFunc("/api/watchlist", requiresDB(h, proMetered(wakeWebhookDeliveryAfterWatchlistPost(h.WatchlistCollection))))
+	mux.HandleFunc("/api/watchlist/refresh", requiresDB(h, proMetered(wakeWebhookDeliveryAfterWatchlistPost(method(http.MethodPost, h.WatchlistRefresh)))))
 	mux.HandleFunc("/api/watchlist/alerts", requiresDB(h, proMetered(h.WatchlistAlerts)))
-	mux.HandleFunc("/api/watchlist/", requiresDB(h, proMetered(h.WatchlistItem)))
+	mux.HandleFunc("/api/watchlist/", requiresDB(h, proMetered(wakeWebhookDeliveryAfterWatchlistPost(h.WatchlistItem))))
 
 	// Webhook management requires Enterprise eligibility but does not consume a
 	// scan unit. The scans that produce webhook events are metered separately.
@@ -31,4 +35,13 @@ func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered
 	mux.HandleFunc("/api/webhooks/deliveries/", requiresDB(h, enterprise(h.WebhookDeliveryItem)))
 	mux.HandleFunc("/api/webhooks", requiresDB(h, enterprise(h.WebhookEndpoints)))
 	mux.HandleFunc("/api/webhooks/", requiresDB(h, enterprise(h.WebhookEndpointItem)))
+}
+
+func wakeWebhookDeliveryAfterWatchlistPost(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		next(w, r)
+		if r.Method == http.MethodPost {
+			workerwake.Signal(workerwake.WebhookDelivery)
+		}
+	}
 }
