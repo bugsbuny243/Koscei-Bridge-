@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const ActorDefenseRulesetVersion = "koschei-actor-defense-rules-v1.0.1"
+const ActorDefenseRulesetVersion = "koschei-actor-defense-rules-v1.0.2"
 
 const (
 	ActorRuleHardCreatorLiquidityRemoval = "ARD-H001"
@@ -55,12 +55,12 @@ type ActorDefenseRuleVerdict struct {
 }
 
 type actorRuleDirectTransferGroup struct {
-	Relation           string
-	CounterpartKind    string
-	CounterpartID      string
-	EvidenceStatus     string
-	Signatures         map[string]bool
-	EvidenceKeys       map[string]bool
+	Relation        string
+	CounterpartKind string
+	CounterpartID   string
+	EvidenceStatus  string
+	Signatures      map[string]bool
+	EvidenceKeys    map[string]bool
 }
 
 // EvaluateActorDefenseRules applies a versioned rule table. It never averages
@@ -209,12 +209,14 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 	triggered := append(append([]ActorDefenseRuleHit{}, hard...), compound...)
 	actorRuleSortHits(triggered)
 	actorRuleSortHits(watch)
+	compoundRuleCount := actorRuleDistinctRuleCount(compound)
 
 	grade := "-"
 	verdict := "no_grade_trigger"
 	decision := []string{
 		"VERIFIED hard triggers are evaluated before compounding rules.",
-		"ARD-C004 counts distinct transaction signatures for the same direct relation; instruction rows from one signature are deduplicated.",
+		"ARD-C004 counts distinct transaction signatures for the same relation and counterpart; instruction rows from one signature are deduplicated.",
+		"Multiple evidence groups for one rule ID remain separate for audit but count as one compounding rule for grade decisions.",
 		"Possible dust/address-poisoning candidates remain visible as watch-only evidence and cannot change the grade.",
 		"INFERRED evidence is watch-only and cannot change the grade.",
 		"UNVERIFIED evidence is excluded from the verdict.",
@@ -224,15 +226,15 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		verdict = "hard_trigger"
 		decision = append(decision, fmt.Sprintf("Hard-trigger ceiling applied: grade %s.", grade))
 		if len(compound) > 0 {
-			decision = append(decision, "Compounding rules are reported as context and do not move a hard-trigger grade in ruleset v1.0.1.")
+			decision = append(decision, "Compounding rules are reported as context and do not move a hard-trigger grade in ruleset v1.0.2.")
 		}
-	} else if len(compound) >= 2 {
+	} else if compoundRuleCount >= 2 {
 		grade = "B"
 		verdict = "compounding_rule"
-		decision = append(decision, "Two or more distinct VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B.")
-	} else if len(compound) == 1 {
+		decision = append(decision, "Two or more distinct VERIFIED/OBSERVED compounding rule IDs lowered the baseline by one grade to B.")
+	} else if compoundRuleCount == 1 {
 		verdict = "single_observation"
-		decision = append(decision, "One compounding observation is insufficient to issue a letter grade.")
+		decision = append(decision, "One distinct compounding rule ID is insufficient to issue a letter grade, even when it has multiple evidence groups.")
 	} else if len(watch) > 0 {
 		verdict = "watch_only"
 		decision = append(decision, "Only watch flags are present; no letter grade is issued.")
@@ -420,7 +422,7 @@ func actorRuleRepeatedTransferHits(groups map[string]*actorRuleDirectTransferGro
 			EvidenceStatus: group.EvidenceStatus,
 			GradeEffect: "compounding_input",
 			Count: len(signatures),
-			Summary: fmt.Sprintf("The same direct transfer relation was observed across %d distinct transaction signatures.", len(signatures)),
+			Summary: fmt.Sprintf("The %s relation with counterpart %s repeated across %d distinct transaction signatures.", group.Relation, group.CounterpartID, len(signatures)),
 			EvidenceKeys: actorRuleMapStrings(group.EvidenceKeys),
 			Signatures: signatures,
 			Facts: map[string]any{
@@ -497,7 +499,7 @@ func actorRuleDirectTransfer(relation string) bool {
 func actorRuleMergeHits(items []ActorDefenseRuleHit) []ActorDefenseRuleHit {
 	merged := map[string]ActorDefenseRuleHit{}
 	for _, item := range items {
-		key := item.RuleID + "|" + item.EvidenceStatus + "|" + item.GradeCap
+		key := actorRuleMergeKey(item)
 		current, exists := merged[key]
 		if !exists {
 			item.EvidenceKeys = actorRuleUniqueStrings(item.EvidenceKeys)
@@ -520,6 +522,33 @@ func actorRuleMergeHits(items []ActorDefenseRuleHit) []ActorDefenseRuleHit {
 	return out
 }
 
+func actorRuleMergeKey(item ActorDefenseRuleHit) string {
+	key := item.RuleID + "|" + item.EvidenceStatus + "|" + item.GradeCap
+	if item.RuleID == ActorRuleCompoundRepeatedTransfer {
+		key += "|" + actorRuleRepeatedTransferIdentity(item)
+	}
+	return key
+}
+
+func actorRuleRepeatedTransferIdentity(hit ActorDefenseRuleHit) string {
+	return strings.Join([]string{
+		strings.ToLower(actorRuleFactString(hit.Facts, "relation")),
+		strings.ToLower(actorRuleFactString(hit.Facts, "counterpart_kind")),
+		actorRuleFactString(hit.Facts, "counterpart_id"),
+	}, "|")
+}
+
+func actorRuleFactString(facts map[string]any, key string) string {
+	if facts == nil {
+		return ""
+	}
+	value := strings.TrimSpace(fmt.Sprint(facts[key]))
+	if value == "<nil>" {
+		return ""
+	}
+	return value
+}
+
 func actorRuleNormalizeDedupedHit(hit *ActorDefenseRuleHit) {
 	if hit == nil {
 		return
@@ -527,7 +556,13 @@ func actorRuleNormalizeDedupedHit(hit *ActorDefenseRuleHit) {
 	switch hit.RuleID {
 	case ActorRuleCompoundRepeatedTransfer:
 		hit.Count = len(actorRuleUniqueStrings(hit.Signatures))
-		hit.Summary = fmt.Sprintf("One or more direct transfer relations repeated across %d distinct transaction signatures after signature deduplication.", hit.Count)
+		if hit.Facts == nil {
+			hit.Facts = map[string]any{}
+		}
+		hit.Facts["distinct_signature_count"] = hit.Count
+		relation := firstNonEmptyString(actorRuleFactString(hit.Facts, "relation"), "direct_transfer")
+		counterpart := firstNonEmptyString(actorRuleFactString(hit.Facts, "counterpart_id"), "unknown_counterpart")
+		hit.Summary = fmt.Sprintf("The %s relation with counterpart %s repeated across %d distinct transaction signatures after signature deduplication.", relation, counterpart, hit.Count)
 	case ActorRuleWatchPossibleDust:
 		if len(hit.Signatures) > 0 {
 			hit.Count = len(actorRuleUniqueStrings(hit.Signatures))
@@ -538,6 +573,18 @@ func actorRuleNormalizeDedupedHit(hit *ActorDefenseRuleHit) {
 	}
 }
 
+func actorRuleDistinctRuleCount(items []ActorDefenseRuleHit) int {
+	seen := map[string]bool{}
+	for _, item := range items {
+		id := strings.TrimSpace(item.RuleID)
+		if id == "" {
+			continue
+		}
+		seen[id] = true
+	}
+	return len(seen)
+}
+
 func actorRuleSortHits(items []ActorDefenseRuleHit) {
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].Tier != items[j].Tier {
@@ -546,8 +593,30 @@ func actorRuleSortHits(items []ActorDefenseRuleHit) {
 		if items[i].RuleID != items[j].RuleID {
 			return items[i].RuleID < items[j].RuleID
 		}
-		return items[i].EvidenceStatus < items[j].EvidenceStatus
+		leftIdentity := actorRuleHitSortIdentity(items[i])
+		rightIdentity := actorRuleHitSortIdentity(items[j])
+		if leftIdentity != rightIdentity {
+			return leftIdentity < rightIdentity
+		}
+		if items[i].EvidenceStatus != items[j].EvidenceStatus {
+			return items[i].EvidenceStatus < items[j].EvidenceStatus
+		}
+		if items[i].Count != items[j].Count {
+			return items[i].Count < items[j].Count
+		}
+		return items[i].Summary < items[j].Summary
 	})
+}
+
+func actorRuleHitSortIdentity(hit ActorDefenseRuleHit) string {
+	if hit.RuleID == ActorRuleCompoundRepeatedTransfer {
+		return actorRuleRepeatedTransferIdentity(hit)
+	}
+	return strings.Join([]string{
+		strings.Join(actorRuleUniqueStrings(hit.EvidenceKeys), ","),
+		strings.Join(actorRuleUniqueStrings(hit.Signatures), ","),
+		strings.TrimSpace(hit.Title),
+	}, "|")
 }
 
 func actorRuleUniqueStrings(items []string) []string {
