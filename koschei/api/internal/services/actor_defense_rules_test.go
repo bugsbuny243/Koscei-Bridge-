@@ -38,11 +38,32 @@ func TestActorRulesVerifiedCreatorHolderFundingCapsAtD(t *testing.T) {
 	evidence := []ActorDefenseEvidenceRecord{{
 		Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
 		EvidenceKey: "sig-two:0", Signature: "sig-two", CounterpartKind: "wallet", CounterpartID: "HolderWallet",
+		AmountNative: 1,
 		Metadata: map[string]any{"actor_signed": true, "known_related_actor": true},
 	}}
 	verdict := EvaluateActorDefenseRules(track, evidence)
 	if verdict.Grade != "D" || !actorRulePresent(verdict.TriggeredRules, ActorRuleHardCreatorHolderFunding) {
 		t.Fatalf("verdict=%#v", verdict)
+	}
+}
+
+func TestActorRulesPossibleDustCannotBecomeCreatorHolderFunding(t *testing.T) {
+	track := ActorDefenseTrack{
+		Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet",
+		CreatedTokenCount: 1,
+	}
+	evidence := []ActorDefenseEvidenceRecord{{
+		Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
+		EvidenceKey: "dust-out:0", Signature: "dust-out", CounterpartKind: "wallet", CounterpartID: "HolderWallet",
+		AmountNative: ActorPossibleDustNativeSOLMax,
+		Metadata: map[string]any{"actor_signed": true, "known_related_actor": true},
+	}}
+	verdict := EvaluateActorDefenseRules(track, evidence)
+	if actorRulePresent(verdict.TriggeredRules, ActorRuleHardCreatorHolderFunding) {
+		t.Fatalf("possible dust became hard funding proof: %#v", verdict)
+	}
+	if !actorRulePresent(verdict.WatchFlags, ActorRuleWatchPossibleDust) {
+		t.Fatalf("possible dust watch flag missing: %#v", verdict)
 	}
 }
 
@@ -69,6 +90,57 @@ func TestActorRulesTwoObservedCompoundingRulesProduceB(t *testing.T) {
 	}
 	if !verdict.Signed {
 		t.Fatal("deterministic compounding verdict must be signed")
+	}
+}
+
+func TestActorRulesC004RequiresTwoDistinctSignaturesForSameRelation(t *testing.T) {
+	track := ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet"}
+	evidence := []ActorDefenseEvidenceRecord{
+		{Relation: "direct_sol_transfer_out", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "Counterparty", EvidenceKey: "sig-a:0", Signature: "sig-a", AmountNative: 1},
+		{Relation: "direct_sol_transfer_out", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "Counterparty", EvidenceKey: "sig-b:0", Signature: "sig-b", AmountNative: 2},
+	}
+	verdict := EvaluateActorDefenseRules(track, evidence)
+	hit, ok := actorRuleFind(verdict.TriggeredRules, ActorRuleCompoundRepeatedTransfer)
+	if !ok {
+		t.Fatalf("C004 missing: %#v", verdict)
+	}
+	if hit.Count != 2 || len(hit.Signatures) != 2 {
+		t.Fatalf("C004 count/signatures inflated or missing: %#v", hit)
+	}
+	if verdict.Grade != "-" || verdict.Verdict != "single_observation" {
+		t.Fatalf("one distinct compounding rule must not issue a grade: %#v", verdict)
+	}
+}
+
+func TestActorRulesC004DedupesInstructionRowsFromOneSignature(t *testing.T) {
+	track := ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet"}
+	evidence := []ActorDefenseEvidenceRecord{
+		{Relation: "direct_sol_transfer_out", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "Counterparty", EvidenceKey: "same-sig:0", Signature: "same-sig", AmountNative: 1},
+		{Relation: "direct_sol_transfer_out", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "Counterparty", EvidenceKey: "same-sig:1", Signature: "same-sig", AmountNative: 2},
+		{Relation: "direct_token_transfer_in", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "OtherCounterparty", EvidenceKey: "same-sig:2", Signature: "same-sig", TokenMint: "Mint", TokenAmount: 100},
+	}
+	verdict := EvaluateActorDefenseRules(track, evidence)
+	if actorRulePresent(verdict.TriggeredRules, ActorRuleCompoundRepeatedTransfer) {
+		t.Fatalf("one transaction signature was manufactured into recurrence: %#v", verdict)
+	}
+}
+
+func TestActorRulesPossibleDustStaysWatchOnlyAndDoesNotTriggerC004(t *testing.T) {
+	track := ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet"}
+	evidence := []ActorDefenseEvidenceRecord{
+		{Relation: "direct_sol_transfer_in", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "4qcDOne", EvidenceKey: "dust-a:0", Signature: "dust-a", AmountNative: 0.000001, Metadata: map[string]any{"actor_signed": false}},
+		{Relation: "direct_sol_transfer_in", VerificationStatus: "observed", CounterpartKind: "wallet", CounterpartID: "4qcDOne", EvidenceKey: "dust-b:0", Signature: "dust-b", AmountNative: 0.00001, Metadata: map[string]any{"actor_signed": false}},
+	}
+	verdict := EvaluateActorDefenseRules(track, evidence)
+	if actorRulePresent(verdict.TriggeredRules, ActorRuleCompoundRepeatedTransfer) {
+		t.Fatalf("possible dust triggered C004: %#v", verdict)
+	}
+	hit, ok := actorRuleFind(verdict.WatchFlags, ActorRuleWatchPossibleDust)
+	if !ok || hit.Count != 2 {
+		t.Fatalf("dust watch flag=%#v verdict=%#v", hit, verdict)
+	}
+	if verdict.Grade != "-" || verdict.Verdict != "watch_only" || verdict.Signed {
+		t.Fatalf("dust changed the grade: %#v", verdict)
 	}
 }
 
@@ -129,10 +201,15 @@ func TestActorRulesNoEvidenceIsNotAGrade(t *testing.T) {
 }
 
 func actorRulePresent(items []ActorDefenseRuleHit, id string) bool {
+	_, ok := actorRuleFind(items, id)
+	return ok
+}
+
+func actorRuleFind(items []ActorDefenseRuleHit, id string) (ActorDefenseRuleHit, bool) {
 	for _, item := range items {
 		if item.RuleID == id {
-			return true
+			return item, true
 		}
 	}
-	return false
+	return ActorDefenseRuleHit{}, false
 }
