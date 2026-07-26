@@ -3,7 +3,7 @@
 Status: implementation complete; production reference run pending deployment  
 Canonical contract: `ACTOR_INVESTIGATION_ENGINE.md` v1.0  
 Acceptance schema: `koschei-actor-acceptance-v1`  
-Actor ruleset: `koschei-actor-defense-rules-v1.0.0`
+Actor ruleset: `koschei-actor-defense-rules-v1.0.1`
 
 ## Reference actor
 
@@ -72,6 +72,39 @@ A chain claim can pass only when its evidence line contains:
 - `evidence_source`
 
 Control-plane checks such as route input and target classification are labelled `kind=control`; they are never presented as transaction evidence. An explicit `NOT VERIFIED` result carries no fabricated transaction row.
+
+## ARD-C004 signature identity
+
+`ARD-C004` means the same direct relation repeated across at least two distinct transaction signatures. Its deterministic group key is:
+
+```text
+relation + counterpart_kind + counterpart_id
+```
+
+Within that group, instruction rows are deduplicated by transaction signature. SOL movement, token movement, fees or multiple parsed instructions from one transaction must not manufacture recurrence. `occurrence_count` on one stored instruction row is not sufficient to activate `ARD-C004`.
+
+## Dust and address-poisoning boundary
+
+Inbound or outbound direct SOL transfers greater than zero and at or below `0.00001 SOL` are retained as `possible_dust`. Unsigned inbound rows in that range also receive `address_poisoning_candidate`.
+
+These observations:
+
+- remain visible in the immutable evidence log;
+- keep their signature, slot, timestamp, source and destination;
+- are marked `grade_eligible=false`;
+- may produce the watch-only `ARD-W002` flag;
+- cannot activate creator funding, direct-relation or repeated-transfer grade rules.
+
+The label describes a technical candidate, not malicious intent.
+
+## Vanity/address similarity boundary
+
+The dossier may publish deterministic Base58 visual similarity clusters such as shared four-character prefixes or shared three-character prefix and suffix patterns. These clusters are:
+
+- `verification_status=inferred`;
+- `grade_effect=none`;
+- collapsed by default on the public case page with a `Tümünü göster` control;
+- never identity, ownership, intent or common-control proof.
 
 ## Narrow-slice boundary
 

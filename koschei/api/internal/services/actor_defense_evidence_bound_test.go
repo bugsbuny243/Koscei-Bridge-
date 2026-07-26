@@ -10,10 +10,16 @@ func TestEvidenceBoundActorRulesExcludeCounterOnlyCompoundingRule(t *testing.T) 
 		Network: "solana-mainnet", TargetKind: "wallet", TargetID: "ActorWallet",
 		State: "correlated", RelatedActorCount: 1,
 	}
-	evidence := []ActorDefenseEvidenceRecord{{
-		Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
-		EvidenceKey: "sig-one:0", Signature: "sig-one", OccurrenceCount: 6,
-	}}
+	evidence := []ActorDefenseEvidenceRecord{
+		{
+			Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
+			EvidenceKey: "sig-one:0", Signature: "sig-one", CounterpartKind: "wallet", CounterpartID: "Counterparty", AmountNative: 1,
+		},
+		{
+			Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
+			EvidenceKey: "sig-two:0", Signature: "sig-two", CounterpartKind: "wallet", CounterpartID: "Counterparty", AmountNative: 2,
+		},
+	}
 
 	verdict := EvaluateEvidenceBoundActorDefenseRules(track, evidence)
 	if verdict.Grade != "-" || verdict.Verdict != "single_observation" || !verdict.Signed || verdict.Signature == "" {
@@ -28,6 +34,9 @@ func TestEvidenceBoundActorRulesExcludeCounterOnlyCompoundingRule(t *testing.T) 
 	if !actorRulePresent(verdict.WatchFlags, ActorRuleCompoundRelatedActorReuse) {
 		t.Fatalf("evidence-less %s must remain visible as watch context", ActorRuleCompoundRelatedActorReuse)
 	}
+	if !actorRulePresent(verdict.TriggeredRules, ActorRuleCompoundRepeatedTransfer) {
+		t.Fatalf("two distinct transaction signatures must preserve %s", ActorRuleCompoundRepeatedTransfer)
+	}
 }
 
 func TestEvidenceBoundActorRulesBindCrossTokenEvidenceAndProduceB(t *testing.T) {
@@ -38,11 +47,15 @@ func TestEvidenceBoundActorRulesBindCrossTokenEvidenceAndProduceB(t *testing.T) 
 	evidence := []ActorDefenseEvidenceRecord{
 		{
 			Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
-			EvidenceKey: "sig-one:0", Signature: "sig-one", OccurrenceCount: 6,
+			EvidenceKey: "sig-one:0", Signature: "sig-one", CounterpartKind: "wallet", CounterpartID: "Counterparty", AmountNative: 1,
+		},
+		{
+			Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
+			EvidenceKey: "sig-two:0", Signature: "sig-two", CounterpartKind: "wallet", CounterpartID: "Counterparty", AmountNative: 2,
 		},
 		{
 			Relation: "cross_token_related_actor", VerificationStatus: "observed",
-			EvidenceKey: "cross-token:holder-one", Signature: "sig-two",
+			EvidenceKey: "cross-token:holder-one", Signature: "sig-three",
 		},
 	}
 

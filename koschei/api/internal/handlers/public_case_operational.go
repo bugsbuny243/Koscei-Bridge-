@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -20,7 +21,8 @@ type publicCaseOperationalPageData struct {
 	Completed        []string
 	Jobs             []publicCaseOperationalJob
 	RuleReasons      []string
-	Evidence         []publicCaseSummaryEvidence
+	Evidence         []publicCaseOperationalEvidence
+	VanityClusters   []publicCaseVanityCluster
 }
 
 type publicCaseOperationalJob struct {
@@ -32,6 +34,32 @@ type publicCaseOperationalJob struct {
 	AutomaticAction string
 	Reason          string
 	UserRequirement string
+}
+
+type publicCaseOperationalEvidence struct {
+	State               string
+	Class               string
+	Relation            string
+	ObservedAt          string
+	Amount              string
+	Source              string
+	Destination         string
+	Program             string
+	Slot                string
+	Signature           string
+	Classification      string
+	ClassificationClass string
+}
+
+type publicCaseVanityCluster struct {
+	Pattern        string
+	MatchType      string
+	State          string
+	Class          string
+	Addresses      []string
+	AddressCount   int
+	SignatureCount int
+	Limitation     string
 }
 
 // PublicCaseOperationalPage renders the customer-facing case as an ARVIS work
@@ -75,6 +103,8 @@ func (h *Handler) PublicCaseOperationalPage(w http.ResponseWriter, r *http.Reque
 
 	technical := buildPublicCasePageData(bundle, title, summary, featured, publishedAt)
 	data := buildPublicCaseOperationalPageData(technical)
+	data.Evidence = publicCaseOperationalEvidenceRows(bundle.EvidenceLog, 5)
+	data.VanityClusters = publicCaseOperationalVanityClusters(bundle.CrossTokenConnections)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
 	w.Header().Set("X-Robots-Tag", "index, follow")
@@ -122,12 +152,12 @@ func buildPublicCaseOperationalPageData(data publicCasePageData) publicCaseOpera
 		ruleReasons = append(ruleReasons, "Bu snapshot içinde kanıt destekli grade-changing kural yok; sonuç bu nedenle WITHHOLD kalabilir.")
 	}
 
-	evidence := make([]publicCaseSummaryEvidence, 0, 5)
+	evidence := make([]publicCaseOperationalEvidence, 0, 5)
 	for index, row := range data.Evidence {
 		if index >= 5 {
 			break
 		}
-		evidence = append(evidence, publicCaseSummaryEvidence{
+		evidence = append(evidence, publicCaseOperationalEvidence{
 			State:       publicCaseTurkishState(row.State),
 			Class:       row.Class,
 			Relation:    publicCaseTurkishRelation(row),
@@ -152,6 +182,100 @@ func buildPublicCaseOperationalPageData(data publicCasePageData) publicCaseOpera
 		Jobs:             jobs,
 		RuleReasons:      ruleReasons,
 		Evidence:         evidence,
+	}
+}
+
+func publicCaseOperationalEvidenceRows(raw any, limit int) []publicCaseOperationalEvidence {
+	items := dossierSlice(raw)
+	type sortable struct {
+		row  publicCaseOperationalEvidence
+		when time.Time
+	}
+	rows := make([]sortable, 0, len(items))
+	for _, item := range items {
+		evidence := dossierMap(item)
+		state := firstPublicDossierString(dossierString(evidence["verification_status"]), "unknown")
+		when := publicCaseTime(evidence["observed_at"])
+		if when.IsZero() {
+			when = publicCaseTime(evidence["timestamp"])
+		}
+		view := publicCaseEvidenceView{
+			Relation:      dossierString(evidence["relation"]),
+			RelationLabel: publicCaseHumanLabel(dossierString(evidence["relation"])),
+		}
+		classification := ""
+		classificationClass := ""
+		possibleDust := publicCaseOperationalBool(evidence["possible_dust"])
+		poisoning := publicCaseOperationalBool(evidence["address_poisoning_candidate"])
+		if possibleDust && poisoning {
+			classification = "POSSIBLE DUST · ADDRESS POISONING CANDIDATE · GRADE DIŞI"
+			classificationClass = "dust"
+		} else if possibleDust {
+			classification = "POSSIBLE DUST · GRADE DIŞI"
+			classificationClass = "dust"
+		}
+		rows = append(rows, sortable{row: publicCaseOperationalEvidence{
+			State:               publicCaseTurkishState(state),
+			Class:               publicCaseStateClass(state),
+			Relation:            publicCaseTurkishRelation(view),
+			ObservedAt:          publicCaseTimeText(when),
+			Amount:              publicCaseEvidenceAmount(evidence),
+			Source:              maskPublicDossierTarget(firstPublicDossierString(dossierString(evidence["source_wallet"]), dossierString(evidence["actor_wallet"]))),
+			Destination:         maskPublicDossierTarget(firstPublicDossierString(dossierString(evidence["destination_wallet"]), dossierString(evidence["counterpart_id"]), dossierString(evidence["token_mint"]))),
+			Program:             dossierString(evidence["program"]),
+			Slot:                publicCaseNumber(evidence["slot"]),
+			Signature:           dossierString(evidence["signature"]),
+			Classification:      classification,
+			ClassificationClass: classificationClass,
+		}, when: when})
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].when.After(rows[j].when) })
+	if limit > 0 && len(rows) > limit {
+		rows = rows[:limit]
+	}
+	out := make([]publicCaseOperationalEvidence, 0, len(rows))
+	for _, item := range rows {
+		out = append(out, item.row)
+	}
+	return out
+}
+
+func publicCaseOperationalVanityClusters(raw any) []publicCaseVanityCluster {
+	connections := dossierMap(raw)
+	items := dossierSlice(connections["address_similarity_clusters"])
+	out := make([]publicCaseVanityCluster, 0, len(items))
+	for _, item := range items {
+		cluster := dossierMap(item)
+		state := firstPublicDossierString(dossierString(cluster["verification_status"]), "inferred")
+		addresses := publicCaseStrings(cluster["addresses"])
+		out = append(out, publicCaseVanityCluster{
+			Pattern:        dossierString(cluster["pattern"]),
+			MatchType:      publicCaseHumanLabel(dossierString(cluster["match_type"])),
+			State:          publicCaseTurkishState(state),
+			Class:          publicCaseStateClass(state),
+			Addresses:      addresses,
+			AddressCount:   maxPublicCaseInt(len(addresses), publicDossierInt(cluster["address_count"])),
+			SignatureCount: publicDossierInt(cluster["distinct_signature_count"]),
+			Limitation:     firstPublicDossierString(dossierString(cluster["limitation"]), "Görsel adres benzerliği kimlik, sahiplik veya ortak kontrol kanıtı değildir."),
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Pattern != out[j].Pattern {
+			return out[i].Pattern < out[j].Pattern
+		}
+		return out[i].MatchType < out[j].MatchType
+	})
+	return out
+}
+
+func publicCaseOperationalBool(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		return strings.EqualFold(strings.TrimSpace(typed), "true")
+	default:
+		return false
 	}
 }
 
@@ -251,7 +375,7 @@ var publicCaseOperationalHTML = template.Must(template.New("public-case-operatio
 <meta name="theme-color" content="#02050a">
 <title>{{.Case.Title}} · Koschei ARVIS</title>
 <link rel="stylesheet" href="/css/public-case-summary.css?v=1">
-<link rel="stylesheet" href="/css/public-case-operational.css?v=1">
+<link rel="stylesheet" href="/css/public-case-operational.css?v=2">
 </head>
 <body>
 <main class="summary-shell">
@@ -273,10 +397,12 @@ var publicCaseOperationalHTML = template.Must(template.New("public-case-operatio
 
 <details class="technical-details"><summary><span><b>ARVIS evidence coverage</b><small>10 kabul kontrolünün teknik ayrıntılarını aç</small></span><i>+</i></summary><div class="coverage-simple">{{range .Case.Signals}}<article class="{{.StateClass}}"><div><code>{{.ID}}</code><b>{{.Label}}</b></div><span>{{.AcceptanceStatus}}</span><p>{{.Summary}}</p></article>{{end}}</div></details>
 
-<details class="technical-details"><summary><span><b>Evidence timeline</b><small>Son 5 doğrulanabilir işlem satırını aç</small></span><i>+</i></summary><div class="evidence-list">{{range .Evidence}}<article><div><span class="state {{.Class}}">{{.State}}</span><b>{{.Relation}}</b><small>{{.ObservedAt}}</small></div><dl><div><dt>Kaynak → hedef</dt><dd><code>{{.Source}} → {{.Destination}}</code></dd></div><div><dt>Miktar</dt><dd>{{.Amount}}</dd></div><div><dt>Program / slot</dt><dd>{{.Program}} · {{.Slot}}</dd></div></dl>{{if .Signature}}<a href="https://solscan.io/tx/{{.Signature}}" rel="noreferrer">Solscan'de doğrula ↗</a>{{end}}</article>{{else}}<p>Görünür işlem satırı yok.</p>{{end}}</div></details>
+{{if .VanityClusters}}<details class="technical-details vanity-details"><summary><span><b>Vanity adres benzerliği</b><small>{{len .VanityClusters}} INFERRED küme · Tümünü göster</small></span><i>+</i></summary><p class="vanity-boundary">Bu alan yalnız Base58 görsel benzerliğini gösterir. Aynı kişi, sahiplik, niyet veya ortak kontrol kanıtı değildir ve grade'i değiştirmez.</p><div class="vanity-list">{{range .VanityClusters}}<article><div class="vanity-head"><code>{{.Pattern}}</code><span class="state {{.Class}}">{{.State}}</span></div><p>{{.MatchType}} · {{.AddressCount}} adres · {{.SignatureCount}} benzersiz işlem imzası</p><div class="vanity-addresses">{{range .Addresses}}<code>{{.}}</code>{{end}}</div><small>{{.Limitation}}</small></article>{{end}}</div></details>{{end}}
+
+<details class="technical-details"><summary><span><b>Evidence timeline</b><small>Son 5 doğrulanabilir işlem satırını aç</small></span><i>+</i></summary><div class="evidence-list">{{range .Evidence}}<article><div><span class="state {{.Class}}">{{.State}}</span><b>{{.Relation}}</b><small>{{.ObservedAt}}</small>{{if .Classification}}<em class="evidence-classification {{.ClassificationClass}}">{{.Classification}}</em>{{end}}</div><dl><div><dt>Kaynak → hedef</dt><dd><code>{{.Source}} → {{.Destination}}</code></dd></div><div><dt>Miktar</dt><dd>{{.Amount}}</dd></div><div><dt>Program / slot</dt><dd>{{.Program}} · {{.Slot}}</dd></div></dl>{{if .Signature}}<a href="https://solscan.io/tx/{{.Signature}}" rel="noreferrer">Solscan'de doğrula ↗</a>{{end}}</article>{{else}}<p>Görünür işlem satırı yok.</p>{{end}}</div></details>
 
 <section class="integrity"><div><span>Vaka referansı</span><code>{{.Case.CaseRef}}</code></div><div><span>Bundle hash</span><code>{{.Case.BundleHash}}</code></div><div><span>Ruleset</span><code>{{.Case.RulesetVersion}}</code></div><div><span>Üretim zamanı</span><b>{{.Case.ProducedAt.Format "02 Jan 2006 · 15:04 UTC"}}</b></div></section>
-<section class="boundaries"><h2>Bu rapor ne iddia etmez?</h2><ul><li>Bu cüzdanın gerçek hayatta kime ait olduğunu söylemez.</li><li>Kötü niyet, dolandırıcılık veya suç isnadı yapmaz.</li><li>Eksik worker işlerini güvenli kabul etmez.</li><li>Yatırım tavsiyesi veya otomatik işlem onayı değildir.</li></ul><div class="buttons"><a href="/cases">Vaka listesine dön</a><a class="primary" href="{{.Case.TechnicalURL}}">Ham teknik dossier</a></div></section>
+<section class="boundaries"><h2>Bu rapor ne iddia etmez?</h2><ul><li>Bu cüzdanın gerçek hayatta kime ait olduğunu söylemez.</li><li>Vanity adres benzerliği aynı sahip, aynı kişi veya ortak kontrol kanıtı değildir.</li><li>Possible-dust satırları funding veya aktör ilişkisi kanıtı değildir ve grade'e girmez.</li><li>Kötü niyet, dolandırıcılık veya suç isnadı yapmaz.</li><li>Eksik worker işlerini güvenli kabul etmez.</li><li>Yatırım tavsiyesi veya otomatik işlem onayı değildir.</li></ul><div class="buttons"><a href="/cases">Vaka listesine dön</a><a class="primary" href="{{.Case.TechnicalURL}}">Ham teknik dossier</a></div></section>
 </main>
 </body>
 </html>`))
