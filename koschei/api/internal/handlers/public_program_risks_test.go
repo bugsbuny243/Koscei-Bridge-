@@ -105,3 +105,23 @@ func TestPublicProgramRiskLimitationsRejectAttribution(t *testing.T) {
 		}
 	}
 }
+
+func TestProgramRiskPublicationAction(t *testing.T) {
+	tests := []struct {
+		exists         bool
+		previous, next string
+		want           string
+	}{
+		{false, "", "public", "publish"},
+		{false, "", "draft", "draft"},
+		{true, "draft", "public", "publish"},
+		{true, "public", "hidden", "hide"},
+		{true, "public", "draft", "draft"},
+		{true, "public", "public", "update"},
+	}
+	for _, tt := range tests {
+		if got := programRiskPublicationAction(tt.exists, tt.previous, tt.next); got != tt.want {
+			t.Fatalf("exists=%v previous=%s next=%s action=%s want=%s", tt.exists, tt.previous, tt.next, got, tt.want)
+		}
+	}
+}
