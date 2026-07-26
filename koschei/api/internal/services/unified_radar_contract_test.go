@@ -89,3 +89,78 @@ func TestUnifiedRuntimeContractCarriesTriggeredRules(t *testing.T) {
 		t.Fatalf("evidence=%#v", contract["evidence"])
 	}
 }
+
+func TestUnifiedContractCountsMultipleC004GroupsAsOneRuleID(t *testing.T) {
+	groups := []ActorDefenseRuleHit{
+		{RuleID: ActorRuleCompoundRepeatedTransfer, Title: "Repeated transfer A", Tier: "compounding", EvidenceStatus: "verified", GradeEffect: "compounding_input", Count: 7, EvidenceKeys: []string{"a:1"}, Signatures: []string{"sig-a"}, Facts: map[string]any{"relation": "direct_sol_transfer_in", "counterpart_id": "WalletA"}},
+		{RuleID: ActorRuleCompoundRepeatedTransfer, Title: "Repeated transfer B", Tier: "compounding", EvidenceStatus: "verified", GradeEffect: "compounding_input", Count: 8, EvidenceKeys: []string{"b:1"}, Signatures: []string{"sig-b"}, Facts: map[string]any{"relation": "direct_sol_transfer_in", "counterpart_id": "WalletB"}},
+		{RuleID: ActorRuleCompoundRepeatedTransfer, Title: "Repeated transfer C", Tier: "compounding", EvidenceStatus: "observed", GradeEffect: "compounding_input", Count: 2, EvidenceKeys: []string{"c:1"}, Signatures: []string{"sig-c"}, Facts: map[string]any{"relation": "direct_token_transfer_out", "counterpart_id": "WalletC"}},
+	}
+	raw := UnifiedRadarVerdict{
+		Grade: "B", Verdict: "compounding_rule", RulesetVersion: UnifiedRadarRulesetVersion,
+		ActorRuleset: ActorDefenseRulesetVersion, TriggeredRules: groups,
+		Signature: "koschei-unified:stale-grade-signature",
+	}
+	finalized := FinalizeUnifiedRadarVerdictContract("ActorWallet", raw)
+	if finalized.Grade != "-" || finalized.Verdict != "single_observation" || !finalized.Signed {
+		t.Fatalf("same rule ID groups inflated unified grade: %#v", finalized)
+	}
+	if len(finalized.TriggeredRules) != 3 {
+		t.Fatalf("audit groups were removed: %#v", finalized.TriggeredRules)
+	}
+	if finalized.Signature == raw.Signature || !strings.HasPrefix(finalized.Signature, "koschei-unified:") {
+		t.Fatalf("stale B signature survived normalization: %q", finalized.Signature)
+	}
+	if !unifiedDecisionContains(finalized.DecisionPath, "one distinct evidence-backed compounding rule id") {
+		t.Fatalf("decision path does not explain distinct rule-ID counting: %#v", finalized.DecisionPath)
+	}
+}
+
+func TestUnifiedMarshalNormalizesRawDuplicateRuleGrade(t *testing.T) {
+	raw := UnifiedRadarVerdict{
+		Grade: "B", Verdict: "compounding_rule", RulesetVersion: UnifiedRadarRulesetVersion,
+		TriggeredRules: []ActorDefenseRuleHit{
+			{RuleID: ActorRuleCompoundRepeatedTransfer, Tier: "compounding", EvidenceStatus: "verified", Summary: "group one"},
+			{RuleID: ActorRuleCompoundRepeatedTransfer, Tier: "compounding", EvidenceStatus: "verified", Summary: "group two"},
+		},
+		Signature: "koschei-unified:stale",
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var contract map[string]any
+	if err := json.Unmarshal(encoded, &contract); err != nil {
+		t.Fatal(err)
+	}
+	if contract["grade"] != "-" || contract["verdict"] != "single_observation" {
+		t.Fatalf("raw duplicate-rule grade leaked through serialization: %s", encoded)
+	}
+	if signature, _ := contract["signature"].(string); !strings.HasPrefix(signature, "koschei-unified-contract:") {
+		t.Fatalf("changed serialized decision retained stale signature: %q", signature)
+	}
+}
+
+func TestUnifiedContractAllowsC004PlusDistinctRuleIDToProduceB(t *testing.T) {
+	verdict := FinalizeUnifiedRadarVerdictContract("ActorWallet", UnifiedRadarVerdict{
+		RulesetVersion: UnifiedRadarRulesetVersion,
+		TriggeredRules: []ActorDefenseRuleHit{
+			{RuleID: ActorRuleCompoundRepeatedTransfer, Tier: "compounding", EvidenceStatus: "verified", Summary: "C004 group one"},
+			{RuleID: ActorRuleCompoundRepeatedTransfer, Tier: "compounding", EvidenceStatus: "verified", Summary: "C004 group two"},
+			{RuleID: UnifiedRuleVolumeLiquidityGap, Tier: "compounding", EvidenceStatus: "observed", Summary: "market gap"},
+		},
+	})
+	if verdict.Grade != "B" || verdict.Verdict != "compounding_rule" || !verdict.Signed {
+		t.Fatalf("two distinct rule IDs did not produce B: %#v", verdict)
+	}
+}
+
+func unifiedDecisionContains(items []string, fragment string) bool {
+	fragment = strings.ToLower(strings.TrimSpace(fragment))
+	for _, item := range items {
+		if strings.Contains(strings.ToLower(item), fragment) {
+			return true
+		}
+	}
+	return false
+}
