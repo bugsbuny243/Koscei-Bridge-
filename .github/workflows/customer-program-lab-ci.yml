@@ -1,0 +1,108 @@
+name: Customer Program Lab CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/customer-program-lab-ci.yml"
+      - "koschei/api/migrations/086_customer_program_lab.sql"
+      - "koschei/api/internal/defense/customer_lab.go"
+      - "koschei/api/internal/defense/customer_lab_test.go"
+      - "koschei/api/internal/defense/customer_lab_postgres_test.go"
+      - "koschei/api/internal/handlers/customer_defense_lab.go"
+      - "koschei/api/internal/handlers/customer_defense_lab_test.go"
+      - "koschei/api/internal/http/defense_routes.go"
+      - "koschei/api/internal/http/route_inventory.go"
+      - "koschei/api/public/program-audit.html"
+      - "koschei/api/public/js/program-audit.js"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/customer-program-lab-ci.yml"
+      - "koschei/api/migrations/086_customer_program_lab.sql"
+      - "koschei/api/internal/defense/customer_lab.go"
+      - "koschei/api/internal/handlers/customer_defense_lab.go"
+      - "koschei/api/public/program-audit.html"
+      - "koschei/api/public/js/program-audit.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-and-contract:
+    name: PostgreSQL ownership and product contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_customer_lab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_customer_lab_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Download Go modules
+        run: go mod download
+      - name: Apply all migrations on PostgreSQL 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/customer-program-lab-postgres17.txt"
+          : > "${log}"
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "RUN ${migration}" | tee -a "${log}"
+            psql --host=127.0.0.1 --port=5432 --username=postgres --dbname=koschei_customer_lab_ci \
+              --set=ON_ERROR_STOP=1 --file="${migration}" >> "${log}" 2>&1
+            echo "PASS ${migration}" | tee -a "${log}"
+          done
+      - name: Verify multi-account artifact ownership and immutable runs
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_customer_lab_ci?sslmode=disable
+        run: |
+          set -o pipefail
+          go test -v ./internal/defense -run '^TestCustomerProgramLabPostgres17$' -count=1 2>&1 | tee -a "${RUNNER_TEMP}/customer-program-lab-postgres17.txt"
+      - name: Verify deterministic unit and redaction contracts
+        run: |
+          go test ./internal/defense -run 'TestSummarizeCustomerLabDecisions|TestCustomerProgramLabUsesExistingDeterministicDetectors|TestCustomerArtifactTypesStayNonExecutable'
+          go test ./internal/handlers -run '^TestCustomerArtifactViewRedactsCrossAccountMetadata$'
+      - name: Verify Program Audit product surface
+        run: |
+          set -euo pipefail
+          node --check public/js/program-audit.js
+          grep -Fq 'Akıllı kontratı yükle.' public/program-audit.html
+          grep -Fq 'DEFENSE LAB KARARI' public/program-audit.html
+          grep -Fq '/api/v1/defense/artifacts' public/js/program-audit.js
+          grep -Fq '/api/v1/defense/lab' public/js/program-audit.js
+          grep -Fq 'private_by_default' internal/handlers/customer_defense_lab.go
+          grep -Fq 'verdict_authority' internal/handlers/customer_defense_lab.go
+          grep -Fq 'defense_artifact_subscriptions' migrations/086_customer_program_lab.sql
+          grep -Fq 'defense_lab_runs' migrations/086_customer_program_lab.sql
+          ! grep -Eq 'innerHTML|insertAdjacentHTML|eval\(' public/js/program-audit.js
+          ! grep -Eq 'os/exec|exec\.Command|mainnet_transaction_sent[^f]' internal/defense/customer_lab.go internal/handlers/customer_defense_lab.go
+      - name: Upload PostgreSQL acceptance log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-program-lab-postgres17
+          path: ${{ runner.temp }}/customer-program-lab-postgres17.txt
+          if-no-files-found: warn
+          retention-days: 14
