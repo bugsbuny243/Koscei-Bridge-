@@ -3,6 +3,7 @@ package handlers
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPublicProgramSnapshotRiskTypes(t *testing.T) {
@@ -10,7 +11,7 @@ func TestPublicProgramSnapshotRiskTypes(t *testing.T) {
 		name          string
 		authorityOpen bool
 		executable    bool
-		matchStatus  string
+		matchStatus   string
 		want          []string
 		severity      string
 	}{
@@ -33,6 +34,15 @@ func TestPublicProgramSnapshotRiskTypes(t *testing.T) {
 	}
 }
 
+func TestOnlyRealOnchainChangesArePublic(t *testing.T) {
+	got := publicProgramChainChangeTypes([]string{
+		"bytecode_changed", "source_match_lost", "upgrade_authority_revoked", "upgrade_authority_changed",
+	})
+	if strings.Join(got, ",") != "bytecode_changed,upgrade_authority_changed" {
+		t.Fatalf("public chain changes=%v", got)
+	}
+}
+
 func TestUnverifiedSourceIsNotPublishedAsMismatch(t *testing.T) {
 	for _, status := range []string{"not_requested", "invalid_manifest", "not_evaluated", "matched_full_binary", "matched_after_zero_padding_normalization"} {
 		got := publicProgramSnapshotRiskTypes(false, true, status)
@@ -42,12 +52,40 @@ func TestUnverifiedSourceIsNotPublishedAsMismatch(t *testing.T) {
 	}
 }
 
-func TestPublicProgramRiskRefsAreImmutableEvidenceRefs(t *testing.T) {
-	valid := []string{
-		"KDCE1-0123456789abcdef0123456789abcdef",
-		"KDS1-0123456789abcdef0123456789abcdef",
+func TestPublicProgramRiskVerificationHashUsesPublicPayload(t *testing.T) {
+	base := publicProgramRisk{
+		Type: "program_control_risk_observed", EventRef: "KDS1-0123456789abcdef0123456789abcdef",
+		ProgramID: "Program111", Network: "solana-mainnet", Severity: "high", LifecycleStatus: "current",
+		RiskTypes: []string{"upgrade_authority_open"}, Summary: "Program değiştirilebilir.",
+		EvidenceRefs: []string{"rpc:getAccountInfo:Program111"}, CurrentSnapshotRef: "KDS1-0123456789abcdef0123456789abcdef",
+		CurrentBinaryHash: "sha256:abc", CurrentUpgradeAuthority: "Authority111", CurrentSourceMatch: "not_requested",
+		CurrentLoaderKind: "bpf_upgradeable_loader", OccurredAt: time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC),
 	}
-	for _, ref := range valid {
+	first := finalizePublicProgramRisk(base)
+	second := finalizePublicProgramRisk(base)
+	if first.VerificationHash == "" || first.VerificationHash != second.VerificationHash {
+		t.Fatalf("verification hash is not deterministic: %q %q", first.VerificationHash, second.VerificationHash)
+	}
+	if first.Decision != "WARN" || first.RecommendedAction == "" {
+		t.Fatalf("action contract missing: %#v", first)
+	}
+	base.CurrentBinaryHash = "sha256:changed"
+	changed := finalizePublicProgramRisk(base)
+	if changed.VerificationHash == first.VerificationHash {
+		t.Fatal("public payload change did not change verification hash")
+	}
+}
+
+func TestPublicEvidenceRefsExcludePrivateArtifacts(t *testing.T) {
+	raw := []byte(`["artifact:KDA1-secret","rpc:getAccountInfo:Program","deployment_snapshot:KDS1-public"]`)
+	refs := publicProgramEvidenceRefs(raw)
+	if strings.Join(refs, ",") != "deployment_snapshot:KDS1-public,rpc:getAccountInfo:Program" {
+		t.Fatalf("public evidence refs=%v", refs)
+	}
+}
+
+func TestPublicProgramRiskRefsAreImmutableEvidenceRefs(t *testing.T) {
+	for _, ref := range []string{"KDCE1-0123456789abcdef0123456789abcdef", "KDS1-0123456789abcdef0123456789abcdef"} {
 		if !publicProgramRiskRefPattern.MatchString(ref) {
 			t.Fatalf("valid ref rejected: %s", ref)
 		}
