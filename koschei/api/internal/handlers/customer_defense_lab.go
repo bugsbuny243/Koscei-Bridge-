@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"koschei/api/internal/defense"
 )
@@ -12,6 +14,18 @@ import (
 type customerDefenseLabRequest struct {
 	Action      string `json:"action"`
 	ArtifactRef string `json:"artifact_ref"`
+}
+
+type customerArtifactView struct {
+	ArtifactRef     string    `json:"artifact_ref"`
+	ProgramID       string    `json:"program_id"`
+	Network         string    `json:"network"`
+	ArtifactType    string    `json:"artifact_type"`
+	ContentHash     string    `json:"content_hash"`
+	ContentEncoding string    `json:"content_encoding"`
+	TrustLevel      string    `json:"trust_level"`
+	Verified        bool      `json:"verified"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func customerDefenseSubject(r *http.Request) string {
@@ -22,8 +36,17 @@ func customerDefenseSubject(r *http.Request) string {
 	return strings.TrimSpace(subject)
 }
 
+func customerSafeArtifactView(item defense.Artifact) customerArtifactView {
+	return customerArtifactView{
+		ArtifactRef: item.ArtifactRef, ProgramID: item.ProgramID, Network: item.Network,
+		ArtifactType: item.ArtifactType, ContentHash: item.ContentHash, ContentEncoding: item.ContentEncoding,
+		TrustLevel: item.TrustLevel, Verified: item.Verified, CreatedAt: item.CreatedAt,
+	}
+}
+
 // CustomerDefenseArtifacts stores and lists only artifacts subscribed to the
-// authenticated user/API principal. Source content is never returned by list.
+// authenticated user/API principal. Source content, original creator identity,
+// source URI, commit and metadata are never returned by this customer surface.
 func (h *Handler) CustomerDefenseArtifacts(w http.ResponseWriter, r *http.Request) {
 	subject := customerDefenseSubject(r)
 	if subject == "" {
@@ -39,8 +62,8 @@ func (h *Handler) CustomerDefenseArtifacts(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true, "artifacts": items, "subject": subject,
-			"supported_types": []string{"source_bundle", "source_manifest", "sbpf_manifest", "anchor_idl"},
+			"ok": true, "artifacts": items,
+			"supported_types":    []string{"source_bundle", "source_manifest", "sbpf_manifest", "anchor_idl"},
 			"private_by_default": true,
 		})
 	case http.MethodPost:
@@ -55,7 +78,7 @@ func (h *Handler) CustomerDefenseArtifacts(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{
-			"ok": true, "artifact": item, "private_by_default": true,
+			"ok": true, "artifact": customerSafeArtifactView(item), "private_by_default": true,
 			"next": map[string]any{"method": "POST", "path": "/api/v1/defense/lab", "action": "analyze", "artifact_ref": item.ArtifactRef},
 		})
 	default:
@@ -98,7 +121,7 @@ func (h *Handler) CustomerDefenseLab(w http.ResponseWriter, r *http.Request) {
 	result, err := defense.AnalyzeCustomerArtifact(r.Context(), h.DB, input.ArtifactRef, subject)
 	if err != nil {
 		status := http.StatusBadRequest
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}
 		writeJSON(w, status, map[string]any{"ok": false, "error": "customer_lab_analysis_failed", "details": err.Error()})
