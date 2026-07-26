@@ -19,27 +19,16 @@ import (
 )
 
 type Handler struct {
-	DB                            *sql.DB
-	DBRead                        *sql.DB
-	AdminPassword                 string
-	Limiter                       *rateLimiter
-	DBInitError                   string
-	Cache                         cache.Cache
-	SolanaRPC                     *web3.SolanaRPC
-	JobStore                      *jobs.Store
-	JobQueue                      jobs.Queue
-	AsyncJobsAvailable            bool
-	WebhookDeliveryAvailable      bool
-	WorkerAvailabilityConfigured  bool
-	CourtClient                   CourtNarrativeClient
-}
-
-func (h *Handler) asyncJobsAvailable() bool {
-	return h != nil && (!h.WorkerAvailabilityConfigured || h.AsyncJobsAvailable)
-}
-
-func (h *Handler) webhookDeliveryAvailable() bool {
-	return h != nil && (!h.WorkerAvailabilityConfigured || h.WebhookDeliveryAvailable)
+	DB            *sql.DB
+	DBRead        *sql.DB
+	AdminPassword string
+	Limiter       *rateLimiter
+	DBInitError   string
+	Cache         cache.Cache
+	SolanaRPC     *web3.SolanaRPC
+	JobStore      *jobs.Store
+	JobQueue      jobs.Queue
+	CourtClient   CourtNarrativeClient
 }
 
 func (h *Handler) dbAvailable(ctx context.Context) error {
