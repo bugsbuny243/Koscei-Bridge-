@@ -35,8 +35,12 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 	if network == "" {
 		network = "solana-mainnet"
 	}
+	if h == nil || h.DB == nil {
+		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Actor defense database is unavailable")
+		return
+	}
 
-	classification := classifyRadarTarget(r.Context(), target)
+	classification := classifyActorWalletTarget(r.Context(), h.DB, target, network)
 	wallet := target
 	switch classification.Type {
 	case radarTargetWallet:
@@ -54,10 +58,6 @@ func (h *Handler) OwnerActorAcceptance(w http.ResponseWriter, r *http.Request) {
 			"ok": false, "error": "wallet_target_required", "target": target,
 			"target_classification": classification,
 		})
-		return
-	}
-	if h == nil || h.DB == nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Actor defense database is unavailable")
 		return
 	}
 
