@@ -3,46 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei ARVIS açık Solana güvenlik operasyon akışı: yayınlanan değişmez vakalar ve doğrulanmış akıllı kontrat/program riskleri.">
+<meta name="description" content="Koschei ARVIS canlı Solana güvenlik akışı: kullanıcıların görünür yaptığı değişmez vakalar ve doğrulanmış akıllı kontrat/program tehlikeleri.">
 <meta name="theme-color" content="#02050a">
-<title>Koschei ARVIS | Canlı Solana Güvenlik Merkezi</title>
+<title>Koschei ARVIS | Canlı Solana Güvenlik Radarı</title>
 <link rel="canonical" href="https://tradepigloball.co/live">
 <link rel="stylesheet" href="/css/koschei-soc.css?v=1">
 </head>
 <body class="soc-page" data-koschei-soc-page="live" data-koschei-readiness-contract="ARVIS Public SOC">
 <main class="soc-wrap">
-<nav class="soc-nav">
-<a class="soc-brand" href="/"><span class="soc-mark">K</span><span><strong>Koschei ARVIS</strong><small>Canlı Güvenlik Operasyonları</small></span></a>
-<div class="soc-links"><a class="soc-btn" href="/">Ana Sayfa</a><a class="soc-btn primary" href="/cases">Vakalar</a><a class="soc-btn" href="/security-radar">Radar</a></div>
-</nav>
-
-<header class="soc-hero">
-<span class="soc-kicker">ARVIS AÇIK SOC · YALNIZ KANIT</span>
-<h1>Solana’da ne oluyor?<br>Vaka ve program riski kanıt geldikçe burada.</h1>
-<p>Bu ekran 15 saniyede bir açık kanıt akışını yeniler. Owner tarafından yayınlanan değişmez vakaların yanında, Program Sentinel tarafından doğrulanan HIGH/CRITICAL akıllı kontrat-program kontrol tehlikeleri de görünür. Kaynak doğrulanmamışsa uyuşmazlık uydurulmaz; yeni kanıt yoksa sahte alarm üretilmez.</p>
-<div class="soc-statusline"><span class="soc-pulse"></span><span id="soc-status">ARVIS açık kanıt akışı başlatılıyor</span><span id="soc-updated">—</span></div>
-</header>
-
-<section class="soc-metrics" aria-label="Canlı SOC metrikleri">
-<div class="soc-metric"><span>Güncel vaka</span><b id="metric-cases">—</b></div>
-<div class="soc-metric"><span>Program alarmı</span><b id="metric-featured">—</b></div>
-<div class="soc-metric"><span>Doğrulanan kanıt</span><b id="metric-verified">—</b></div>
-<div class="soc-metric"><span>Gözlenen kanıt</span><b id="metric-observed">—</b></div>
-<div class="soc-metric"><span>Yenileme</span><b id="metric-refresh">—</b></div>
-</section>
-
-<section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">CANLI YAYIN AKIŞI</span><h2>Vaka ve akıllı kontrat/program risk akışı</h2><p>Program alarmı; bytecode, loader, ProgramData, upgrade authority veya doğrulanmış kaynak eşleşmesi değişiminin değişmez hash kanıtına açılır. Teknik kapasite gösterilir, niyet veya suç isnadı yapılmaz.</p></div><a class="soc-btn" href="/api/public/program-risks?limit=100">Program risk API</a></div>
-<div class="soc-events" id="soc-events" aria-live="polite"><div class="soc-empty">Canlı yayın akışı yükleniyor…</div></div>
-</section>
-
-<section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">SIFIR GÜVEN YAYIN SINIRI</span><h2>Canlı görünürlük, kontrollü ifşa.</h2><p>Koschei’nin açık operasyon penceresi bütün iç sistemi internete dökmez. Program binary artifact’ları, özel müşteri taramaları ve iç worker ayrıntıları yayımlanmaz.</p></div></div>
-<div class="soc-boundaries" id="soc-boundaries"><div>Yayın sınırları yükleniyor…</div></div>
-</section>
-
-<footer class="soc-footer"><span>© Koschei ARVIS · Açık Güvenlik Operasyonları</span><span>Sahte hareket yok. Gizli puan yok. Önce kanıt.</span></footer>
+<nav class="soc-nav"><a class="soc-brand" href="/"><span class="soc-mark">K</span><span><strong>Koschei ARVIS</strong><small>Canlı Solana Güvenliği</small></span></a><div class="soc-links"><a class="soc-btn" href="/">Ana Sayfa</a><a class="soc-btn primary" href="/cases">Vakalar</a><a class="soc-btn" href="/security-radar">Tarama</a></div></nav>
+<header class="soc-hero"><span class="soc-kicker">ARVIS CANLI RADAR · KARAR + KANIT</span><h1>Solana’da ne tehlikeli?<br>Kanıtlandığında burada.</h1><p>ARVIS; cüzdan, token ve akıllı kontrat/program risklerini tek akışta gösterir. Her kayıt ne olduğunu, kullanıcı kararını ve doğrulama yolunu taşır. İç worker listesi, demo alarmı ve gizli puan yayınlanmaz.</p><div class="soc-statusline"><span class="soc-pulse"></span><span id="soc-status">Canlı güvenlik akışı başlatılıyor</span><span id="soc-updated">—</span></div></header>
+<section class="soc-metrics" aria-label="Canlı radar metrikleri"><div class="soc-metric"><span>Vaka</span><b id="metric-cases">—</b></div><div class="soc-metric"><span>Program alarmı</span><b id="metric-featured">—</b></div><div class="soc-metric"><span>Doğrulanan kanıt</span><b id="metric-verified">—</b></div><div class="soc-metric"><span>Gözlenen kanıt</span><b id="metric-observed">—</b></div><div class="soc-metric"><span>Yenileme</span><b id="metric-refresh">—</b></div></section>
+<section class="soc-panel"><div class="soc-panel-head"><div><span class="soc-kicker">CANLI GÜVENLİK OLAYLARI</span><h2>Ne oldu, karar ne, ne yapmalısın?</h2><p>Her kart anlaşılır sonuca ve değişmez kanıta açılır. HIGH/CRITICAL program değişiklikleri ile kullanıcıların görünür yaptığı ARVIS vakaları aynı zaman çizgisinde yer alır.</p></div><a class="soc-btn" href="/security-radar">Yeni tarama başlat</a></div><div class="soc-events" id="soc-events" aria-live="polite"><div class="soc-empty">Canlı güvenlik akışı yükleniyor…</div></div></section>
+<section class="soc-panel"><div class="soc-panel-head"><div><span class="soc-kicker">YAYIN SÖZLEŞMESİ</span><h2>Görünürlük kullanıcıda, moderasyon owner’da.</h2><p>Bir tarama veya dossier otomatik olarak herkese açılmaz. Dosyayı üreten kullanıcı ya da API hesabı görünürlüğü seçer; owner yalnız kötüye kullanım moderasyonu ve vitrin düzeni yapar.</p></div></div><div class="soc-boundaries" id="soc-boundaries"><div>Yayın sınırları yükleniyor…</div></div></section>
+<footer class="soc-footer"><span>© Koschei ARVIS · Herkes için Solana güvenliği</span><span>Karar. Kanıt. Eylem.</span></footer>
 </main>
-<script src="/js/public-live-soc.js?v=1"></script>
+<script src="/js/public-live-soc.js?v=2"></script>
 </body>
 </html>
