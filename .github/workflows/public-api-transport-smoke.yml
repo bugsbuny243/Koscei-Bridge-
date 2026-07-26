@@ -104,8 +104,8 @@ jobs:
             description='Proxy, application and database health verified'
             target_url="${BASE_URL}/health"
           fi
-          payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-api-transport",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))' \
-            STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}")"
+          export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
+          payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-api-transport",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))')"
           curl --fail --silent --show-error \
             -X POST \
             -H "Accept: application/vnd.github+json" \
