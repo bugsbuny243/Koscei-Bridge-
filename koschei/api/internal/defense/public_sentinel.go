@@ -36,8 +36,15 @@ func SubscribeProgramMonitor(ctx context.Context, db *sql.DB, input ProgramMonit
 			(artifact.ArtifactType != "source_manifest" && artifact.ArtifactType != "sbpf_manifest") {
 			return ProgramMonitor{}, errors.New("manifest artifact does not match the monitored program")
 		}
-		if subject != "owner" && strings.TrimSpace(artifact.CreatedBy) != subject {
-			return ProgramMonitor{}, errors.New("manifest artifact belongs to another principal")
+		if subject != "owner" {
+			var subscribed bool
+			if err := db.QueryRowContext(ctx, `SELECT EXISTS(
+				SELECT 1 FROM defense_artifact_subscriptions WHERE artifact_ref=$1 AND auth_subject=$2)`, input.ManifestArtifactRef, subject).Scan(&subscribed); err != nil {
+				return ProgramMonitor{}, err
+			}
+			if !subscribed {
+				return ProgramMonitor{}, errors.New("manifest artifact belongs to another principal")
+			}
 		}
 	}
 
@@ -48,10 +55,22 @@ func SubscribeProgramMonitor(ctx context.Context, db *sql.DB, input ProgramMonit
 		return ProgramMonitor{}, err
 	}
 	defer tx.Rollback()
+
+	var existingManifest sql.NullString
+	err = tx.QueryRowContext(ctx, `SELECT manifest_artifact_ref FROM defense_program_monitors
+		WHERE program_id=$1 AND network=$2 FOR UPDATE`, input.ProgramID, input.Network).Scan(&existingManifest)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return ProgramMonitor{}, err
+	}
+	if err == nil && input.ManifestArtifactRef != "" && existingManifest.Valid && strings.TrimSpace(existingManifest.String) != "" && existingManifest.String != input.ManifestArtifactRef {
+		return ProgramMonitor{}, errors.New("shared monitor already uses a different manifest")
+	}
+
 	_, err = tx.ExecContext(ctx, `INSERT INTO defense_program_monitors
 		(monitor_ref,program_id,network,manifest_artifact_ref,active,interval_seconds,next_check_at,last_status,created_by)
 		VALUES($1,$2,$3,NULLIF($4,''),true,$5,now(),'pending',$6)
 		ON CONFLICT(program_id,network) DO UPDATE SET
+			manifest_artifact_ref=COALESCE(defense_program_monitors.manifest_artifact_ref,EXCLUDED.manifest_artifact_ref),
 			active=true,
 			next_check_at=LEAST(defense_program_monitors.next_check_at,now()),
 			last_status=CASE WHEN defense_program_monitors.last_status='disabled' THEN 'pending' ELSE defense_program_monitors.last_status END,
