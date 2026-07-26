@@ -19,16 +19,27 @@ import (
 )
 
 type Handler struct {
-	DB            *sql.DB
-	DBRead        *sql.DB
-	AdminPassword string
-	Limiter       *rateLimiter
-	DBInitError   string
-	Cache         cache.Cache
-	SolanaRPC     *web3.SolanaRPC
-	JobStore      *jobs.Store
-	JobQueue      jobs.Queue
-	CourtClient   CourtNarrativeClient
+	DB                            *sql.DB
+	DBRead                        *sql.DB
+	AdminPassword                 string
+	Limiter                       *rateLimiter
+	DBInitError                   string
+	Cache                         cache.Cache
+	SolanaRPC                     *web3.SolanaRPC
+	JobStore                      *jobs.Store
+	JobQueue                      jobs.Queue
+	AsyncJobsAvailable            bool
+	WebhookDeliveryAvailable      bool
+	WorkerAvailabilityConfigured  bool
+	CourtClient                   CourtNarrativeClient
+}
+
+func (h *Handler) asyncJobsAvailable() bool {
+	return h != nil && (!h.WorkerAvailabilityConfigured || h.AsyncJobsAvailable)
+}
+
+func (h *Handler) webhookDeliveryAvailable() bool {
+	return h != nil && (!h.WorkerAvailabilityConfigured || h.WebhookDeliveryAvailable)
 }
 
 func (h *Handler) dbAvailable(ctx context.Context) error {
@@ -90,27 +101,15 @@ func writeAPIData(w http.ResponseWriter, status int, data any) {
 	writeJSON(w, status, map[string]any{"success": true, "code": "OK", "data": data})
 }
 
-func decodeJSON(r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(nil, r.Body, 1<<20)
-	return json.NewDecoder(r.Body).Decode(dst)
+func (h *Handler) hashAPIKey(raw string) string {
+	pepper := os.Getenv("API_KEY_PEPPER")
+	sum := sha256.Sum256([]byte(pepper + raw))
+	return fmt.Sprintf("%x", sum[:])
 }
 
-func (h *Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
-	adminPassword := strings.TrimSpace(h.AdminPassword)
-	if adminPassword == "" {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+func secureEqual(a, b string) bool {
+	if len(a) != len(b) {
 		return false
 	}
-	suppliedHash := sha256.Sum256([]byte(r.Header.Get("x-admin-password")))
-	adminHash := sha256.Sum256([]byte(adminPassword))
-	valid := subtle.ConstantTimeCompare(suppliedHash[:], adminHash[:]) == 1
-	if !valid {
-		if h.Limiter != nil && !h.Limiter.allow("admin-failed:"+clientIP(r), 10, 10*time.Minute) {
-			writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate limited"})
-			return false
-		}
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-		return false
-	}
-	return true
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
