@@ -12,7 +12,10 @@ import (
 	"koschei/api/internal/services"
 )
 
-const arvisHealthCacheTTL = 15 * time.Second
+const (
+	arvisHealthCacheTTL = 15 * time.Second
+	publicHealthTimeout = 2 * time.Second
+)
 
 var arvisHealthCache = struct {
 	sync.RWMutex
@@ -20,17 +23,28 @@ var arvisHealthCache = struct {
 	expiresAt time.Time
 }{}
 
+// Health is the public liveness/readiness endpoint used by Railway and external
+// transport monitors. It must remain bounded and must not execute the full ARVIS
+// operational query set. Detailed pipeline health remains on the dedicated
+// Web3/owner health surfaces.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	if err := h.DBPingError(); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), publicHealthTimeout)
+	defer cancel()
+	if err := h.dbAvailable(ctx); err != nil {
 		log.Printf("health check database ping failed: %v", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+		payload := map[string]any{
 			"status":   "error",
 			"database": "unavailable",
-			"details":  err.Error(),
+			"service":  "koschei-web3",
 			"arvis": map[string]any{
 				"pipeline_status": "database_unavailable",
+				"details_url":     "/api/web3/health",
 			},
-		})
+		}
+		if !isProduction() {
+			payload["details"] = err.Error()
+		}
+		writeJSON(w, http.StatusServiceUnavailable, payload)
 		return
 	}
 
@@ -38,8 +52,28 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		"status":   "ok",
 		"database": "connected",
 		"service":  "koschei-web3",
-		"arvis":    h.cachedArvisHealth(r.Context()),
+		"arvis":    cachedArvisHealthSnapshot(),
 	})
+}
+
+func cachedArvisHealthSnapshot() map[string]any {
+	arvisHealthCache.RLock()
+	defer arvisHealthCache.RUnlock()
+	if arvisHealthCache.data == nil {
+		return map[string]any{
+			"pipeline_status": "not_sampled",
+			"details_url":     "/api/web3/health",
+			"cached":          false,
+		}
+	}
+	out := make(map[string]any, len(arvisHealthCache.data)+3)
+	for key, value := range arvisHealthCache.data {
+		out[key] = value
+	}
+	out["cached"] = true
+	out["cache_expires_at"] = arvisHealthCache.expiresAt.UTC().Format(time.RFC3339)
+	out["details_url"] = "/api/web3/health"
+	return out
 }
 
 func (h *Handler) cachedArvisHealth(ctx context.Context) map[string]any {

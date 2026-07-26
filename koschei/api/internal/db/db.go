@@ -46,7 +46,7 @@ func open(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxOpen := envInt("DB_MAX_OPEN_CONNS", 10)
+	maxOpen := envInt("DB_MAX_OPEN_CONNS", 5)
 	maxIdle := envNonNegativeInt("DB_MAX_IDLE_CONNS", 0)
 	maxLifetime := time.Duration(envNonNegativeInt("DB_CONN_MAX_LIFETIME_SECONDS", 300)) * time.Second
 	maxIdleTime := time.Duration(envNonNegativeInt("DB_CONN_MAX_IDLE_TIME_SECONDS", 60)) * time.Second
@@ -65,24 +65,31 @@ func open(databaseURL string) (*sql.DB, error) {
 }
 
 func normalizeDatabaseURL(databaseURL string) string {
-	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) == "1" {
-		return databaseURL
-	}
 	parsed, err := url.Parse(strings.TrimSpace(databaseURL))
 	if err != nil || parsed.Host == "" {
 		return databaseURL
 	}
-	host := parsed.Hostname()
-	if !strings.Contains(host, "-pooler.") {
-		return databaseURL
+	if strings.TrimSpace(os.Getenv("DATABASE_URL_ALLOW_POOLER")) != "1" {
+		host := parsed.Hostname()
+		if strings.Contains(host, "-pooler.") {
+			directHost := strings.Replace(host, "-pooler.", ".", 1)
+			if port := parsed.Port(); port != "" {
+				parsed.Host = directHost + ":" + port
+			} else {
+				parsed.Host = directHost
+			}
+			log.Printf("database host normalized from neon pooler to direct connection")
+		}
 	}
-	directHost := strings.Replace(host, "-pooler.", ".", 1)
-	if port := parsed.Port(); port != "" {
-		parsed.Host = directHost + ":" + port
-	} else {
-		parsed.Host = directHost
+	query := parsed.Query()
+	if strings.TrimSpace(query.Get("application_name")) == "" {
+		applicationName := strings.TrimSpace(os.Getenv("DB_APPLICATION_NAME"))
+		if applicationName == "" {
+			applicationName = "koschei-api"
+		}
+		query.Set("application_name", applicationName)
+		parsed.RawQuery = query.Encode()
 	}
-	log.Printf("database host normalized from neon pooler to direct connection")
 	return parsed.String()
 }
 
@@ -199,23 +206,36 @@ func runMigrations(db *sql.DB) (int, int, error) {
 	}
 	for _, f := range files {
 		v := filepath.Base(f)
-		var exists string
-		err = db.QueryRow(`SELECT version FROM schema_migrations WHERE version=$1`, v).Scan(&exists)
-		if err == nil {
-			skipped++
-			continue
-		}
-		if err != sql.ErrNoRows {
-			return applied, skipped, err
-		}
 		b, err := os.ReadFile(f)
 		if err != nil {
 			return applied, skipped, err
 		}
-		if _, err := db.Exec(string(b)); err != nil {
+		tx, err := db.Begin()
+		if err != nil {
+			return applied, skipped, err
+		}
+		var exists bool
+		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, v).Scan(&exists); err != nil {
+			_ = tx.Rollback()
+			return applied, skipped, err
+		}
+		if exists {
+			_ = tx.Rollback()
+			skipped++
+			continue
+		}
+		// #nosec G701 -- SQL is read only from version-controlled migration files
+		// packaged with the application; no request, database or operator string is
+		// interpolated into the migration contents at runtime.
+		if _, err := tx.Exec(string(b)); err != nil {
+			_ = tx.Rollback()
 			return applied, skipped, fmt.Errorf("migration failed: %s %w", v, err)
 		}
-		if _, err := db.Exec(`INSERT INTO schema_migrations (version) VALUES ($1)`, v); err != nil {
+		if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES ($1)`, v); err != nil {
+			_ = tx.Rollback()
+			return applied, skipped, err
+		}
+		if err := tx.Commit(); err != nil {
 			return applied, skipped, err
 		}
 		applied++
