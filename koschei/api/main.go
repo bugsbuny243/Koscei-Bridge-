@@ -86,36 +86,23 @@ func main() {
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
-	// Empty queues, retention jobs and radar workers can all wake Neon. The
-	// production web/API process therefore defaults to no background polling at
-	// all. A separately sized worker service must opt in explicitly.
-	pollingDefault := !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
-	databasePollingWorkersEnabled := envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", pollingDefault)
-	if databasePollingWorkersEnabled {
-		stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
-		defer stopSecurityRadars()
-		if services.AutomaticBackgroundScanningEnabled() {
-			stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
-			defer stopPumpPortal()
-			stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
-			defer stopActorDefense()
-			if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
-				log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
-			} else {
-				stopSBX1Stream := services.StartSecurityRadarStreamIfEnabled(appCtx, conn)
-				defer stopSBX1Stream()
-			}
-			stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
-			defer stopWatchlistMonitor()
+	stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
+	defer stopSecurityRadars()
+	if services.AutomaticBackgroundScanningEnabled() {
+		stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
+		defer stopPumpPortal()
+		stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
+		defer stopActorDefense()
+		if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
+			log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
 		} else {
-			log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
+			stopSBX1Stream := services.StartSecurityRadarStreamIfEnabled(appCtx, conn)
+			defer stopSBX1Stream()
 		}
-		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-		defer stopWebhookDeliveries()
-		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-		defer stopSecurityAlertDeliveries()
+		stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
+		defer stopWatchlistMonitor()
 	} else {
-		log.Printf("all database polling workers disabled: Neon cost guard active; manual scans, synchronous API routes and public SOC remain available")
+		log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
 	}
 
 	jobStore := jobs.NewStore(conn)
@@ -125,12 +112,14 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	if databasePollingWorkersEnabled {
-		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
-		defer stopCanonicalWorker()
-		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
-		defer stopCanonicalPumpScheduler()
-	}
+	stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
+	defer stopWebhookDeliveries()
+	stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
+	defer stopSecurityAlertDeliveries()
+	stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
+	defer stopCanonicalWorker()
+	stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
+	defer stopCanonicalPumpScheduler()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -182,21 +171,6 @@ func newHTTPServer(port string, handler http.Handler) *http.Server {
 		ReadTimeout:       httpReadTimeout,
 		WriteTimeout:      httpWriteTimeout,
 		IdleTimeout:       httpIdleTimeout,
-	}
-}
-
-func envBoolDefault(name string, fallback bool) bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
-	if value == "" {
-		return fallback
-	}
-	switch value {
-	case "1", "true", "yes", "on":
-		return true
-	case "0", "false", "no", "off":
-		return false
-	default:
-		return fallback
 	}
 }
 
