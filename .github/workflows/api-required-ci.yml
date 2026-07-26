@@ -96,6 +96,20 @@ jobs:
           path: ${{ runner.temp }}/retention-archive-postgres17.txt
           if-no-files-found: warn
           retention-days: 7
+      - name: Validate public program risk queries on PostgreSQL 17
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_ci?sslmode=disable
+        run: |
+          set -o pipefail
+          go test -v ./internal/handlers -run '^TestPublicProgramRiskQueriesPostgres17$' -count=1 2>&1 | tee "${RUNNER_TEMP}/public-program-risk-postgres17.txt"
+      - name: Upload public program risk PostgreSQL log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-program-risk-postgres17
+          path: ${{ runner.temp }}/public-program-risk-postgres17.txt
+          if-no-files-found: warn
+          retention-days: 7
       - name: Validate immutable dossier storage
         env:
           PGPASSWORD: postgres
