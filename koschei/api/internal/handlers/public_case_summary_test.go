@@ -7,95 +7,74 @@ import (
 	"time"
 )
 
-func TestBuildPublicCaseSummaryExplainsIncompleteGrade(t *testing.T) {
+func TestPublicCaseSummaryWithholdsInvalidLetterGrade(t *testing.T) {
 	technical := publicCasePageData{
-		CaseRef:        "KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz",
-		Title:          "ARVIS Actor Evidence Case",
-		TargetKind:     "wallet",
-		TargetID:       "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe",
-		VerdictGrade:   "B",
-		RulesetVersion: "koschei-unified-radar-rules-v1.0.0",
-		ProducedAt:     time.Date(2026, 7, 25, 5, 3, 0, 0, time.UTC),
-		Acceptance: publicCaseAcceptanceView{
-			Status:          "fail",
-			Class:           "failed",
-			Pass:            5,
-			Fail:            2,
-			NotInvestigated: 3,
-		},
+		CaseRef: "KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz", Title: "ARVIS Actor Evidence Case",
+		TargetKind: "wallet", TargetID: "wallet-address", VerdictGrade: "B", VerdictStatus: "review",
+		RulesetVersion: "rules-v1", ProducedAt: time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC),
 		Signals: []publicCaseSignalView{
-			{ID: "AC-02", State: "verified", StateClass: "verified"},
-			{ID: "AC-04", State: "verified", StateClass: "verified"},
-			{ID: "AC-07", State: "unknown", StateClass: "unknown", AcceptanceStatus: "not_investigated"},
+			{ID: "AC-02", State: "verified", StateClass: "verified", AcceptanceStatus: "pass"},
 			{ID: "AC-10", State: "unknown", StateClass: "unknown", AcceptanceStatus: "fail"},
 		},
-		Rules: []publicCaseRuleView{
-			{ID: "ARD-C003", Count: 1},
-			{ID: "ARD-C004", Count: 6},
-		},
-		TechnicalURL: "/dossier/KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz",
+		Rules: []publicCaseRuleView{{ID: "ARD-C004", Count: 2}, {ID: "ARD-C004", Count: 3}},
 	}
-
 	result := buildPublicCaseSummaryPageData(technical)
-	if result.OutcomeLabel != "İNCELEME GEREKLİ" {
-		t.Fatalf("unexpected outcome label: %q", result.OutcomeLabel)
+	if result.GradeDisplay != "WITHHOLD" || result.DecisionLabel != "İŞLEMİ BEKLET" {
+		t.Fatalf("invalid grade was not withheld: %#v", result)
 	}
-	if !strings.Contains(result.OutcomeText, "2 kontrol başarısız") || !strings.Contains(result.OutcomeText, "3 alan tamamlanmamış") {
-		t.Fatalf("outcome does not explain incomplete acceptance: %q", result.OutcomeText)
+	if len(result.Reasons) != 1 || !strings.Contains(result.Reasons[0], "5 doğrulanmış işlem") {
+		t.Fatalf("repeated rules were not collapsed: %#v", result.Reasons)
 	}
-	if !strings.Contains(result.GradeExplanation, "güvenli anlamına gelmez") {
-		t.Fatalf("grade explanation can be misread as safe: %q", result.GradeExplanation)
-	}
-	if len(result.Known) != 2 {
-		t.Fatalf("expected two plain known findings, got %d", len(result.Known))
-	}
-	if len(result.Missing) != 2 {
-		t.Fatalf("expected two missing findings, got %d", len(result.Missing))
-	}
-	if !strings.Contains(strings.Join(result.Missing, " "), "Likidite") {
-		t.Fatalf("missing liquidity gap was not explained: %#v", result.Missing)
-	}
-	if !strings.Contains(strings.Join(result.RuleReasons, " "), "6 kez") {
-		t.Fatalf("repeated relationship rule was not explained: %#v", result.RuleReasons)
+	if len(result.Findings) != 1 || !strings.Contains(result.Findings[0], "hesap türü") {
+		t.Fatalf("verified finding missing: %#v", result.Findings)
 	}
 }
 
-func TestPublicCaseSummaryTemplateIsHumanFirst(t *testing.T) {
+func TestPublicCaseSummaryDecisionMapping(t *testing.T) {
+	tests := []struct {
+		grade, status, want string
+	}{
+		{"F", "block", "BLOKLA"},
+		{"B", "warn", "YÜKSEK DİKKAT"},
+		{"A", "allow", "KANITLA DEVAM"},
+		{"-", "withhold", "İŞLEMİ BEKLET"},
+	}
+	for _, tt := range tests {
+		data := publicCasePageData{VerdictGrade: tt.grade, VerdictStatus: tt.status}
+		grade := publicCaseEffectiveGrade(data)
+		got, _, _ := publicCaseDecision(data, grade)
+		if got != tt.want {
+			t.Fatalf("grade=%s status=%s decision=%s want=%s", tt.grade, tt.status, got, tt.want)
+		}
+	}
+}
+
+func TestPublicCaseSummaryTemplateShowsProductNotWorkerDebug(t *testing.T) {
 	data := publicCaseSummaryPageData{
 		Case: publicCasePageData{
-			CaseRef:        "KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz",
-			Title:          "ARVIS Actor Evidence Case",
-			TargetKind:     "wallet",
-			TargetID:       "wallet-address",
-			VerdictGrade:   "B",
-			RulesetVersion: "rules-v1",
-			BundleHash:     "sha256:bundle",
-			ProducedAt:     time.Date(2026, 7, 25, 5, 3, 0, 0, time.UTC),
-			TechnicalURL:   "/dossier/KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz",
-			Acceptance:     publicCaseAcceptanceView{Pass: 5, Fail: 2, NotInvestigated: 3},
+			CaseRef: "KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz", Title: "ARVIS Security Case",
+			TargetKind: "wallet", TargetID: "wallet-address", BundleHash: "sha256:bundle",
+			RulesetVersion: "rules-v1", Signature: "signature", Network: "solana-mainnet",
+			ProducedAt: time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC), TechnicalURL: "/dossier/KD1-g7epiavjdqtk5dsz3s2ynewjkobd2rxz",
 		},
-		OutcomeLabel:     "İNCELEME GEREKLİ",
-		OutcomeClass:     "review",
-		OutcomeText:      "Kesin sonuç üretilemedi.",
-		GradeExplanation: "B güvenli anlamına gelmez.",
-		Known:            []string{"Hedef cüzdan olarak doğrulandı."},
-		Missing:          []string{"Likidite tamamlanmadı."},
-		Actions:          []string{"Yüksek tutarlı işlem yapma."},
-		RuleReasons:      []string{"Aynı ilişki tekrarlandı."},
+		TargetLabel: "Cüzdan", DecisionLabel: "İŞLEMİ BEKLET", DecisionClass: "withhold",
+		DecisionText: "İşlemi imzalama.", GradeDisplay: "WITHHOLD", GradeExplanation: "Kanıt sınırı.",
+		Findings: []string{"Doğrulanmış zincir üstü bulgu."}, Reasons: []string{"Aynı ilişki 5 işlemde tekrarlandı."},
+		Actions: []string{"İşlemi şimdilik imzalama."},
 	}
 	var out bytes.Buffer
 	if err := publicCaseSummaryHTML.Execute(&out, data); err != nil {
 		t.Fatalf("render summary: %v", err)
 	}
 	html := out.String()
-	for _, required := range []string{"NE BULDUK?", "NE BULAMADIK?", "NE YAPMALI?", "İNCELEME GEREKLİ", "Ham teknik dossier", "ARVIS evidence coverage", "Evidence timeline"} {
+	for _, required := range []string{"ARVIS KARARI", "NE BULDUK?", "NEDEN ÖNEMLİ?", "NE YAPMALISIN?", "Değişmez kanıt dosyasını aç", "WITHHOLD"} {
 		if !strings.Contains(html, required) {
-			t.Fatalf("missing human-first marker %q", required)
+			t.Fatalf("missing product marker %q", required)
 		}
 	}
-	for _, forbidden := range []string{"<pre", "<script", "window."} {
+	for _, forbidden := range []string{"Sorumlu worker", "ARVIS ŞİMDİ NE YAPACAK?", "Açık otomatik işler", "<pre", "<script", "window."} {
 		if strings.Contains(html, forbidden) {
-			t.Fatalf("summary regressed to raw/executable presentation: %q", forbidden)
+			t.Fatalf("public page leaked operational/debug marker %q", forbidden)
 		}
 	}
 }
