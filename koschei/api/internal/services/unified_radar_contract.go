@@ -10,10 +10,13 @@ import (
 	"time"
 )
 
+const UnifiedRadarDecisionContractVersion = "koschei-unified-radar-decision-v1.0.1"
+
 // FinalizeUnifiedRadarVerdictContract binds the deterministic verdict state to
 // its target before persistence. A withheld grade ("-") is still a signed
 // deterministic decision: it means no grade-changing rule fired, never A/LOW.
 func FinalizeUnifiedRadarVerdictContract(target string, verdict UnifiedRadarVerdict) UnifiedRadarVerdict {
+	verdict = normalizeUnifiedRadarVerdictDecision(verdict)
 	if strings.TrimSpace(verdict.RulesetVersion) == "" {
 		verdict.RulesetVersion = UnifiedRadarRulesetVersion
 	}
@@ -26,9 +29,67 @@ func FinalizeUnifiedRadarVerdictContract(target string, verdict UnifiedRadarVerd
 	verdict.WatchFlags = nonNilActorRuleHits(verdict.WatchFlags)
 	verdict.DecisionPath = nonNilStrings(verdict.DecisionPath)
 	verdict.Signed = true
-	if strings.TrimSpace(verdict.Signature) == "" {
-		verdict.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), verdict)
+	// Always recompute after normalization. A previously signed verdict may have
+	// counted multiple evidence groups for one rule ID and therefore bound the
+	// wrong grade/verdict state.
+	verdict.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), verdict)
+	return verdict
+}
+
+func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRadarVerdict {
+	verdict.TriggeredRules = nonNilActorRuleHits(verdict.TriggeredRules)
+	verdict.WatchFlags = nonNilActorRuleHits(verdict.WatchFlags)
+	actorRuleSortHits(verdict.TriggeredRules)
+	actorRuleSortHits(verdict.WatchFlags)
+
+	hard := []ActorDefenseRuleHit{}
+	compoundRuleIDs := map[string]bool{}
+	for _, hit := range verdict.TriggeredRules {
+		status := normalizeActorEvidenceStatus(hit.EvidenceStatus)
+		switch strings.TrimSpace(hit.Tier) {
+		case "hard_trigger":
+			if status == "verified" {
+				hard = append(hard, hit)
+			}
+		case "compounding":
+			if status == "verified" || status == "observed" {
+				if ruleID := strings.TrimSpace(hit.RuleID); ruleID != "" {
+					compoundRuleIDs[ruleID] = true
+				}
+			}
+		}
 	}
+
+	decision := []string{
+		"Unified verdict contract: " + UnifiedRadarDecisionContractVersion + ".",
+		"Only distinct VERIFIED/OBSERVED compounding rule IDs may lower the baseline.",
+		"Multiple evidence groups for one rule remain separately auditable but count once in the grade decision.",
+		"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
+	}
+	switch {
+	case len(hard) > 0:
+		verdict.Grade = actorRuleWorstGradeCap(hard)
+		verdict.Verdict = "hard_trigger"
+		decision = append(decision, fmt.Sprintf("Evidence-backed hard-trigger ceiling applied: grade %s.", verdict.Grade))
+	case len(compoundRuleIDs) >= 2:
+		verdict.Grade = "B"
+		verdict.Verdict = "compounding_rule"
+		decision = append(decision, fmt.Sprintf("%d distinct evidence-backed compounding rule IDs lowered the baseline by one grade to B.", len(compoundRuleIDs)))
+	case len(compoundRuleIDs) == 1:
+		verdict.Grade = "-"
+		verdict.Verdict = "single_observation"
+		decision = append(decision, "One distinct evidence-backed compounding rule ID is visible; no letter grade is issued.")
+	case len(verdict.WatchFlags) > 0:
+		verdict.Grade = "-"
+		verdict.Verdict = "watch_only"
+		decision = append(decision, "Only watch flags are present; no letter grade is issued.")
+	default:
+		verdict.Grade = "-"
+		verdict.Verdict = "no_grade_trigger"
+		decision = append(decision, "No evidence-backed grade-changing rule was satisfied; absence of evidence is not an A grade.")
+	}
+	verdict.DecisionPath = decision
+	verdict.Signature = ""
 	return verdict
 }
 
@@ -37,7 +98,10 @@ func FinalizeUnifiedRadarVerdictContract(target string, verdict UnifiedRadarVerd
 // rule_version, evidence, triggered_rules and decision_path. Numeric risk fields
 // are deliberately absent.
 func (verdict UnifiedRadarVerdict) MarshalJSON() ([]byte, error) {
-	contract := verdict
+	originalGrade := strings.TrimSpace(verdict.Grade)
+	originalVerdict := strings.TrimSpace(verdict.Verdict)
+	contract := normalizeUnifiedRadarVerdictDecision(verdict)
+	decisionChanged := originalGrade != strings.TrimSpace(contract.Grade) || originalVerdict != strings.TrimSpace(contract.Verdict)
 	contract.RulesetVersion = strings.TrimSpace(contract.RulesetVersion)
 	if contract.RulesetVersion == "" {
 		contract.RulesetVersion = UnifiedRadarRulesetVersion
@@ -56,8 +120,11 @@ func (verdict UnifiedRadarVerdict) MarshalJSON() ([]byte, error) {
 	// still be self-consistent. Persistence calls Finalize... with the target and
 	// therefore stores the target-bound signature; this fallback signs the
 	// deterministic contract state itself when a target-bound signature is not yet
-	// attached to the value.
+	// attached to the value. A changed decision must never retain its old signature.
 	signature := strings.TrimSpace(contract.Signature)
+	if decisionChanged {
+		signature = ""
+	}
 	if signature == "" {
 		signature = signUnifiedVerdictContractState(contract, evidence)
 	}
