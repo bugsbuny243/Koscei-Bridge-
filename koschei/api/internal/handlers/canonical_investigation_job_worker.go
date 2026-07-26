@@ -15,6 +15,7 @@ import (
 	"koschei/api/internal/jobs"
 	"koschei/api/internal/services"
 	"koschei/api/internal/web3"
+	"koschei/api/internal/workerwake"
 )
 
 const (
@@ -50,9 +51,20 @@ type canonicalInvestigationChildQueue struct {
 	Limitations        []string `json:"limitations"`
 }
 
+// canonicalWorkerDrainDelay is the settle delay between two claimed jobs. It
+// keeps a queued burst draining quickly without a busy loop.
+const canonicalWorkerDrainDelay = 10 * time.Millisecond
+
+// canonicalWorkerErrorBackoff is the retry delay after a failed claim. It is
+// short enough that a queued job is not stranded and long enough that a database
+// outage does not become a hot retry loop.
+const canonicalWorkerErrorBackoff = 5 * time.Second
+
 type canonicalInvestigationJobWorker struct {
-	Handler    *Handler
-	Store      *jobs.Store
+	Handler *Handler
+	Store   *jobs.Store
+	// PollEvery no longer drives idle frequency (#697); it is retained as the
+	// configured upper bound reported at startup for operator visibility.
 	PollEvery  time.Duration
 	StaleAfter time.Duration
 	Heartbeat  time.Duration
@@ -87,7 +99,7 @@ func StartCanonicalInvestigationJobWorker(ctx context.Context, db, readDB *sql.D
 		ChildLimit: canonicalWorkerEnvInt("ACTOR_CHILD_MINT_JOB_LIMIT", 40, 1, 200),
 	}
 	go worker.Start(workerCtx)
-	log.Printf("canonical investigation job worker started poll=%s stale=%s concurrency=1", worker.PollEvery, worker.StaleAfter)
+	log.Printf("canonical investigation job worker started mode=event-driven recovery-ceiling=%s stale=%s concurrency=1", workerwake.RecoveryCeiling(), worker.StaleAfter)
 	return cancel
 }
 
@@ -100,23 +112,38 @@ func (w *canonicalInvestigationJobWorker) Start(ctx context.Context) {
 	} else if recovered > 0 {
 		log.Printf("canonical investigation stale-job recovery affected=%d", recovered)
 	}
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
+	// Event-driven idle (#697). web3_jobs rows are claimable as soon as they are
+	// queued, so there is no future schedule to compute: when a claim finds
+	// nothing, the worker sleeps until an in-process enqueue signal arrives or the
+	// bounded recovery ceiling elapses. A processed job is followed by a very
+	// short settle delay so a queued burst drains without waiting on signals.
+	gate := workerwake.Get(workerwake.CanonicalInvestigation)
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		case <-timer.C:
-			processed, err := w.RunOnce(ctx)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) && ctx.Err() == nil {
-				log.Printf("canonical investigation worker cycle failed: %v", err)
-			}
-			if processed {
-				timer.Reset(10 * time.Millisecond)
-			} else {
-				timer.Reset(w.PollEvery)
-			}
 		}
+		gate.Drain()
+		processed, err := w.RunOnce(ctx)
+		failed := err != nil && !errors.Is(err, sql.ErrNoRows)
+		if failed && ctx.Err() == nil {
+			log.Printf("canonical investigation worker cycle failed: %v", err)
+		}
+		if processed {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(canonicalWorkerDrainDelay):
+			}
+			continue
+		}
+		// A claim failure is not an empty queue: retry on a short backoff instead
+		// of parking for the full recovery ceiling, so a transient database error
+		// cannot strand a queued job for minutes.
+		if failed {
+			gate.Wait(ctx, canonicalWorkerErrorBackoff)
+			continue
+		}
+		gate.Wait(ctx, workerwake.RecoveryCeiling())
 	}
 }
 
@@ -234,7 +261,7 @@ func (w *canonicalInvestigationJobWorker) processJob(ctx context.Context, job jo
 	report["background_job"] = map[string]any{
 		"job_id": job.ID, "root_job_id": rootJobID, "job_type": job.Type, "attempt": job.Attempts,
 		"source": payload.Source, "source_event_id": payload.SourceEventID,
-		"root_target": firstNonEmptyString(payload.RootTarget, target),
+		"root_target":   firstNonEmptyString(payload.RootTarget, target),
 		"parent_target": payload.ParentTarget, "parent_actor": payload.ParentActor,
 		"depth": payload.Depth, "max_depth": canonicalPayloadMaxDepth(payload),
 	}
@@ -279,7 +306,7 @@ func (w *canonicalInvestigationJobWorker) scheduleCreatedMintChildren(ctx contex
 			Mint: mint, Network: parent.Network, Mode: "background_recursive_token_scan",
 			RootTarget: rootTarget, RootJobID: rootJobID, ParentTarget: parent.Target,
 			ParentActor: strings.TrimSpace(canonicalString(actor["wallet"])),
-			Source: "created_mint_portfolio", Depth: childDepth, MaxDepth: maxDepth, DedupeKey: dedupe,
+			Source:      "created_mint_portfolio", Depth: childDepth, MaxDepth: maxDepth, DedupeKey: dedupe,
 		}
 		child, created, err := w.Store.CreateUniqueActive(ctx, jobs.CreateInput{
 			UserID: parent.UserID, Email: parent.Email, Type: CanonicalInvestigationJobType,
