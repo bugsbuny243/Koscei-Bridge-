@@ -1,6 +1,10 @@
 name: Public Product Smoke
 
 on:
+  pull_request:
+    paths:
+      - "koschei/api/**"
+      - ".github/workflows/public-product-smoke.yml"
   push:
     branches: [main]
     paths:
