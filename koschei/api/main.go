@@ -27,7 +27,7 @@ import (
 const (
 	httpReadHeaderTimeout = 5 * time.Second
 	httpReadTimeout       = 15 * time.Second
-	httpWriteTimeout      = 60 * time.Second
+	httpWriteTimeout      = 10 * time.Minute
 	httpIdleTimeout       = 60 * time.Second
 	httpShutdownTimeout   = 15 * time.Second
 )
@@ -86,25 +86,36 @@ func main() {
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
-	// Retention remains active because it performs database hygiene only. Every
-	// quota-consuming automatic scanner is opt-in through the master switch.
-	stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
-	defer stopSecurityRadars()
-	if services.AutomaticBackgroundScanningEnabled() {
-		stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
-		defer stopPumpPortal()
-		stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
-		defer stopActorDefense()
-		if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
-			log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
+	// Empty queues, retention jobs and radar workers can all wake Neon. The
+	// production web/API process therefore defaults to no background polling at
+	// all. A separately sized worker service must opt in explicitly.
+	pollingDefault := !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
+	databasePollingWorkersEnabled := envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", pollingDefault)
+	if databasePollingWorkersEnabled {
+		stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
+		defer stopSecurityRadars()
+		if services.AutomaticBackgroundScanningEnabled() {
+			stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
+			defer stopPumpPortal()
+			stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
+			defer stopActorDefense()
+			if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
+				log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
+			} else {
+				stopSBX1Stream := services.StartSecurityRadarStreamIfEnabled(appCtx, conn)
+				defer stopSBX1Stream()
+			}
+			stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
+			defer stopWatchlistMonitor()
 		} else {
-			stopSBX1Stream := services.StartSecurityRadarStreamIfEnabled(appCtx, conn)
-			defer stopSBX1Stream()
+			log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
 		}
-		stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
-		defer stopWatchlistMonitor()
+		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
+		defer stopWebhookDeliveries()
+		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
+		defer stopSecurityAlertDeliveries()
 	} else {
-		log.Printf("automatic scanning disabled: no Pump discovery, radar polling, background stream, actor correlation or watchlist refresh; manual scans and Safe Check remain available")
+		log.Printf("all database polling workers disabled: Neon cost guard active; manual scans, synchronous API routes and public SOC remain available")
 	}
 
 	jobStore := jobs.NewStore(conn)
@@ -114,22 +125,11 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	// Empty database-backed queues previously polled Neon every few seconds and
-	// prevented scale-to-zero. Production web/API service now defaults to quiet
-	// synchronous operation. Polling consumers belong in a dedicated worker
-	// service with this flag explicitly enabled.
-	pollingDefault := !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
-	if envBoolDefault("KOSCHEI_DATABASE_POLLING_WORKERS_ENABLED", pollingDefault) {
-		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-		defer stopWebhookDeliveries()
-		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-		defer stopSecurityAlertDeliveries()
+	if databasePollingWorkersEnabled {
 		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
 		defer stopCanonicalWorker()
 		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
 		defer stopCanonicalPumpScheduler()
-	} else {
-		log.Printf("database polling workers disabled: Neon cost guard active; manual scans, synchronous API routes and public SOC remain available")
 	}
 
 	port := os.Getenv("PORT")
