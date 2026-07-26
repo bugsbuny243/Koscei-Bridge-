@@ -23,18 +23,24 @@ func TestCustomerArtifactViewRedactsCrossAccountMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload := string(encoded)
-	for _, forbidden := range []string{"created_by", "customer-a", "source_uri", "source_commit", "secret-commit", "metadata", "private\\\":\\\"source", "content"} {
-		if strings.Contains(strings.ToLower(payload), strings.ToLower(forbidden)) {
-			t.Fatalf("customer artifact response leaked %q: %s", forbidden, payload)
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"created_by", "source_uri", "source_commit", "metadata", "content"} {
+		if _, exists := payload[forbidden]; exists {
+			t.Fatalf("customer artifact response leaked key %q: %s", forbidden, encoded)
 		}
 	}
-	for _, required := range []string{"artifact_ref", "program_id", "content_hash", "private"} {
-		if required == "private" {
-			continue
+	for _, required := range []string{"artifact_ref", "program_id", "network", "artifact_type", "content_hash", "content_encoding", "trust_level", "verified", "created_at"} {
+		if _, exists := payload[required]; !exists {
+			t.Fatalf("customer artifact response missing key %q: %s", required, encoded)
 		}
-		if !strings.Contains(payload, required) {
-			t.Fatalf("customer artifact response missing %q: %s", required, payload)
+	}
+	text := strings.ToLower(string(encoded))
+	for _, forbiddenValue := range []string{"customer-a", "secret-commit", "private://"} {
+		if strings.Contains(text, strings.ToLower(forbiddenValue)) {
+			t.Fatalf("customer artifact response leaked value %q: %s", forbiddenValue, text)
 		}
 	}
 }
