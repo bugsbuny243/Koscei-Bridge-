@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei ARVIS açık Solana güvenlik operasyon akışı: yayınlanan değişmez vakalar ve doğrulanabilir kanıt özetleri.">
+<meta name="description" content="Koschei ARVIS açık Solana güvenlik operasyon akışı: yayınlanan değişmez vakalar ve doğrulanmış akıllı kontrat/program riskleri.">
 <meta name="theme-color" content="#02050a">
 <title>Koschei ARVIS | Canlı Solana Güvenlik Merkezi</title>
 <link rel="canonical" href="https://tradepigloball.co/live">
@@ -18,31 +18,31 @@
 
 <header class="soc-hero">
 <span class="soc-kicker">ARVIS AÇIK SOC · YALNIZ KANIT</span>
-<h1>Solana’da ne oluyor?<br>Kanıt geldikçe burada.</h1>
-<p>Bu ekran 15 saniyede bir açık kanıt akışını yeniler. Aynı hedefin tekrar üretilen teknik dossier’ları ayrı olay gibi şişirilmez; en güncel soruşturma gösterilir. Yeni doğrulanmış yayın yoksa sahte trafik veya demo alarm üretilmez.</p>
+<h1>Solana’da ne oluyor?<br>Vaka ve program riski kanıt geldikçe burada.</h1>
+<p>Bu ekran 15 saniyede bir açık kanıt akışını yeniler. Owner tarafından yayınlanan değişmez vakaların yanında, Program Sentinel tarafından doğrulanan HIGH/CRITICAL akıllı kontrat-program kontrol tehlikeleri de görünür. Kaynak doğrulanmamışsa uyuşmazlık uydurulmaz; yeni kanıt yoksa sahte alarm üretilmez.</p>
 <div class="soc-statusline"><span class="soc-pulse"></span><span id="soc-status">ARVIS açık kanıt akışı başlatılıyor</span><span id="soc-updated">—</span></div>
 </header>
 
 <section class="soc-metrics" aria-label="Canlı SOC metrikleri">
 <div class="soc-metric"><span>Güncel vaka</span><b id="metric-cases">—</b></div>
-<div class="soc-metric"><span>Öne çıkan</span><b id="metric-featured">—</b></div>
+<div class="soc-metric"><span>Program alarmı</span><b id="metric-featured">—</b></div>
 <div class="soc-metric"><span>Doğrulanan kanıt</span><b id="metric-verified">—</b></div>
 <div class="soc-metric"><span>Gözlenen kanıt</span><b id="metric-observed">—</b></div>
 <div class="soc-metric"><span>Yenileme</span><b id="metric-refresh">—</b></div>
 </section>
 
 <section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">CANLI YAYIN AKIŞI</span><h2>Operasyon akışı</h2><p>Her olay anlaşılır vaka özetine açılır; değişmez dossier, case ref ve bundle hash ile ayrıca doğrulanabilir.</p></div><a class="soc-btn" href="/cases">Tüm vakaları aç</a></div>
+<div class="soc-panel-head"><div><span class="soc-kicker">CANLI YAYIN AKIŞI</span><h2>Vaka ve akıllı kontrat/program risk akışı</h2><p>Program alarmı; bytecode, loader, ProgramData, upgrade authority veya doğrulanmış kaynak eşleşmesi değişiminin değişmez hash kanıtına açılır. Teknik kapasite gösterilir, niyet veya suç isnadı yapılmaz.</p></div><a class="soc-btn" href="/api/public/program-risks?limit=100">Program risk API</a></div>
 <div class="soc-events" id="soc-events" aria-live="polite"><div class="soc-empty">Canlı yayın akışı yükleniyor…</div></div>
 </section>
 
 <section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">SIFIR GÜVEN YAYIN SINIRI</span><h2>Canlı görünürlük, kontrollü ifşa.</h2><p>Koschei’nin açık operasyon penceresi bütün iç sistemi internete dökmez.</p></div></div>
+<div class="soc-panel-head"><div><span class="soc-kicker">SIFIR GÜVEN YAYIN SINIRI</span><h2>Canlı görünürlük, kontrollü ifşa.</h2><p>Koschei’nin açık operasyon penceresi bütün iç sistemi internete dökmez. Program binary artifact’ları, özel müşteri taramaları ve iç worker ayrıntıları yayımlanmaz.</p></div></div>
 <div class="soc-boundaries" id="soc-boundaries"><div>Yayın sınırları yükleniyor…</div></div>
 </section>
 
 <footer class="soc-footer"><span>© Koschei ARVIS · Açık Güvenlik Operasyonları</span><span>Sahte hareket yok. Gizli puan yok. Önce kanıt.</span></footer>
 </main>
-<script src="/js/public-soc.js?v=2"></script>
+<script src="/js/public-live-soc.js?v=1"></script>
 </body>
 </html>
