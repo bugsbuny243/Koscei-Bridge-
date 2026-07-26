@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestResolveStaticDirPrefersLocalPublicDirectory(t *testing.T) {
@@ -42,7 +43,7 @@ func TestNewHTTPServerSetsProductionTimeouts(t *testing.T) {
 	if server.ReadHeaderTimeout != httpReadHeaderTimeout || server.ReadTimeout != httpReadTimeout || server.WriteTimeout != httpWriteTimeout || server.IdleTimeout != httpIdleTimeout {
 		t.Fatalf("timeouts were not applied: %#v", server)
 	}
-	if server.WriteTimeout < 8*60*1_000_000_000 {
+	if server.WriteTimeout < 8*time.Minute {
 		t.Fatalf("write timeout=%s is too short for bounded actor/forensics routes", server.WriteTimeout)
 	}
 }
