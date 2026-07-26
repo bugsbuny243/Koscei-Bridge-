@@ -1,0 +1,41 @@
+name: Auth Freeze Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protect-auth:
+    name: Reject authentication changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Enforce frozen auth boundary
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA:-HEAD^}"
+          head="${HEAD_SHA:-HEAD}"
+          changed="$(git diff --name-only "$base" "$head")"
+          printf '%s\n' "$changed"
+
+          protected='^(koschei/api/public/(login|register)\.html|koschei/api/public/js/koschei-auth[^/]*\.js|koschei/api/internal/handlers/neon_auth_config(_test)?\.go|koschei/api/internal/handlers/(auth|auth_[^/]*)\.go|koschei/api/internal/handlers/(jwt|jwt_[^/]*)\.go|koschei/api/internal/handlers/(session|session_[^/]*)\.go)$'
+          violations="$(printf '%s\n' "$changed" | grep -E "$protected" || true)"
+          if [ -n "$violations" ]; then
+            echo 'Authentication subsystem is frozen by project owner instruction.' >&2
+            echo 'Protected files changed:' >&2
+            printf '%s\n' "$violations" >&2
+            echo 'Revert these changes. Product work must integrate behind the existing auth contract.' >&2
+            exit 1
+          fi
+
+          echo 'No protected authentication files changed.'
