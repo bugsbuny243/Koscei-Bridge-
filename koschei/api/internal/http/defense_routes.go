@@ -7,7 +7,12 @@ import (
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
-	mux.HandleFunc("/api/v1/defense/sentinel", requiresDB(h, h.DossierPublicationAccess(h.CustomerDefenseSentinel)))
+	customerSecurity := func(next http.HandlerFunc) http.HandlerFunc {
+		return requiresDB(h, h.DossierPublicationAccess(next))
+	}
+	mux.HandleFunc("/api/v1/defense/sentinel", customerSecurity(h.CustomerDefenseSentinel))
+	mux.HandleFunc("/api/v1/defense/artifacts", customerSecurity(h.CustomerDefenseArtifacts))
+	mux.HandleFunc("/api/v1/defense/lab", customerSecurity(h.CustomerDefenseLab))
 	mux.HandleFunc("/api/owner/defense/artifacts", requiresDB(h, ownerOnly(h, h.OwnerDefenseArtifacts)))
 	mux.HandleFunc("/api/owner/defense/knowledge", requiresDB(h, ownerOnly(h, h.OwnerDefenseKnowledge)))
 	mux.HandleFunc("/api/owner/defense/lab", requiresDB(h, ownerOnly(h, h.OwnerDefenseLab)))
