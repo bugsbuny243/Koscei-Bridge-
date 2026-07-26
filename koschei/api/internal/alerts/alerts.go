@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"koschei/api/internal/workerwake"
 )
 
 const (
@@ -68,19 +70,30 @@ func Emit(ctx context.Context, db *sql.DB, event Event) (string, error) {
 		return "", err
 	}
 
+	queued := false
 	if shouldQueueSystemChannels(event.Severity) {
 		if telegramConfigured() {
-			_, _ = db.ExecContext(ctx, `
-				INSERT INTO security_alert_deliveries (alert_id,channel)
-				VALUES ($1,'telegram') ON CONFLICT (alert_id,channel) DO NOTHING`, id)
+			queued = insertSystemDelivery(ctx, db, id, "telegram") || queued
 		}
 		if discordConfigured() {
-			_, _ = db.ExecContext(ctx, `
-				INSERT INTO security_alert_deliveries (alert_id,channel)
-				VALUES ($1,'discord') ON CONFLICT (alert_id,channel) DO NOTHING`, id)
+			queued = insertSystemDelivery(ctx, db, id, "discord") || queued
 		}
 	}
+	if queued {
+		workerwake.Signal(workerwake.SecurityAlertDelivery)
+	}
 	return id, nil
+}
+
+func insertSystemDelivery(ctx context.Context, db *sql.DB, alertID, channel string) bool {
+	result, err := db.ExecContext(ctx, `
+		INSERT INTO security_alert_deliveries (alert_id,channel)
+		VALUES ($1,$2) ON CONFLICT (alert_id,channel) DO NOTHING`, alertID, channel)
+	if err != nil {
+		return false
+	}
+	rows, err := result.RowsAffected()
+	return err == nil && rows > 0
 }
 
 func normalizeEvent(event Event) Event {
