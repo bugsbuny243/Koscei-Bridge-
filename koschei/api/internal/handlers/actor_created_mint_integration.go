@@ -45,14 +45,9 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		return out
 	}
 
-	out.Discovery = services.FetchSolscanCreatedMintDiscovery(ctx, wallet)
-	// Fall back to Helius when Solscan is unconfigured or produced no usable
-	// discovery — Koschei already uses Helius, so no Solscan Pro key is required.
-	if !out.Discovery.Available || len(out.Discovery.Candidates) == 0 {
-		if helius := services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet); helius.Available {
-			out.Discovery = helius
-		}
-	}
+	// Helius birincil keşif kaynağıdır. Solscan Pro key gerektirir ve 401
+	// verdiğinde keşfi bozuyordu; Koschei zaten Helius kullanıyor.
+	out.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)
 	out.Status = out.Discovery.Status
 	out.Limitations = append(out.Limitations, out.Discovery.Limitations...)
 	observedEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, out.Discovery.Candidates)
