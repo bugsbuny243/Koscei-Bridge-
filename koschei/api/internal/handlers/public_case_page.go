@@ -578,6 +578,14 @@ var publicCaseHTML = template.Must(template.New("public-case").Parse(`<!doctype 
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Koschei ARVIS tarafından yayınlanan kanıt-temelli Solana güvenlik vakası.">
 <meta name="theme-color" content="#02050a">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Koschei ARVIS">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Summary}}">
+<meta property="og:url" content="https://tradepigloball.co/case/{{.CaseRef}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Summary}}">
 <title>{{.Title}} · Koschei ARVIS</title>
 <link rel="stylesheet" href="/css/public-casefile.css?v=1">
 </head>
