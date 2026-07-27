@@ -30,7 +30,7 @@
 
   function candidateRows(portfolio){
     const rows=uniqueCandidates(portfolio);
-    if(!rows.length)return'<div class="empty">Creator tarafından oluşturulduğu keşfedilen mint bulunmadı veya Solscan/RPC kanıtı alınamadı.</div>';
+    if(!rows.length)return'<div class="empty">Creator tarafından oluşturulduğu keşfedilen mint bulunmadı veya Helius/RPC kanıtı alınamadı.</div>';
     return `<div class="table-wrap"><table class="table"><thead><tr><th>Mint</th><th>Program / instruction</th><th>İmza</th><th>Slot</th><th>Doğrulama</th></tr></thead><tbody>${rows.slice(0,50).map(row=>`<tr><td class="mono"><b>${esc(short(row.mint,36))}</b></td><td><b>${esc(short(row.program,28))}</b><div class="muted small">${esc(row.instruction_type||'create')}</div></td><td class="mono">${esc(short(row.signature,30))}</td><td>${num(row.slot)}</td><td>${badge(row.verification_status||'observed')}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
@@ -90,7 +90,7 @@
         ${metric('Current mint relation',text(relation.status,relation.persistence,'unknown'))}
       </div>
 
-      <details class="owner-details section-gap" open><summary><span><b>Creator mint portföyü</b><small>Solscan keşfi → Helius/RPC signer ve create-instruction doğrulaması.</small></span><span>⌄</span></summary>
+      <details class="owner-details section-gap" open><summary><span><b>Creator mint portföyü</b><small>Helius enhanced transactions → Solana RPC signer ve create-instruction doğrulaması.</small></span><span>⌄</span></summary>
         <div class="metadata section-gap">
           ${metric('Portföy durumu',text(portfolio.status,'not requested'))}
           ${metric('Sayfa',num(obj(portfolio.discovery).pages_fetched))}
@@ -102,12 +102,12 @@
         <div class="section-gap">${candidateRows(portfolio)}</div>
       </details>
 
-      <details class="owner-details section-gap" open><summary><span><b>Funding origin ve dış attribution</b><small>Servis etiketi tek başına kimlik veya kötü niyet kanıtı değildir.</small></span><span>⌄</span></summary>
+      <details class="owner-details section-gap" open><summary><span><b>Funding origin ve dış attribution</b><small>Funding zincir üstü Solana RPC ile doğrulanır; harici servis etiketi kimlik veya kötü niyet kanıtı değildir.</small></span><span>⌄</span></summary>
         ${fundingPanel(funding)}
         <div class="metadata section-gap">
-          ${metric('Solscan discovery',text(external.status,discovery.status,'not requested'))}
-          ${metric('Transaction adayı',num(arr(discovery.transaction_candidates).length))}
-          ${metric('Token account',num(arr(discovery.token_accounts).length))}
+          ${metric('Dış keşif modu',text(discovery.status,'rpc only'))}
+          ${metric('Funding kaynağı','Solana RPC')}
+          ${metric('Creator mint kaynağı',text(obj(portfolio.discovery).provider,'helius'))}
           ${metric('Kalıcı dış kanıt',num(external.evidence_persisted))}
         </div>
       </details>

@@ -22,13 +22,13 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 	return actorExternalDiscoveryRun{
 		Status: "not_requested",
 		Discovery: services.SolscanActorDiscovery{
-			Status: "not_requested", Provider: "solscan_pro_api_v2", Wallet: wallet,
+			Status: "rpc_only", Provider: "helius_solana_rpc", Wallet: wallet,
 			TransactionCandidates: []services.SolscanAccountTransaction{},
 			TokenAccounts: []services.SolscanTokenAccountObservation{},
 			EndpointStatus: map[string]string{}, Limitations: []string{},
 		},
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
-		Limitations: []string{},
+		Limitations:          []string{},
 	}
 }
 
@@ -37,53 +37,19 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out := newActorExternalDiscoveryRun(wallet)
 	if wallet == "" {
 		out.Status = "wallet_required"
-		out.Limitations = append(out.Limitations, "Solscan actor discovery için wallet hedefi çözümlenemedi.")
+		out.Limitations = append(out.Limitations, "Actor discovery için wallet hedefi çözümlenemedi.")
 		return out
 	}
 
-	// Created-mint discovery is a sibling Solscan query with server-side signer and
-	// program filters. Its candidates are independently verified through Solana RPC.
+	// Creator-mint candidates come from Helius enhanced transactions and are
+	// independently verified through canonical Solana RPC. Solscan actor
+	// metadata, transaction and token-account endpoints are intentionally not
+	// called because the Pro endpoint returned 401 and poisoned the report.
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
-
-	out.Discovery = services.FetchSolscanActorDiscovery(ctx, wallet, 40)
-	out.Status = out.Discovery.Status
-	out.Limitations = append(out.Limitations, out.Discovery.Limitations...)
-	if !out.Discovery.Available {
-		if out.CreatedMintPortfolio.Discovery.Available {
-			out.Status = "partial_created_mint_portfolio"
-		}
-		return out
-	}
-
-	evidence := services.SolscanActorDiscoveryEvidence(out.Discovery, network)
-	out.EvidenceProduced = len(evidence)
-	if len(evidence) == 0 {
-		if out.Status == "complete" {
-			out.Status = "complete_no_persistable_relations"
-		}
-		return out
-	}
-	if store == nil {
-		out.Status = "persistence_unavailable"
-		out.Limitations = append(out.Limitations, "Solscan discovery tamamlandı ancak actor evidence store kullanılamıyor.")
-		return out
-	}
-
-	for _, item := range evidence {
-		if err := store.UpsertEvidence(ctx, item); err != nil {
-			out.PersistenceFailures++
-			continue
-		}
-		out.EvidencePersisted++
-	}
-	if out.PersistenceFailures > 0 {
-		out.Status = "partial_persistence"
-		out.Limitations = append(out.Limitations, "Bazı Solscan discovery ilişkileri kalıcı actor index'e yazılamadı.")
-	} else if out.Status == "complete" {
-		out.Status = "complete_persisted"
-	} else if out.Status == "partial" {
-		out.Status = "partial_persisted"
-	}
+	out.Discovery.Configured = strings.TrimSpace(creatorIntelRPCURL()) != ""
+	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available
+	out.Discovery.EndpointStatus["created_mint_portfolio"] = out.CreatedMintPortfolio.Status
+	out.Status = out.CreatedMintPortfolio.Status
 	return out
 }
