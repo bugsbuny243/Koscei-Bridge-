@@ -33,7 +33,6 @@
 <footer class="product-footer"><span>Koschei Security Workspace · Evidence parity</span><nav><a href="/">Ana Sayfa</a><a href="/security-radar">Radar</a><a href="/kosch">KOSCH</a><a href="/docs/api">API</a></nav></footer>
 </main>
 <script src="/js/koschei-auth.js?v=33"></script>
-<script src="/js/koschei-auth-session-fix.js?v=1"></script>
 <script>
 (async()=>{const link=document.getElementById('sessionLink');try{await KoscheiAuth.init();if(KoscheiAuth.isLoggedIn()){link.href='/account';link.textContent='Hesap'}}catch{}})();
 (()=>{
