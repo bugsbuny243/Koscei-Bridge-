@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 	"strings"
+	"time"
 
 	"koschei/api/internal/services"
 )
@@ -112,6 +114,19 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		}
 		verified.VerificationStatus = "verified"
 		verified.Source = "solana_jsonparsed_instruction"
+
+		// Her doğrulanmış token için bugünkü likidite/fiyat akıbeti
+		mkt := collectJupiterMarketContext(ctx, nil, &http.Client{Timeout: 8 * time.Second}, network, verified.Mint, services.HolderIntelligence{}, services.TokenMarketSnapshot{})
+		if mkt.PriceAvailable {
+			verified.CurrentPriceUSD = mkt.PriceUSD
+		}
+		// Akıbet kararı: fiyat yoksa muhtemelen ölü/terk edilmiş
+		if mkt.PriceAvailable && mkt.PriceUSD > 0 {
+			verified.FateStatus = "active"
+		} else {
+			verified.FateStatus = "inactive_or_dead"
+		}
+
 		out.CandidatesVerified++
 		out.VerifiedCandidates = append(out.VerifiedCandidates, verified)
 		for _, evidence := range services.ActorCreatedMintCandidateEvidence(wallet, network, []services.ActorCreatedMintCandidate{verified}) {
