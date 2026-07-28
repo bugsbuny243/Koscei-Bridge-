@@ -19,16 +19,19 @@ const (
 )
 
 type ActorCreatedMintCandidate struct {
-	Mint               string    `json:"mint"`
-	Signature          string    `json:"signature"`
-	Slot               int64     `json:"slot"`
-	BlockTime          int64     `json:"block_time,omitempty"`
-	ObservedAt         time.Time `json:"observed_at"`
-	Program            string    `json:"program"`
-	InstructionType    string    `json:"instruction_type"`
-	ActorSigned        bool      `json:"actor_signed"`
-	VerificationStatus string    `json:"verification_status"`
-	Source             string    `json:"source"`
+	Mint                string    `json:"mint"`
+	Signature           string    `json:"signature"`
+	Slot                int64     `json:"slot"`
+	BlockTime           int64     `json:"block_time,omitempty"`
+	ObservedAt          time.Time `json:"observed_at"`
+	Program             string    `json:"program"`
+	InstructionType     string    `json:"instruction_type"`
+	ActorSigned         bool      `json:"actor_signed"`
+	VerificationStatus  string    `json:"verification_status"`
+	Source              string    `json:"source"`
+	CurrentLiquidityUSD float64   `json:"current_liquidity_usd,omitempty"`
+	CurrentPriceUSD     float64   `json:"current_price_usd,omitempty"`
+	FateStatus          string    `json:"fate_status,omitempty"`
 }
 
 type SolscanCreatedMintDiscovery struct {
