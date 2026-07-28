@@ -147,9 +147,17 @@ func extractHeliusCreatedMintCandidates(transactions []heliusEnhancedTypedTransa
 
 		txType := strings.ToUpper(strings.TrimSpace(tx.Type))
 		source := strings.ToLower(strings.TrimSpace(tx.Source))
-		isCreation := txType == "TOKEN_MINT" || txType == "CREATE" ||
-			strings.Contains(txType, "CREATE") ||
-			(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER")
+		// Havuz/likidite oluşturma işlemleri token mint oluşturma DEĞİLDİR.
+		// "CREATE" kelimesi içeren create_pool gibi işlemler hariç tutulur.
+		isPoolOrLiquidity := strings.Contains(txType, "POOL") ||
+			strings.Contains(txType, "LIQUIDITY") ||
+			strings.Contains(txType, "SWAP") ||
+			strings.Contains(txType, "ADD_LIQUIDITY") ||
+			strings.Contains(txType, "REMOVE_LIQUIDITY")
+		isCreation := !isPoolOrLiquidity && (
+			txType == "TOKEN_MINT" || txType == "CREATE" ||
+				strings.Contains(txType, "CREATE") ||
+				(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER"))
 		if !isCreation {
 			continue
 		}
