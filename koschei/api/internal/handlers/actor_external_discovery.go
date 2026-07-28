@@ -41,15 +41,16 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 		return out
 	}
 
-	// Creator-mint candidates come from Helius enhanced transactions and are
-	// independently verified through canonical Solana RPC. Solscan actor
-	// metadata, transaction and token-account endpoints are intentionally not
-	// called because the Pro endpoint returned 401 and poisoned the report.
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
-	out.Discovery.Configured = strings.TrimSpace(creatorIntelRPCURL()) != ""
-	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available
-	out.Discovery.EndpointStatus["created_mint_portfolio"] = out.CreatedMintPortfolio.Status
-	out.Status = out.CreatedMintPortfolio.Status
+
+	// Solscan actor discovery devre dışı bırakıldı: Pro API key 401 veriyor
+	// ve created-mint portföyü zaten Helius üzerinden toplanıyor. Solscan'e
+	// bağımlılık kaldırıldı.
+	if out.CreatedMintPortfolio.Discovery.Available {
+		out.Status = "created_mint_portfolio_helius"
+	} else {
+		out.Status = "no_external_discovery"
+	}
 	return out
 }
