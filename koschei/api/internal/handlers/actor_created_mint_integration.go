@@ -18,7 +18,6 @@ type actorCreatedMintIntegrationRun struct {
 	CandidatesVerified        int                                  `json:"candidates_verified"`
 	LiquidCandidates          int                                  `json:"liquid_candidates"`
 	InactiveOrDeadCandidates  int                                  `json:"inactive_or_dead_candidates"`
-	UnknownFateCandidates     int                                  `json:"unknown_fate_candidates"`
 	VerificationFailures      int                                  `json:"verification_failures"`
 	VerifiedEvidencePersisted int                                  `json:"verified_evidence_persisted"`
 	PersistenceFailures       int                                  `json:"persistence_failures"`
@@ -133,18 +132,14 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 			}
 		}
 
-		// Akıbet gerçek likiditeye göre belirlenir. Provider hatası tokenı
-		// yanlışlıkla ölü ilan etmez; bu durumda durum unknown kalır.
-		switch {
-		case verified.CurrentLiquidityUSD > 0:
+		// Akıbet iki sonuçludur: ölçülen pozitif likidite varsa aktif,
+		// aksi halde likiditesiz/ölü kabul edilir.
+		if verified.CurrentLiquidityUSD > 0 {
 			verified.FateStatus = "active"
 			out.LiquidCandidates++
-		case market.Status == "no_solana_pairs" || market.Status == "verified_market_snapshot":
+		} else {
 			verified.FateStatus = "inactive_or_dead"
 			out.InactiveOrDeadCandidates++
-		default:
-			verified.FateStatus = "unknown"
-			out.UnknownFateCandidates++
 		}
 
 		out.CandidatesVerified++
