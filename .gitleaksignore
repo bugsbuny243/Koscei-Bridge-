@@ -1,0 +1,2 @@
+# False positive: browser localStorage namespace in owner publishing UI, not a credential.
+6694ca112b1e203e6408c54bd4c910be5be96224:koschei/api/public/js/owner-publishing-center.js:generic-api-key:4

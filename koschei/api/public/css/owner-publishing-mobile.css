@@ -5,7 +5,7 @@
   .topbar{padding:8px 2px 12px!important}
   .topbar-title h1{font-size:28px!important}
   .sync-pill{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .mobile-nav{position:fixed!important;z-index:50;left:8px;right:8px;bottom:8px;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px;border:1px solid rgba(29,230,200,.24);border-radius:18px;background:rgba(3,12,18,.94);box-shadow:0 16px 50px rgba(0,0,0,.5);backdrop-filter:blur(18px)}
+  .mobile-nav{position:fixed!important;z-index:50;left:8px;right:8px;bottom:8px;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:7px;border:1px solid rgba(29,230,200,.24);border-radius:18px;background:rgba(3,12,18,.94);box-shadow:0 16px 50px rgba(0,0,0,.5);backdrop-filter:blur(18px)}
   .mobile-nav button{min-width:0;min-height:48px;border:0;border-radius:12px;background:transparent;color:#7f97a5;font-size:9px;font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mobile-nav button span{display:block;margin-bottom:3px;color:#9bb2be;font-size:14px}
   .mobile-nav button.active{background:rgba(24,255,178,.12);color:#ecfff9}
