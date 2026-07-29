@@ -16,6 +16,9 @@ type actorCreatedMintIntegrationRun struct {
 	ObservedEvidencePersisted int                                  `json:"observed_evidence_persisted"`
 	CandidatesRequested       int                                  `json:"candidates_requested"`
 	CandidatesVerified        int                                  `json:"candidates_verified"`
+	LiquidCandidates          int                                  `json:"liquid_candidates"`
+	InactiveOrDeadCandidates  int                                  `json:"inactive_or_dead_candidates"`
+	UnknownFateCandidates     int                                  `json:"unknown_fate_candidates"`
 	VerificationFailures      int                                  `json:"verification_failures"`
 	VerifiedEvidencePersisted int                                  `json:"verified_evidence_persisted"`
 	PersistenceFailures       int                                  `json:"persistence_failures"`
@@ -115,16 +118,33 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		verified.VerificationStatus = "verified"
 		verified.Source = "solana_jsonparsed_instruction"
 
-		// Her doğrulanmış token için bugünkü likidite/fiyat akıbeti
-		mkt := collectJupiterMarketContext(ctx, nil, &http.Client{Timeout: 8 * time.Second}, network, verified.Mint, services.HolderIntelligence{}, services.TokenMarketSnapshot{})
-		if mkt.PriceAvailable {
-			verified.CurrentPriceUSD = mkt.PriceUSD
+		// DexScreener snapshot gerçek Solana pair likiditesini ve en likit
+		// pair'in referans fiyatını sağlar. Jupiter yalnızca fiyat fallback'idir.
+		market := services.FetchSolanaTokenMarketSnapshot(ctx, verified.Mint)
+		if market.LiquidityUSD > 0 {
+			verified.CurrentLiquidityUSD = market.LiquidityUSD
 		}
-		// Akıbet kararı: fiyat yoksa muhtemelen ölü/terk edilmiş
-		if mkt.PriceAvailable && mkt.PriceUSD > 0 {
-			verified.FateStatus = "active"
+		if market.PriceUSD > 0 {
+			verified.CurrentPriceUSD = market.PriceUSD
 		} else {
+			mkt := collectJupiterMarketContext(ctx, nil, &http.Client{Timeout: 8 * time.Second}, network, verified.Mint, services.HolderIntelligence{}, market)
+			if mkt.PriceAvailable {
+				verified.CurrentPriceUSD = mkt.PriceUSD
+			}
+		}
+
+		// Akıbet gerçek likiditeye göre belirlenir. Provider hatası tokenı
+		// yanlışlıkla ölü ilan etmez; bu durumda durum unknown kalır.
+		switch {
+		case verified.CurrentLiquidityUSD > 0:
+			verified.FateStatus = "active"
+			out.LiquidCandidates++
+		case market.Status == "no_solana_pairs" || market.Status == "verified_market_snapshot":
 			verified.FateStatus = "inactive_or_dead"
+			out.InactiveOrDeadCandidates++
+		default:
+			verified.FateStatus = "unknown"
+			out.UnknownFateCandidates++
 		}
 
 		out.CandidatesVerified++
