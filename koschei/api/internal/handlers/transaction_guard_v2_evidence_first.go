@@ -23,11 +23,12 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		return
 	}
 
-	var input transactionGuardV2Request
-	if err := decodeJSON(r, &input); err != nil {
+	var guardRequest transactionGuardV3Request
+	if err := decodeJSON(r, &guardRequest); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "code": "invalid_request", "message": "Invalid transaction guard request."})
 		return
 	}
+	input := guardRequest.guardV2Request()
 	input.Transaction = strings.TrimSpace(input.Transaction)
 	input.Encoding = strings.ToLower(strings.TrimSpace(input.Encoding))
 	if input.Encoding == "" {
@@ -51,7 +52,14 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	}
 
 	decoded, decodedFindings := decodeTransactionGuardV3(input.Transaction, input.Encoding, input.Wallet)
-	requestID := shieldRequestID(transactionFingerprint(input.Transaction), input.Network, time.Now())
+	fingerprint := transactionFingerprint(input.Transaction)
+	signedIntent, signedIntentFindings := evaluateTransactionGuardV3SignedIntent(
+		input, guardRequest.SignedIntent, fingerprint, r.Header.Get("Origin"), time.Now().UTC(),
+		envBool("TRANSACTION_GUARD_REQUIRE_SIGNED_INTENT", false),
+	)
+	decoded.SignedIntent = signedIntent
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, signedIntentFindings...))
+	requestID := shieldRequestID(fingerprint, input.Network, time.Now())
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
