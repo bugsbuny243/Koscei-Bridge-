@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"math/big"
 	"testing"
+
+	"koschei/api/internal/services"
 )
 
 func TestDecodeTransactionGuardV3LegacySOLTransfer(t *testing.T) {
@@ -68,7 +70,7 @@ func TestDecodeTransactionGuardV3VersionedLookupWithholdsCompleteness(t *testing
 	data := make([]byte, 12)
 	binary.LittleEndian.PutUint32(data[:4], 2)
 	binary.LittleEndian.PutUint64(data[4:], 99)
-	lookups := []guardV3TestLookup{{table: lookupTable, writable: []byte{3}, readonly: []byte{9}}}
+	lookups := []guardV3TestLookup{{table: lookupTable, writable: []byte{0}, readonly: []byte{1}}}
 	tx := guardV3TestTransaction(true, [][]byte{payer, system}, []guardV3TestInstruction{{program: 1, accounts: []byte{0, 2}, data: data}}, lookups)
 
 	decoded, findings := decodeTransactionGuardV3(base64.StdEncoding.EncodeToString(tx), "base64", guardV3Base58Encode(payer))
@@ -78,11 +80,59 @@ func TestDecodeTransactionGuardV3VersionedLookupWithholdsCompleteness(t *testing
 	if decoded.UnresolvedLookupAccountCount != 2 || decoded.AddressLookupCount != 1 {
 		t.Fatalf("unexpected lookup counts: %+v", decoded)
 	}
+	if len(decoded.LookupTables) != 1 || decoded.LookupTables[0].TableAddress != guardV3Base58Encode(lookupTable) {
+		t.Fatalf("lookup metadata was not preserved: %+v", decoded.LookupTables)
+	}
+	if len(decoded.LookupTables[0].WritableIndexes) != 1 || decoded.LookupTables[0].WritableIndexes[0] != 0 || len(decoded.LookupTables[0].ReadonlyIndexes) != 1 || decoded.LookupTables[0].ReadonlyIndexes[0] != 1 {
+		t.Fatalf("lookup indexes were not preserved: %+v", decoded.LookupTables[0])
+	}
 	if len(decoded.SOLTransfers) != 1 || decoded.SOLTransfers[0].Recipient != "lookup-writable:0" {
 		t.Fatalf("lookup recipient was not preserved: %+v", decoded.SOLTransfers)
 	}
 	if !guardV3TestHasFinding(findings, "transaction_address_lookup_unresolved") {
 		t.Fatalf("lookup withhold finding missing: %+v", findings)
+	}
+}
+
+func TestResolveTransactionGuardV3AddressLookupRebuildsRecipient(t *testing.T) {
+	payer := guardV3TestKey(8)
+	system := guardV3TestBase58Decode(t, guardV3SystemProgramID)
+	lookupTable := guardV3TestKey(9)
+	recipient := guardV3TestKey(10)
+	readonly := guardV3TestKey(11)
+	data := make([]byte, 12)
+	binary.LittleEndian.PutUint32(data[:4], 2)
+	binary.LittleEndian.PutUint64(data[4:], 777)
+	lookups := []guardV3TestLookup{{table: lookupTable, writable: []byte{0}, readonly: []byte{1}}}
+	tx := guardV3TestTransaction(true, [][]byte{payer, system}, []guardV3TestInstruction{{program: 1, accounts: []byte{0, 2}, data: data}}, lookups)
+
+	decoded, initialFindings := decodeTransactionGuardV3(base64.StdEncoding.EncodeToString(tx), "base64", guardV3Base58Encode(payer))
+	if decoded.Complete || !guardV3TestHasFinding(initialFindings, "transaction_address_lookup_unresolved") {
+		t.Fatalf("expected unresolved initial decode: %+v findings=%+v", decoded, initialFindings)
+	}
+	tableData := make([]byte, guardV3LookupTableMetaSize)
+	binary.LittleEndian.PutUint32(tableData[:4], 1)
+	tableData = append(tableData, recipient...)
+	tableData = append(tableData, readonly...)
+	info := &services.SolanaAccountInfo{
+		Owner: guardV3AddressLookupTableProgramID,
+		Data:  []any{base64.StdEncoding.EncodeToString(tableData), "base64"},
+	}
+	resolved, resolutionFindings := resolveTransactionGuardV3LookupAccounts(decoded, []string{guardV3Base58Encode(lookupTable)}, []*services.SolanaAccountInfo{info})
+	if !resolved.Complete || resolved.UnresolvedLookupAccountCount != 0 {
+		t.Fatalf("lookup resolution remained incomplete: %+v", resolved)
+	}
+	if len(resolved.LookupTables) != 1 || !resolved.LookupTables[0].Resolved {
+		t.Fatalf("lookup table was not marked resolved: %+v", resolved.LookupTables)
+	}
+	if len(resolved.SOLTransfers) != 1 || resolved.SOLTransfers[0].Recipient != guardV3Base58Encode(recipient) || resolved.SOLTransfers[0].Lamports != "777" {
+		t.Fatalf("resolved recipient was not rebuilt: %+v", resolved.SOLTransfers)
+	}
+	if len(resolved.LoadedAccounts) != 2 || resolved.LoadedAccounts[0].Address != guardV3Base58Encode(recipient) || !resolved.LoadedAccounts[0].Writable {
+		t.Fatalf("loaded account surface is incorrect: %+v", resolved.LoadedAccounts)
+	}
+	if !guardV3TestHasFinding(resolutionFindings, "transaction_address_lookup_resolved") || !guardV3TestHasFinding(resolutionFindings, "decoded_sol_transfer") {
+		t.Fatalf("resolution evidence missing: %+v", resolutionFindings)
 	}
 }
 
