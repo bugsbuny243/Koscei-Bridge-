@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-1"
+const transactionGuardV3AnalysisVersion = "v3-foundation-2"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
 	assessment.Findings = mergeTransactionGuardV3Findings(assessment.Findings, decodedFindings)
-	if intent != nil && !decoded.Complete {
+	if intent != nil && (!decoded.Complete || decoded.AutomaticBalance.Requested && !decoded.AutomaticBalance.Complete) {
 		intent.Complete = false
 	}
 	return assessment
@@ -47,30 +47,32 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
-		"ok":                        !guardProviderUnavailable(assessment),
-		"request_id":                requestID,
-		"product":                   "Koschei Transaction Guard",
-		"guard_version":             transactionGuardVersion,
-		"analysis_version":          transactionGuardV3AnalysisVersion,
-		"mode":                      transactionFirewallMode,
-		"shadow_mode":               true,
-		"enforcement_enabled":       false,
-		"billable":                  false,
-		"network":                   input.Network,
-		"encoding":                  input.Encoding,
-		"wallet":                    strings.TrimSpace(input.Wallet),
-		"transaction_fingerprint":   transactionFingerprint(input.Transaction),
-		"action":                    assessment.Action,
-		"risk_level":                assessment.RiskLevel,
-		"risk_index":                assessment.RiskIndex,
-		"summary":                   assessment.Summary,
-		"findings":                  assessment.Findings,
-		"guard_complete":            guardComplete,
-		"automatic_decode_complete": decoded.Complete,
-		"decoded_transaction":       decoded,
-		"program_policy":            programPolicy,
-		"intent_policy":             intentPolicy,
-		"alert_event_id":            alertID,
+		"ok":                         !guardProviderUnavailable(assessment),
+		"request_id":                 requestID,
+		"product":                    "Koschei Transaction Guard",
+		"guard_version":              transactionGuardVersion,
+		"analysis_version":           transactionGuardV3AnalysisVersion,
+		"mode":                       transactionFirewallMode,
+		"shadow_mode":                true,
+		"enforcement_enabled":        false,
+		"billable":                   false,
+		"network":                    input.Network,
+		"encoding":                   input.Encoding,
+		"wallet":                     strings.TrimSpace(input.Wallet),
+		"transaction_fingerprint":    transactionFingerprint(input.Transaction),
+		"action":                     assessment.Action,
+		"risk_level":                 assessment.RiskLevel,
+		"risk_index":                 assessment.RiskIndex,
+		"summary":                    assessment.Summary,
+		"findings":                   assessment.Findings,
+		"guard_complete":             guardComplete,
+		"automatic_decode_complete":  decoded.Complete,
+		"automatic_balance_complete": decoded.AutomaticBalance.Complete,
+		"automatic_balance_changes":  decoded.AutomaticBalance,
+		"decoded_transaction":        decoded,
+		"program_policy":             programPolicy,
+		"intent_policy":              intentPolicy,
+		"alert_event_id":             alertID,
 		"simulation": map[string]any{
 			"ok": assessment.SimulationOK, "error": assessment.SimulationErr, "units_consumed": assessment.UnitsConsumed,
 			"logs_count": len(assessment.Logs), "logs": assessment.Logs,
