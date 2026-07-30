@@ -66,10 +66,11 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		}
 	}
 
-	addresses := make([]string, 0, len(input.Accounts))
+	declaredAddresses := make([]string, 0, len(input.Accounts))
 	for _, account := range input.Accounts {
-		addresses = append(addresses, account.Address)
+		declaredAddresses = append(declaredAddresses, account.Address)
 	}
+	addresses, automaticBalanceCoverageComplete, automaticBalanceAddressesRequired := transactionGuardV3BalanceAddresses(decoded, input.Wallet, declaredAddresses, guardV3AutomaticAccountLimit)
 
 	var assessment transactionFirewallAssessment
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
@@ -93,11 +94,19 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		}
 		assessment = assessmentFromAccountSimulation(simulation)
 		if assessment.SimulationOK {
-			var findings []transactionFirewallFinding
-			intentPolicy, findings = evaluateTransactionGuardAccounts(input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts)
-			assessment.Findings = append(assessment.Findings, findings...)
-			ownerFindings := evaluateTransactionGuardAccountOwners(input.Wallet, input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts, &intentPolicy)
-			assessment.Findings = append(assessment.Findings, ownerFindings...)
+			if len(input.Accounts) > 0 {
+				var findings []transactionFirewallFinding
+				intentPolicy, findings = evaluateTransactionGuardAccounts(input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts)
+				assessment.Findings = append(assessment.Findings, findings...)
+				ownerFindings := evaluateTransactionGuardAccountOwners(input.Wallet, input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts, &intentPolicy)
+				assessment.Findings = append(assessment.Findings, ownerFindings...)
+			}
+			automaticBalance, automaticFindings := evaluateTransactionGuardV3AutomaticBalances(
+				decoded, input.Wallet, addresses, automaticBalanceAddressesRequired, automaticBalanceCoverageComplete,
+				ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
+			)
+			decoded.AutomaticBalance = automaticBalance
+			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, automaticFindings...))
 		}
 	}
 
