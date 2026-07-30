@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-2"
+const transactionGuardV3AnalysisVersion = "v3-foundation-3"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
 	assessment.Findings = mergeTransactionGuardV3Findings(assessment.Findings, decodedFindings)
-	if intent != nil && (!decoded.Complete || decoded.AutomaticBalance.Requested && !decoded.AutomaticBalance.Complete) {
+	if intent != nil && (!decoded.Complete || decoded.AutomaticBalance.Requested && !decoded.AutomaticBalance.Complete || (decoded.SignedIntent.Requested || decoded.SignedIntent.Required) && !decoded.SignedIntent.Complete) {
 		intent.Complete = false
 	}
 	return assessment
@@ -69,6 +69,8 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"automatic_decode_complete":  decoded.Complete,
 		"automatic_balance_complete": decoded.AutomaticBalance.Complete,
 		"automatic_balance_changes":  decoded.AutomaticBalance,
+		"signed_ui_intent_complete":  decoded.SignedIntent.Complete,
+		"signed_ui_intent":           decoded.SignedIntent,
 		"decoded_transaction":        decoded,
 		"program_policy":             programPolicy,
 		"intent_policy":              intentPolicy,
