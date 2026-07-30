@@ -10,10 +10,14 @@ import (
 	"strings"
 )
 
+const guardV3UnresolvedLookupLimitation = "Versioned address-table accounts were counted but not resolved; recipient and program coverage is incomplete until lookup tables are fetched."
+
 func decodeTransactionGuardV3(transaction, encoding, wallet string) (transactionGuardDecodedTransaction, []transactionFirewallFinding) {
 	out := transactionGuardDecodedTransaction{
 		Status:          "decode_failed",
 		StaticAccounts:  []transactionGuardDecodedAccount{},
+		LoadedAccounts:  []transactionGuardDecodedAccount{},
+		LookupTables:    []transactionGuardDecodedLookupTable{},
 		ProgramIDs:      []string{},
 		Instructions:    []transactionGuardDecodedInstruction{},
 		SOLTransfers:    []transactionGuardDecodedSOLTransfer{},
@@ -37,7 +41,7 @@ func decodeTransactionGuardV3(transaction, encoding, wallet string) (transaction
 	out.Status = "complete"
 	if !out.Complete {
 		out.Status = "complete_with_unresolved_address_lookups"
-		out.Limitations = append(out.Limitations, "Versioned address-table accounts were counted but not resolved; recipient and program coverage is incomplete until lookup tables are fetched.")
+		out.Limitations = append(out.Limitations, guardV3UnresolvedLookupLimitation)
 		findings = append(findings, transactionFirewallFinding{
 			Code: "transaction_address_lookup_unresolved", Severity: "high", Title: "Versioned address-table accounts are unresolved",
 			Evidence: fmt.Sprintf("%d loaded account(s) across %d lookup table(s) require RPC resolution.", out.UnresolvedLookupAccountCount, out.AddressLookupCount), Score: 30,
@@ -182,6 +186,7 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 			if offset+32 > len(raw) {
 				return fmt.Errorf("address lookup %d account key is truncated", index)
 			}
+			tableAddress := guardV3Base58Encode(raw[offset : offset+32])
 			offset += 32
 			writableCount, err := readGuardV3ShortVec(raw, &offset)
 			if err != nil {
@@ -189,6 +194,10 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 			}
 			if writableCount < 0 || offset+writableCount > len(raw) {
 				return fmt.Errorf("address lookup %d writable indexes are truncated", index)
+			}
+			writableIndexes := make([]int, writableCount)
+			for item := 0; item < writableCount; item++ {
+				writableIndexes[item] = int(raw[offset+item])
 			}
 			offset += writableCount
 			readonlyCount, err := readGuardV3ShortVec(raw, &offset)
@@ -198,9 +207,17 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 			if readonlyCount < 0 || offset+readonlyCount > len(raw) {
 				return fmt.Errorf("address lookup %d readonly indexes are truncated", index)
 			}
+			readonlyIndexes := make([]int, readonlyCount)
+			for item := 0; item < readonlyCount; item++ {
+				readonlyIndexes[item] = int(raw[offset+item])
+			}
 			offset += readonlyCount
 			out.LoadedWritableCount += writableCount
 			out.LoadedReadonlyCount += readonlyCount
+			out.LookupTables = append(out.LookupTables, transactionGuardDecodedLookupTable{
+				TableAddress: tableAddress, WritableIndexes: writableIndexes, ReadonlyIndexes: readonlyIndexes,
+				WritableAddresses: []string{}, ReadonlyAddresses: []string{}, Status: "rpc_resolution_required",
+			})
 		}
 	}
 	if offset != len(raw) {
@@ -210,27 +227,70 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 	if len(staticAddresses)+out.UnresolvedLookupAccountCount > 256 {
 		return fmt.Errorf("message account count exceeds the compiled-index range")
 	}
+	out.staticAddresses = append([]string(nil), staticAddresses...)
+	out.parsedInstructions = append([]guardV3ParsedInstruction(nil), parsedInstructions...)
+	out.declaredWallet = wallet
+	return rebuildTransactionGuardV3DecodedInstructions(out)
+}
+
+func rebuildTransactionGuardV3DecodedInstructions(out *transactionGuardDecodedTransaction) error {
+	if out == nil {
+		return fmt.Errorf("decoded transaction output is nil")
+	}
+	staticAddresses := out.staticAddresses
+	if len(staticAddresses) == 0 && len(out.StaticAccounts) > 0 {
+		staticAddresses = make([]string, len(out.StaticAccounts))
+		for index, account := range out.StaticAccounts {
+			staticAddresses[index] = account.Address
+		}
+	}
+	out.Instructions = []transactionGuardDecodedInstruction{}
+	out.ProgramIDs = []string{}
+	out.SOLTransfers = []transactionGuardDecodedSOLTransfer{}
+	out.TokenOperations = []transactionGuardDecodedTokenOperation{}
+	out.LoadedAccounts = []transactionGuardDecodedAccount{}
+	out.ExplicitSOLTransferLamports = "0"
+	out.DeclaredWalletSOLSpend = ""
+
+	for index := 0; index < out.LoadedWritableCount; index++ {
+		address := guardV3LookupPlaceholder(len(staticAddresses)+index, len(staticAddresses), out.LoadedWritableCount)
+		if index < len(out.loadedWritableAddresses) && strings.TrimSpace(out.loadedWritableAddresses[index]) != "" {
+			address = out.loadedWritableAddresses[index]
+		}
+		out.LoadedAccounts = append(out.LoadedAccounts, transactionGuardDecodedAccount{
+			Index: len(staticAddresses) + index, Address: address, Writable: true, Source: "address_lookup_table",
+		})
+	}
+	for index := 0; index < out.LoadedReadonlyCount; index++ {
+		accountIndex := len(staticAddresses) + out.LoadedWritableCount + index
+		address := guardV3LookupPlaceholder(accountIndex, len(staticAddresses), out.LoadedWritableCount)
+		if index < len(out.loadedReadonlyAddresses) && strings.TrimSpace(out.loadedReadonlyAddresses[index]) != "" {
+			address = out.loadedReadonlyAddresses[index]
+		}
+		out.LoadedAccounts = append(out.LoadedAccounts, transactionGuardDecodedAccount{
+			Index: accountIndex, Address: address, Writable: false, Source: "address_lookup_table",
+		})
+	}
 
 	programSet := map[string]bool{}
-	totalAccountCount := len(staticAddresses) + out.UnresolvedLookupAccountCount
-	for index, parsed := range parsedInstructions {
+	totalAccountCount := len(staticAddresses) + out.LoadedWritableCount + out.LoadedReadonlyCount
+	for index, parsed := range out.parsedInstructions {
 		instruction := transactionGuardDecodedInstruction{
 			Index: index, AccountIndexes: append([]int(nil), parsed.AccountIndexes...), Accounts: []string{}, DataLength: len(parsed.Data),
 		}
-		if parsed.ProgramIndex >= 0 && parsed.ProgramIndex < len(staticAddresses) {
-			instruction.ProgramID = staticAddresses[parsed.ProgramIndex]
-			instruction.ProgramResolved = true
-			programSet[instruction.ProgramID] = true
-		} else if parsed.ProgramIndex < totalAccountCount {
-			instruction.ProgramID = guardV3LookupPlaceholder(parsed.ProgramIndex, len(staticAddresses), out.LoadedWritableCount)
-		} else {
+		if parsed.ProgramIndex < 0 || parsed.ProgramIndex >= totalAccountCount {
 			return fmt.Errorf("instruction %d references program index %d outside %d accounts", index, parsed.ProgramIndex, totalAccountCount)
+		}
+		instruction.ProgramID, instruction.ProgramResolved = transactionGuardV3AccountAddress(out, parsed.ProgramIndex)
+		if instruction.ProgramResolved {
+			programSet[instruction.ProgramID] = true
 		}
 		for _, accountIndex := range parsed.AccountIndexes {
 			if accountIndex < 0 || accountIndex >= totalAccountCount {
 				return fmt.Errorf("instruction %d references account index %d outside %d accounts", index, accountIndex, totalAccountCount)
 			}
-			instruction.Accounts = append(instruction.Accounts, guardV3AddressForIndex(accountIndex, staticAddresses, out.LoadedWritableCount))
+			address, _ := transactionGuardV3AccountAddress(out, accountIndex)
+			instruction.Accounts = append(instruction.Accounts, address)
 		}
 		prefixLength := len(parsed.Data)
 		if prefixLength > 16 {
@@ -239,7 +299,11 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 		if prefixLength > 0 {
 			instruction.DataPrefixHex = hex.EncodeToString(parsed.Data[:prefixLength])
 		}
-		instruction.Kind = classifyTransactionGuardV3Instruction(instruction.ProgramID, instruction.Accounts, parsed.Data, out)
+		if instruction.ProgramResolved {
+			instruction.Kind = classifyTransactionGuardV3Instruction(instruction.ProgramID, instruction.Accounts, parsed.Data, out)
+		} else {
+			instruction.Kind = "unresolved_program"
+		}
 		out.Instructions = append(out.Instructions, instruction)
 	}
 	for program := range programSet {
@@ -255,13 +319,37 @@ func parseTransactionGuardV3(raw []byte, wallet string, out *transactionGuardDec
 			continue
 		}
 		totalSOL.Add(totalSOL, amount)
-		if wallet != "" && strings.EqualFold(wallet, transfer.Source) {
+		if out.declaredWallet != "" && strings.EqualFold(out.declaredWallet, transfer.Source) {
 			walletSOL.Add(walletSOL, amount)
 		}
 	}
 	out.ExplicitSOLTransferLamports = totalSOL.String()
-	if wallet != "" {
+	if out.declaredWallet != "" {
 		out.DeclaredWalletSOLSpend = walletSOL.String()
 	}
 	return nil
+}
+
+func transactionGuardV3AccountAddress(out *transactionGuardDecodedTransaction, index int) (string, bool) {
+	if out == nil {
+		return "unresolved-account:" + strconv.Itoa(index), false
+	}
+	if index >= 0 && index < len(out.staticAddresses) {
+		return out.staticAddresses[index], true
+	}
+	loadedIndex := index - len(out.staticAddresses)
+	if loadedIndex >= 0 && loadedIndex < out.LoadedWritableCount {
+		if loadedIndex < len(out.loadedWritableAddresses) && strings.TrimSpace(out.loadedWritableAddresses[loadedIndex]) != "" {
+			return out.loadedWritableAddresses[loadedIndex], true
+		}
+		return guardV3LookupPlaceholder(index, len(out.staticAddresses), out.LoadedWritableCount), false
+	}
+	readonlyIndex := loadedIndex - out.LoadedWritableCount
+	if readonlyIndex >= 0 && readonlyIndex < out.LoadedReadonlyCount {
+		if readonlyIndex < len(out.loadedReadonlyAddresses) && strings.TrimSpace(out.loadedReadonlyAddresses[readonlyIndex]) != "" {
+			return out.loadedReadonlyAddresses[readonlyIndex], true
+		}
+		return guardV3LookupPlaceholder(index, len(out.staticAddresses), out.LoadedWritableCount), false
+	}
+	return "unresolved-account:" + strconv.Itoa(index), false
 }
