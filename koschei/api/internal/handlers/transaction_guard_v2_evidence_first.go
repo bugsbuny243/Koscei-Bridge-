@@ -55,6 +55,16 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
+	rpcURL := os.Getenv("SOLANA_RPC_URL")
+	if decoded.Available && decoded.AddressLookupCount > 0 {
+		resolved, resolutionFindings := resolveTransactionGuardV3AddressLookups(ctx, rpcURL, decoded)
+		decoded = resolved
+		if decoded.Complete {
+			decodedFindings = refreshTransactionGuardV3InstructionFindings(decodedFindings, decoded, resolutionFindings)
+		} else {
+			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, resolutionFindings...))
+		}
+	}
 
 	addresses := make([]string, 0, len(input.Accounts))
 	for _, account := range input.Accounts {
@@ -64,19 +74,19 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	var assessment transactionFirewallAssessment
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
 	if len(addresses) == 0 {
-		simulation, err := services.SolanaSimulateTransaction(ctx, os.Getenv("SOLANA_RPC_URL"), input.Transaction, input.Encoding)
+		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
 		if err != nil {
 			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		assessment = assessTransactionGuardSimulation(simulation)
 	} else {
-		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, os.Getenv("SOLANA_RPC_URL"), addresses)
+		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, rpcURL, addresses)
 		if err != nil {
 			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
-		simulation, simulatedOrder, err := services.SolanaSimulateTransactionWithAccountsBase64(ctx, os.Getenv("SOLANA_RPC_URL"), input.Transaction, input.Encoding, ordered)
+		simulation, simulatedOrder, err := services.SolanaSimulateTransactionWithAccountsBase64(ctx, rpcURL, input.Transaction, input.Encoding, ordered)
 		if err != nil {
 			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
