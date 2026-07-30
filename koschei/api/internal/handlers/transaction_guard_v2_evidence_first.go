@@ -15,18 +15,20 @@ import (
 // TransactionGuardV2EvidenceFirst is the production entry point for Guard v2.
 // It preserves explicit withhold decisions, alerts on provider outages, verifies
 // declared wallet ownership of guarded token accounts and uses stable alert
-// identity across client retries.
+// identity across client retries. Guard v3 foundation decoding is additive and
+// does not sign, submit or mutate the serialized transaction.
 func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http.Request) {
 	if !transactionFirewallEnabled() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "code": "transaction_firewall_disabled", "message": "Transaction Guard is disabled by configuration."})
 		return
 	}
 
-	var input transactionGuardV2Request
-	if err := decodeJSON(r, &input); err != nil {
+	var guardRequest transactionGuardV3Request
+	if err := decodeJSON(r, &guardRequest); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "code": "invalid_request", "message": "Invalid transaction guard request."})
 		return
 	}
+	input := guardRequest.guardV2Request()
 	input.Transaction = strings.TrimSpace(input.Transaction)
 	input.Encoding = strings.ToLower(strings.TrimSpace(input.Encoding))
 	if input.Encoding == "" {
@@ -49,46 +51,74 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		return
 	}
 
-	requestID := shieldRequestID(transactionFingerprint(input.Transaction), input.Network, time.Now())
+	decoded, decodedFindings := decodeTransactionGuardV3(input.Transaction, input.Encoding, input.Wallet)
+	fingerprint := transactionFingerprint(input.Transaction)
+	signedIntent, signedIntentFindings := evaluateTransactionGuardV3SignedIntent(
+		input, guardRequest.SignedIntent, fingerprint, r.Header.Get("Origin"), time.Now().UTC(),
+		envBool("TRANSACTION_GUARD_REQUIRE_SIGNED_INTENT", false),
+	)
+	decoded.SignedIntent = signedIntent
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, signedIntentFindings...))
+	requestID := shieldRequestID(fingerprint, input.Network, time.Now())
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
-
-	addresses := make([]string, 0, len(input.Accounts))
-	for _, account := range input.Accounts {
-		addresses = append(addresses, account.Address)
+	rpcURL := os.Getenv("SOLANA_RPC_URL")
+	if decoded.Available && decoded.AddressLookupCount > 0 {
+		resolved, resolutionFindings := resolveTransactionGuardV3AddressLookups(ctx, rpcURL, decoded)
+		decoded = resolved
+		if decoded.Complete {
+			decodedFindings = refreshTransactionGuardV3InstructionFindings(decodedFindings, decoded, resolutionFindings)
+		} else {
+			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, resolutionFindings...))
+		}
 	}
+
+	declaredAddresses := make([]string, 0, len(input.Accounts))
+	for _, account := range input.Accounts {
+		declaredAddresses = append(declaredAddresses, account.Address)
+	}
+	addresses, automaticBalanceCoverageComplete, automaticBalanceAddressesRequired := transactionGuardV3BalanceAddresses(decoded, input.Wallet, declaredAddresses, guardV3AutomaticAccountLimit)
 
 	var assessment transactionFirewallAssessment
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
 	if len(addresses) == 0 {
-		simulation, err := services.SolanaSimulateTransaction(ctx, os.Getenv("SOLANA_RPC_URL"), input.Transaction, input.Encoding)
+		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV2(w, r, input, requestID, started, intentPolicy, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		assessment = assessTransactionGuardSimulation(simulation)
 	} else {
-		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, os.Getenv("SOLANA_RPC_URL"), addresses)
+		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, rpcURL, addresses)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV2(w, r, input, requestID, started, intentPolicy, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
-		simulation, simulatedOrder, err := services.SolanaSimulateTransactionWithAccountsBase64(ctx, os.Getenv("SOLANA_RPC_URL"), input.Transaction, input.Encoding, ordered)
+		simulation, simulatedOrder, err := services.SolanaSimulateTransactionWithAccountsBase64(ctx, rpcURL, input.Transaction, input.Encoding, ordered)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV2(w, r, input, requestID, started, intentPolicy, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		assessment = assessmentFromAccountSimulation(simulation)
 		if assessment.SimulationOK {
-			var findings []transactionFirewallFinding
-			intentPolicy, findings = evaluateTransactionGuardAccounts(input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts)
-			assessment.Findings = append(assessment.Findings, findings...)
-			ownerFindings := evaluateTransactionGuardAccountOwners(input.Wallet, input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts, &intentPolicy)
-			assessment.Findings = append(assessment.Findings, ownerFindings...)
+			if len(input.Accounts) > 0 {
+				var findings []transactionFirewallFinding
+				intentPolicy, findings = evaluateTransactionGuardAccounts(input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts)
+				assessment.Findings = append(assessment.Findings, findings...)
+				ownerFindings := evaluateTransactionGuardAccountOwners(input.Wallet, input.Accounts, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts, &intentPolicy)
+				assessment.Findings = append(assessment.Findings, ownerFindings...)
+			}
+			automaticBalance, automaticFindings := evaluateTransactionGuardV3AutomaticBalances(
+				decoded, input.Wallet, addresses, automaticBalanceAddressesRequired, automaticBalanceCoverageComplete,
+				ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
+			)
+			decoded.AutomaticBalance = automaticBalance
+			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, automaticFindings...))
 		}
 	}
 
+	assessment = applyTransactionGuardV3Decode(assessment, &intentPolicy, decoded, decodedFindings)
 	programPolicy, programFindings := evaluateTransactionGuardPrograms(assessment.ProgramIDs, input.ExpectedPrograms, input.RequiredPrograms, input.BlockedPrograms)
 	assessment.Findings = append(assessment.Findings, programFindings...)
 	assessment = finalizeEvidenceFirstGuardAssessment(assessment, programPolicy, intentPolicy)
@@ -97,7 +127,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	if assessment.Action != "allow" {
 		alertID = h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
 	}
-	h.finishTransactionGuardResponse(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, alertID)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, alertID)
 }
 
 func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, err error) {
@@ -105,6 +135,14 @@ func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *
 	assessment := finalizeEvidenceFirstGuardAssessment(unavailableGuardAssessment(err), program, intent)
 	alertID := h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, program, intent)
 	h.finishTransactionGuardResponse(w, r, input, requestID, started, assessment, program, intent, alertID)
+}
+
+func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding, err error) {
+	program := transactionGuardProgramPolicy{Complete: false}
+	assessment := applyTransactionGuardV3Decode(unavailableGuardAssessment(err), &intent, decoded, decodedFindings)
+	assessment = finalizeEvidenceFirstGuardAssessment(assessment, program, intent)
+	alertID := h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, program, intent)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, alertID)
 }
 
 func finalizeEvidenceFirstGuardAssessment(assessment transactionFirewallAssessment, program transactionGuardProgramPolicy, intent transactionGuardIntentPolicy) transactionFirewallAssessment {
@@ -178,7 +216,7 @@ func evaluateTransactionGuardAccountOwners(wallet string, specs []transactionGua
 		markGuardIntentAccountOwnerMismatch(intent, spec.Address)
 		findings = append(findings, transactionFirewallFinding{
 			Code: "guard_account_owner_mismatch", Severity: "critical",
-			Title: "Guarded token account owner does not match the declared wallet",
+			Title:    "Guarded token account owner does not match the declared wallet",
 			Evidence: spec.Address + " wallet=" + wallet, Score: 100,
 		})
 	}
