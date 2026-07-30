@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	guardV3SystemProgramID    = "11111111111111111111111111111111"
-	guardV3SPLTokenProgramID  = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-	guardV3Token2022ProgramID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+	guardV3SystemProgramID             = "11111111111111111111111111111111"
+	guardV3SPLTokenProgramID           = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	guardV3Token2022ProgramID          = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+	guardV3AddressLookupTableProgramID = "AddressLookupTab1e1111111111111111111111111"
 )
 
 var guardV3Base58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
@@ -21,6 +22,16 @@ type transactionGuardDecodedAccount struct {
 	Signer   bool   `json:"signer"`
 	Writable bool   `json:"writable"`
 	Source   string `json:"source"`
+}
+
+type transactionGuardDecodedLookupTable struct {
+	TableAddress      string   `json:"table_address"`
+	WritableIndexes   []int    `json:"writable_indexes"`
+	ReadonlyIndexes   []int    `json:"readonly_indexes"`
+	Resolved          bool     `json:"resolved"`
+	WritableAddresses []string `json:"writable_addresses"`
+	ReadonlyAddresses []string `json:"readonly_addresses"`
+	Status            string   `json:"status"`
 }
 
 type transactionGuardDecodedInstruction struct {
@@ -72,6 +83,8 @@ type transactionGuardDecodedTransaction struct {
 	LoadedReadonlyCount          int                                     `json:"loaded_readonly_count"`
 	UnresolvedLookupAccountCount int                                     `json:"unresolved_lookup_account_count"`
 	StaticAccounts               []transactionGuardDecodedAccount        `json:"static_accounts"`
+	LoadedAccounts               []transactionGuardDecodedAccount        `json:"loaded_accounts"`
+	LookupTables                 []transactionGuardDecodedLookupTable    `json:"lookup_tables"`
 	ProgramIDs                   []string                                `json:"program_ids"`
 	Instructions                 []transactionGuardDecodedInstruction    `json:"instructions"`
 	SOLTransfers                 []transactionGuardDecodedSOLTransfer    `json:"sol_transfers"`
@@ -79,6 +92,11 @@ type transactionGuardDecodedTransaction struct {
 	ExplicitSOLTransferLamports  string                                  `json:"explicit_sol_transfer_lamports"`
 	DeclaredWalletSOLSpend       string                                  `json:"declared_wallet_sol_spend_lamports,omitempty"`
 	Limitations                  []string                                `json:"limitations"`
+	staticAddresses              []string
+	parsedInstructions           []guardV3ParsedInstruction
+	loadedWritableAddresses      []string
+	loadedReadonlyAddresses      []string
+	declaredWallet               string
 }
 
 type guardV3ParsedInstruction struct {
@@ -164,6 +182,26 @@ func uniqueGuardV3Findings(values []transactionFirewallFinding) []transactionFir
 		}
 		seen[key] = true
 		out = append(out, value)
+	}
+	return out
+}
+
+func removeGuardV3Finding(values []transactionFirewallFinding, code string) []transactionFirewallFinding {
+	out := make([]transactionFirewallFinding, 0, len(values))
+	for _, value := range values {
+		if value.Code != code {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func removeGuardV3Limitation(values []string, target string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != target {
+			out = append(out, value)
+		}
 	}
 	return out
 }
