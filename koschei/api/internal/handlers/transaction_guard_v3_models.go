@@ -69,29 +69,73 @@ type transactionGuardDecodedTokenOperation struct {
 	NewAuthority  string `json:"new_authority,omitempty"`
 }
 
+type transactionGuardAutomaticBalanceDelta struct {
+	Address            string `json:"address"`
+	Writable           bool   `json:"writable"`
+	PrePresent         bool   `json:"pre_present"`
+	PostPresent        bool   `json:"post_present"`
+	AccountCreated     bool   `json:"account_created"`
+	AccountClosed      bool   `json:"account_closed"`
+	Changed            bool   `json:"changed"`
+	PreLamports        string `json:"pre_lamports"`
+	PostLamports       string `json:"post_lamports"`
+	LamportDelta       string `json:"lamport_delta"`
+	PreProgramOwner    string `json:"pre_program_owner,omitempty"`
+	PostProgramOwner   string `json:"post_program_owner,omitempty"`
+	TokenAccount       bool   `json:"token_account"`
+	Mint               string `json:"mint,omitempty"`
+	PreTokenOwner      string `json:"pre_token_owner,omitempty"`
+	PostTokenOwner     string `json:"post_token_owner,omitempty"`
+	PreTokenAmountRaw  string `json:"pre_token_amount_raw,omitempty"`
+	PostTokenAmountRaw string `json:"post_token_amount_raw,omitempty"`
+	TokenDeltaRaw      string `json:"token_delta_raw,omitempty"`
+	EvidenceStatus     string `json:"evidence_status"`
+}
+
+type transactionGuardAutomaticBalanceAnalysis struct {
+	Requested                 bool                                    `json:"requested"`
+	Available                 bool                                    `json:"available"`
+	Complete                  bool                                    `json:"complete"`
+	Status                    string                                  `json:"status"`
+	Wallet                    string                                  `json:"wallet,omitempty"`
+	AddressesRequired         int                                     `json:"addresses_required"`
+	AddressesRequested        int                                     `json:"addresses_requested"`
+	AddressesObserved         int                                     `json:"addresses_observed"`
+	ChangedAccountCount       int                                     `json:"changed_account_count"`
+	TokenAccountChangeCount   int                                     `json:"token_account_change_count"`
+	CreatedAccountCount       int                                     `json:"created_account_count"`
+	ClosedAccountCount        int                                     `json:"closed_account_count"`
+	WalletSOLDeltaLamports    string                                  `json:"wallet_sol_delta_lamports,omitempty"`
+	WalletSOLSpentLamports    string                                  `json:"wallet_sol_spent_lamports,omitempty"`
+	WalletSOLReceivedLamports string                                  `json:"wallet_sol_received_lamports,omitempty"`
+	Accounts                  []transactionGuardAutomaticBalanceDelta `json:"accounts"`
+	Limitations               []string                                `json:"limitations"`
+}
+
 type transactionGuardDecodedTransaction struct {
-	Available                    bool                                    `json:"available"`
-	Complete                     bool                                    `json:"complete"`
-	Status                       string                                  `json:"status"`
-	Version                      string                                  `json:"version"`
-	SignatureCount               int                                     `json:"signature_count"`
-	RequiredSignatureCount       int                                     `json:"required_signature_count"`
-	FeePayer                     string                                  `json:"fee_payer,omitempty"`
-	StaticAccountCount           int                                     `json:"static_account_count"`
-	AddressLookupCount           int                                     `json:"address_lookup_count"`
-	LoadedWritableCount          int                                     `json:"loaded_writable_count"`
-	LoadedReadonlyCount          int                                     `json:"loaded_readonly_count"`
-	UnresolvedLookupAccountCount int                                     `json:"unresolved_lookup_account_count"`
-	StaticAccounts               []transactionGuardDecodedAccount        `json:"static_accounts"`
-	LoadedAccounts               []transactionGuardDecodedAccount        `json:"loaded_accounts"`
-	LookupTables                 []transactionGuardDecodedLookupTable    `json:"lookup_tables"`
-	ProgramIDs                   []string                                `json:"program_ids"`
-	Instructions                 []transactionGuardDecodedInstruction    `json:"instructions"`
-	SOLTransfers                 []transactionGuardDecodedSOLTransfer    `json:"sol_transfers"`
-	TokenOperations              []transactionGuardDecodedTokenOperation `json:"token_operations"`
-	ExplicitSOLTransferLamports  string                                  `json:"explicit_sol_transfer_lamports"`
-	DeclaredWalletSOLSpend       string                                  `json:"declared_wallet_sol_spend_lamports,omitempty"`
-	Limitations                  []string                                `json:"limitations"`
+	Available                    bool                                     `json:"available"`
+	Complete                     bool                                     `json:"complete"`
+	Status                       string                                   `json:"status"`
+	Version                      string                                   `json:"version"`
+	SignatureCount               int                                      `json:"signature_count"`
+	RequiredSignatureCount       int                                      `json:"required_signature_count"`
+	FeePayer                     string                                   `json:"fee_payer,omitempty"`
+	StaticAccountCount           int                                      `json:"static_account_count"`
+	AddressLookupCount           int                                      `json:"address_lookup_count"`
+	LoadedWritableCount          int                                      `json:"loaded_writable_count"`
+	LoadedReadonlyCount          int                                      `json:"loaded_readonly_count"`
+	UnresolvedLookupAccountCount int                                      `json:"unresolved_lookup_account_count"`
+	StaticAccounts               []transactionGuardDecodedAccount         `json:"static_accounts"`
+	LoadedAccounts               []transactionGuardDecodedAccount         `json:"loaded_accounts"`
+	LookupTables                 []transactionGuardDecodedLookupTable     `json:"lookup_tables"`
+	ProgramIDs                   []string                                 `json:"program_ids"`
+	Instructions                 []transactionGuardDecodedInstruction     `json:"instructions"`
+	SOLTransfers                 []transactionGuardDecodedSOLTransfer     `json:"sol_transfers"`
+	TokenOperations              []transactionGuardDecodedTokenOperation  `json:"token_operations"`
+	ExplicitSOLTransferLamports  string                                   `json:"explicit_sol_transfer_lamports"`
+	DeclaredWalletSOLSpend       string                                   `json:"declared_wallet_sol_spend_lamports,omitempty"`
+	Limitations                  []string                                 `json:"limitations"`
+	AutomaticBalance             transactionGuardAutomaticBalanceAnalysis `json:"automatic_balance_changes"`
 	staticAddresses              []string
 	parsedInstructions           []guardV3ParsedInstruction
 	loadedWritableAddresses      []string
