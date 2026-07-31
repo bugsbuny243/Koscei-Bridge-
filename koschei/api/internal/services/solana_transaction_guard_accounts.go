@@ -23,13 +23,13 @@ type SolanaSimulationAccountsResult struct {
 }
 
 type SolanaSimulationAccountsValue struct {
-	Err                  any                  `json:"err"`
-	Logs                 []string             `json:"logs"`
-	Accounts             []*SolanaAccountInfo `json:"accounts"`
-	UnitsConsumed        *int64               `json:"unitsConsumed"`
-	ReturnData           any                  `json:"returnData"`
-	InnerInstructions    any                  `json:"innerInstructions"`
-	ReplacementBlockhash any                  `json:"replacementBlockhash"`
+	Err                  any                           `json:"err"`
+	Logs                 []string                      `json:"logs"`
+	Accounts             []*SolanaAccountInfo          `json:"accounts"`
+	UnitsConsumed        *int64                        `json:"unitsConsumed"`
+	ReturnData           any                           `json:"returnData"`
+	InnerInstructions    []SolanaInnerInstructionGroup `json:"innerInstructions"`
+	ReplacementBlockhash any                           `json:"replacementBlockhash"`
 }
 
 type SolanaTokenAccountSnapshot struct {
