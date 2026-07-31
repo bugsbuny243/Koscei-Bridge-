@@ -1,6 +1,9 @@
 package handlers
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 func unavailableTransactionGuardV3AuthoritySurface() transactionGuardAuthoritySurfaceAnalysis {
 	return transactionGuardAuthoritySurfaceAnalysis{
@@ -18,36 +21,43 @@ func unavailableTransactionGuardV3AuthoritySurface() transactionGuardAuthoritySu
 func transactionGuardV3DecodedWithAuthoritySurface(decoded transactionGuardDecodedTransaction, authority transactionGuardAuthoritySurfaceAnalysis) transactionGuardDecodedTransaction {
 	decoded.ProgramIDs = normalizeGuardProgramList(append(decoded.ProgramIDs, authority.TransferHookProgramIDs...))
 	for _, event := range authority.Events {
-		operation := transactionGuardDecodedTokenOperation{}
-		switch event.Kind {
-		case "approve", "approve_checked":
-			operation = transactionGuardDecodedTokenOperation{
-				Kind: event.Kind, ProgramID: event.ProgramID, Source: event.Source, Mint: event.Mint,
-				Authority: event.CurrentAuthority, Delegate: event.Delegate, AmountRaw: event.AmountRaw, Decimals: event.Decimals,
-			}
-		case "set_authority":
-			operation = transactionGuardDecodedTokenOperation{
-				Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Account,
-				Authority: event.CurrentAuthority, AuthorityType: event.AuthorityType, NewAuthority: event.NewAuthority,
-			}
-		case "initialize_permanent_delegate":
-			operation = transactionGuardDecodedTokenOperation{
-				Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Mint, Mint: event.Mint,
-				Delegate: event.Delegate, NewAuthority: event.Delegate,
-			}
-		case "initialize_transfer_hook", "update_transfer_hook":
-			operation = transactionGuardDecodedTokenOperation{
-				Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Mint, Mint: event.Mint,
-				Authority: event.CurrentAuthority, NewAuthority: event.TransferHookProgramID,
-			}
-		default:
-			continue
-		}
-		if !guardV3TokenOperationExists(decoded.TokenOperations, operation) {
+		operation, ok := guardV3DecodedTokenOperationFromAuthorityEvent(event)
+		if ok && !guardV3TokenOperationExists(decoded.TokenOperations, operation) {
 			decoded.TokenOperations = append(decoded.TokenOperations, operation)
 		}
 	}
 	return decoded
+}
+
+func guardV3DecodedTokenOperationFromAuthorityEvent(event transactionGuardAuthorityEvent) (transactionGuardDecodedTokenOperation, bool) {
+	switch event.Kind {
+	case "approve", "approve_checked":
+		return transactionGuardDecodedTokenOperation{
+			Kind: event.Kind, ProgramID: event.ProgramID, Source: event.Source, Mint: event.Mint,
+			Authority: event.CurrentAuthority, Delegate: event.Delegate, AmountRaw: event.AmountRaw, Decimals: event.Decimals,
+		}, true
+	case "revoke":
+		return transactionGuardDecodedTokenOperation{
+			Kind: event.Kind, ProgramID: event.ProgramID, Source: event.Source, Authority: event.CurrentAuthority,
+		}, true
+	case "set_authority":
+		return transactionGuardDecodedTokenOperation{
+			Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Account,
+			Authority: event.CurrentAuthority, AuthorityType: event.AuthorityType, NewAuthority: event.NewAuthority,
+		}, true
+	case "initialize_permanent_delegate":
+		return transactionGuardDecodedTokenOperation{
+			Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Mint, Mint: event.Mint,
+			Delegate: event.Delegate, NewAuthority: event.Delegate,
+		}, true
+	case "initialize_transfer_hook", "update_transfer_hook":
+		return transactionGuardDecodedTokenOperation{
+			Kind: event.Kind, ProgramID: event.ProgramID, Account: event.Mint, Mint: event.Mint,
+			Authority: event.CurrentAuthority, NewAuthority: event.TransferHookProgramID,
+		}, true
+	default:
+		return transactionGuardDecodedTokenOperation{}, false
+	}
 }
 
 func guardV3TokenOperationExists(values []transactionGuardDecodedTokenOperation, candidate transactionGuardDecodedTokenOperation) bool {
@@ -63,7 +73,7 @@ func guardV3TokenOperationExists(values []transactionGuardDecodedTokenOperation,
 func guardV3TokenOperationKey(value transactionGuardDecodedTokenOperation) string {
 	authorityType := ""
 	if value.AuthorityType != nil {
-		authorityType = string(rune(*value.AuthorityType + 48))
+		authorityType = strconv.Itoa(*value.AuthorityType)
 	}
 	return strings.Join([]string{
 		value.Kind, value.ProgramID, value.Account, value.Source, value.Mint,
