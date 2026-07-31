@@ -55,6 +55,11 @@ func analyzeTransactionGuardV3AuthoritySurface(
 			continue
 		}
 		enrichTransactionGuardV3AuthorityPostState(&event, snapshots)
+		if guardV3AuthorityRequiresFinalState(event) && !event.PostStateAvailable {
+			analysis.Complete = false
+			analysis.Limitations = append(analysis.Limitations,
+				"Final simulated state was unavailable for "+event.Kind+" on "+firstNonEmptyString(event.Account, event.Source, event.Mint)+".")
+		}
 		analysis.Events = append(analysis.Events, event)
 		if event.Persistent {
 			analysis.PersistentEventCount++
@@ -89,6 +94,17 @@ func analyzeTransactionGuardV3AuthoritySurface(
 	}
 	analysis.Limitations = uniqueExplanationStrings(analysis.Limitations)
 	return analysis, uniqueGuardV3Findings(findings)
+}
+
+func guardV3AuthorityRequiresFinalState(event transactionGuardAuthorityEvent) bool {
+	switch event.Kind {
+	case "approve", "approve_checked", "revoke":
+		return true
+	case "set_authority":
+		return event.AuthorityType != nil && *event.AuthorityType >= 0 && *event.AuthorityType <= 3
+	default:
+		return false
+	}
 }
 
 func transactionGuardV3AuthorityInstructions(decoded transactionGuardDecodedTransaction, innerGroups []services.SolanaInnerInstructionGroup) ([]transactionGuardAuthorityInstruction, int) {
@@ -131,6 +147,9 @@ func transactionGuardV3AuthorityInstructions(decoded transactionGuardDecodedTran
 			data, err := guardV3Base58DecodeVariable(inner.Data)
 			if !complete || err != nil {
 				unresolved++
+				continue
+			}
+			if len(data) == 0 || !guardV3AuthorityOpcode(int(data[0])) {
 				continue
 			}
 			innerSequence++
