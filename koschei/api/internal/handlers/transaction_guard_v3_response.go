@@ -47,7 +47,7 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 	threatComplete := !threatHistory.Required || threatHistory.Complete
 	cpiComplete := !cpiFlow.Required || cpiFlow.Complete
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete
-	explanation := buildTransactionGuardV3Explanation(input.Wallet, assessment, decoded, threatHistory, cpiFlow)
+	explanation := buildTransactionGuardV3ExplanationWithCPI(input.Wallet, assessment, decoded, threatHistory, cpiFlow)
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
 		"ok":                         !guardProviderUnavailable(assessment),
