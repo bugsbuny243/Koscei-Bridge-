@@ -25,6 +25,7 @@ func TestBuildTransactionGuardV3ExplanationSummarizesMovementsAndAuthorities(t *
 				Address: tokenSource, TokenAccount: true, Mint: mint,
 				PreTokenOwner: wallet, PostTokenOwner: wallet, TokenDeltaRaw: "-500", Changed: true,
 			}},
+		},
 		SignedIntent: transactionGuardV3SignedIntentAssessment{Requested: true, Complete: true},
 	}
 	threat := transactionGuardThreatHistoryAnalysis{
@@ -57,8 +58,8 @@ func TestBuildTransactionGuardV3ExplanationSummarizesMovementsAndAuthorities(t *
 func TestFormatGuardRawAmount(t *testing.T) {
 	decimals := 6
 	cases := map[string]string{
-		"0": "0",
-		"1": "0.000001",
+		"0":       "0",
+		"1":       "0.000001",
 		"1000000": "1",
 		"1234500": "1.2345",
 	}
