@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-5"
+const transactionGuardV3AnalysisVersion = "v3-foundation-6"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
@@ -43,11 +43,12 @@ func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFind
 	return out
 }
 
-func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, alertID string) {
+func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, authoritySurface transactionGuardAuthoritySurfaceAnalysis, alertID string) {
 	threatComplete := !threatHistory.Required || threatHistory.Complete
 	cpiComplete := !cpiFlow.Required || cpiFlow.Complete
-	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete
-	explanation := buildTransactionGuardV3ExplanationWithCPI(input.Wallet, assessment, decoded, threatHistory, cpiFlow)
+	authorityComplete := !authoritySurface.Required || authoritySurface.Complete
+	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete && authorityComplete
+	explanation := buildTransactionGuardV3ExplanationWithAuthority(input.Wallet, assessment, decoded, threatHistory, cpiFlow, authoritySurface)
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
 		"ok":                         !guardProviderUnavailable(assessment),
@@ -78,6 +79,8 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"threat_history":             threatHistory,
 		"cpi_asset_flow_complete":    cpiFlow.Complete,
 		"cpi_asset_flow":             cpiFlow,
+		"authority_surface_complete": authoritySurface.Complete,
+		"authority_surface":          authoritySurface,
 		"pre_signing_explanation":    explanation,
 		"decoded_transaction":        decoded,
 		"program_policy":             programPolicy,
