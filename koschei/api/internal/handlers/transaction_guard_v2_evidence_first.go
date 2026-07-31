@@ -91,9 +91,9 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			return
 		}
 		assessment = assessTransactionGuardSimulation(simulation)
-		cpiFlow, cpiFindings = analyzeTransactionGuardV3CPIFlow(
-			decoded, input.Wallet, input.Accounts, simulation.Value.InnerInstructions,
-			nil, nil, nil, nil,
+		cpiFlow, cpiFindings = resolveTransactionGuardV3CPIFlow(
+			ctx, rpcURL, decoded, input.Wallet, input.Accounts, input.ExpectedPrograms, input.RequiredPrograms,
+			simulation.Value.InnerInstructions, nil, nil, nil, nil,
 		)
 	} else {
 		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, rpcURL, addresses)
@@ -122,9 +122,9 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			decoded.AutomaticBalance = automaticBalance
 			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, automaticFindings...))
 		}
-		cpiFlow, cpiFindings = analyzeTransactionGuardV3CPIFlow(
-			decoded, input.Wallet, input.Accounts, simulation.Value.InnerInstructions,
-			ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
+		cpiFlow, cpiFindings = resolveTransactionGuardV3CPIFlow(
+			ctx, rpcURL, decoded, input.Wallet, input.Accounts, input.ExpectedPrograms, input.RequiredPrograms,
+			simulation.Value.InnerInstructions, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
 		)
 	}
 	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, cpiFindings...))
