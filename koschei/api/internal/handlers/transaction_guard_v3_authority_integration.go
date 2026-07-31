@@ -29,6 +29,36 @@ func transactionGuardV3DecodedWithAuthoritySurface(decoded transactionGuardDecod
 	return decoded
 }
 
+func removeTransactionGuardV3LegacyAuthorityFindings(assessment transactionFirewallAssessment, authority transactionGuardAuthoritySurfaceAnalysis) transactionFirewallAssessment {
+	remove := map[string]bool{}
+	for _, event := range authority.Events {
+		switch event.Kind {
+		case "approve", "approve_checked", "revoke":
+			remove["delegate_approval"] = true
+		case "set_authority":
+			remove["authority_change"] = true
+			if event.AuthorityType != nil && *event.AuthorityType == 8 {
+				remove["permanent_delegate"] = true
+			}
+		case "initialize_permanent_delegate":
+			remove["permanent_delegate"] = true
+		case "initialize_transfer_hook", "update_transfer_hook":
+			remove["transfer_hook"] = true
+		}
+	}
+	if len(remove) == 0 {
+		return assessment
+	}
+	filtered := make([]transactionFirewallFinding, 0, len(assessment.Findings))
+	for _, finding := range assessment.Findings {
+		if !remove[finding.Code] {
+			filtered = append(filtered, finding)
+		}
+	}
+	assessment.Findings = filtered
+	return assessment
+}
+
 func guardV3DecodedTokenOperationFromAuthorityEvent(event transactionGuardAuthorityEvent) (transactionGuardDecodedTokenOperation, bool) {
 	switch event.Kind {
 	case "approve", "approve_checked":
