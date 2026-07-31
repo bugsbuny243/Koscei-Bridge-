@@ -139,6 +139,16 @@ func transactionGuardV3InstructionFindings(decoded transactionGuardDecodedTransa
 	}
 	for _, operation := range decoded.TokenOperations {
 		switch operation.Kind {
+		case "approve", "approve_checked":
+			findings = append(findings, transactionFirewallFinding{
+				Code: "decoded_delegate_approval", Severity: "info", Title: "Token delegate approval decoded",
+				Evidence: fmt.Sprintf("source=%s delegate=%s amount_raw=%s", operation.Source, operation.Delegate, operation.AmountRaw), Score: 0,
+			})
+		case "set_authority":
+			findings = append(findings, transactionFirewallFinding{
+				Code: "decoded_authority_change", Severity: "info", Title: "Token authority change decoded",
+				Evidence: fmt.Sprintf("account=%s authority_type=%d new_authority=%s", operation.Account, guardV3IntValue(operation.AuthorityType), operation.NewAuthority), Score: 0,
+			})
 		case "close_account":
 			findings = append(findings, transactionFirewallFinding{Code: "decoded_close_account", Severity: "medium", Title: "Token account closure decoded", Evidence: fmt.Sprintf("account=%s rent_destination=%s", operation.Account, operation.Destination), Score: 20})
 		case "freeze_account":
