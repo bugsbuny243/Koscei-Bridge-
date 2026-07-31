@@ -83,6 +83,8 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	var assessment transactionFirewallAssessment
 	var cpiFlow transactionGuardCPIFlowAnalysis
 	var cpiFindings []transactionFirewallFinding
+	var innerGroups []services.SolanaInnerInstructionGroup
+	authoritySnapshots := transactionGuardAuthoritySnapshots{}
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
 	if len(addresses) == 0 {
 		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
@@ -91,9 +93,10 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			return
 		}
 		assessment = assessTransactionGuardSimulation(simulation)
+		innerGroups = simulation.Value.InnerInstructions
 		cpiFlow, cpiFindings = resolveTransactionGuardV3CPIFlow(
 			ctx, rpcURL, decoded, input.Wallet, input.Accounts, input.ExpectedPrograms, input.RequiredPrograms,
-			simulation.Value.InnerInstructions, nil, nil, nil, nil,
+			innerGroups, nil, nil, nil, nil,
 		)
 	} else {
 		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, rpcURL, addresses)
@@ -107,6 +110,10 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			return
 		}
 		assessment = assessmentFromAccountSimulation(simulation)
+		innerGroups = simulation.Value.InnerInstructions
+		authoritySnapshots = transactionGuardAuthoritySnapshots{
+			PreOrder: ordered, PostOrder: simulatedOrder, Pre: pre.Value, Post: simulation.Value.Accounts,
+		}
 		if assessment.SimulationOK {
 			if len(input.Accounts) > 0 {
 				var findings []transactionFirewallFinding
@@ -124,10 +131,14 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		}
 		cpiFlow, cpiFindings = resolveTransactionGuardV3CPIFlow(
 			ctx, rpcURL, decoded, input.Wallet, input.Accounts, input.ExpectedPrograms, input.RequiredPrograms,
-			simulation.Value.InnerInstructions, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
+			innerGroups, ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
 		)
 	}
 	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, cpiFindings...))
+
+	authoritySurface, authorityFindings := analyzeTransactionGuardV3AuthoritySurface(decoded, innerGroups, authoritySnapshots)
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, authorityFindings...))
+	decoded = transactionGuardV3DecodedWithAuthoritySurface(decoded, authoritySurface)
 
 	threatDecoded := transactionGuardV3ThreatDecodedWithCPI(decoded, cpiFlow, input.Wallet)
 	threatHistory, threatFindings := h.collectTransactionGuardV3ThreatHistory(ctx, input.Network, threatDecoded, input.Wallet)
@@ -138,8 +149,12 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	if cpiFlow.Required && !cpiFlow.Complete {
 		intentPolicy.Complete = false
 	}
+	if authoritySurface.Required && !authoritySurface.Complete {
+		intentPolicy.Complete = false
+	}
 
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, cpiFlow.ProgramIDs...))
+	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, authoritySurface.TransferHookProgramIDs...))
 	assessment = applyTransactionGuardV3Decode(assessment, &intentPolicy, decoded, decodedFindings)
 	programPolicy, programFindings := evaluateTransactionGuardPrograms(assessment.ProgramIDs, input.ExpectedPrograms, input.RequiredPrograms, input.BlockedPrograms)
 	assessment.Findings = append(assessment.Findings, programFindings...)
@@ -149,7 +164,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	if assessment.Action != "allow" {
 		alertID = h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
 	}
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, alertID)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, authoritySurface, alertID)
 }
 
 func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, err error) {
@@ -162,6 +177,7 @@ func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *
 func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding, err error) {
 	program := transactionGuardProgramPolicy{Complete: false}
 	cpiFlow := unavailableTransactionGuardV3CPIFlow()
+	authoritySurface := unavailableTransactionGuardV3AuthoritySurface()
 	threatHistory, threatFindings := h.collectTransactionGuardV3ThreatHistory(r.Context(), input.Network, decoded, input.Wallet)
 	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, threatFindings...))
 	if threatHistory.Required && !threatHistory.Complete {
@@ -170,10 +186,13 @@ func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *
 	if cpiFlow.Required && !cpiFlow.Complete {
 		intent.Complete = false
 	}
+	if authoritySurface.Required && !authoritySurface.Complete {
+		intent.Complete = false
+	}
 	assessment := applyTransactionGuardV3Decode(unavailableGuardAssessment(err), &intent, decoded, decodedFindings)
 	assessment = finalizeEvidenceFirstGuardAssessment(assessment, program, intent)
 	alertID := h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, program, intent)
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, cpiFlow, alertID)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, cpiFlow, authoritySurface, alertID)
 }
 
 func finalizeEvidenceFirstGuardAssessment(assessment transactionFirewallAssessment, program transactionGuardProgramPolicy, intent transactionGuardIntentPolicy) transactionFirewallAssessment {

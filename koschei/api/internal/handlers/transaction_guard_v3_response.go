@@ -6,15 +6,45 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-5"
+const transactionGuardV3AnalysisVersion = "v3-foundation-6"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
+	assessment.Findings = removeTransactionGuardV3SupersededAuthorityFindings(assessment.Findings, decoded)
 	assessment.Findings = mergeTransactionGuardV3Findings(assessment.Findings, decodedFindings)
 	if intent != nil && (!decoded.Complete || decoded.AutomaticBalance.Requested && !decoded.AutomaticBalance.Complete || (decoded.SignedIntent.Requested || decoded.SignedIntent.Required) && !decoded.SignedIntent.Complete) {
 		intent.Complete = false
 	}
 	return assessment
+}
+
+func removeTransactionGuardV3SupersededAuthorityFindings(existing []transactionFirewallFinding, decoded transactionGuardDecodedTransaction) []transactionFirewallFinding {
+	remove := map[string]bool{}
+	for _, operation := range decoded.TokenOperations {
+		switch operation.Kind {
+		case "approve", "approve_checked", "revoke":
+			remove["delegate_approval"] = true
+		case "set_authority":
+			remove["authority_change"] = true
+			if operation.AuthorityType != nil && *operation.AuthorityType == 8 {
+				remove["permanent_delegate"] = true
+			}
+		case "initialize_permanent_delegate":
+			remove["permanent_delegate"] = true
+		case "initialize_transfer_hook", "update_transfer_hook":
+			remove["transfer_hook"] = true
+		}
+	}
+	if len(remove) == 0 {
+		return existing
+	}
+	out := make([]transactionFirewallFinding, 0, len(existing))
+	for _, finding := range existing {
+		if !remove[finding.Code] {
+			out = append(out, finding)
+		}
+	}
+	return out
 }
 
 func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFinding) []transactionFirewallFinding {
@@ -43,11 +73,12 @@ func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFind
 	return out
 }
 
-func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, alertID string) {
+func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, authoritySurface transactionGuardAuthoritySurfaceAnalysis, alertID string) {
 	threatComplete := !threatHistory.Required || threatHistory.Complete
 	cpiComplete := !cpiFlow.Required || cpiFlow.Complete
-	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete
-	explanation := buildTransactionGuardV3ExplanationWithCPI(input.Wallet, assessment, decoded, threatHistory, cpiFlow)
+	authorityComplete := !authoritySurface.Required || authoritySurface.Complete
+	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete && authorityComplete
+	explanation := buildTransactionGuardV3ExplanationWithAuthority(input.Wallet, assessment, decoded, threatHistory, cpiFlow, authoritySurface)
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
 		"ok":                         !guardProviderUnavailable(assessment),
@@ -78,6 +109,8 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"threat_history":             threatHistory,
 		"cpi_asset_flow_complete":    cpiFlow.Complete,
 		"cpi_asset_flow":             cpiFlow,
+		"authority_surface_complete": authoritySurface.Complete,
+		"authority_surface":          authoritySurface,
 		"pre_signing_explanation":    explanation,
 		"decoded_transaction":        decoded,
 		"program_policy":             programPolicy,

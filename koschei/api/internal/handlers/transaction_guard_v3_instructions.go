@@ -50,6 +50,26 @@ func classifyTransactionGuardV3TokenInstruction(programID string, accounts []str
 		return "token_unparsed"
 	}
 	opcode := int(data[0])
+	if guardV3AuthorityOpcode(opcode) {
+		event, relevant, err := decodeTransactionGuardV3AuthorityEvent(transactionGuardAuthorityInstruction{
+			Source: "decoded", ProgramID: programID, Accounts: accounts, Data: data,
+		})
+		if err != nil {
+			return "token_authority_instruction_unparsed"
+		}
+		if relevant {
+			if operation, ok := guardV3DecodedTokenOperationFromAuthorityEvent(event); ok {
+				out.TokenOperations = append(out.TokenOperations, operation)
+			} else if event.Kind == "transfer_checked_with_fee" {
+				out.TokenOperations = append(out.TokenOperations, transactionGuardDecodedTokenOperation{
+					Kind: "transfer_checked", ProgramID: programID, Source: event.Source, Destination: event.Destination,
+					Mint: event.Mint, Authority: event.CurrentAuthority, AmountRaw: event.AmountRaw, Decimals: event.Decimals,
+				})
+			}
+			return "token_" + event.Kind
+		}
+	}
+
 	operation := transactionGuardDecodedTokenOperation{ProgramID: programID}
 	switch opcode {
 	case 3:
@@ -58,34 +78,6 @@ func classifyTransactionGuardV3TokenInstruction(programID string, accounts []str
 		}
 		operation.Kind, operation.Source, operation.Destination, operation.Authority = "transfer", accounts[0], accounts[1], accounts[2]
 		operation.AmountRaw = strconv.FormatUint(binary.LittleEndian.Uint64(data[1:9]), 10)
-	case 4:
-		if len(data) < 9 || len(accounts) < 3 {
-			return "token_approve_unparsed"
-		}
-		operation.Kind, operation.Source, operation.Delegate, operation.Authority = "approve", accounts[0], accounts[1], accounts[2]
-		operation.AmountRaw = strconv.FormatUint(binary.LittleEndian.Uint64(data[1:9]), 10)
-	case 5:
-		if len(accounts) < 2 {
-			return "token_revoke_unparsed"
-		}
-		operation.Kind, operation.Source, operation.Authority = "revoke", accounts[0], accounts[1]
-	case 6:
-		if len(data) < 6 || len(accounts) < 2 {
-			return "token_set_authority_unparsed"
-		}
-		authorityType := int(data[1])
-		operation.Kind, operation.Account, operation.Authority, operation.AuthorityType = "set_authority", accounts[0], accounts[1], &authorityType
-		option := binary.LittleEndian.Uint32(data[2:6])
-		if option == 1 {
-			if len(data) < 38 {
-				return "token_set_authority_unparsed"
-			}
-			operation.NewAuthority = guardV3Base58Encode(data[6:38])
-		} else if option == 0 {
-			operation.NewAuthority = "revoked"
-		} else {
-			return "token_set_authority_unparsed"
-		}
 	case 8:
 		if len(data) < 9 || len(accounts) < 3 {
 			return "token_burn_unparsed"
@@ -114,13 +106,6 @@ func classifyTransactionGuardV3TokenInstruction(programID string, accounts []str
 		decimals := int(data[9])
 		operation.Kind, operation.Source, operation.Mint, operation.Destination, operation.Authority = "transfer_checked", accounts[0], accounts[1], accounts[2], accounts[3]
 		operation.AmountRaw, operation.Decimals = strconv.FormatUint(binary.LittleEndian.Uint64(data[1:9]), 10), &decimals
-	case 13:
-		if len(data) < 10 || len(accounts) < 4 {
-			return "token_approve_checked_unparsed"
-		}
-		decimals := int(data[9])
-		operation.Kind, operation.Source, operation.Mint, operation.Delegate, operation.Authority = "approve_checked", accounts[0], accounts[1], accounts[2], accounts[3]
-		operation.AmountRaw, operation.Decimals = strconv.FormatUint(binary.LittleEndian.Uint64(data[1:9]), 10), &decimals
 	case 15:
 		if len(data) < 10 || len(accounts) < 3 {
 			return "token_burn_checked_unparsed"
@@ -135,6 +120,15 @@ func classifyTransactionGuardV3TokenInstruction(programID string, accounts []str
 	return "token_" + operation.Kind
 }
 
+func guardV3AuthorityOpcode(opcode int) bool {
+	switch opcode {
+	case 4, 5, 6, 13, 26, 35, 36:
+		return true
+	default:
+		return false
+	}
+}
+
 func transactionGuardV3InstructionFindings(decoded transactionGuardDecodedTransaction) []transactionFirewallFinding {
 	findings := []transactionFirewallFinding{}
 	for _, transfer := range decoded.SOLTransfers {
@@ -146,9 +140,15 @@ func transactionGuardV3InstructionFindings(decoded transactionGuardDecodedTransa
 	for _, operation := range decoded.TokenOperations {
 		switch operation.Kind {
 		case "approve", "approve_checked":
-			findings = append(findings, transactionFirewallFinding{Code: "decoded_delegate_approval", Severity: "medium", Title: "Token delegate approval decoded", Evidence: fmt.Sprintf("source=%s delegate=%s amount_raw=%s", operation.Source, operation.Delegate, operation.AmountRaw), Score: 18})
+			findings = append(findings, transactionFirewallFinding{
+				Code: "decoded_delegate_approval", Severity: "info", Title: "Token delegate approval decoded",
+				Evidence: fmt.Sprintf("source=%s delegate=%s amount_raw=%s", operation.Source, operation.Delegate, operation.AmountRaw), Score: 0,
+			})
 		case "set_authority":
-			findings = append(findings, transactionFirewallFinding{Code: "decoded_authority_change", Severity: "high", Title: "Token authority change decoded", Evidence: fmt.Sprintf("account=%s authority_type=%d new_authority=%s", operation.Account, guardV3IntValue(operation.AuthorityType), operation.NewAuthority), Score: 35})
+			findings = append(findings, transactionFirewallFinding{
+				Code: "decoded_authority_change", Severity: "info", Title: "Token authority change decoded",
+				Evidence: fmt.Sprintf("account=%s authority_type=%d new_authority=%s", operation.Account, guardV3IntValue(operation.AuthorityType), operation.NewAuthority), Score: 0,
+			})
 		case "close_account":
 			findings = append(findings, transactionFirewallFinding{Code: "decoded_close_account", Severity: "medium", Title: "Token account closure decoded", Evidence: fmt.Sprintf("account=%s rent_destination=%s", operation.Account, operation.Destination), Score: 20})
 		case "freeze_account":
