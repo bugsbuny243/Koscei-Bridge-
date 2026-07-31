@@ -173,6 +173,7 @@ jobs:
           node scripts/verify-customer-investigation-ui.js
           node scripts/verify-report-trust-consistency.js
           node scripts/verify-dossier-contract.mjs
+          node scripts/verify-wallet-enforcement.js
       - name: Check Turkish public copy
         run: |
           grep -q '<html lang="tr">' public/index.html
