@@ -57,24 +57,21 @@ func transactionGuardV3AuthorityFinding(event transactionGuardAuthorityEvent) (t
 	finding := transactionFirewallFinding{Evidence: compactGuardV3Evidence(guardV3AuthorityEvidence(event))}
 	switch event.Kind {
 	case "approve", "approve_checked":
-		if event.ActiveAfterSimulation != nil && !*event.ActiveAfterSimulation {
+		if !event.EffectivelyUnlimited || event.ActiveAfterSimulation != nil && !*event.ActiveAfterSimulation {
 			return transactionFirewallFinding{}, false
 		}
-		finding.Code, finding.Severity, finding.Title, finding.Score = "authority_delegate_approval_"+guardV3CompactAddressHash(event.Account), "medium", "Token spending delegation remains after signing", 18
-		if event.EffectivelyUnlimited {
-			finding.Severity, finding.Title, finding.Score = "high", "Maximum-size token delegation", 35
-		}
+		finding.Code, finding.Severity, finding.Title, finding.Score = "authority_maximum_delegate_"+guardV3CompactAddressHash(event.Account), "high", "Maximum-size token delegation", 17
 	case "initialize_permanent_delegate":
 		finding.Code, finding.Severity, finding.Title, finding.Score = "authority_permanent_delegate_"+guardV3CompactAddressHash(event.Mint), "critical", "Mint-wide permanent delegate capability", 75
 	case "set_authority":
-		if event.NewAuthority == "revoked" || event.ActiveAfterSimulation != nil && !*event.ActiveAfterSimulation {
+		if event.NewAuthority == "revoked" || event.ActiveAfterSimulation != nil && !*event.ActiveAfterSimulation || event.AuthorityType == nil {
 			return transactionFirewallFinding{}, false
 		}
-		finding.Code = "authority_change_" + event.AuthorityTypeName + "_" + guardV3CompactAddressHash(event.Account)
-		finding.Severity, finding.Title, finding.Score = "high", "Persistent token authority change", 35
-		if event.AuthorityType != nil && (*event.AuthorityType == 8 || *event.AuthorityType == 16 || *event.AuthorityType == 17) {
-			finding.Severity, finding.Score = "critical", 75
+		if *event.AuthorityType != 8 && *event.AuthorityType != 16 && *event.AuthorityType != 17 {
+			return transactionFirewallFinding{}, false
 		}
+		finding.Code = "authority_critical_" + event.AuthorityTypeName + "_" + guardV3CompactAddressHash(event.Account)
+		finding.Severity, finding.Title, finding.Score = "critical", "Critical mint-wide authority capability", 40
 	case "initialize_transfer_hook", "update_transfer_hook":
 		if event.TransferHookProgramID == "revoked" {
 			return transactionFirewallFinding{}, false
