@@ -13,14 +13,26 @@ type SolanaSimulationResult struct {
 	Value SolanaSimulationValue `json:"value"`
 }
 
+type SolanaInnerInstruction struct {
+	ProgramIDIndex int   `json:"programIdIndex"`
+	Accounts       []int `json:"accounts"`
+	Data           string `json:"data"`
+	StackHeight    *int  `json:"stackHeight,omitempty"`
+}
+
+type SolanaInnerInstructionGroup struct {
+	Index        int                      `json:"index"`
+	Instructions []SolanaInnerInstruction `json:"instructions"`
+}
+
 type SolanaSimulationValue struct {
-	Err                  any      `json:"err"`
-	Logs                 []string `json:"logs"`
-	Accounts             any      `json:"accounts"`
-	UnitsConsumed        *int64   `json:"unitsConsumed"`
-	ReturnData           any      `json:"returnData"`
-	InnerInstructions    any      `json:"innerInstructions"`
-	ReplacementBlockhash any      `json:"replacementBlockhash"`
+	Err                  any                           `json:"err"`
+	Logs                 []string                      `json:"logs"`
+	Accounts             any                           `json:"accounts"`
+	UnitsConsumed        *int64                        `json:"unitsConsumed"`
+	ReturnData           any                           `json:"returnData"`
+	InnerInstructions    []SolanaInnerInstructionGroup `json:"innerInstructions"`
+	ReplacementBlockhash any                           `json:"replacementBlockhash"`
 }
 
 func SolanaSimulateTransaction(ctx context.Context, rpcURL, transaction, encoding string) (SolanaSimulationResult, error) {
