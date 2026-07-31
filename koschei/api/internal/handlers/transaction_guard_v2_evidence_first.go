@@ -74,9 +74,6 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 		}
 	}
 
-	threatHistory, threatFindings := h.collectTransactionGuardV3ThreatHistory(ctx, input.Network, decoded, input.Wallet)
-	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, threatFindings...))
-
 	declaredAddresses := make([]string, 0, len(input.Accounts))
 	for _, account := range input.Accounts {
 		declaredAddresses = append(declaredAddresses, account.Address)
@@ -84,26 +81,29 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	addresses, automaticBalanceCoverageComplete, automaticBalanceAddressesRequired := transactionGuardV3BalanceAddresses(decoded, input.Wallet, declaredAddresses, guardV3AutomaticAccountLimit)
 
 	var assessment transactionFirewallAssessment
+	var cpiFlow transactionGuardCPIFlowAnalysis
+	var cpiFindings []transactionFirewallFinding
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
-	if threatHistory.Required && !threatHistory.Complete {
-		intentPolicy.Complete = false
-	}
 	if len(addresses) == 0 {
 		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, threatHistory, decodedFindings, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		assessment = assessTransactionGuardSimulation(simulation)
+		cpiFlow, cpiFindings = analyzeTransactionGuardV3CPIFlow(
+			decoded, input.Wallet, input.Accounts, simulation.Value.InnerInstructions,
+			nil, nil, nil, nil,
+		)
 	} else {
 		pre, ordered, err := services.SolanaGetMultipleAccountsBase64(ctx, rpcURL, addresses)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, threatHistory, decodedFindings, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		simulation, simulatedOrder, err := services.SolanaSimulateTransactionWithAccountsBase64(ctx, rpcURL, input.Transaction, input.Encoding, ordered)
 		if err != nil {
-			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, threatHistory, decodedFindings, err)
+			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
 		assessment = assessmentFromAccountSimulation(simulation)
@@ -122,8 +122,24 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			decoded.AutomaticBalance = automaticBalance
 			decodedFindings = uniqueGuardV3Findings(append(decodedFindings, automaticFindings...))
 		}
+		cpiFlow, cpiFindings = analyzeTransactionGuardV3CPIFlow(
+			decoded, input.Wallet, input.Accounts, simulation.Value.InnerInstructions,
+			ordered, simulatedOrder, pre.Value, simulation.Value.Accounts,
+		)
+	}
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, cpiFindings...))
+
+	threatDecoded := transactionGuardV3ThreatDecodedWithCPI(decoded, cpiFlow, input.Wallet)
+	threatHistory, threatFindings := h.collectTransactionGuardV3ThreatHistory(ctx, input.Network, threatDecoded, input.Wallet)
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, threatFindings...))
+	if threatHistory.Required && !threatHistory.Complete {
+		intentPolicy.Complete = false
+	}
+	if cpiFlow.Required && !cpiFlow.Complete {
+		intentPolicy.Complete = false
 	}
 
+	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, cpiFlow.ProgramIDs...))
 	assessment = applyTransactionGuardV3Decode(assessment, &intentPolicy, decoded, decodedFindings)
 	programPolicy, programFindings := evaluateTransactionGuardPrograms(assessment.ProgramIDs, input.ExpectedPrograms, input.RequiredPrograms, input.BlockedPrograms)
 	assessment.Findings = append(assessment.Findings, programFindings...)
@@ -133,7 +149,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	if assessment.Action != "allow" {
 		alertID = h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
 	}
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, alertID)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, alertID)
 }
 
 func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, err error) {
@@ -143,15 +159,21 @@ func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *
 	h.finishTransactionGuardResponse(w, r, input, requestID, started, assessment, program, intent, alertID)
 }
 
-func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, decodedFindings []transactionFirewallFinding, err error) {
+func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding, err error) {
 	program := transactionGuardProgramPolicy{Complete: false}
+	cpiFlow := unavailableTransactionGuardV3CPIFlow()
+	threatHistory, threatFindings := h.collectTransactionGuardV3ThreatHistory(r.Context(), input.Network, decoded, input.Wallet)
+	decodedFindings = uniqueGuardV3Findings(append(decodedFindings, threatFindings...))
 	if threatHistory.Required && !threatHistory.Complete {
+		intent.Complete = false
+	}
+	if cpiFlow.Required && !cpiFlow.Complete {
 		intent.Complete = false
 	}
 	assessment := applyTransactionGuardV3Decode(unavailableGuardAssessment(err), &intent, decoded, decodedFindings)
 	assessment = finalizeEvidenceFirstGuardAssessment(assessment, program, intent)
 	alertID := h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, program, intent)
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, alertID)
+	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, cpiFlow, alertID)
 }
 
 func finalizeEvidenceFirstGuardAssessment(assessment transactionFirewallAssessment, program transactionGuardProgramPolicy, intent transactionGuardIntentPolicy) transactionFirewallAssessment {
