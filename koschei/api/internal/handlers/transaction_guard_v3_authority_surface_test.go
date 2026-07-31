@@ -118,7 +118,7 @@ func TestApproveFinalStateReportsRemainingDelegate(t *testing.T) {
 	if event.ActiveAfterSimulation == nil || !*event.ActiveAfterSimulation || event.PostDelegate != delegate || event.PostDelegatedAmountRaw != "900" || !event.EffectivelyUnlimited {
 		t.Fatalf("event=%#v", event)
 	}
-	if !hasFindingPrefix(findings, "authority_maximum_delegate_") {
+	if !hasFindingPrefix(findings, "authority_delegate_approval_") || findings[0].Score != 35 {
 		t.Fatalf("findings=%#v", findings)
 	}
 }
