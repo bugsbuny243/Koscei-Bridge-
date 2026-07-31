@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-3"
+const transactionGuardV3AnalysisVersion = "v3-foundation-4"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
@@ -43,8 +43,10 @@ func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFind
 	return out
 }
 
-func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, alertID string) {
-	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete
+func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, alertID string) {
+	threatComplete := !threatHistory.Required || threatHistory.Complete
+	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete
+	explanation := buildTransactionGuardV3Explanation(input.Wallet, assessment, decoded, threatHistory)
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
 		"ok":                         !guardProviderUnavailable(assessment),
@@ -71,6 +73,9 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"automatic_balance_changes":  decoded.AutomaticBalance,
 		"signed_ui_intent_complete":  decoded.SignedIntent.Complete,
 		"signed_ui_intent":           decoded.SignedIntent,
+		"threat_history_complete":    threatHistory.Complete,
+		"threat_history":             threatHistory,
+		"pre_signing_explanation":    explanation,
 		"decoded_transaction":        decoded,
 		"program_policy":             programPolicy,
 		"intent_policy":              intentPolicy,
