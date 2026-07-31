@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"strings"
@@ -10,12 +11,12 @@ import (
 )
 
 func TestAnalyzeTransactionGuardV3CPIFlowDetectsUndeclaredWalletExitAndVault(t *testing.T) {
-	wallet := "22222222222222222222222222222222"
-	source := "33333333333333333333333333333333"
-	mint := "44444444444444444444444444444444"
-	destination := "55555555555555555555555555555555"
-	controller := "66666666666666666666666666666666"
-	parentProgram := "77777777777777777777777777777777"
+	wallet := guardV3TestAddress(2)
+	source := guardV3TestAddress(3)
+	mint := guardV3TestAddress(4)
+	destination := guardV3TestAddress(5)
+	controller := guardV3TestAddress(6)
+	parentProgram := guardV3TestAddress(7)
 
 	decoded := transactionGuardDecodedTransaction{
 		Available: true,
@@ -27,7 +28,7 @@ func TestAnalyzeTransactionGuardV3CPIFlowDetectsUndeclaredWalletExitAndVault(t *
 			{Index: 3, Address: wallet, Signer: true, Writable: true, Source: "static"},
 			{Index: 4, Address: guardV3SPLTokenProgramID, Source: "static"},
 			{Index: 5, Address: parentProgram, Source: "static"},
-			{Index: 6, Address: controller, Writable: true, Source: "static"},
+			{Index: 6, Address: controller, Source: "static"},
 		},
 		Instructions: []transactionGuardDecodedInstruction{{Index: 0, ProgramID: parentProgram, ProgramResolved: true}},
 	}
@@ -73,18 +74,27 @@ func TestAnalyzeTransactionGuardV3CPIFlowDetectsUndeclaredWalletExitAndVault(t *
 	}
 	vaultFound := false
 	for _, account := range flow.Accounts {
-		if account.Address == destination && account.VaultCandidate && account.Controller == controller {
+		if account.Address == destination && account.VaultCandidate && account.Controller == controller && account.ControllerProgramOwner == parentProgram {
 			vaultFound = true
 		}
 	}
 	if !vaultFound {
 		t.Fatalf("accounts=%#v", flow.Accounts)
 	}
+
+	refined, refinedFindings := refineTransactionGuardV3CPIProgramPolicy(flow, findings, []string{parentProgram}, nil)
+	if !refined.Complete || refined.UndeclaredMovementCount != 0 || refined.AssetMovements[0].UndeclaredByAccountPolicy {
+		t.Fatalf("refined=%#v", refined)
+	}
+	if hasFindingPrefix(refinedFindings, "cpi_undeclared_wallet_exit_") {
+		t.Fatalf("verified expected-program vault must not be called an undeclared exit: %#v", refinedFindings)
+	}
 }
 
 func TestAnalyzeTransactionGuardV3CPIFlowDoesNotCallUnspecifiedPolicyUndeclared(t *testing.T) {
-	wallet := "22222222222222222222222222222222"
-	destination := "33333333333333333333333333333333"
+	wallet := guardV3TestAddress(8)
+	destination := guardV3TestAddress(9)
+	parentProgram := guardV3TestAddress(10)
 	decoded := transactionGuardDecodedTransaction{
 		Available: true,
 		Complete:  true,
@@ -93,7 +103,7 @@ func TestAnalyzeTransactionGuardV3CPIFlowDoesNotCallUnspecifiedPolicyUndeclared(
 			{Index: 1, Address: destination, Writable: true},
 			{Index: 2, Address: guardV3SystemProgramID},
 		},
-		Instructions: []transactionGuardDecodedInstruction{{Index: 0, ProgramID: "44444444444444444444444444444444", ProgramResolved: true}},
+		Instructions: []transactionGuardDecodedInstruction{{Index: 0, ProgramID: parentProgram, ProgramResolved: true}},
 	}
 	data := make([]byte, 12)
 	binary.LittleEndian.PutUint32(data[:4], 2)
@@ -112,19 +122,51 @@ func TestAnalyzeTransactionGuardV3CPIFlowDoesNotCallUnspecifiedPolicyUndeclared(
 	}
 }
 
+func TestRefineTransactionGuardV3CPIProgramPolicyWithholdsUnverifiedIntermediary(t *testing.T) {
+	wallet := guardV3TestAddress(11)
+	destination := guardV3TestAddress(12)
+	parentProgram := guardV3TestAddress(13)
+	flow := transactionGuardCPIFlowAnalysis{
+		Available: true, Complete: true, Status: "complete", UndeclaredMovementCount: 1,
+		AssetMovements: []transactionGuardCPIAssetMovement{{
+			AssetType: "token", Destination: destination, ParentProgramID: parentProgram,
+			WalletOrigin: true, PolicyCompared: true, UndeclaredByAccountPolicy: true,
+		}},
+		Accounts: []transactionGuardCPIAccount{{
+			Address: destination, Classification: "token_account", TokenOwner: wallet,
+			ControlStatus: "external_token_controller", ControllerProgramOwner: "",
+		}},
+	}
+	findings := []transactionFirewallFinding{{
+		Code: "cpi_undeclared_wallet_exit_" + guardV3CompactAddressHash(destination), Severity: "high", Score: 50,
+	}}
+
+	refined, refinedFindings := refineTransactionGuardV3CPIProgramPolicy(flow, findings, []string{parentProgram}, nil)
+	if refined.Complete || refined.Status != "protocol_intermediary_unverified" || refined.UndeclaredMovementCount != 0 {
+		t.Fatalf("refined=%#v", refined)
+	}
+	if hasFindingPrefix(refinedFindings, "cpi_undeclared_wallet_exit_") || !hasFindingPrefix(refinedFindings, "cpi_protocol_intermediary_unverified_") {
+		t.Fatalf("findings=%#v", refinedFindings)
+	}
+}
+
 func TestTransactionGuardV3ThreatDecodedWithCPIAddsInnerSubjects(t *testing.T) {
-	destination := "33333333333333333333333333333333"
-	program := "44444444444444444444444444444444"
+	destination := guardV3TestAddress(14)
+	program := guardV3TestAddress(15)
 	flow := transactionGuardCPIFlowAnalysis{
 		ProgramIDs: []string{program},
 		AssetMovements: []transactionGuardCPIAssetMovement{{
-			AssetType: "SOL", Kind: "transfer", Source: "22222222222222222222222222222222", Destination: destination, AmountRaw: "1",
+			AssetType: "SOL", Kind: "transfer", Source: guardV3TestAddress(16), Destination: destination, AmountRaw: "1",
 		}},
 	}
 	got := transactionGuardV3ThreatDecodedWithCPI(transactionGuardDecodedTransaction{}, flow, "")
 	if len(got.ProgramIDs) != 1 || got.ProgramIDs[0] != program || len(got.SOLTransfers) != 1 || got.SOLTransfers[0].Recipient != destination {
 		t.Fatalf("decoded=%#v", got)
 	}
+}
+
+func guardV3TestAddress(marker byte) string {
+	return guardV3Base58Encode(bytes.Repeat([]byte{marker}, 32))
 }
 
 func guardV3TestTokenAccountInfo(t *testing.T, mint, owner string, amount uint64) *services.SolanaAccountInfo {
