@@ -56,7 +56,7 @@ func transactionGuardV3CPIControllerAddresses(flow transactionGuardCPIFlowAnalys
 		if account.Classification != "token_account" || controller == "" || controller == wallet || account.VaultCandidate {
 			continue
 		}
-		if account.ControlStatus != "external_token_controller_unresolved" && account.ControllerProgramOwner != "" {
+		if account.ControllerProgramOwner != "" {
 			continue
 		}
 		if !looksLikeGuardPubkey(controller) || seen[controller] {
@@ -133,7 +133,7 @@ func refineTransactionGuardV3CPIProgramPolicy(
 			removeFinding[findingCode] = true
 			continue
 		}
-		controllerUnresolved := movement.AssetType == "token" && destination.Classification == "token_account" && destination.ControlStatus == "external_token_controller_unresolved"
+		controllerUnresolved := movement.AssetType == "token" && destination.Classification == "token_account" && destination.ControllerProgramOwner == ""
 		if controllerUnresolved {
 			movement.UndeclaredByAccountPolicy = false
 			removeFinding[findingCode] = true
