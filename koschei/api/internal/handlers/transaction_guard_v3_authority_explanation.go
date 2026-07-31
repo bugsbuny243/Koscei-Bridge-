@@ -15,9 +15,9 @@ func buildTransactionGuardV3ExplanationWithAuthority(
 	authority transactionGuardAuthoritySurfaceAnalysis,
 ) transactionGuardPreSigningExplanation {
 	out := buildTransactionGuardV3ExplanationWithCPI(wallet, assessment, decoded, threat, cpi)
-	seen := map[string]bool{}
-	for _, item := range out.Authorities {
-		seen[guardV3ExplanationAuthorityKey(item.Kind, item.Account, item.Delegate, item.NewAuthority)] = true
+	indexes := map[string]int{}
+	for index, item := range out.Authorities {
+		indexes[guardV3ExplanationAuthorityKey(item.Kind, item.Account, item.Delegate, item.NewAuthority)] = index
 	}
 	for _, event := range authority.Events {
 		item := transactionGuardExplanationAuthority{
@@ -28,8 +28,10 @@ func buildTransactionGuardV3ExplanationWithAuthority(
 			Explanation: guardV3AuthorityHumanExplanation(event),
 		}
 		key := guardV3ExplanationAuthorityKey(item.Kind, item.Account, item.Delegate, item.NewAuthority)
-		if !seen[key] {
-			seen[key] = true
+		if index, exists := indexes[key]; exists {
+			out.Authorities[index] = item
+		} else {
+			indexes[key] = len(out.Authorities)
 			out.Authorities = append(out.Authorities, item)
 		}
 		switch event.Kind {
