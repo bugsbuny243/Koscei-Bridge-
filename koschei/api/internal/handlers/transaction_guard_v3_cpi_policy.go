@@ -79,22 +79,31 @@ func appendTransactionGuardV3CPIAccountEvidence(
 ) ([]string, []*services.SolanaAccountInfo) {
 	outOrder := append([]string{}, order...)
 	outValues := append([]*services.SolanaAccountInfo{}, values...)
-	seen := map[string]bool{}
-	for _, address := range outOrder {
-		seen[address] = true
+	positions := map[string]int{}
+	for index, address := range outOrder {
+		positions[address] = index
 	}
 	for index, address := range additionalOrder {
 		address = strings.TrimSpace(address)
-		if address == "" || seen[address] {
+		if address == "" {
 			continue
 		}
-		seen[address] = true
-		outOrder = append(outOrder, address)
+		additional := (*services.SolanaAccountInfo)(nil)
 		if index < len(additionalValues) {
-			outValues = append(outValues, additionalValues[index])
-		} else {
-			outValues = append(outValues, nil)
+			additional = additionalValues[index]
 		}
+		if existing, ok := positions[address]; ok {
+			for len(outValues) <= existing {
+				outValues = append(outValues, nil)
+			}
+			if outValues[existing] == nil && additional != nil {
+				outValues[existing] = additional
+			}
+			continue
+		}
+		positions[address] = len(outOrder)
+		outOrder = append(outOrder, address)
+		outValues = append(outValues, additional)
 	}
 	return outOrder, outValues
 }
