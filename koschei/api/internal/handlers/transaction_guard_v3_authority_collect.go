@@ -35,7 +35,7 @@ func analyzeTransactionGuardV3AuthoritySurface(
 	instructions, unresolved := transactionGuardV3AuthorityInstructions(decoded, innerGroups)
 	if unresolved > 0 {
 		analysis.Complete = false
-		analysis.Limitations = append(analysis.Limitations, fmt.Sprintf("%d authority-relevant inner instruction(s) could not be resolved.", unresolved))
+		analysis.Limitations = append(analysis.Limitations, fmt.Sprintf("%d authority-relevant instruction(s) could not be resolved.", unresolved))
 	}
 	findings := []transactionFirewallFinding{}
 	hookPrograms := map[string]bool{}
@@ -119,6 +119,9 @@ func transactionGuardV3AuthorityInstructions(decoded transactionGuardDecodedTran
 		if programID != guardV3SPLTokenProgramID && programID != guardV3Token2022ProgramID {
 			continue
 		}
+		if len(parsed.Data) == 0 || !guardV3AuthorityOpcode(int(parsed.Data[0])) {
+			continue
+		}
 		accounts, complete := guardV3ResolveAuthorityAccounts(parsed.AccountIndexes, addresses)
 		if !complete {
 			unresolved++
@@ -136,20 +139,23 @@ func transactionGuardV3AuthorityInstructions(decoded transactionGuardDecodedTran
 		}
 		for _, inner := range group.Instructions {
 			if inner.ProgramIDIndex < 0 || inner.ProgramIDIndex >= len(addresses) {
-				unresolved++
 				continue
 			}
 			programID := addresses[inner.ProgramIDIndex]
 			if programID != guardV3SPLTokenProgramID && programID != guardV3Token2022ProgramID {
 				continue
 			}
-			accounts, complete := guardV3ResolveAuthorityAccounts(inner.Accounts, addresses)
 			data, err := guardV3Base58DecodeVariable(inner.Data)
-			if !complete || err != nil {
+			if err != nil {
 				unresolved++
 				continue
 			}
 			if len(data) == 0 || !guardV3AuthorityOpcode(int(data[0])) {
+				continue
+			}
+			accounts, complete := guardV3ResolveAuthorityAccounts(inner.Accounts, addresses)
+			if !complete {
+				unresolved++
 				continue
 			}
 			innerSequence++
