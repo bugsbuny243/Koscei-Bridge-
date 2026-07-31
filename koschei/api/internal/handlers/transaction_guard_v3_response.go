@@ -10,11 +10,41 @@ const transactionGuardV3AnalysisVersion = "v3-foundation-6"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
+	assessment.Findings = removeTransactionGuardV3SupersededAuthorityFindings(assessment.Findings, decoded)
 	assessment.Findings = mergeTransactionGuardV3Findings(assessment.Findings, decodedFindings)
 	if intent != nil && (!decoded.Complete || decoded.AutomaticBalance.Requested && !decoded.AutomaticBalance.Complete || (decoded.SignedIntent.Requested || decoded.SignedIntent.Required) && !decoded.SignedIntent.Complete) {
 		intent.Complete = false
 	}
 	return assessment
+}
+
+func removeTransactionGuardV3SupersededAuthorityFindings(existing []transactionFirewallFinding, decoded transactionGuardDecodedTransaction) []transactionFirewallFinding {
+	remove := map[string]bool{}
+	for _, operation := range decoded.TokenOperations {
+		switch operation.Kind {
+		case "approve", "approve_checked", "revoke":
+			remove["delegate_approval"] = true
+		case "set_authority":
+			remove["authority_change"] = true
+			if operation.AuthorityType != nil && *operation.AuthorityType == 8 {
+				remove["permanent_delegate"] = true
+			}
+		case "initialize_permanent_delegate":
+			remove["permanent_delegate"] = true
+		case "initialize_transfer_hook", "update_transfer_hook":
+			remove["transfer_hook"] = true
+		}
+	}
+	if len(remove) == 0 {
+		return existing
+	}
+	out := make([]transactionFirewallFinding, 0, len(existing))
+	for _, finding := range existing {
+		if !remove[finding.Code] {
+			out = append(out, finding)
+		}
+	}
+	return out
 }
 
 func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFinding) []transactionFirewallFinding {
