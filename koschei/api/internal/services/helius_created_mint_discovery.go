@@ -173,9 +173,10 @@ func extractHeliusCreatedMintCandidates(transactions []heliusEnhancedTypedTransa
 			strings.Contains(txType, "SWAP") ||
 			strings.Contains(txType, "ADD_LIQUIDITY") ||
 			strings.Contains(txType, "REMOVE_LIQUIDITY")
-		isCreation := !isPoolOrLiquidity && (txType == "TOKEN_MINT" || txType == "CREATE" ||
-			strings.Contains(txType, "CREATE") ||
-			(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER"))
+		isCreation := !isPoolOrLiquidity && (
+			txType == "TOKEN_MINT" || txType == "CREATE" ||
+				strings.Contains(txType, "CREATE") ||
+				(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER"))
 		if !isCreation {
 			continue
 		}
