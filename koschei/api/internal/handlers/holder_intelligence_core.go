@@ -98,6 +98,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		OutputMint: jupiterUSDCMint, QuoteOnly: true, Tiers: []services.ExitLiquidityTier{},
 		ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
+	programSecurity := newProgramSecuritySurface("not_requested_preflight")
 	if phase2MarketContextAllowed(mode) && h != nil {
 		lpControl = h.collectCompleteLPControlEvidence(parent, network, target, creator, market, source)
 		analysis = services.ApplyLPControlEvidenceToAnalysis(analysis, req, lpControl)
@@ -110,7 +111,12 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		jupiter = h.collectJupiterMarketContext(parent, network, target, intelligence, market)
 		exitLiquidity = h.collectExitLiquiditySimulation(parent, network, target, market, jupiter)
 		jupiter.ExitLiquidity = exitLiquidity
+		programSecurity = h.collectProgramSecuritySurface(parent, network, source, lpControl, market)
 	}
+	if source == nil {
+		source = map[string]any{}
+	}
+	source["program_security"] = programSecurity
 	if h != nil && h.DB != nil {
 		services.NewSecurityRadarStore(h.DB).CaptureLaunchForensicsFloor(parent, target, network, launch)
 	}
