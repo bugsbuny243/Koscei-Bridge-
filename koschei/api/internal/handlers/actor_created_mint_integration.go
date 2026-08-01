@@ -10,19 +10,23 @@ import (
 )
 
 type actorCreatedMintIntegrationRun struct {
-	Status                    string                               `json:"status"`
-	Discovery                 services.SolscanCreatedMintDiscovery `json:"discovery"`
-	ObservedEvidenceProduced  int                                  `json:"observed_evidence_produced"`
-	ObservedEvidencePersisted int                                  `json:"observed_evidence_persisted"`
-	CandidatesRequested       int                                  `json:"candidates_requested"`
-	CandidatesVerified        int                                  `json:"candidates_verified"`
-	LiquidCandidates          int                                  `json:"liquid_candidates"`
-	InactiveOrDeadCandidates  int                                  `json:"inactive_or_dead_candidates"`
-	VerificationFailures      int                                  `json:"verification_failures"`
-	VerifiedEvidencePersisted int                                  `json:"verified_evidence_persisted"`
-	PersistenceFailures       int                                  `json:"persistence_failures"`
-	VerifiedCandidates        []services.ActorCreatedMintCandidate `json:"verified_candidates"`
-	Limitations               []string                             `json:"limitations"`
+	Status                         string                                    `json:"status"`
+	Discovery                      services.SolscanCreatedMintDiscovery      `json:"discovery"`
+	ObservedEvidenceProduced       int                                       `json:"observed_evidence_produced"`
+	ObservedEvidencePersisted      int                                       `json:"observed_evidence_persisted"`
+	CandidatesRequested            int                                       `json:"candidates_requested"`
+	CandidatesVerified             int                                       `json:"candidates_verified"`
+	LiquidCandidates               int                                       `json:"liquid_candidates"`
+	InactiveOrDeadCandidates       int                                       `json:"inactive_or_dead_candidates"`
+	LifecycleSummary               services.ActorTokenLifecycleSummary       `json:"lifecycle_summary"`
+	LifecycleObservations          []services.ActorTokenLifecycleObservation `json:"lifecycle_observations"`
+	LifecycleObservationsPersisted int                                       `json:"lifecycle_observations_persisted"`
+	LifecyclePersistenceFailures   int                                       `json:"lifecycle_persistence_failures"`
+	VerificationFailures           int                                       `json:"verification_failures"`
+	VerifiedEvidencePersisted      int                                       `json:"verified_evidence_persisted"`
+	PersistenceFailures            int                                       `json:"persistence_failures"`
+	VerifiedCandidates             []services.ActorCreatedMintCandidate      `json:"verified_candidates"`
+	Limitations                    []string                                  `json:"limitations"`
 }
 
 func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegrationRun {
@@ -32,7 +36,10 @@ func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegratio
 			Status: "not_requested", Provider: "solscan_enhanced_transactions",
 			Wallet: strings.TrimSpace(wallet), Candidates: []services.ActorCreatedMintCandidate{}, Limitations: []string{},
 		},
-		VerifiedCandidates: []services.ActorCreatedMintCandidate{}, Limitations: []string{},
+		LifecycleSummary:      services.SummarizeActorTokenLifecycles(nil),
+		LifecycleObservations: []services.ActorTokenLifecycleObservation{},
+		VerifiedCandidates:    []services.ActorCreatedMintCandidate{},
+		Limitations:           []string{},
 	}
 }
 
@@ -135,12 +142,43 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		// Akıbet iki sonuçludur: ölçülen pozitif likidite varsa aktif,
 		// aksi halde likiditesiz/ölü kabul edilir.
 		if verified.CurrentLiquidityUSD > 0 {
-			verified.FateStatus = "active"
+			verified.FateStatus = services.ActorTokenFateActive
 			out.LiquidCandidates++
 		} else {
-			verified.FateStatus = "inactive_or_dead"
+			verified.FateStatus = services.ActorTokenFateInactiveOrDead
 			out.InactiveOrDeadCandidates++
 		}
+
+		createdOnChainAt := verified.ObservedAt
+		if createdOnChainAt.IsZero() && verified.BlockTime > 0 {
+			createdOnChainAt = time.Unix(verified.BlockTime, 0).UTC()
+		}
+		observedAt := market.ObservedAt
+		if observedAt.IsZero() {
+			observedAt = time.Now().UTC()
+		}
+		lifecycleInput := services.ActorTokenLifecycleInput{
+			Network:             network,
+			ActorWallet:         wallet,
+			Mint:                verified.Mint,
+			CreationSignature:   verified.Signature,
+			CreationSlot:        verified.Slot,
+			CreatedOnChainAt:    createdOnChainAt,
+			ObservedAt:          observedAt,
+			CurrentLiquidityUSD: verified.CurrentLiquidityUSD,
+			CurrentPriceUSD:     verified.CurrentPriceUSD,
+		}
+		lifecycle := services.BuildActorTokenLifecycleSnapshot(lifecycleInput)
+		if store != nil {
+			persisted, persistErr := store.UpsertTokenLifecycleObservation(ctx, lifecycleInput)
+			if persistErr != nil {
+				out.LifecyclePersistenceFailures++
+			} else {
+				lifecycle = persisted
+				out.LifecycleObservationsPersisted++
+			}
+		}
+		out.LifecycleObservations = append(out.LifecycleObservations, lifecycle)
 
 		out.CandidatesVerified++
 		out.VerifiedCandidates = append(out.VerifiedCandidates, verified)
@@ -155,6 +193,11 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 			}
 			out.VerifiedEvidencePersisted++
 		}
+	}
+
+	out.LifecycleSummary = services.SummarizeActorTokenLifecycles(out.LifecycleObservations)
+	if out.LifecyclePersistenceFailures > 0 {
+		out.Limitations = append(out.Limitations, "Güncel token akıbeti hesaplandı ancak bazı lifecycle gözlemleri kalıcı geçmişe yazılamadı; ortalama ömür yalnız eldeki kanıtlanmış geçiş örneklerini kullanır.")
 	}
 
 	switch {
