@@ -124,23 +124,25 @@ type LiquidityMovementEvidence struct {
 }
 
 // JupiterMarketContext is optional context. Provider failure never changes core
-// evidence, a verdict, a pathway status or signing.
+// evidence, a verdict or a pathway status. ExitLiquidity is quote-only and
+// never creates a swap transaction.
 type JupiterMarketContext struct {
-	Available               bool      `json:"available"`
-	Status                  string    `json:"status"`
-	PriceAvailable          bool      `json:"price_available"`
-	PriceUSD                float64   `json:"price_usd,omitempty"`
-	PriceBlockID            uint64    `json:"price_block_id,omitempty"`
-	PriceObservedAt         time.Time `json:"price_observed_at,omitempty"`
-	DexScreenerPriceUSD     float64   `json:"dexscreener_price_usd,omitempty"`
-	PriceDifferencePct      float64   `json:"price_difference_pct,omitempty"`
-	SellImpactAvailable     bool      `json:"sell_impact_available"`
-	SellInputAmountRaw      string    `json:"sell_input_amount_raw,omitempty"`
-	SellOutputAmountRaw     string    `json:"sell_output_amount_raw,omitempty"`
-	SellOutputMint          string    `json:"sell_output_mint,omitempty"`
-	EstimatedPriceImpactPct float64   `json:"estimated_price_impact_pct,omitempty"`
-	QuoteContextSlot        uint64    `json:"quote_context_slot,omitempty"`
-	QuoteObservedAt         time.Time `json:"quote_observed_at,omitempty"`
-	RouteLabels             []string  `json:"route_labels"`
-	Limitations             []string  `json:"limitations"`
+	Available               bool                    `json:"available"`
+	Status                  string                  `json:"status"`
+	PriceAvailable          bool                    `json:"price_available"`
+	PriceUSD                float64                 `json:"price_usd,omitempty"`
+	PriceBlockID            uint64                  `json:"price_block_id,omitempty"`
+	PriceObservedAt         time.Time               `json:"price_observed_at,omitempty"`
+	DexScreenerPriceUSD     float64                 `json:"dexscreener_price_usd,omitempty"`
+	PriceDifferencePct      float64                 `json:"price_difference_pct,omitempty"`
+	SellImpactAvailable     bool                    `json:"sell_impact_available"`
+	SellInputAmountRaw      string                  `json:"sell_input_amount_raw,omitempty"`
+	SellOutputAmountRaw     string                  `json:"sell_output_amount_raw,omitempty"`
+	SellOutputMint          string                  `json:"sell_output_mint,omitempty"`
+	EstimatedPriceImpactPct float64                 `json:"estimated_price_impact_pct,omitempty"`
+	QuoteContextSlot        uint64                  `json:"quote_context_slot,omitempty"`
+	QuoteObservedAt         time.Time               `json:"quote_observed_at,omitempty"`
+	RouteLabels             []string                `json:"route_labels"`
+	ExitLiquidity           ExitLiquiditySimulation `json:"exit_liquidity"`
+	Limitations             []string                `json:"limitations"`
 }
