@@ -1,17 +1,19 @@
 (function(root,factory){
   let enforcement=root.KoscheiWalletEnforcement;
   let verifier=root.KoscheiEnforcementPermitVerifier;
+  let trustAnchor=root.KoscheiEnforcementTrustAnchor;
   if(typeof module==='object'&&module.exports){
     enforcement=require('./koschei-wallet-enforcement.js');
     verifier=require('./koschei-enforcement-permit-verifier.js');
+    trustAnchor=require('./koschei-enforcement-trust-anchor.js');
   }
-  const api=factory(root,enforcement,verifier);
+  const api=factory(root,enforcement,verifier,trustAnchor);
   if(typeof module==='object'&&module.exports)module.exports=api;
   root.KoscheiVerifiedWalletEnforcement=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(root,enforcement,verifier){
+})(typeof globalThis!=='undefined'?globalThis:this,function(root,enforcement,verifier,trustAnchor){
   'use strict';
 
-  const VERSION='koschei-verified-wallet-enforcement-v1';
+  const VERSION='koschei-verified-wallet-enforcement-v2';
 
   function asString(value){return String(value??'').trim()}
   function normalizeAction(value){return asString(value).toLowerCase()}
@@ -24,6 +26,23 @@
     if(!verifier||typeof verifier.verifyPermit!=='function'){
       throw new Error('KoscheiEnforcementPermitVerifier must be loaded before verified enforcement.');
     }
+  }
+
+  function withTrustedDefaults(options){
+    const config=Object.assign({},options||{});
+    const customTrust=Boolean(config.pinnedKeys||config.pinnedKey||config.keyResolver);
+    if(!customTrust&&trustAnchor?.PINNED_KEYS&&trustAnchor?.CURRENT_KEY_ID){
+      config.pinnedKeys=trustAnchor.PINNED_KEYS;
+      config.expectedKeyID=asString(config.expectedKeyID||trustAnchor.CURRENT_KEY_ID);
+    }
+    if(!config.pinnedKeys&&!config.pinnedKey&&!config.keyResolver){
+      const ErrorType=verifier?.PermitVerificationError||Error;
+      throw new ErrorType(
+        'permit_trust_anchor_missing',
+        'No out-of-band Koschei enforcement trust anchor is configured.'
+      );
+    }
+    return config;
   }
 
   function cloneResponse(body,response){
@@ -61,7 +80,7 @@
 
   function createPermitVerifiedFetch(options){
     assertDependencies();
-    const config=options||{};
+    const config=withTrustedDefaults(options);
     const underlying=config.fetch||root.fetch;
     if(typeof underlying!=='function')throw new Error('A fetch implementation is required.');
     return async function permitVerifiedFetch(url,fetchOptions){
@@ -115,13 +134,15 @@
 
   function createPermitVerifiedWallet(wallet,options){
     assertDependencies();
-    const config=Object.assign({},options||{});
+    const config=withTrustedDefaults(options);
     config.fetch=createPermitVerifiedFetch(config);
     return enforcement.createGuardedWallet(wallet,config);
   }
 
   return{
     VERSION,
+    TRUST_ANCHOR_VERSION:trustAnchor?.VERSION||'',
+    CURRENT_KEY_ID:trustAnchor?.CURRENT_KEY_ID||'',
     createPermitVerifiedFetch,
     createPermitVerifiedWallet,
     PermitVerificationError:verifier?.PermitVerificationError,
