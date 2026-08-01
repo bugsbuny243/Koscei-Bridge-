@@ -79,7 +79,26 @@ func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string)
 	before := ""
 	candidateIndex := map[string]ActorCreatedMintCandidate{}
 	for page := 0; page < maxPages && ctx.Err() == nil; page++ {
+		if page > 0 {
+			select {
+			case <-ctx.Done():
+				out.Limitations = append(out.Limitations, "Creator discovery stopped: context deadline.")
+				return out
+			case <-time.After(time.Duration(holderScanEnvInt("HELIUS_CREATED_MINT_PAGE_DELAY_MS", 250, 0, 2000)) * time.Millisecond):
+			}
+		}
 		batch, err := fetchHeliusEnhancedTypedTransactionsPage(ctx, apiKey, wallet, before, pageLimit)
+		if err != nil {
+			if strings.Contains(err.Error(), "429") {
+				select {
+				case <-ctx.Done():
+				case <-time.After(1200 * time.Millisecond):
+					if retryBatch, retryErr := fetchHeliusEnhancedTypedTransactionsPage(ctx, apiKey, wallet, before, pageLimit); retryErr == nil {
+						batch, err = retryBatch, nil
+					}
+				}
+			}
+		}
 		if err != nil {
 			if out.PagesFetched == 0 {
 				out.Status = "enhanced_endpoint_unavailable"
@@ -154,10 +173,9 @@ func extractHeliusCreatedMintCandidates(transactions []heliusEnhancedTypedTransa
 			strings.Contains(txType, "SWAP") ||
 			strings.Contains(txType, "ADD_LIQUIDITY") ||
 			strings.Contains(txType, "REMOVE_LIQUIDITY")
-		isCreation := !isPoolOrLiquidity && (
-			txType == "TOKEN_MINT" || txType == "CREATE" ||
-				strings.Contains(txType, "CREATE") ||
-				(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER"))
+		isCreation := !isPoolOrLiquidity && (txType == "TOKEN_MINT" || txType == "CREATE" ||
+			strings.Contains(txType, "CREATE") ||
+			(strings.Contains(source, "pump") && txType != "SWAP" && txType != "TRANSFER"))
 		if !isCreation {
 			continue
 		}
