@@ -4,12 +4,13 @@ Koschei wallet enforcement verifies short-lived Guard permits against an out-of-
 
 ## Active production key
 
-- Key ID: `tgk_c7a9c6f81e4acb98`
-- Public key (base64): `lCXYBwWBUlws5nZj7cb2uBs1+AnXvSXVK6v9iwKs8k4=`
-- Algorithm: Ed25519
-- Permit lifetime: 45 seconds
+The active key ID and base64 public key are intentionally committed in:
 
-The public key is intentionally committed in `public/js/koschei-enforcement-trust-anchor.js`. It is not secret.
+```text
+public/js/koschei-enforcement-trust-anchor.js
+```
+
+That file is the single source of truth for the browser trust anchor. The public key is not secret.
 
 The matching private key must exist only as the Railway secret:
 
@@ -18,6 +19,8 @@ TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY
 ```
 
 Never commit, log, screenshot or transmit the private key.
+
+The production permit lifetime is 45 seconds.
 
 ## Browser loading order
 
@@ -35,7 +38,7 @@ A public key returned inside the Guard response is never accepted as the trust s
 ## Railway variables
 
 ```text
-TRANSACTION_GUARD_ENFORCEMENT_KEY_ID=tgk_c7a9c6f81e4acb98
+TRANSACTION_GUARD_ENFORCEMENT_KEY_ID=<CURRENT_KEY_ID from trust-anchor.js>
 TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS=45
 TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY=<sealed Railway secret>
 ```
@@ -57,7 +60,7 @@ Never replace the Railway signing key before clients trust the new public key. D
 
 `Enforcement Trust Anchor CI` verifies:
 
-- the exact production key ID and public key
+- the exact production key ID and public key from the trust-anchor module
 - the Ed25519 public key is exactly 32 bytes
 - the verified wrapper exposes the active production key ID
 - an attacker key reusing the production key ID is rejected
