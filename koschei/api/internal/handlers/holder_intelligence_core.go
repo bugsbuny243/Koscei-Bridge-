@@ -109,6 +109,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		final = services.ArvisFinalFromBundle(bundle)
 		jupiter = h.collectJupiterMarketContext(parent, network, target, intelligence, market)
 		exitLiquidity = h.collectExitLiquiditySimulation(parent, network, target, market, jupiter)
+		jupiter.ExitLiquidity = exitLiquidity
 	}
 	if h != nil && h.DB != nil {
 		services.NewSecurityRadarStore(h.DB).CaptureLaunchForensicsFloor(parent, target, network, launch)
