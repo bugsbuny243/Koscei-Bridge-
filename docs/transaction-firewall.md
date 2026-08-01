@@ -1,28 +1,19 @@
-# Transaction Guard v3
+# Transaction Guard v2
 
-Koschei Transaction Guard is a pre-signing, evidence-first Solana transaction assessment endpoint. It extends the original Transaction Firewall without changing the server-side no-custody boundary.
+Koschei Transaction Guard is a pre-signing, evidence-first Solana transaction assessment endpoint. It extends the original Transaction Firewall without changing the no-custody boundary.
 
 ## Current mode
 
-The Guard API remains read-only shadow infrastructure:
+The release runs in shadow mode:
 
 - it never signs a transaction
 - it never submits a transaction
 - it never stores the serialized transaction
+- it never blocks a wallet automatically
 - it returns `allow`, `warn`, `block` or `withhold`
 - it stores only a transaction fingerprint, policy evidence, findings and sanitized simulation logs
 - deterministic simulation failures remain explicit `block` decisions
 - RPC/provider outages return `withhold` with HTTP 503
-
-For applications that integrate the optional client SDK, `koschei-wallet-enforcement.js` can enforce those decisions locally before protected wallet calls:
-
-- `block` and `withhold` never reach the wrapped wallet
-- `warn` requires approval bound to the exact transaction fingerprint
-- transaction bytes are checked again immediately before signing
-- the signed transaction message is checked after signing
-- incomplete evidence never becomes an implicit allow
-
-This is an integration boundary, not universal wallet protection. A malicious dApp can bypass an optional SDK by calling the raw wallet provider. See [Transaction Guard Wallet Enforcement v1](transaction-guard-wallet-enforcement.md) for the exact boundary and integration contract.
 
 ## Endpoint
 
@@ -62,31 +53,14 @@ Content-Type: application/json
 
 All request-supplied wallet, program, account and mint identities are decoded as Solana public keys. A malformed policy is rejected rather than silently weakened.
 
-## Evidence surfaces
-
-Guard v3 combines:
-
-- serialized transaction decoding, including v0 address lookup tables
-- outer and inner program calls
-- automatic pre/post SOL and token-account changes
-- CPI asset flow and program-controlled vault candidates
-- signed UI intent binding
-- exact-address signed Threat History matches
-- SPL Token and Token-2022 authority surface
-- final simulated delegate, mint-authority, freeze-authority, owner and close-authority state when available
-- Token-2022 permanent delegate, transfer fee and transfer-hook instructions
-- a human-readable pre-signing explanation
-
-Required evidence that cannot be completed produces `withhold`, not a safe claim.
-
 ## Program policy
 
 - `expected_programs`: when supplied, every non-built-in invoked program must be expected.
-- `required_programs`: each listed program must appear in the complete execution surface.
+- `required_programs`: each listed program must appear in the complete simulation log surface.
 - `blocked_programs`: any invocation is a critical block finding.
 - `TRANSACTION_GUARD_BLOCKED_PROGRAMS`: operator-level comma-separated denylist. A malformed configured entry fails closed with HTTP 503.
 
-Program policy includes programs resolved from simulation logs, decoded transactions, CPI execution and Token-2022 transfer hooks. Only the log copy returned to clients is capped and sanitized.
+Program policy reads all simulation logs. Only the copy returned to clients is capped and sanitized.
 
 ## Account policy
 
@@ -109,14 +83,14 @@ Normal account lifecycle is supported:
 - a missing post-state is treated as zero only for an `input` account closed by the transaction
 - missing sides for other roles remain `withhold`
 
-`decimals` is caller-declared metadata. Raw integer amounts remain the enforcement source of truth.
+`decimals` is caller-declared metadata and is returned as `declared_decimals` with `decimals_verified=false`. Raw integer amounts are the enforcement source of truth.
 
 ## Decisions
 
-- `allow`: simulation and every required evidence policy completed without a risk finding that changes the decision.
+- `allow`: simulation and every requested evidence policy completed without a finding.
 - `warn`: reviewable execution or policy evidence was found.
-- `block`: deterministic simulation failure, dangerous instruction, blocked program, mint mismatch, critical amount-policy violation, dangerous authority capability, signed historical risk match or undeclared wallet-origin CPI exit.
-- `withhold`: provider unavailable, response identity mismatch or required evidence incomplete.
+- `block`: deterministic simulation failure, dangerous instruction, blocked program, mint mismatch, or critical amount-policy violation.
+- `withhold`: provider unavailable or required evidence incomplete.
 
 A missing signal never means safe.
 
@@ -164,10 +138,6 @@ Provider URLs and credentials are never persisted in delivery errors.
 ```env
 KOSCHEI_TRANSACTION_FIREWALL_ENABLED=true
 TRANSACTION_GUARD_BLOCKED_PROGRAMS=
-TRANSACTION_GUARD_REQUIRE_SIGNED_INTENT=false
-TRANSACTION_GUARD_REQUIRE_THREAT_HISTORY=false
-TRANSACTION_GUARD_REQUIRE_CPI_FLOW=true
-TRANSACTION_GUARD_REQUIRE_AUTHORITY_SURFACE=true
 ```
 
-The Guard follows Koschei's canonical Solana RPC resolution order. Server-side transaction submission remains outside the product boundary; integrated applications may enforce Guard decisions locally through the strict wallet middleware.
+The Guard follows Koschei's canonical Solana RPC resolution order. Automatic transaction submission or enforcement is not part of this release.
