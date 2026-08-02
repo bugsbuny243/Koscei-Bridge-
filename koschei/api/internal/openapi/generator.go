@@ -14,11 +14,14 @@ import (
 )
 
 type Route struct {
-	Pattern  string
-	Path     string
-	Methods  []string
-	AuthTier string
-	Source   string
+	Pattern         string
+	Path            string
+	Methods         []string
+	AuthTier        string
+	InventoryAuth   string
+	InventoryGroup  string
+	InventorySource string
+	Source          string
 }
 
 type Document map[string]any
@@ -28,7 +31,11 @@ func Generate(sourceDir string) ([]byte, []Route, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	document := buildDocument(routes)
+	inventory, err := RouteInventory(sourceDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	document := buildDocument(routes, inventory)
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +74,14 @@ func RegisteredAPIRoutes(sourceDir string) ([]Route, error) {
 			}
 			route := byPath[path]
 			if route == nil {
-				route = &Route{Pattern: pattern, Path: path, AuthTier: authTier(path, filename), Source: filepath.Base(filename)}
+				route = &Route{
+					Pattern:         pattern,
+					Path:            path,
+					AuthTier:        authTier(path, filename),
+					InventoryGroup:  routeTag(path),
+					InventorySource: "boot_chain_fallback",
+					Source:          filepath.Base(filename),
+				}
 				byPath[path] = route
 			}
 			route.Methods = uniqueSorted(append(route.Methods, methods...))
@@ -79,7 +93,11 @@ func RegisteredAPIRoutes(sourceDir string) ([]Route, error) {
 		routes = append(routes, *route)
 	}
 	sort.Slice(routes, func(i, j int) bool { return routes[i].Path < routes[j].Path })
-	return routes, nil
+	inventory, err := RouteInventory(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	return enrichRoutesWithInventory(routes, inventory), nil
 }
 
 func isHandleFunc(expression ast.Expr) bool {
@@ -207,7 +225,7 @@ func uniqueSorted(values []string) []string {
 	return out
 }
 
-func buildDocument(routes []Route) Document {
+func buildDocument(routes []Route, inventory []InventoryRoute) Document {
 	paths := map[string]any{}
 	for _, route := range routes {
 		pathItem := map[string]any{}
@@ -216,6 +234,7 @@ func buildDocument(routes []Route) Document {
 		}
 		paths[route.Path] = pathItem
 	}
+	excludedInventory := excludedInventoryOperations(routes, inventory)
 	return Document{
 		"openapi": "3.1.0",
 		"info": map[string]any{
@@ -223,8 +242,10 @@ func buildDocument(routes []Route) Document {
 			"version": "2026-08-02",
 			"description": "Evidence-first API contract generated from the registered server boot chain. " +
 				"Static files, HTML pages, robots.txt and ads.txt are intentionally excluded; every registered /api/ route is included. " +
+				"route_inventory.go supplies grouping and auth semantics only for matching live registrations. Inventory operations not registered in the boot chain are excluded from paths and listed in x-koschei-excluded-unregistered-inventory-operations. " +
 				"WITHHOLD is a valid verdict when required evidence is unavailable and carries unmet_evidence_reasons. Evidence counts are never quality scores.",
 		},
+		"x-koschei-excluded-unregistered-inventory-operations": excludedInventory,
 		"servers": []any{map[string]any{"url": "/"}},
 		"paths":   paths,
 		"components": map[string]any{
@@ -239,15 +260,21 @@ func buildDocument(routes []Route) Document {
 }
 
 func operation(route Route, method string) map[string]any {
+	group := strings.TrimSpace(route.InventoryGroup)
+	if group == "" {
+		group = routeTag(route.Path)
+	}
 	operation := map[string]any{
-		"operationId":         operationID(method, route.Path),
-		"summary":             strings.ToUpper(method) + " " + route.Path,
-		"description":         "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
-		"tags":                []string{routeTag(route.Path)},
-		"x-koschei-auth-tier": route.AuthTier,
-		"parameters":          pathParameters(route.Path),
-		"responses":           responses(route.AuthTier),
-		"security":            security(route.AuthTier),
+		"operationId":              operationID(method, route.Path),
+		"summary":                  strings.ToUpper(method) + " " + route.Path,
+		"description":              "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+		"tags":                     []string{group},
+		"x-koschei-auth-tier":      route.AuthTier,
+		"x-koschei-inventory-auth": route.InventoryAuth,
+		"x-koschei-route-source":   route.InventorySource,
+		"parameters":               pathParameters(route.Path),
+		"responses":                responses(route.AuthTier),
+		"security":                 security(route.AuthTier),
 	}
 	if method == "post" || method == "put" || method == "patch" {
 		operation["requestBody"] = map[string]any{
