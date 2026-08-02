@@ -1,0 +1,55 @@
+name: Run ARVIS premium branch patch once
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/run-arvis-premium-suite-once.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/arvis-premium-evidence-center
+          fetch-depth: 0
+      - name: Execute the branch-owned patch
+        run: |
+          python3 - <<'RUNNER'
+          from pathlib import Path
+          workflow = Path('.github/workflows/apply-arvis-premium-suite.yml').read_text()
+          start = workflow.index("          python3 - <<'PY'\n") + len("          python3 - <<'PY'\n")
+          end = workflow.index("\n          PY\n", start)
+          lines = workflow[start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          exec(compile(script, 'apply-arvis-premium-suite', 'exec'))
+          RUNNER
+          gofmt -w \
+            koschei/api/internal/services/holder_cluster_intelligence.go \
+            koschei/api/internal/services/holder_cluster_enhanced_history.go \
+            koschei/api/internal/services/holder_scan_tiers_test.go \
+            koschei/api/internal/services/unified_radar_rules.go \
+            koschei/api/internal/handlers/token_2022_extensions.go \
+            koschei/api/internal/handlers/token_scanner.go \
+            koschei/api/internal/handlers/security_radar_exposure_token2022.go
+      - name: Validate and build
+        run: |
+          node --check koschei/api/public/js/arvis-premium-contract.js
+          node --check koschei/api/public/js/owner-arvis-premium-suite.js
+          node --check koschei/api/public/js/owner-social-studio.js
+          node --check koschei/api/public/js/customer-arvis-premium-suite.js
+          node --check koschei/api/public/js/koschei-english-runtime.js
+          node --check koschei/api/public/js/koschei-global-shell.js
+          cd koschei/api
+          go test ./internal/services ./internal/handlers
+          go build ./...
+      - name: Commit to feature branch
+        run: |
+          git config user.name koschei-ci
+          git config user.email actions@users.noreply.github.com
+          git add koschei/api
+          git commit -m "complete ARVIS premium evidence suite"
+          git push origin HEAD:agent/arvis-premium-evidence-center
