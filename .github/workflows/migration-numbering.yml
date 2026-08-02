@@ -1,0 +1,36 @@
+name: Migration Numbering
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "koschei/api/migrations/**"
+      - "koschei/api/scripts/check_migration_numbering.py"
+      - "koschei/api/scripts/test_migration_numbering.py"
+      - "docs/migration-numbering-hygiene.md"
+      - ".github/workflows/migration-numbering.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/migrations/**"
+      - "koschei/api/scripts/check_migration_numbering.py"
+      - "koschei/api/scripts/test_migration_numbering.py"
+      - "docs/migration-numbering-hygiene.md"
+      - ".github/workflows/migration-numbering.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject new duplicate prefixes, gaps, and history rewrites
+        run: python3 scripts/check_migration_numbering.py
+      - name: Prove duplicate and gap failures
+        run: python3 -m unittest scripts/test_migration_numbering.py
