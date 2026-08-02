@@ -251,7 +251,7 @@ func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string
 	}
 	row := HolderClusterWallet{
 		Rank: account.Rank, Wallet: account.OwnerWallet, HolderPercentage: holderClusterRound(percentage, 4),
-		Status: "signature_history_unavailable", Tier: "enhanced", BudgetDegraded: plan.BudgetDegraded,
+		Status: "signature_history_unavailable", Tier: plan.Tier, Collector: "helius_enhanced", BudgetDegraded: plan.BudgetDegraded,
 		FlowObservations: []HolderClusterFlowObservation{}, Evidence: []string{},
 	}
 
@@ -317,7 +317,9 @@ func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string
 		row.FreshNearLaunch = delta >= -86400 && delta <= 86400
 	}
 
-	for _, tx := range transactions {
+	selectedTransactions := holderClusterEnhancedTransactionsForLimit(transactions, launchBlockTime, plan.TransactionLimit)
+	var earliestFundingTimestamp int64
+	for _, tx := range selectedTransactions {
 		if tx.TransactionError != nil || strings.TrimSpace(tx.Signature) == "" {
 			continue
 		}
@@ -340,20 +342,20 @@ func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string
 			}
 		}
 
-		// Funding source: earliest observed native inflow to the owner wallet.
-		if row.FundingSource == "" {
-			for _, native := range tx.NativeTransfers {
-				if !strings.EqualFold(native.ToUserAccount, account.OwnerWallet) || native.Amount <= 0 {
-					continue
-				}
-				source := strings.TrimSpace(native.FromUserAccount)
-				if source == "" || strings.EqualFold(source, account.OwnerWallet) {
-					continue
-				}
+		// Preserve the earliest native inflow found inside the examined window.
+		for _, native := range tx.NativeTransfers {
+			if !strings.EqualFold(native.ToUserAccount, account.OwnerWallet) || native.Amount <= 0 {
+				continue
+			}
+			source := strings.TrimSpace(native.FromUserAccount)
+			if source == "" || strings.EqualFold(source, account.OwnerWallet) {
+				continue
+			}
+			if row.FundingSource == "" || (tx.Timestamp > 0 && (earliestFundingTimestamp == 0 || tx.Timestamp < earliestFundingTimestamp)) {
 				row.FundingSource = source
 				row.FundingAmountSOL = holderClusterRound(float64(native.Amount)/1e9, 9)
 				row.FundingObservedAt = holderClusterUnixTime(tx.Timestamp)
-				break
+				earliestFundingTimestamp = tx.Timestamp
 			}
 		}
 
@@ -378,9 +380,50 @@ func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string
 	} else {
 		row.Status = "signature_only_observation"
 	}
-	row.Evidence = append(row.Evidence, fmt.Sprintf("enhanced tier observed %d transactions and parsed %d via the Helius Enhanced Transactions API; window_exhausted=%t.", row.SignaturesFetched, row.TxsParsed, row.WindowExhausted))
+	row.Evidence = append(row.Evidence, fmt.Sprintf("%s tier used the Helius Enhanced Transactions collector: %d history entries fetched, %d transactions parsed (limit %d); window_exhausted=%t.", plan.Tier, row.SignaturesFetched, row.TxsParsed, plan.TransactionLimit, row.WindowExhausted))
 	if row.FreshNearLaunch {
 		row.Evidence = append(row.Evidence, "Oldest observed wallet activity falls within 24 hours of the bounded token launch estimate.")
 	}
 	return row, true
+}
+
+func holderClusterEnhancedTransactionsForLimit(transactions []heliusEnhancedTransaction, launchBlockTime int64, limit int) []heliusEnhancedTransaction {
+	if limit <= 0 || len(transactions) <= limit {
+		return append([]heliusEnhancedTransaction{}, transactions...)
+	}
+	indexes := []int{}
+	seen := map[int]bool{}
+	appendIndex := func(index int) {
+		if len(indexes) >= limit || index < 0 || index >= len(transactions) || seen[index] {
+			return
+		}
+		seen[index] = true
+		indexes = append(indexes, index)
+	}
+	appendIndex(0)
+	appendIndex(len(transactions) - 1)
+	if launchBlockTime > 0 {
+		closest, best := -1, int64(1<<62)
+		for index, tx := range transactions {
+			if tx.Timestamp <= 0 {
+				continue
+			}
+			delta := tx.Timestamp - launchBlockTime
+			if delta < 0 {
+				delta = -delta
+			}
+			if delta < best {
+				best, closest = delta, index
+			}
+		}
+		appendIndex(closest)
+	}
+	for index := 1; len(indexes) < limit && index < len(transactions)-1; index++ {
+		appendIndex(index)
+	}
+	out := make([]heliusEnhancedTransaction, 0, len(indexes))
+	for _, index := range indexes {
+		out = append(out, transactions[index])
+	}
+	return out
 }

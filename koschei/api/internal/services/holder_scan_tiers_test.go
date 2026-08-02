@@ -1,6 +1,9 @@
 package services
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestHolderClusterTierAssignmentExcludesProtocolInventory(t *testing.T) {
 	accounts := []HolderRoleAccount{{Rank: 1, OwnerWallet: "LP", Balance: 1000, Role: "pump_liquidity_vault", ExcludedFromHolderRisk: true}}
@@ -52,5 +55,19 @@ func TestHolderClusterTransactionIndexesRespectTierLimit(t *testing.T) {
 	}
 	if got := len(holderClusterTransactionIndexesForLimit(signatures, 0, 10)); got != 10 {
 		t.Fatalf("deep indexes = %d", got)
+	}
+}
+
+func TestHolderClusterEnhancedTransactionsRespectTierLimit(t *testing.T) {
+	transactions := make([]heliusEnhancedTransaction, 30)
+	for index := range transactions {
+		transactions[index].Signature = fmt.Sprintf("sig-%d", index)
+		transactions[index].Timestamp = int64(1000 - index)
+	}
+	if got := len(holderClusterEnhancedTransactionsForLimit(transactions, 975, 2)); got != 2 {
+		t.Fatalf("standard enhanced parsed transactions = %d, want 2", got)
+	}
+	if got := len(holderClusterEnhancedTransactionsForLimit(transactions, 975, 20)); got != 20 {
+		t.Fatalf("deep enhanced parsed transactions = %d, want 20", got)
 	}
 }

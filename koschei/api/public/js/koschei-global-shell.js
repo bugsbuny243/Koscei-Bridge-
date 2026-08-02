@@ -1,3 +1,4 @@
+(()=>{if(typeof document!=="undefined"&&!document.querySelector('script[data-koschei-english-runtime]')){const script=document.createElement('script');script.src='/js/koschei-english-runtime.js?v=1';script.dataset.koscheiEnglishRuntime='1';document.head.appendChild(script);}})();
 (function(){
   function ready(fn){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});}else{fn();}}
 
