@@ -160,16 +160,27 @@ func (h *Handler) collectActorFundingOrigin(ctx context.Context, store *services
 	timeout := time.Duration(actorDefenseEnvInt("ACTOR_FUNDING_TIMEOUT_SECONDS", 75, 20, 140)) * time.Second
 	fundingCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	origin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, services.ActorFundingOriginOptions{
+	options := services.ActorFundingOriginOptions{
 		PageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
 		MaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
 		OldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
-	})
+	}
+	origin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, options)
 	if err != nil {
+		reason := "Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)
 		return services.ActorFundingOrigin{
 			Wallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
 			TrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
-			Limitations: []string{"Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)},
+			ResultState: services.ActorFundingResultMissing,
+			Boundary: services.ActorFundingBoundary{
+				Kind:                    "collector_error",
+				Reason:                  reason,
+				EffectivePageSize:       options.PageSize,
+				EffectiveMaxPages:       options.MaxPages,
+				EffectiveSignatureLimit: options.PageSize * options.MaxPages,
+				EffectiveParseLimit:     options.OldestTransactionsToParse,
+			},
+			Limitations: []string{reason},
 		}, "not_persisted"
 	}
 	evidence, ok := services.ActorFundingOriginEvidence(origin, network)

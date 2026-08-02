@@ -154,3 +154,19 @@ func TestActorFundingUnverifiedClaimStillEmitsNoEvidence(t *testing.T) {
 		t.Fatal("unverified funding claim emitted evidence")
 	}
 }
+
+func TestBoundedFundingWithCanonicalTransferStillEmitsNoClaimEvidence(t *testing.T) {
+	origin := ActorFundingOrigin{
+		ResultState:  ActorFundingResultBounded,
+		SourceWallet: "source", DestinationWallet: "destination", Signature: "signature",
+		Slot: 42, VerificationStatus: "verified",
+		Boundary: ActorFundingBoundary{Kind: "configured_signature_window", Raisable: true},
+	}
+	if _, ok := ActorFundingOriginEvidence(origin, "solana-mainnet"); ok {
+		t.Fatal("bounded window emitted an initial-funding claim")
+	}
+	item := actorAcceptanceFunding(origin, "solana-mainnet")
+	if item.Status != ActorAcceptanceBounded || len(item.Evidence) != 0 {
+		t.Fatalf("bounded AC-04=%+v", item)
+	}
+}

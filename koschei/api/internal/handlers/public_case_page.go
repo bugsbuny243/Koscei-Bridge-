@@ -316,7 +316,7 @@ func publicCaseFunding(raw any) publicCaseFundingView {
 	boundary := dossierMap(funding["boundary"])
 	resultState := strings.ToLower(strings.TrimSpace(dossierString(funding["result_state"])))
 	verification := strings.ToLower(strings.TrimSpace(dossierString(funding["verification_status"])))
-	claimAvailable := dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"
+	claimAvailable := resultState == "verified" && dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"
 	state := resultState
 	if claimAvailable {
 		state = "verified"
@@ -354,11 +354,16 @@ func publicCaseFunding(raw any) publicCaseFundingView {
 	}
 	switch state {
 	case "verified":
-		view.Status = firstPublicDossierString(verification, "verified")
-		view.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+		if claimAvailable {
+			view.Status = firstPublicDossierString(verification, "verified")
+			view.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+		} else {
+			view.Status = "doğrulanmış sonuç"
+			view.Summary = "Mevcut imza geçmişi tamamlandı; kanonik doğrudan funding transferi gözlenmedi ve funding iddiası üretilmedi."
+		}
 	case "bounded":
 		view.Status = "zincir sınırı"
-		view.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik funding iddiası üretilemedi. Bu sonuç eksik worker işi değildir."
+		view.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik initial-funding iddiası üretilemedi. Bu sonuç açık worker borcu değildir."
 		if reason := dossierString(boundary["reason"]); reason != "" {
 			view.Limitations = append([]string{reason}, view.Limitations...)
 		}

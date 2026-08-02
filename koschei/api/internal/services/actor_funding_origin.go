@@ -230,16 +230,13 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 	result.Program = "system"
 	result.InstructionType = chosen.InstructionType
 	result.TrailStatus = "source_wallet_observed"
-	result.ResultState = ActorFundingResultVerified
 	switch {
 	case parseBoundaryReached:
 		markActorFundingParseBoundary(&result, parseLimit)
-		result.ResultState = ActorFundingResultVerified
-		result.Boundary.Reason = "A funding transfer was verified, but the parse boundary means a deeper walk could change whether it is the initial funding."
+		result.Boundary.Reason = "A funding transfer was observed inside the scanned window, but the parse boundary prevents it from being published as the initial funding origin."
 	case pageBoundaryReached:
 		markActorFundingPageBoundary(&result, pageSize, maxPages)
-		result.ResultState = ActorFundingResultVerified
-		result.Boundary.Reason = "A funding transfer was verified, but the signature boundary means a deeper walk could change whether it is the initial funding."
+		result.Boundary.Reason = "A funding transfer was observed inside the scanned window, but the signature boundary prevents it from being published as the initial funding origin."
 	default:
 		markActorFundingComplete(&result, "funding_transfer_verified")
 	}
@@ -259,6 +256,9 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 }
 
 func ActorFundingOriginEvidence(origin ActorFundingOrigin, network string) (ActorDefenseEvidenceRecord, bool) {
+	if origin.ResultState == ActorFundingResultBounded {
+		return ActorDefenseEvidenceRecord{}, false
+	}
 	if strings.TrimSpace(origin.SourceWallet) == "" || strings.TrimSpace(origin.DestinationWallet) == "" || strings.TrimSpace(origin.Signature) == "" {
 		return ActorDefenseEvidenceRecord{}, false
 	}

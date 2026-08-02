@@ -143,23 +143,15 @@ func actorAcceptanceCreatedTokens(dossier ActorDefenseDossier) ActorAcceptanceIt
 }
 
 func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcceptanceItem {
-	row, ok := actorAcceptanceFundingLine(origin, network)
-	if ok {
-		summary := "Funding source observed; identity remains limited to an on-chain wallet."
-		if strings.Contains(strings.ToLower(origin.TrailStatus), "cex") {
-			summary = "Trail ends at CEX — identity opaque."
-		}
-		return actorAcceptanceItem("AC-04", "Initial funding origin is shown", ActorAcceptancePass, normalizeActorEvidenceStatus(origin.VerificationStatus), summary, []ActorAcceptanceEvidenceLine{row})
-	}
 	if origin.ResultState == ActorFundingResultBounded {
 		boundary := origin.Boundary
 		summary := fmt.Sprintf(
-			"Funding-origin investigation completed at a published boundary: %d page(s), %d signature(s), %d parsed transaction(s); no funding claim was emitted.",
+			"Funding-origin investigation completed at a published boundary: %d page(s), %d signature(s), %d parsed transaction(s); no initial-funding claim was emitted.",
 			boundary.PagesScanned, boundary.SignaturesWalked, boundary.TransactionsParsed,
 		)
 		limitation := boundary.Reason
 		if limitation == "" {
-			limitation = "The effective chain boundary was reached without a complete canonical funding evidence line."
+			limitation = "The effective chain boundary was reached without a complete canonical initial-funding evidence line."
 		}
 		if boundary.Raisable {
 			limitation += " The effective working boundary is raisable within the published hard ceiling."
@@ -167,6 +159,14 @@ func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcce
 			limitation += " The run reached a non-raisable hard boundary for this code version."
 		}
 		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceBounded, "bounded_by_chain", summary, limitation)
+	}
+	row, ok := actorAcceptanceFundingLine(origin, network)
+	if ok {
+		summary := "Funding source observed; identity remains limited to an on-chain wallet."
+		if strings.Contains(strings.ToLower(origin.TrailStatus), "cex") {
+			summary = "Trail ends at CEX — identity opaque."
+		}
+		return actorAcceptanceItem("AC-04", "Initial funding origin is shown", ActorAcceptancePass, normalizeActorEvidenceStatus(origin.VerificationStatus), summary, []ActorAcceptanceEvidenceLine{row})
 	}
 	if origin.ResultState == ActorFundingResultVerified && origin.HistoryComplete {
 		return actorAcceptanceItem(

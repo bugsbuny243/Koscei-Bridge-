@@ -73,3 +73,18 @@ func TestPublicCaseFundingRendersVerifiedClaimOnlyWithCanonicalFields(t *testing
 		t.Fatalf("view=%+v", view)
 	}
 }
+
+func TestPublicCaseFundingVerifiedAbsenceDoesNotClaimTransfer(t *testing.T) {
+	view := publicCaseFunding(map[string]any{
+		"result_state":        "verified",
+		"verification_status": "unverified",
+		"history_complete":    true,
+		"boundary":            map[string]any{"kind": "history_complete_no_direct_funding"},
+	})
+	if view.State != "verified" || view.ClaimAvailable {
+		t.Fatalf("view=%+v", view)
+	}
+	if strings.Contains(view.Summary, "Funding transfer kanıtı") || !strings.Contains(view.Summary, "iddiası üretilmedi") {
+		t.Fatalf("verified absence copy=%q", view.Summary)
+	}
+}
