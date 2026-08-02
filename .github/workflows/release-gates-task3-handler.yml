@@ -1,0 +1,84 @@
+name: Release Gates Task 3 Handler
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Publish effective boundary on collector errors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('internal/handlers/actor_defense_investigation.go')
+          s = p.read_text()
+          old = '''\torigin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, services.ActorFundingOriginOptions{
+          \t\tPageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
+          \t\tMaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
+          \t\tOldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
+          \t})
+          \tif err != nil {
+          \t\treturn services.ActorFundingOrigin{
+          \t\t\tWallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
+          \t\t\tTrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
+          \t\t\tLimitations: []string{"Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)},
+          \t\t}, "not_persisted"
+          \t}'''
+          new = '''\toptions := services.ActorFundingOriginOptions{
+          \t\tPageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
+          \t\tMaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
+          \t\tOldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
+          \t}
+          \torigin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, options)
+          \tif err != nil {
+          \t\treason := "Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)
+          \t\treturn services.ActorFundingOrigin{
+          \t\t\tWallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
+          \t\t\tTrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
+          \t\t\tResultState: services.ActorFundingResultMissing,
+          \t\t\tBoundary: services.ActorFundingBoundary{
+          \t\t\t\tKind:                    "collector_error",
+          \t\t\t\tReason:                  reason,
+          \t\t\t\tEffectivePageSize:       options.PageSize,
+          \t\t\t\tEffectiveMaxPages:       options.MaxPages,
+          \t\t\t\tEffectiveSignatureLimit: options.PageSize * options.MaxPages,
+          \t\t\t\tEffectiveParseLimit:     options.OldestTransactionsToParse,
+          \t\t\t},
+          \t\t\tLimitations: []string{reason},
+          \t\t}, "not_persisted"
+          \t}'''
+          if old not in s:
+              raise SystemExit('funding collector error anchor not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          gofmt -w internal/handlers/actor_defense_investigation.go
+          go test ./internal/handlers ./internal/services -run 'Funding|ActorAcceptance|PublicCase' -count=1
+      - name: Commit handler boundary contract
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Funding handler boundary already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/handlers/actor_defense_investigation.go
+          git commit -m "actor: publish effective funding boundary on collector errors"
+          git push origin HEAD:agent/release-gates-2026-08-02
