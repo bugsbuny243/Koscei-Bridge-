@@ -59,12 +59,12 @@ func (r *fakeRepository) FinishRun(_ context.Context, _ string, _ Result, runErr
 }
 
 type fakeSink struct {
-	objects      map[string][]byte
-	writeErr     error
-	readErr      error
-	corruptRead  bool
-	writeCalls   int
-	readCalls    int
+	objects     map[string][]byte
+	writeErr    error
+	readErr     error
+	corruptRead bool
+	writeCalls  int
+	readCalls   int
 }
 
 func (s *fakeSink) Name() string { return "fake" }

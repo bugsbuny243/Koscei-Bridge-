@@ -139,6 +139,12 @@ func (w *securityRadarRetentionWorker) runOnce(ctx context.Context) {
 		log.Printf("radar retention: archive tables unavailable; nothing deleted (apply migration 084)")
 		return
 	}
+	// Export the existing backlog before enforcing the ceiling. This allows a
+	// recovered sink to drain the staging ledger without weakening the guard.
+	if err := w.exportPendingArchive(ctx, "before_retention"); err != nil {
+		log.Printf("radar retention: halted; %v", err)
+		return
+	}
 	backlog, err := w.unexportedBacklog(ctx)
 	if err != nil {
 		log.Printf("radar retention: backlog probe failed: %v", err)
@@ -176,6 +182,11 @@ func (w *securityRadarRetentionWorker) runOnce(ctx context.Context) {
 		case mismatches > 0:
 			stats.Mismatches = mismatches
 			stats.HaltReason = fmt.Sprintf("%d archived rows failed checksum verification", mismatches)
+		}
+	}
+	if stats.HaltReason == "" {
+		if err := w.exportPendingArchive(ctx, "after_retention"); err != nil {
+			stats.HaltReason = err.Error()
 		}
 	}
 	if stats.HaltReason == "" {
