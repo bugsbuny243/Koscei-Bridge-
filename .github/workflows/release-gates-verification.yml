@@ -1,0 +1,90 @@
+name: Release Gates Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-verification:
+    name: Go 1.25.12, PostgreSQL 17, race and evidence gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_release_gate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_release_gate"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go 1.25.12
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Record toolchain
+        run: go version
+      - name: Download modules
+        run: go mod download
+      - name: Require gofmt clean tree
+        run: |
+          set -euo pipefail
+          unformatted="$(gofmt -l .)"
+          if [ -n "${unformatted}" ]; then
+            printf '%s\n' "${unformatted}"
+            exit 1
+          fi
+      - name: Apply all migrations on PostgreSQL 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "RUN ${migration}"
+            psql \
+              --host=127.0.0.1 \
+              --port=5432 \
+              --username=postgres \
+              --dbname=koschei_release_gate \
+              --set=ON_ERROR_STOP=1 \
+              --file="${migration}"
+            echo "PASS ${migration}"
+          done
+      - name: Verify PostgreSQL 17 retention hash primitives
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          result="$(psql --host=127.0.0.1 --port=5432 --username=postgres --dbname=koschei_release_gate --tuples-only --no-align --set=ON_ERROR_STOP=1 --command="SELECT encode(sha256(convert_to('{}','UTF8')),'hex');")"
+          test "${result}" = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          echo "sha256(convert_to())=${result}"
+      - name: Verify archive, resume and checksum fail-closed on PostgreSQL 17
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_release_gate?sslmode=disable
+        run: go test -v ./internal/services -run '^TestRetentionArchiveDeletePostgres17$' -count=1
+      - name: Test all packages
+        run: go test ./...
+      - name: Race-test July consolidation packages
+        run: go test -race ./internal/handlers ./internal/services ./internal/defense
+      - name: Vet all packages
+        run: go vet ./...
+      - name: Build all packages
+        run: CGO_ENABLED=0 GOOS=linux go build ./...
