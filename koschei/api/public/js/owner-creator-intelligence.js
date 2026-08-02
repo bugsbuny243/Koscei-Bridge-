@@ -31,7 +31,7 @@
   function candidateRows(portfolio){
     const rows=uniqueCandidates(portfolio);
     if(!rows.length)return'<div class="empty">Creator tarafından oluşturulduğu keşfedilen mint bulunmadı veya Helius/RPC kanıtı alınamadı.</div>';
-    return `<div class="table-wrap"><table class="table"><thead><tr><th>Mint</th><th>Program / instruction</th><th>İmza</th><th>Slot</th><th>Doğrulama</th></tr></thead><tbody>${rows.slice(0,50).map(row=>`<tr><td class="mono"><b>${esc(short(row.mint,36))}</b></td><td><b>${esc(short(row.program,28))}</b><div class="muted small">${esc(row.instruction_type||'create')}</div></td><td class="mono">${esc(short(row.signature,30))}</td><td>${num(row.slot)}</td><td>${badge(row.verification_status||'observed')}</td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="table-wrap"><table class="table"><thead><tr><th>Mint</th><th>Program / instruction</th><th>İmza</th><th>Slot</th><th>Doğrulama</th><th>Akıbet / piyasa kanıtı</th></tr></thead><tbody>${rows.slice(0,50).map(row=>`<tr><td class="mono"><b>${esc(short(row.mint,36))}</b></td><td><b>${esc(short(row.program,28))}</b><div class="muted small">${esc(row.instruction_type||'create')}</div></td><td class="mono">${esc(short(row.signature,30))}</td><td>${num(row.slot)}</td><td>${badge(row.verification_status||'observed')}</td><td>${badge(row.fate_status||'market data pending')}<div class="muted small">${esc(text(row.market_evidence_status,row.fate_reason,'piyasa kanıtı yok'))}</div></td></tr>`).join('')}</tbody></table></div>`;
   }
 
   function recipientRows(report){
@@ -97,6 +97,10 @@
           ${metric('İşlem görüldü',num(obj(portfolio.discovery).transactions_seen))}
           ${metric('Aday',num(arr(obj(portfolio.discovery).candidates).length))}
           ${metric('Doğrulanan',num(portfolio.candidates_verified))}
+          ${metric('Observation store',num(portfolio.observed_store_candidates_merged))}
+          ${metric('Aktif',num(portfolio.liquid_candidates))}
+          ${metric('Ölü / likiditesiz',num(portfolio.inactive_or_dead_candidates))}
+          ${metric('Piyasa verisi yok',num(portfolio.market_data_unavailable_candidates))}
           ${metric('Doğrulama hatası',num(portfolio.verification_failures))}
         </div>
         <div class="section-gap">${candidateRows(portfolio)}</div>

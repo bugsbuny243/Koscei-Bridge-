@@ -118,6 +118,10 @@ func (h *Handler) SecurityRadarCheck(w http.ResponseWriter, r *http.Request) {
 		input.Network = "solana-mainnet"
 	}
 	classification := classifyRadarTarget(r.Context(), target)
+	if radarTargetWalletInvestigationAllowed(classification) {
+		h.securityRadarWalletCheck(w, r, claims.Sub, claimEmail, target, input.Network, classification)
+		return
+	}
 	if !radarTargetTokenVerdictAllowed(classification) {
 		services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "radar_check_wrong_target_type", "customer", "warning", map[string]any{"network": input.Network, "target": target, "target_type": classification.Type}))
 		statusCode := http.StatusUnprocessableEntity
