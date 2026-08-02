@@ -37,6 +37,11 @@ jobs:
           lines = workflow[start:end].splitlines()
           script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
           script = script.replace("text=append_before(text,'}',helper,'enhanced helper')", "text = text + helper")
+          script = script.replace(
+              "if index < 0 || index >= len(transactions) || seen[index] {",
+              "if len(indexes) >= limit || index < 0 || index >= len(transactions) || seen[index] {",
+              1,
+          )
           exec(compile(script, 'apply-arvis-premium-suite', 'exec'))
           RUNNER
           gofmt -w \
