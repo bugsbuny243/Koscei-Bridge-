@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -78,7 +79,7 @@ func TestOpenAPIDocumentsWithholdAsValidEvidenceOutcome(t *testing.T) {
 	}
 }
 
-func TestRouteInventoryStaleOperationsAreExcludedAndPublished(t *testing.T) {
+func TestRouteInventoryExclusionsMatchDocumentAndSyntheticStaleRouteIsRejected(t *testing.T) {
 	_, sourceDir, documentPath := testPaths(t)
 	routes, err := RegisteredAPIRoutes(sourceDir)
 	if err != nil {
@@ -88,10 +89,7 @@ func TestRouteInventoryStaleOperationsAreExcludedAndPublished(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	excluded := excludedInventoryOperations(routes, inventory)
-	if len(excluded) == 0 {
-		t.Fatal("expected at least one stale route_inventory.go operation to be explicitly excluded")
-	}
+	actualExcluded := excludedInventoryOperations(routes, inventory)
 
 	committed, err := os.ReadFile(documentPath)
 	if err != nil {
@@ -103,29 +101,37 @@ func TestRouteInventoryStaleOperationsAreExcludedAndPublished(t *testing.T) {
 	}
 	rawExcluded, ok := document["x-koschei-excluded-unregistered-inventory-operations"].([]any)
 	if !ok {
-		t.Fatal("OpenAPI document does not publish excluded stale inventory operations")
+		t.Fatal("OpenAPI document does not publish excluded inventory operations")
 	}
-	published := map[string]bool{}
+	published := make([]string, 0, len(rawExcluded))
 	for _, value := range rawExcluded {
 		text, ok := value.(string)
 		if ok {
-			published[text] = true
+			published = append(published, text)
 		}
 	}
-	paths := object(document["paths"])
-	for _, operation := range excluded {
-		if !published[operation] {
-			t.Fatalf("excluded inventory operation not published: %s", operation)
+	sort.Strings(published)
+	sort.Strings(actualExcluded)
+	if strings.Join(published, "\n") != strings.Join(actualExcluded, "\n") {
+		t.Fatalf("published stale inventory exclusions=%v actual=%v", published, actualExcluded)
+	}
+
+	synthetic := append(append([]InventoryRoute(nil), inventory...), InventoryRoute{
+		Path: "/api/deliberate-stale-inventory", Methods: []string{"get"},
+		Group: "test", Auth: "public_rate_limited",
+	})
+	syntheticExcluded := excludedInventoryOperations(routes, synthetic)
+	found := false
+	for _, operation := range syntheticExcluded {
+		if operation == "GET /api/deliberate-stale-inventory" {
+			found = true
 		}
-		parts := strings.SplitN(operation, " ", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		if pathItem, ok := paths[parts[1]]; ok {
-			if _, live := object(pathItem)[strings.ToLower(parts[0])]; live {
-				t.Fatalf("stale inventory operation was incorrectly documented as live: %s", operation)
-			}
-		}
+	}
+	if !found {
+		t.Fatalf("synthetic stale inventory operation was not excluded: %v", syntheticExcluded)
+	}
+	if _, live := object(document["paths"])["/api/deliberate-stale-inventory"]; live {
+		t.Fatal("synthetic stale inventory route appeared as a live OpenAPI path")
 	}
 }
 
