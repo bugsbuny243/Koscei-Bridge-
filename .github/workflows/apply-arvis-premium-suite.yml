@@ -1,0 +1,217 @@
+name: Apply ARVIS premium evidence suite
+
+on:
+  push:
+    branches:
+      - agent/arvis-premium-evidence-center
+    paths:
+      - .github/workflows/apply-arvis-premium-suite.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/arvis-premium-evidence-center
+          fetch-depth: 0
+      - name: Apply backend and UI integration patches
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text()
+          def write(path, text):
+              Path(path).write_text(text)
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing patch anchor: {label}')
+              return text.replace(old, new, 1)
+          def replace_nth(text, old, new, n, label):
+              start = 0
+              for _ in range(n):
+                  index = text.find(old, start)
+                  if index < 0:
+                      raise SystemExit(f'missing nth patch anchor: {label}')
+                  start = index + len(old)
+              return text[:index] + new + text[index+len(old):]
+          def append_before(text, marker, addition, label):
+              index = text.rfind(marker)
+              if index < 0:
+                  raise SystemExit(f'missing append marker: {label}')
+              return text[:index] + addition + text[index:]
+
+          # Holder cluster: preserve planned tier, expose collector, include same-amount groups.
+          path='koschei/api/internal/services/holder_cluster_intelligence.go'
+          text=read(path)
+          text=replace_once(text,
+          '\tTier                  string                         `json:"tier"`\n',
+          '\tTier                  string                         `json:"tier"`\n\tCollector             string                         `json:"collector,omitempty"`\n',
+          'holder collector field')
+          text=replace_once(text,
+          '''\t\trow, enhancedOK := analyzeHolderClusterWalletEnhanced(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)\n\t\tif !enhancedOK {\n\t\t\trow = analyzeHolderClusterWalletTiered(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)\n\t\t}\n\t\tif row.Tier == "deep" {\n\t\t\tout.DeepOwnersScanned++\n\t\t} else {\n\t\t\tout.ShallowOwnersScanned++\n\t\t}\n''',
+          '''\t\trow, enhancedOK := analyzeHolderClusterWalletEnhanced(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)\n\t\tcollector := "helius_enhanced"\n\t\tif !enhancedOK {\n\t\t\trow = analyzeHolderClusterWalletTiered(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)\n\t\t\tcollector = "solana_rpc"\n\t\t}\n\t\t// Tier describes investigation depth. Collector describes the transport.\n\t\t// Never overwrite deep/shallow with a provider name.\n\t\trow.Tier = plan.Tier\n\t\trow.Collector = collector\n\t\tif plan.Tier == "deep" {\n\t\t\tout.DeepOwnersScanned++\n\t\t} else {\n\t\t\tout.ShallowOwnersScanned++\n\t\t}\n''',
+          'holder tier telemetry')
+          text=replace_once(text,
+          '''\tif len(out.SharedFundingGroups) > 0 {\n\t\tfor _, wallet := range out.SharedFundingGroups[0].Wallets {\n\t\t\tsuspicious[wallet] = true\n\t\t}\n\t}\n''',
+          '''\tif len(out.SharedFundingGroups) > 0 {\n\t\tfor _, wallet := range out.SharedFundingGroups[0].Wallets {\n\t\t\tsuspicious[wallet] = true\n\t\t}\n\t}\n\tif len(out.SameAmountGroups) > 0 {\n\t\tfor _, wallet := range out.SameAmountGroups[0].Wallets {\n\t\t\tsuspicious[wallet] = true\n\t\t}\n\t}\n''',
+          'same amount linked supply')
+          text=text.replace('RPC calls used: %d of %d.', 'Provider budget units used: %d of %d.')
+          text=text.replace('fmt.Sprintf("İlk %d owner derin pencereyle (%d imza / %d tx), kalan %d owner standart pencereyle (%d imza / %d tx) tarandı.", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowOwnersScanned, out.ShallowSignatureLimit, out.ShallowTransactionLimit)',
+          'fmt.Sprintf("First %d owners were investigated with the deep window (%d history entries / %d parsed transactions); the remaining %d owners used the standard window (%d / %d).", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowOwnersScanned, out.ShallowSignatureLimit, out.ShallowTransactionLimit)')
+          text=replace_once(text,
+          '''\tif out.LargestSharedFundingGroup >= 2 {\n\t\tfindings = append(findings, fmt.Sprintf("The largest shared-funding group contains %d holder wallets.", out.LargestSharedFundingGroup))\n\t}\n\tif out.LargestSameAmountGroup >= 2 {\n\t\tfindings = append(findings, fmt.Sprintf("The largest same-funding-amount group contains %d holder wallets.", out.LargestSameAmountGroup))\n\t}\n''',
+          '''\tif len(out.SharedFundingGroups) > 0 {\n\t\tgroup := out.SharedFundingGroups[0]\n\t\tfindings = append(findings, fmt.Sprintf("Largest shared-funding group: source %s, %d wallets, %.4f%% linked supply; members: %s.", group.Key, group.MemberCount, group.HolderPercentage, strings.Join(group.Wallets, ", ")))\n\t}\n\tif len(out.SameAmountGroups) > 0 {\n\t\tgroup := out.SameAmountGroups[0]\n\t\tfindings = append(findings, fmt.Sprintf("Largest same-funding-amount group: %s, %d wallets, %.4f%% linked supply; members: %s. Equal amount is not proof of a shared source.", group.Key, group.MemberCount, group.HolderPercentage, strings.Join(group.Wallets, ", ")))\n\t}\n''',
+          'detailed funding findings')
+          write(path,text)
+
+          # Helius enhanced history: retain tier and enforce transaction parse limits.
+          path='koschei/api/internal/services/holder_cluster_enhanced_history.go'
+          text=read(path)
+          text=replace_once(text,
+          '''\trow := HolderClusterWallet{\n\t\tRank: account.Rank, Wallet: account.OwnerWallet, HolderPercentage: holderClusterRound(percentage, 4),\n\t\tStatus: "signature_history_unavailable", Tier: "enhanced", BudgetDegraded: plan.BudgetDegraded,\n''',
+          '''\trow := HolderClusterWallet{\n\t\tRank: account.Rank, Wallet: account.OwnerWallet, HolderPercentage: holderClusterRound(percentage, 4),\n\t\tStatus: "signature_history_unavailable", Tier: plan.Tier, Collector: "helius_enhanced", BudgetDegraded: plan.BudgetDegraded,\n''',
+          'enhanced planned tier')
+          second_loop='\tfor _, tx := range transactions {\n'
+          replacement='\tselectedTransactions := holderClusterEnhancedTransactionsForLimit(transactions, launchBlockTime, plan.TransactionLimit)\n\tvar earliestFundingTimestamp int64\n\tfor _, tx := range selectedTransactions {\n'
+          text=replace_nth(text,second_loop,replacement,2,'enhanced parse loop')
+          old_funding='''\t\t// Funding source: earliest observed native inflow to the owner wallet.\n\t\tif row.FundingSource == "" {\n\t\t\tfor _, native := range tx.NativeTransfers {\n\t\t\t\tif !strings.EqualFold(native.ToUserAccount, account.OwnerWallet) || native.Amount <= 0 {\n\t\t\t\t\tcontinue\n\t\t\t\t}\n\t\t\t\tsource := strings.TrimSpace(native.FromUserAccount)\n\t\t\t\tif source == "" || strings.EqualFold(source, account.OwnerWallet) {\n\t\t\t\t\tcontinue\n\t\t\t\t}\n\t\t\t\trow.FundingSource = source\n\t\t\t\trow.FundingAmountSOL = holderClusterRound(float64(native.Amount)/1e9, 9)\n\t\t\t\trow.FundingObservedAt = holderClusterUnixTime(tx.Timestamp)\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n'''
+          new_funding='''\t\t// Preserve the earliest native inflow found inside the examined window.\n\t\tfor _, native := range tx.NativeTransfers {\n\t\t\tif !strings.EqualFold(native.ToUserAccount, account.OwnerWallet) || native.Amount <= 0 {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tsource := strings.TrimSpace(native.FromUserAccount)\n\t\t\tif source == "" || strings.EqualFold(source, account.OwnerWallet) {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tif row.FundingSource == "" || (tx.Timestamp > 0 && (earliestFundingTimestamp == 0 || tx.Timestamp < earliestFundingTimestamp)) {\n\t\t\t\trow.FundingSource = source\n\t\t\t\trow.FundingAmountSOL = holderClusterRound(float64(native.Amount)/1e9, 9)\n\t\t\t\trow.FundingObservedAt = holderClusterUnixTime(tx.Timestamp)\n\t\t\t\tearliestFundingTimestamp = tx.Timestamp\n\t\t\t}\n\t\t}\n'''
+          text=replace_once(text,old_funding,new_funding,'enhanced earliest funding')
+          text=text.replace('fmt.Sprintf("enhanced tier observed %d transactions and parsed %d via the Helius Enhanced Transactions API; window_exhausted=%t.", row.SignaturesFetched, row.TxsParsed, row.WindowExhausted)',
+          'fmt.Sprintf("%s tier used the Helius Enhanced Transactions collector: %d history entries fetched, %d transactions parsed (limit %d); window_exhausted=%t.", plan.Tier, row.SignaturesFetched, row.TxsParsed, plan.TransactionLimit, row.WindowExhausted)')
+          helper='''\nfunc holderClusterEnhancedTransactionsForLimit(transactions []heliusEnhancedTransaction, launchBlockTime int64, limit int) []heliusEnhancedTransaction {\n\tif limit <= 0 || len(transactions) <= limit {\n\t\treturn append([]heliusEnhancedTransaction{}, transactions...)\n\t}\n\tindexes := []int{}\n\tseen := map[int]bool{}\n\tappendIndex := func(index int) {\n\t\tif index < 0 || index >= len(transactions) || seen[index] {\n\t\t\treturn\n\t\t}\n\t\tseen[index] = true\n\t\tindexes = append(indexes, index)\n\t}\n\tappendIndex(0)\n\tappendIndex(len(transactions) - 1)\n\tif launchBlockTime > 0 {\n\t\tclosest, best := -1, int64(1<<62)\n\t\tfor index, tx := range transactions {\n\t\t\tif tx.Timestamp <= 0 {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tdelta := tx.Timestamp - launchBlockTime\n\t\t\tif delta < 0 {\n\t\t\t\tdelta = -delta\n\t\t\t}\n\t\t\tif delta < best {\n\t\t\t\tbest, closest = delta, index\n\t\t\t}\n\t\t}\n\t\tappendIndex(closest)\n\t}\n\tfor index := 1; len(indexes) < limit && index < len(transactions)-1; index++ {\n\t\tappendIndex(index)\n\t}\n\tout := make([]heliusEnhancedTransaction, 0, len(indexes))\n\tfor _, index := range indexes {\n\t\tout = append(out, transactions[index])\n\t}\n\treturn out\n}\n\n'''
+          text=append_before(text,'}',helper,'enhanced helper')
+          write(path,text)
+
+          # Tier tests cover enhanced transaction limits.
+          path='koschei/api/internal/services/holder_scan_tiers_test.go'
+          text=read(path)
+          addition='''\nfunc TestHolderClusterEnhancedTransactionsRespectTierLimit(t *testing.T) {\n\ttransactions := make([]heliusEnhancedTransaction, 30)\n\tfor index := range transactions {\n\t\ttransactions[index].Signature = fmt.Sprintf("sig-%d", index)\n\t\ttransactions[index].Timestamp = int64(1000 - index)\n\t}\n\tif got := len(holderClusterEnhancedTransactionsForLimit(transactions, 975, 2)); got != 2 {\n\t\tt.Fatalf("standard enhanced parsed transactions = %d, want 2", got)\n\t}\n\tif got := len(holderClusterEnhancedTransactionsForLimit(transactions, 975, 20)); got != 20 {\n\t\tt.Fatalf("deep enhanced parsed transactions = %d, want 20", got)\n\t}\n}\n'''
+          text=text.replace('import "testing"','import (\n\t"fmt"\n\t"testing"\n)')
+          text += addition
+          write(path,text)
+
+          # Token-2022 resolution gate shared by customer and exposure scanners.
+          path='koschei/api/internal/handlers/token_2022_extensions.go'
+          text=read(path)
+          helper='''\nfunc token2022ExtensionResolution(isToken2022 bool, accountSpace int, extensions []tokenExtensionAssessment) (string, bool) {\n\tif !isToken2022 {\n\t\treturn "not_applicable", true\n\t}\n\tif len(extensions) > 0 {\n\t\treturn "resolved", true\n\t}\n\t// A classic mint is 82 bytes. Extra Token-2022 account space with no parsed\n\t// extension list means the parser did not expose the active TLV state.\n\tif accountSpace > 82 {\n\t\treturn "token_2022_extensions_unresolved", false\n\t}\n\treturn "resolved_empty", true\n}\n\nfunc token2022FinalPolicy(score int, extensions []tokenExtensionAssessment, visibility []string, evidenceComplete bool) string {\n\tif !evidenceComplete {\n\t\treturn "withhold"\n\t}\n\treturn tokenFinalPolicy(score, extensions, visibility)\n}\n\n'''
+          text=append_before(text,'func tokenFinalPolicy',helper,'token2022 resolution helper')
+          write(path,text)
+
+          path='koschei/api/internal/handlers/token_scanner.go'
+          text=read(path)
+          text=replace_once(text,
+          '\tExtensionRiskPenalty  int                              `json:"extension_risk_penalty"`\n',
+          '\tExtensionRiskPenalty  int                              `json:"extension_risk_penalty"`\n\tExtensionResolutionStatus string                         `json:"extension_resolution_status"`\n\tExtensionEvidenceComplete bool                           `json:"extension_evidence_complete"`\n',
+          'token response extension fields')
+          text=replace_once(text,
+          '\textensionPenalty := 0\n',
+          '\textensionPenalty := 0\n\textensionResolutionStatus := "not_applicable"\n\textensionEvidenceComplete := true\n',
+          'token resolution vars')
+          old='''\t\tif isToken2022 {\n\t\t\ttokenProgram = "token-2022"\n\t\t\textensions = parseToken2022Extensions(info)\n\t\t\textensionPenalty, transferBehavior, visibilityLimitations, compatibilityWarnings = summarizeToken2022Extensions(extensions)\n\t\t\tscore -= extensionPenalty\n\t\t\tfindings = append(findings, token2022Findings(extensions)...)\n\t\t\tif len(extensions) == 0 {\n\t\t\t\tfindings = append(findings, "Token is owned by the Token-2022 program and no active mint extensions were reported by the RPC parser.")\n\t\t\t}\n\t\t}\n'''
+          new='''\t\tif isToken2022 {\n\t\t\ttokenProgram = "token-2022"\n\t\t\textensions = parseToken2022Extensions(info)\n\t\t\textensionResolutionStatus, extensionEvidenceComplete = token2022ExtensionResolution(true, account.Value.Data.Space, extensions)\n\t\t\textensionPenalty, transferBehavior, visibilityLimitations, compatibilityWarnings = summarizeToken2022Extensions(extensions)\n\t\t\tscore -= extensionPenalty\n\t\t\tfindings = append(findings, token2022Findings(extensions)...)\n\t\t\tif !extensionEvidenceComplete {\n\t\t\t\tvisibilityLimitations = append(visibilityLimitations, "Token-2022 account space indicates extension state, but the RPC parser did not expose the extension list.")\n\t\t\t\tcompatibilityWarnings = append(compatibilityWarnings, "Transfer hook, permanent delegate, default frozen state, transfer fees, or pause controls cannot be ruled out until raw TLV extension state is decoded.")\n\t\t\t\tfindings = append(findings, "Token-2022 extensions are unresolved; a safe verdict is withheld because transfer-control capabilities cannot be ruled out.")\n\t\t\t} else if len(extensions) == 0 {\n\t\t\t\tfindings = append(findings, "Token is owned by the Token-2022 program and the resolved mint state reported no active extensions.")\n\t\t\t}\n\t\t}\n'''
+          text=replace_once(text,old,new,'token scanner token2022 gate')
+          text=text.replace('policy := tokenFinalPolicy(score, extensions, visibilityLimitations)','policy := token2022FinalPolicy(score, extensions, visibilityLimitations, extensionEvidenceComplete)')
+          text=replace_once(text,
+          '\t\tExtensionRiskPenalty:  extensionPenalty,\n',
+          '\t\tExtensionRiskPenalty:  extensionPenalty,\n\t\tExtensionResolutionStatus: extensionResolutionStatus,\n\t\tExtensionEvidenceComplete: extensionEvidenceComplete,\n',
+          'token response extension values')
+          text=text.replace('VerdictWithheld:       holderPolicy == "withhold",','VerdictWithheld:       holderPolicy == "withhold" || !extensionEvidenceComplete,')
+          write(path,text)
+
+          path='koschei/api/internal/handlers/security_radar_exposure_token2022.go'
+          text=read(path)
+          old='''\tif isToken2022 {\n\t\textensions = parseToken2022Extensions(info)\n\t\tpenalty, behavior, visibility, compatibility = summarizeToken2022Extensions(extensions)\n\t\tfindings = token2022Findings(extensions)\n\t\tif len(extensions) == 0 {\n\t\t\tfindings = append(findings, "Token is owned by the Token-2022 program and no active mint extensions were reported by the RPC parser.")\n\t\t}\n\t} else {\n'''
+          new='''\textensionResolutionStatus, extensionEvidenceComplete := token2022ExtensionResolution(isToken2022, account.Value.Data.Space, extensions)\n\tif isToken2022 {\n\t\textensions = parseToken2022Extensions(info)\n\t\textensionResolutionStatus, extensionEvidenceComplete = token2022ExtensionResolution(true, account.Value.Data.Space, extensions)\n\t\tpenalty, behavior, visibility, compatibility = summarizeToken2022Extensions(extensions)\n\t\tfindings = token2022Findings(extensions)\n\t\tif !extensionEvidenceComplete {\n\t\t\tvisibility = append(visibility, "Token-2022 account space indicates extension state, but the RPC parser did not expose the extension list.")\n\t\t\tcompatibility = append(compatibility, "Transfer hook, permanent delegate, default frozen state, transfer fees, or pause controls cannot be ruled out.")\n\t\t\tfindings = append(findings, "Token-2022 extensions are unresolved; final policy is withheld.")\n\t\t} else if len(extensions) == 0 {\n\t\t\tfindings = append(findings, "Token is owned by the Token-2022 program and the resolved mint state reported no active extensions.")\n\t\t}\n\t} else {\n'''
+          text=replace_once(text,old,new,'exposure token2022 gate')
+          old_return='return map[string]any{"module_id": "token_2022_extensions", "module": "Token-2022 Extension Deep Scanner", "verified": true, "status": exposureToken2022Status(isToken2022, extensions), "risk_index": riskIndex, "risk_level": exposureRiskLevelFromScore(riskIndex), "is_token_2022": isToken2022, "token_program": tokenProgram, "account_owner": account.Value.Owner, "extension_count": len(extensions), "extension_risk_penalty": penalty, "final_policy": tokenFinalPolicy(100-riskIndex, extensions, visibility), "extensions": extensions, "transfer_behavior": behavior, "visibility_limitations": visibility, "compatibility_warnings": compatibility, "evidence": findings}'
+          new_return='return map[string]any{"module_id": "token_2022_extensions", "module": "Token-2022 Extension Deep Scanner", "verified": extensionEvidenceComplete, "status": extensionResolutionStatus, "risk_index": riskIndex, "risk_level": exposureRiskLevelFromScore(riskIndex), "is_token_2022": isToken2022, "token_program": tokenProgram, "account_owner": account.Value.Owner, "extension_count": len(extensions), "extension_risk_penalty": penalty, "extension_resolution_status": extensionResolutionStatus, "extension_evidence_complete": extensionEvidenceComplete, "final_policy": token2022FinalPolicy(100-riskIndex, extensions, visibility, extensionEvidenceComplete), "extensions": extensions, "transfer_behavior": behavior, "visibility_limitations": visibility, "compatibility_warnings": compatibility, "evidence": findings}'
+          text=replace_once(text,old_return,new_return,'exposure return')
+          write(path,text)
+
+          # Verdict severity and full rule trace.
+          path='koschei/api/internal/services/unified_radar_rules.go'
+          text=read(path)
+          anchor='''\t\tswitch {\n\t\tcase compoundCount >= 2:\n\t\t\tgrade = "B"\n\t\t\tverdict = "compounding_rule"\n\t\t\tdecision = append(decision, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B.", compoundCount))\n'''
+          replacement='''\t\tfor _, hit := range triggered {\n\t\t\tdecision = append(decision, fmt.Sprintf("Rule %s [%s/%s]: %s", hit.RuleID, hit.Tier, hit.EvidenceStatus, hit.Summary))\n\t\t}\n\t\tholderPressure, holderPressureOK := unifiedRadarSignalByRule(behavior, UnifiedRuleHolderLiquidityPressure)\n\t\tdominantExit, dominantExitOK := unifiedRadarSignalByRule(behavior, UnifiedRuleDominantHolderFirstExit)\n\t\tpressureRatio := unifiedRadarMetricFloat(holderPressure.Metrics["position_liquidity_ratio"])\n\t\tsevereCompounding := compoundCount >= 2 && holderPressureOK && dominantExitOK && holderPressure.Triggered && dominantExit.Triggered && pressureRatio >= 10\n\t\tswitch {\n\t\tcase severeCompounding:\n\t\t\tgrade = "C"\n\t\t\tverdict = "severe_compounding_rule"\n\t\t\tdecision = append(decision, fmt.Sprintf("Dominant-holder reference position is %.2fx reported liquidity and a transaction-backed dominant-holder exit is present; severity-aware compounding caps the grade at C.", pressureRatio))\n\t\tcase compoundCount >= 2:\n\t\t\tgrade = "B"\n\t\t\tverdict = "compounding_rule"\n\t\t\tdecision = append(decision, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B; rule IDs and facts are listed above.", compoundCount))\n'''
+          text=replace_once(text,anchor,replacement,'severity aware verdict')
+          helper='''\nfunc unifiedRadarSignalByRule(report UnifiedRadarBehaviorReport, ruleID string) (UnifiedRadarSignal, bool) {\n\tfor _, signal := range report.Signals {\n\t\tif signal.RuleID == ruleID {\n\t\t\treturn signal, true\n\t\t}\n\t}\n\treturn UnifiedRadarSignal{}, false\n}\n\nfunc unifiedRadarMetricFloat(value any) float64 {\n\tswitch typed := value.(type) {\n\tcase float64:\n\t\treturn typed\n\tcase float32:\n\t\treturn float64(typed)\n\tcase int:\n\t\treturn float64(typed)\n\tcase int64:\n\t\treturn float64(typed)\n\tcase json.Number:\n\t\tnumber, _ := typed.Float64()\n\t\treturn number\n\tcase string:\n\t\tnumber, _ := strconv.ParseFloat(strings.TrimSpace(typed), 64)\n\t\treturn number\n\tdefault:\n\t\treturn 0\n\t}\n}\n\n'''
+          text=append_before(text,'func unifiedVolumeLiquiditySignal',helper,'unified verdict helpers')
+          text=text.replace('"sort"\n\t"strings"','"sort"\n\t"strconv"\n\t"strings"')
+          write(path,text)
+
+          # Owner production includes every evidence renderer and the new social studio.
+          path='koschei/api/public/owner-production.html'
+          text=read(path)
+          text=text.replace('<html lang="tr">','<html lang="en">')
+          text=replace_once(text,'  <link rel="stylesheet" href="/css/unified-live-evidence-card.css?v=1">\n','  <link rel="stylesheet" href="/css/unified-live-evidence-card.css?v=1">\n  <link rel="stylesheet" href="/css/arvis-premium-suite.css?v=1">\n','owner premium css')
+          old_scripts='''  <script src="/js/owner-control-center.js?v=11"></script>\n  <script src="/js/owner-publishing-center.js?v=2"></script>\n  <script src="/js/owner-creator-intelligence.js?v=2"></script>\n  <script src="/js/owner-court-ui.js?v=2"></script>\n  <script src="/js/owner-ai-chat.js?v=5"></script>\n'''
+          new_scripts='''  <script src="/js/owner-control-center.js?v=12"></script>\n  <script src="/js/verdict-card.js?v=2"></script>\n  <script src="/js/arvis-premium-contract.js?v=1"></script>\n  <script src="/js/owner-publishing-center.js?v=3"></script>\n  <script src="/js/owner-creator-intelligence.js?v=3"></script>\n  <script src="/js/owner-court-ui.js?v=3"></script>\n  <script src="/js/owner-ai-chat.js?v=6"></script>\n  <script src="/js/owner-holder-tier-labels.js?v=2"></script>\n  <script src="/js/owner-launch-forensics.js?v=2"></script>\n  <script src="/js/owner-verdict-card-coverage.js?v=2"></script>\n  <script src="/js/owner-arvis-premium-suite.js?v=1"></script>\n  <script src="/js/owner-social-studio.js?v=1"></script>\n  <script src="/js/koschei-english-runtime.js?v=1"></script>\n'''
+          text=replace_once(text,old_scripts,new_scripts,'owner script integration')
+          write(path,text)
+
+          # Customer ARVIS page shares the same contract and English runtime.
+          path='koschei/api/public/security-radar.html'
+          text=read(path)
+          text=text.replace('<html lang="tr">','<html lang="en">',1)
+          text=replace_once(text,'<link rel="stylesheet" href="/css/koschei-global-shell.css?v=2">','<link rel="stylesheet" href="/css/koschei-global-shell.css?v=2">\n<link rel="stylesheet" href="/css/arvis-premium-suite.css?v=1">','customer premium css')
+          old='''<script src="/js/koschei-auth.js?v=33"></script>\n<script src="/js/koschei-global-shell.js?v=2"></script>\n<script src="/js/verdict-card.js?v=1"></script>\n<script src="/js/security-radar-detail.js?v=2"></script>'''
+          new='''<script src="/js/koschei-auth.js?v=33"></script>\n<script src="/js/koschei-global-shell.js?v=3"></script>\n<script src="/js/verdict-card.js?v=2"></script>\n<script src="/js/arvis-premium-contract.js?v=1"></script>\n<script src="/js/customer-arvis-premium-suite.js?v=1"></script>\n<script src="/js/security-radar-detail.js?v=3"></script>\n<script src="/js/koschei-english-runtime.js?v=1"></script>'''
+          text=replace_once(text,old,new,'customer scripts')
+          write(path,text)
+
+          # Load English copy globally on customer pages using the shared shell.
+          path='koschei/api/public/js/koschei-global-shell.js'
+          text=read(path)
+          loader='''(()=>{if(typeof document!=="undefined"&&!document.querySelector('script[data-koschei-english-runtime]')){const script=document.createElement('script');script.src='/js/koschei-english-runtime.js?v=1';script.dataset.koscheiEnglishRuntime='1';document.head.appendChild(script);}})();\n'''
+          if not text.startswith(loader):
+              text=loader+text
+          write(path,text)
+
+          # Account page is a customer surface and must be English at first paint.
+          path='koschei/api/public/account.html'
+          text=read(path)
+          text=text.replace('<html lang="tr">','<html lang="en">',1)
+          text=text.replace('</script></body></html>','</script><script src="/js/koschei-english-runtime.js?v=1"></script></body></html>')
+          write(path,text)
+          PY
+
+          gofmt -w \
+            koschei/api/internal/services/holder_cluster_intelligence.go \
+            koschei/api/internal/services/holder_cluster_enhanced_history.go \
+            koschei/api/internal/services/holder_scan_tiers_test.go \
+            koschei/api/internal/services/unified_radar_rules.go \
+            koschei/api/internal/handlers/token_2022_extensions.go \
+            koschei/api/internal/handlers/token_scanner.go \
+            koschei/api/internal/handlers/security_radar_exposure_token2022.go
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/arvis-premium-contract.js
+          node --check koschei/api/public/js/owner-arvis-premium-suite.js
+          node --check koschei/api/public/js/owner-social-studio.js
+          node --check koschei/api/public/js/customer-arvis-premium-suite.js
+          node --check koschei/api/public/js/koschei-english-runtime.js
+          node --check koschei/api/public/js/koschei-global-shell.js
+      - name: Run focused tests and build
+        working-directory: koschei/api
+        run: |
+          go test ./internal/services ./internal/handlers
+          go build ./...
+      - name: Commit applied suite
+        run: |
+          git config user.name "koschei-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add koschei/api
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "complete ARVIS premium evidence suite"
+          git push origin HEAD:agent/arvis-premium-evidence-center
