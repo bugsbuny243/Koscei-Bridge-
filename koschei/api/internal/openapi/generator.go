@@ -132,14 +132,14 @@ func methodName(expression ast.Expr) string {
 
 func normalizePattern(pattern string) string {
 	overrides := map[string]string{
-		"/api/account/api-keys/":       "/api/account/api-keys/{id}/revoke",
-		"/api/owner/radar/jobs/":       "/api/owner/radar/jobs/{id}",
-		"/api/v1/radar/jobs/":          "/api/v1/radar/jobs/{id}",
-		"/api/jobs/":                   "/api/jobs/{id}",
-		"/api/v1/dossier/":             "/api/v1/dossier/{case_ref}",
-		"/api/watchlist/":              "/api/watchlist/{id}",
-		"/api/webhooks/deliveries/":    "/api/webhooks/deliveries/{id}",
-		"/api/webhooks/":               "/api/webhooks/{id}",
+		"/api/account/api-keys/":    "/api/account/api-keys/{id}/revoke",
+		"/api/owner/radar/jobs/":    "/api/owner/radar/jobs/{id}",
+		"/api/v1/radar/jobs/":       "/api/v1/radar/jobs/{id}",
+		"/api/jobs/":                "/api/jobs/{id}",
+		"/api/v1/dossier/":          "/api/v1/dossier/{case_ref}",
+		"/api/watchlist/":           "/api/watchlist/{id}",
+		"/api/webhooks/deliveries/": "/api/webhooks/deliveries/{id}",
+		"/api/webhooks/":            "/api/webhooks/{id}",
 	}
 	if value := overrides[pattern]; value != "" {
 		return value
@@ -149,18 +149,18 @@ func normalizePattern(pattern string) string {
 
 func fallbackMethods(path string) []string {
 	overrides := map[string][]string{
-		"/api/account/api-keys":                         {"get", "post"},
-		"/api/owner/chat":                              {"post"},
-		"/api/owner/radar/sources":                     {"get"},
-		"/api/owner/feedback":                          {"get", "post"},
-		"/api/watchlist":                               {"get", "post"},
-		"/api/watchlist/{id}":                          {"delete"},
-		"/api/watchlist/alerts":                        {"get"},
-		"/api/webhooks":                                {"get", "post"},
-		"/api/webhooks/{id}":                           {"delete", "patch"},
-		"/api/webhooks/security-alerts":                {"get", "post"},
-		"/api/webhooks/deliveries":                     {"get"},
-		"/api/webhooks/deliveries/{id}":                {"get", "post"},
+		"/api/account/api-keys":         {"get", "post"},
+		"/api/owner/chat":               {"post"},
+		"/api/owner/radar/sources":      {"get"},
+		"/api/owner/feedback":           {"get", "post"},
+		"/api/watchlist":                {"get", "post"},
+		"/api/watchlist/{id}":           {"delete"},
+		"/api/watchlist/alerts":         {"get"},
+		"/api/webhooks":                 {"get", "post"},
+		"/api/webhooks/{id}":            {"delete", "patch"},
+		"/api/webhooks/security-alerts": {"get", "post"},
+		"/api/webhooks/deliveries":      {"get"},
+		"/api/webhooks/deliveries/{id}": {"get", "post"},
 	}
 	if methods := overrides[path]; len(methods) > 0 {
 		return methods
@@ -229,8 +229,8 @@ func buildDocument(routes []Route) Document {
 		"paths":   paths,
 		"components": map[string]any{
 			"securitySchemes": map[string]any{
-				"sessionBearer": map[string]any{"type": "http", "scheme": "bearer", "bearerFormat": "session"},
-				"ownerSession":  map[string]any{"type": "apiKey", "in": "cookie", "name": "koschei_owner_session"},
+				"sessionBearer":   map[string]any{"type": "http", "scheme": "bearer", "bearerFormat": "session"},
+				"ownerSession":    map[string]any{"type": "apiKey", "in": "cookie", "name": "koschei_owner_session"},
 				"developerAPIKey": map[string]any{"type": "apiKey", "in": "header", "name": "X-API-Key"},
 			},
 			"schemas": schemas(),
@@ -240,19 +240,19 @@ func buildDocument(routes []Route) Document {
 
 func operation(route Route, method string) map[string]any {
 	operation := map[string]any{
-		"operationId":       operationID(method, route.Path),
-		"summary":           strings.ToUpper(method) + " " + route.Path,
-		"description":       "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
-		"tags":              []string{routeTag(route.Path)},
+		"operationId":         operationID(method, route.Path),
+		"summary":             strings.ToUpper(method) + " " + route.Path,
+		"description":         "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+		"tags":                []string{routeTag(route.Path)},
 		"x-koschei-auth-tier": route.AuthTier,
-		"parameters":        pathParameters(route.Path),
-		"responses":         responses(route.AuthTier),
-		"security":          security(route.AuthTier),
+		"parameters":          pathParameters(route.Path),
+		"responses":           responses(route.AuthTier),
+		"security":            security(route.AuthTier),
 	}
 	if method == "post" || method == "put" || method == "patch" {
 		operation["requestBody"] = map[string]any{
 			"required": false,
-			"content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/GenericRequest"}}},
+			"content":  map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/GenericRequest"}}},
 		}
 	}
 	return operation
@@ -291,7 +291,7 @@ func responses(auth string) map[string]any {
 func response(description, reference string) map[string]any {
 	return map[string]any{
 		"description": description,
-		"content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": reference}}},
+		"content":     map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": reference}}},
 	}
 }
 
@@ -315,27 +315,27 @@ func schemas() map[string]any {
 			"description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
 		},
 		"EvidenceResponse": map[string]any{
-			"type": "object",
+			"type":     "object",
 			"required": []string{"ok"},
 			"properties": map[string]any{
-				"ok": map[string]any{"type": "boolean"},
-				"verdict": map[string]any{"$ref": "#/components/schemas/Verdict"},
+				"ok":                     map[string]any{"type": "boolean"},
+				"verdict":                map[string]any{"$ref": "#/components/schemas/Verdict"},
 				"unmet_evidence_reasons": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-				"evidence": map[string]any{"type": "array", "items": map[string]any{"type": "object", "additionalProperties": true},
-				"data": map[string]any{"type": "object", "additionalProperties": true},
+				"evidence":               map[string]any{"type": "array", "items": map[string]any{"type": "object", "additionalProperties": true}},
+				"data":                   map[string]any{"type": "object", "additionalProperties": true},
 			},
 			"additionalProperties": true,
 		},
 		"Verdict": map[string]any{
-			"type": "string",
-			"enum": []string{"allow", "block", "deny", "verified", "bounded", "missing", "withhold"},
+			"type":        "string",
+			"enum":        []string{"allow", "block", "deny", "verified", "bounded", "missing", "withhold"},
 			"description": "WITHHOLD is an intended non-error outcome when required evidence cannot be produced.",
 		},
 		"ErrorResponse": map[string]any{
 			"type": "object", "required": []string{"error"},
 			"properties": map[string]any{
-				"error": map[string]any{"type": "string"},
-				"code": map[string]any{"type": "string"},
+				"error":   map[string]any{"type": "string"},
+				"code":    map[string]any{"type": "string"},
 				"details": map[string]any{"type": "object", "additionalProperties": true},
 			},
 			"additionalProperties": true,
