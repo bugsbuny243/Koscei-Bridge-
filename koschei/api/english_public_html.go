@@ -10,6 +10,10 @@ import (
 
 const englishRuntimeScript = `<script src="/js/koschei-english-runtime.js?v=1" data-koschei-english-runtime="1"></script>`
 
+const arvisSocialRendererScripts = `<script src="/js/arvis-social-render-v2-core.js?v=2" data-arvis-social-v2="core"></script>
+<script src="/js/arvis-social-render-v2-cards.js?v=2" data-arvis-social-v2="cards"></script>
+<script src="/js/arvis-social-render-v2-publish.js?v=2" data-arvis-social-v2="publish"></script>`
+
 type bufferedHTMLResponse struct {
 	header http.Header
 	body   bytes.Buffer
@@ -83,15 +87,26 @@ func rewritePublicHTMLToEnglish(body []byte) []byte {
 	if !strings.Contains(strings.ToLower(text), "<html lang=") {
 		text = strings.Replace(text, "<html>", `<html lang="en">`, 1)
 	}
-	if strings.Contains(text, "koschei-english-runtime.js") {
+
+	lower := strings.ToLower(text)
+	extras := make([]string, 0, 2)
+	if strings.Contains(lower, "arvis-premium-contract.js") && !strings.Contains(lower, "arvis-social-render-v2-core.js") {
+		extras = append(extras, arvisSocialRendererScripts)
+	}
+	if !strings.Contains(lower, "koschei-english-runtime.js") {
+		extras = append(extras, englishRuntimeScript)
+	}
+	if len(extras) == 0 {
 		return []byte(text)
 	}
+
+	injection := strings.Join(extras, "\n")
 	if index := strings.LastIndex(strings.ToLower(text), "</body>"); index >= 0 {
-		text = text[:index] + englishRuntimeScript + text[index:]
+		text = text[:index] + injection + text[index:]
 	} else if index := strings.LastIndex(strings.ToLower(text), "</html>"); index >= 0 {
-		text = text[:index] + englishRuntimeScript + text[index:]
+		text = text[:index] + injection + text[index:]
 	} else {
-		text += englishRuntimeScript
+		text += injection
 	}
 	return []byte(text)
 }

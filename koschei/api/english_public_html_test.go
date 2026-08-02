@@ -27,6 +27,28 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if strings.Count(body, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("English runtime was injected more than once: %s", body)
 	}
+	if strings.Contains(body, "arvis-social-render-v2-core.js") {
+		t.Fatalf("ARVIS renderer was injected into a non-ARVIS page: %s", body)
+	}
+}
+
+func TestEnglishPublicHTMLInjectsARVISSocialRendererExactlyOnce(t *testing.T) {
+	html := `<!doctype html><html lang="en"><body><script src="/js/arvis-premium-contract.js?v=1"></script><script src="/js/koschei-english-runtime.js?v=1"></script></body></html>`
+	first := string(rewritePublicHTMLToEnglish([]byte(html)))
+	second := string(rewritePublicHTMLToEnglish([]byte(first)))
+
+	for _, script := range []string{
+		"arvis-social-render-v2-core.js",
+		"arvis-social-render-v2-cards.js",
+		"arvis-social-render-v2-publish.js",
+	} {
+		if strings.Count(second, script) != 1 {
+			t.Fatalf("expected exactly one %s reference: %s", script, second)
+		}
+	}
+	if strings.Count(second, "koschei-english-runtime.js") != 1 {
+		t.Fatalf("English runtime was duplicated: %s", second)
+	}
 }
 
 func TestEnglishPublicHTMLLeavesAPIJSONUntouched(t *testing.T) {
