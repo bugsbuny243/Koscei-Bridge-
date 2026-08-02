@@ -138,6 +138,7 @@ func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir stri
 	mux.HandleFunc("/api/owner/radar/jobs", requiresDB(h, ownerOnly(h, method("POST", h.OwnerCreateCanonicalInvestigationJob))))
 	mux.HandleFunc("/api/owner/radar/jobs/", requiresDB(h, ownerOnly(h, method("GET", h.OwnerGetCanonicalInvestigationJob))))
 	mux.HandleFunc("/api/owner/creator-intelligence", requiresDB(h, ownerOnly(h, method("GET", h.OwnerCreatorIntelligence))))
+	mux.HandleFunc("/api/owner/wallet-linkage", requiresDB(h, ownerOnly(h, method("GET", h.WalletLinkageProbe))))
 	mux.HandleFunc("/api/owner/actor-intelligence", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorSecurityIntelligence))))
 	mux.HandleFunc("/api/owner/defense/tracks", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorDefenseQueue))))
 	mux.HandleFunc("/api/owner/defense/investigate", requiresDB(h, ownerOnly(h, method("POST", h.OwnerActorDefenseInvestigation))))
