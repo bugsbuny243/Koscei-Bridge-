@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from check_migration_numbering import baseline_for, validate
+from scripts.check_migration_numbering import baseline_for, validate
 
 
 class MigrationNumberingTest(unittest.TestCase):
