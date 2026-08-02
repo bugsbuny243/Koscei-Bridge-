@@ -1,0 +1,292 @@
+name: Release Gates Task 3 Surface
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Apply acceptance and public-case semantics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('internal/services/actor_acceptance.go')
+          s = p.read_text()
+          s = s.replace(
+          '''\tActorAcceptancePass            = "pass"
+          \tActorAcceptanceFail            = "fail"
+          \tActorAcceptanceNotInvestigated = "not_investigated"
+          ''',
+          '''\tActorAcceptancePass            = "pass"
+          \tActorAcceptanceFail            = "fail"
+          \tActorAcceptanceBounded         = "bounded"
+          \tActorAcceptanceNotInvestigated = "not_investigated"
+          ''', 1)
+          s = s.replace(
+          '''\tNotInvestigatedCount int                    `json:"not_investigated_count"`
+          \tItems                []ActorAcceptanceItem  `json:"items"`
+          ''',
+          '''\tNotInvestigatedCount int                    `json:"not_investigated_count"`
+          \tBoundedCount         int                    `json:"bounded_count"`
+          \tItems                []ActorAcceptanceItem  `json:"items"`
+          ''', 1)
+          s = s.replace(
+          '''\t\tcase ActorAcceptanceFail:
+          \t\t\tresult.FailCount++
+          \t\tdefault:
+          \t\t\tresult.NotInvestigatedCount++
+          ''',
+          '''\t\tcase ActorAcceptanceFail:
+          \t\t\tresult.FailCount++
+          \t\tcase ActorAcceptanceBounded:
+          \t\t\tresult.BoundedCount++
+          \t\tdefault:
+          \t\t\tresult.NotInvestigatedCount++
+          ''', 1)
+          s = s.replace(
+          '''\tcase result.NotInvestigatedCount > 0:
+          \t\tresult.Status = "partial"
+          \tdefault:
+          ''',
+          '''\tcase result.NotInvestigatedCount > 0:
+          \t\tresult.Status = "partial"
+          \tcase result.BoundedCount > 0:
+          \t\tresult.Status = ActorAcceptanceBounded
+          \tdefault:
+          ''', 1)
+          start = s.index('func actorAcceptanceFunding(')
+          end = s.index('\nfunc actorAcceptanceRecipients', start)
+          funding = r'''func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcceptanceItem {
+          	row, ok := actorAcceptanceFundingLine(origin, network)
+          	if ok {
+          		summary := "Funding source observed; identity remains limited to an on-chain wallet."
+          		if strings.Contains(strings.ToLower(origin.TrailStatus), "cex") {
+          			summary = "Trail ends at CEX — identity opaque."
+          		}
+          		return actorAcceptanceItem("AC-04", "Initial funding origin is shown", ActorAcceptancePass, normalizeActorEvidenceStatus(origin.VerificationStatus), summary, []ActorAcceptanceEvidenceLine{row})
+          	}
+          	if origin.ResultState == ActorFundingResultBounded {
+          		boundary := origin.Boundary
+          		summary := fmt.Sprintf(
+          			"Funding-origin investigation completed at a published boundary: %d page(s), %d signature(s), %d parsed transaction(s); no funding claim was emitted.",
+          			boundary.PagesScanned, boundary.SignaturesWalked, boundary.TransactionsParsed,
+          		)
+          		limitation := boundary.Reason
+          		if limitation == "" {
+          			limitation = "The effective chain boundary was reached without a complete canonical funding evidence line."
+          		}
+          		if boundary.Raisable {
+          			limitation += " The effective working boundary is raisable within the published hard ceiling."
+          		} else {
+          			limitation += " The run reached a non-raisable hard boundary for this code version."
+          		}
+          		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceBounded, "bounded_by_chain", summary, limitation)
+          	}
+          	if origin.ResultState == ActorFundingResultVerified && origin.HistoryComplete {
+          		return actorAcceptanceItem(
+          			"AC-04",
+          			"Initial funding origin is shown",
+          			ActorAcceptancePass,
+          			"verified_not_observed",
+          			"The complete available signature history was investigated and no qualifying direct system funding transfer was observed.",
+          			[]ActorAcceptanceEvidenceLine{},
+          		)
+          	}
+          	if origin.ResultState == ActorFundingResultMissing || origin.Status == "not_investigated" || origin.Status == "stored_evidence_only" || origin.TrailStatus == "not_investigated" {
+          		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceNotInvestigated, "missing_worker_debt", "Funding-origin collection has not completed; this remains worker debt.", actorAcceptanceFirstLimitation(origin.Limitations, "Funding-origin collection did not produce a completed or bounded result."))
+          	}
+          	return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceFail, "unavailable", "Funding-origin collection ran but did not produce a complete canonical evidence line or a valid published boundary.", actorAcceptanceFirstLimitation(origin.Limitations, "Missing or malformed funding evidence fails closed."))
+          }
+          '''
+          s = s[:start] + funding + s[end:]
+          p.write_text(s)
+
+          p = Path('internal/services/actor_acceptance_operational.go')
+          s = p.read_text()
+          s = s.replace(
+          '''\tresult.NotInvestigatedCount = 0
+          \tfor _, item := range result.Items {
+          ''',
+          '''\tresult.NotInvestigatedCount = 0
+          \tresult.BoundedCount = 0
+          \tfor _, item := range result.Items {
+          ''', 1)
+          s = s.replace(
+          '''\t\tcase ActorAcceptanceFail:
+          \t\t\tresult.FailCount++
+          \t\tdefault:
+          \t\t\tresult.NotInvestigatedCount++
+          ''',
+          '''\t\tcase ActorAcceptanceFail:
+          \t\t\tresult.FailCount++
+          \t\tcase ActorAcceptanceBounded:
+          \t\t\tresult.BoundedCount++
+          \t\tdefault:
+          \t\t\tresult.NotInvestigatedCount++
+          ''', 1)
+          s = s.replace(
+          '''\tcase result.NotInvestigatedCount > 0:
+          \t\tresult.Status = "partial"
+          \tdefault:
+          ''',
+          '''\tcase result.NotInvestigatedCount > 0:
+          \t\tresult.Status = "partial"
+          \tcase result.BoundedCount > 0:
+          \t\tresult.Status = ActorAcceptanceBounded
+          \tdefault:
+          ''', 1)
+          p.write_text(s)
+
+          p = Path('internal/handlers/public_case_page.go')
+          s = p.read_text()
+          start = s.index('type publicCaseFundingView struct {')
+          end = s.index('\n}\n\ntype publicCaseTokenView', start) + 2
+          funding_struct = r'''type publicCaseFundingView struct {
+          	Available      bool
+          	ClaimAvailable bool
+          	State          string
+          	Status         string
+          	Class          string
+          	Summary        string
+          	Boundary       string
+          	Raisable       string
+          	Source         string
+          	Destination    string
+          	Amount         string
+          	ObservedAt     string
+          	Signature      string
+          	Slot           string
+          	Program        string
+          	Limitations    []string
+          }'''
+          s = s[:start] + funding_struct + s[end:]
+          start = s.index('func publicCaseFunding(raw any) publicCaseFundingView {')
+          end = s.index('\nfunc publicCaseTokens', start)
+          funding_func = r'''func publicCaseFunding(raw any) publicCaseFundingView {
+          	funding := dossierMap(raw)
+          	if len(funding) == 0 {
+          		return publicCaseFundingView{
+          			Available: true, State: "missing", Status: "worker borcu", Class: "unknown",
+          			Summary: "Funding-origin toplayıcısı henüz tamamlanmış veya zincir sınırıyla kapanmış bir sonuç üretmedi.",
+          		}
+          	}
+          	boundary := dossierMap(funding["boundary"])
+          	resultState := strings.ToLower(strings.TrimSpace(dossierString(funding["result_state"])))
+          	verification := strings.ToLower(strings.TrimSpace(dossierString(funding["verification_status"])))
+          	claimAvailable := dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"
+          	state := resultState
+          	if claimAvailable {
+          		state = "verified"
+          	} else if state == "" {
+          		state = "missing"
+          	}
+          	view := publicCaseFundingView{
+          		Available:      true,
+          		ClaimAvailable: claimAvailable,
+          		State:          state,
+          		Class:          publicCaseStateClass(state),
+          		Source:         dossierString(funding["source_wallet"]),
+          		Destination:    dossierString(funding["destination_wallet"]),
+          		ObservedAt:     publicCaseTimeText(funding["observed_at"]),
+          		Signature:      dossierString(funding["signature"]),
+          		Slot:           publicCaseNumber(funding["slot"]),
+          		Program:        dossierString(funding["program"]),
+          		Limitations:    publicCaseStrings(funding["limitations"]),
+          	}
+          	if value := publicCaseFloat(funding["amount_sol"]); value != 0 {
+          		view.Amount = strconv.FormatFloat(value, 'f', -1, 64) + " SOL"
+          	} else {
+          		view.Amount = "—"
+          	}
+          	pages := publicDossierInt(boundary["pages_scanned"])
+          	signatures := publicDossierInt(boundary["signatures_walked"])
+          	parsed := publicDossierInt(boundary["transactions_parsed"])
+          	oldestSlot := publicCaseNumber(boundary["oldest_slot"])
+          	view.Boundary = fmt.Sprintf("%d sayfa · %d imza · %d transaction · en eski slot %s", pages, signatures, parsed, oldestSlot)
+          	raisable := publicCaseBool(boundary["raisable"])
+          	if raisable {
+          		view.Raisable = "Bu etkin çalışma penceresi, yayınlanan sert tavan içinde yükseltilebilir."
+          	} else if resultState == "bounded" {
+          		view.Raisable = "Bu koşu kod sürümünün sert tavanına ulaştı; yapılandırmayla daha derine inilemez."
+          	}
+          	switch state {
+          	case "verified":
+          		view.Status = firstPublicDossierString(verification, "verified")
+          		view.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+          	case "bounded":
+          		view.Status = "zincir sınırı"
+          		view.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik funding iddiası üretilemedi. Bu sonuç eksik worker işi değildir."
+          		if reason := dossierString(boundary["reason"]); reason != "" {
+          			view.Limitations = append([]string{reason}, view.Limitations...)
+          		}
+          	default:
+          		view.State = "missing"
+          		view.Status = "worker borcu"
+          		view.Class = publicCaseStateClass("missing")
+          		view.Summary = "Funding-origin collector henüz tamamlanmış veya geçerli bounded sonuç üretmedi; otomatik iş açık kalır."
+          	}
+          	return view
+          }
+
+          func publicCaseBool(value any) bool {
+          	switch typed := value.(type) {
+          	case bool:
+          		return typed
+          	case string:
+          		parsed, _ := strconv.ParseBool(strings.TrimSpace(typed))
+          		return parsed
+          	default:
+          		return false
+          	}
+          }
+          '''
+          s = s[:start] + funding_func + s[end:]
+          s = s.replace(
+          '''\tcase "observed", "watch", "monitor":
+          \t\treturn "observed"
+          \tcase "inferred":
+          ''',
+          '''\tcase "observed", "watch", "monitor":
+          \t\treturn "observed"
+          \tcase "bounded", "bounded_by_chain":
+          \t\treturn "inferred"
+          \tcase "inferred":
+          ''', 1)
+          old_article = '''<article class="panel funding"><div class="panel-head"><div><span class="eyebrow">Funding origin</span><h2>İlk fonlama izi</h2></div>{{if .Funding.Available}}<span class="state {{.Funding.Class}}">{{.Funding.Status}}</span>{{end}}</div>{{if .Funding.Available}}<div class="flow"><div><span>Kaynak</span><code>{{.Funding.Source}}</code></div><i>→</i><div><span>Hedef</span><code>{{.Funding.Destination}}</code></div></div><div class="fact-grid"><div><span>Miktar</span><b>{{.Funding.Amount}}</b></div><div><span>Zaman</span><b>{{.Funding.ObservedAt}}</b></div><div><span>Program</span><code>{{.Funding.Program}}</code></div><div><span>Slot</span><code>{{.Funding.Slot}}</code></div></div>{{if .Funding.Signature}}<a class="evidence-link" href="https://solscan.io/tx/{{.Funding.Signature}}" rel="noreferrer">İşlemi Solscan’de aç ↗</a>{{end}}{{range .Funding.Limitations}}<p class="limitation">{{.}}</p>{{end}}{{else}}<div class="empty">Bu bundle içinde doğrulanabilir funding origin bulunmadı.</div>{{end}}</article>'''
+          new_article = '''<article class="panel funding"><div class="panel-head"><div><span class="eyebrow">Funding origin</span><h2>İlk fonlama izi</h2></div><span class="state {{.Funding.Class}}">{{.Funding.Status}}</span></div><p>{{.Funding.Summary}}</p>{{if .Funding.Boundary}}<p class="limitation">Etkin sınır: {{.Funding.Boundary}}</p>{{end}}{{if .Funding.Raisable}}<p class="limitation">{{.Funding.Raisable}}</p>{{end}}{{if .Funding.ClaimAvailable}}<div class="flow"><div><span>Kaynak</span><code>{{.Funding.Source}}</code></div><i>→</i><div><span>Hedef</span><code>{{.Funding.Destination}}</code></div></div><div class="fact-grid"><div><span>Miktar</span><b>{{.Funding.Amount}}</b></div><div><span>Zaman</span><b>{{.Funding.ObservedAt}}</b></div><div><span>Program</span><code>{{.Funding.Program}}</code></div><div><span>Slot</span><code>{{.Funding.Slot}}</code></div></div>{{if .Funding.Signature}}<a class="evidence-link" href="https://solscan.io/tx/{{.Funding.Signature}}" rel="noreferrer">İşlemi Solscan’de aç ↗</a>{{end}}{{end}}{{range .Funding.Limitations}}<p class="limitation">{{.}}</p>{{end}}</article>'''
+          if old_article not in s:
+              raise SystemExit('public funding template anchor not found')
+          p.write_text(s.replace(old_article, new_article, 1))
+          PY
+          gofmt -w internal/services/actor_acceptance.go internal/services/actor_acceptance_operational.go internal/handlers/public_case_page.go
+          go test ./internal/services ./internal/handlers -run 'ActorAcceptance|PublicCase|Funding' -count=1
+      - name: Commit bounded-state surfaces
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Task 3 surfaces already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/services/actor_acceptance.go koschei/api/internal/services/actor_acceptance_operational.go koschei/api/internal/handlers/public_case_page.go
+          git commit -m "actor: distinguish funding bounded and missing states"
+          git push origin HEAD:agent/release-gates-2026-08-02
