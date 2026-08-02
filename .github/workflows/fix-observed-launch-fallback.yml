@@ -1,6 +1,9 @@
 name: Fix Observed Launch Fallback
 
 on:
+  push:
+    branches:
+      - agent/address-intelligence-completeness
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -9,13 +12,13 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: github.head_ref == 'agent/address-intelligence-completeness'
+    if: github.event_name == 'push' || github.head_ref == 'agent/address-intelligence-completeness'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: agent/address-intelligence-completeness
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
@@ -102,4 +105,4 @@ func TestActorCreatedMintVerificationCandidatesExcludeObservationStore(t *testin
             exit 0
           fi
           git commit -m 'run observation-store fallback before Helius early returns'
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:agent/address-intelligence-completeness
