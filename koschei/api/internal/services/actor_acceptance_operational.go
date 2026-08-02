@@ -457,12 +457,15 @@ func recountOperationalActorAcceptance(result *ActorAcceptanceResult) {
 	result.PassCount = 0
 	result.FailCount = 0
 	result.NotInvestigatedCount = 0
+	result.BoundedCount = 0
 	for _, item := range result.Items {
 		switch item.Status {
 		case ActorAcceptancePass:
 			result.PassCount++
 		case ActorAcceptanceFail:
 			result.FailCount++
+		case ActorAcceptanceBounded:
+			result.BoundedCount++
 		default:
 			result.NotInvestigatedCount++
 		}
@@ -472,6 +475,8 @@ func recountOperationalActorAcceptance(result *ActorAcceptanceResult) {
 		result.Status = ActorAcceptanceFail
 	case result.NotInvestigatedCount > 0:
 		result.Status = "partial"
+	case result.BoundedCount > 0:
+		result.Status = ActorAcceptanceBounded
 	default:
 		result.Status = ActorAcceptancePass
 	}
