@@ -26,18 +26,18 @@ type canonicalCapabilityStatus struct {
 }
 
 type canonicalIntegrationCoverage struct {
-	SchemaVersion               string                               `json:"schema_version"`
-	OverallStatus               string                               `json:"overall_status"`
-	LiveScanRequested           bool                                 `json:"live_scan_requested"`
-	Capabilities                map[string]canonicalCapabilityStatus `json:"capabilities"`
-	RequiredCapabilityCount     int                                  `json:"required_capability_count"`
-	ActiveRequiredCount         int                                  `json:"active_required_count"`
-	PartialRequiredCount        int                                  `json:"partial_required_count"`
-	UnavailableRequiredCount    int                                  `json:"unavailable_required_count"`
-	NotRequestedRequiredCount   int                                  `json:"not_requested_required_count"`
-	OrphanCapabilityCount       int                                  `json:"orphan_capability_count"`
-	OrphanCapabilities          []string                             `json:"orphan_capabilities"`
-	Policy                      map[string]any                       `json:"policy"`
+	SchemaVersion             string                               `json:"schema_version"`
+	OverallStatus             string                               `json:"overall_status"`
+	LiveScanRequested         bool                                 `json:"live_scan_requested"`
+	Capabilities              map[string]canonicalCapabilityStatus `json:"capabilities"`
+	RequiredCapabilityCount   int                                  `json:"required_capability_count"`
+	ActiveRequiredCount       int                                  `json:"active_required_count"`
+	PartialRequiredCount      int                                  `json:"partial_required_count"`
+	UnavailableRequiredCount  int                                  `json:"unavailable_required_count"`
+	NotRequestedRequiredCount int                                  `json:"not_requested_required_count"`
+	OrphanCapabilityCount     int                                  `json:"orphan_capability_count"`
+	OrphanCapabilities        []string                             `json:"orphan_capabilities"`
+	Policy                    map[string]any                       `json:"policy"`
 }
 
 // attachCanonicalInvestigationDiagnostics mutates the exact canonical report
@@ -62,17 +62,17 @@ func attachCanonicalInvestigationDiagnostics(report map[string]any) {
 func buildCanonicalIntegrationCoverage(report map[string]any) canonicalIntegrationCoverage {
 	live := canonicalLiveScanRequested(report)
 	out := canonicalIntegrationCoverage{
-		SchemaVersion: "koschei-capability-integration-v1",
-		OverallStatus: "complete",
-		LiveScanRequested: live,
-		Capabilities: map[string]canonicalCapabilityStatus{},
+		SchemaVersion:      "koschei-capability-integration-v1",
+		OverallStatus:      "complete",
+		LiveScanRequested:  live,
+		Capabilities:       map[string]canonicalCapabilityStatus{},
 		OrphanCapabilities: []string{},
 		Policy: map[string]any{
-			"feature_without_trigger_is_orphan": true,
-			"feature_without_evidence_persistence_is_partial": true,
-			"feature_without_report_contract_is_partial": true,
+			"feature_without_trigger_is_orphan":                                       true,
+			"feature_without_evidence_persistence_is_partial":                         true,
+			"feature_without_report_contract_is_partial":                              true,
 			"full_scan_cannot_claim_complete_when_required_capability_is_unavailable": true,
-			"safe_check_can_leave_live_capabilities_not_requested": true,
+			"safe_check_can_leave_live_capabilities_not_requested":                    true,
 		},
 	}
 	put := func(key string, item canonicalCapabilityStatus) {
@@ -128,7 +128,7 @@ func buildCanonicalIntegrationCoverage(report map[string]any) canonicalIntegrati
 	put("immutable_dossier_snapshot", canonicalCapabilityStatus{
 		Capability: "Immutable dossier snapshot", Status: canonicalCapabilityActive,
 		WiredToCanonicalRadar: true, RequiredForFullScan: false, EvidenceBacked: true,
-		Source: "persistDossierSourceSnapshot",
+		Source:      "persistDossierSourceSnapshot",
 		Limitations: []string{"Persistence remains best-effort when the database or signed verdict is unavailable."},
 	})
 

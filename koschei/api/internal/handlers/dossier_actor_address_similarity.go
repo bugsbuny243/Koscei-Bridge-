@@ -104,16 +104,16 @@ func actorDossierAddressCluster(pattern, matchType string, members []string, add
 		}
 	}
 	return map[string]any{
-		"label": "vanity_address_similarity_candidate",
-		"pattern": pattern,
-		"match_type": matchType,
-		"addresses": members,
-		"address_count": len(members),
+		"label":                    "vanity_address_similarity_candidate",
+		"pattern":                  pattern,
+		"match_type":               matchType,
+		"addresses":                members,
+		"address_count":            len(members),
 		"distinct_signature_count": len(signatures),
-		"verification_status": "inferred",
-		"grade_effect": "none",
-		"detector_version": actorDossierAddressSimilarityVersion,
-		"limitation": "Base58 visual similarity only. This does not prove shared identity, ownership, intent or common control.",
+		"verification_status":      "inferred",
+		"grade_effect":             "none",
+		"detector_version":         actorDossierAddressSimilarityVersion,
+		"limitation":               "Base58 visual similarity only. This does not prove shared identity, ownership, intent or common control.",
 	}
 }
 

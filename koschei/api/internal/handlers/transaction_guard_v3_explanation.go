@@ -8,14 +8,14 @@ import (
 )
 
 type transactionGuardExplanationMovement struct {
-	AssetType    string `json:"asset_type"`
-	Mint         string `json:"mint,omitempty"`
-	AmountRaw    string `json:"amount_raw"`
-	Amount       string `json:"amount"`
-	From         string `json:"from,omitempty"`
-	To           string `json:"to,omitempty"`
-	Account      string `json:"account,omitempty"`
-	Evidence     string `json:"evidence"`
+	AssetType string `json:"asset_type"`
+	Mint      string `json:"mint,omitempty"`
+	AmountRaw string `json:"amount_raw"`
+	Amount    string `json:"amount"`
+	From      string `json:"from,omitempty"`
+	To        string `json:"to,omitempty"`
+	Account   string `json:"account,omitempty"`
+	Evidence  string `json:"evidence"`
 }
 
 type transactionGuardExplanationAuthority struct {
@@ -30,11 +30,11 @@ type transactionGuardExplanationAuthority struct {
 }
 
 type transactionGuardExplanationRecipient struct {
-	Address          string   `json:"address"`
-	Roles            []string `json:"roles"`
-	HistoricalMatch  bool     `json:"historical_match"`
-	HistoricalRisk   string   `json:"historical_risk,omitempty"`
-	HistoricalIndex  int      `json:"historical_risk_index,omitempty"`
+	Address         string   `json:"address"`
+	Roles           []string `json:"roles"`
+	HistoricalMatch bool     `json:"historical_match"`
+	HistoricalRisk  string   `json:"historical_risk,omitempty"`
+	HistoricalIndex int      `json:"historical_risk_index,omitempty"`
 }
 
 type transactionGuardExplanationReason struct {
@@ -45,29 +45,29 @@ type transactionGuardExplanationReason struct {
 }
 
 type transactionGuardPreSigningExplanation struct {
-	Available           bool                                      `json:"available"`
-	Action              string                                    `json:"action"`
-	Headline            string                                    `json:"headline"`
-	PlainLanguageSummary string                                   `json:"plain_language_summary"`
-	RecommendedAction   string                                    `json:"recommended_action"`
-	EvidenceStatus      string                                    `json:"evidence_status"`
-	Sends               []transactionGuardExplanationMovement     `json:"sends"`
-	Receives            []transactionGuardExplanationMovement     `json:"receives"`
-	Authorities         []transactionGuardExplanationAuthority    `json:"authorities"`
-	Recipients          []transactionGuardExplanationRecipient    `json:"recipients"`
-	InvokedPrograms     []string                                  `json:"invoked_programs"`
-	Reasons             []transactionGuardExplanationReason       `json:"reasons"`
-	HiddenOrSensitiveActions []string                              `json:"hidden_or_sensitive_actions"`
-	Limitations         []string                                  `json:"limitations"`
+	Available                bool                                   `json:"available"`
+	Action                   string                                 `json:"action"`
+	Headline                 string                                 `json:"headline"`
+	PlainLanguageSummary     string                                 `json:"plain_language_summary"`
+	RecommendedAction        string                                 `json:"recommended_action"`
+	EvidenceStatus           string                                 `json:"evidence_status"`
+	Sends                    []transactionGuardExplanationMovement  `json:"sends"`
+	Receives                 []transactionGuardExplanationMovement  `json:"receives"`
+	Authorities              []transactionGuardExplanationAuthority `json:"authorities"`
+	Recipients               []transactionGuardExplanationRecipient `json:"recipients"`
+	InvokedPrograms          []string                               `json:"invoked_programs"`
+	Reasons                  []transactionGuardExplanationReason    `json:"reasons"`
+	HiddenOrSensitiveActions []string                               `json:"hidden_or_sensitive_actions"`
+	Limitations              []string                               `json:"limitations"`
 }
 
 func buildTransactionGuardV3Explanation(wallet string, assessment transactionFirewallAssessment, decoded transactionGuardDecodedTransaction, threat transactionGuardThreatHistoryAnalysis) transactionGuardPreSigningExplanation {
 	wallet = strings.TrimSpace(wallet)
 	out := transactionGuardPreSigningExplanation{
 		Available: decoded.Available, Action: assessment.Action,
-		Headline: guardV3ExplanationHeadline(assessment.Action),
+		Headline:          guardV3ExplanationHeadline(assessment.Action),
 		RecommendedAction: guardV3ExplanationRecommendation(assessment.Action),
-		Sends: []transactionGuardExplanationMovement{}, Receives: []transactionGuardExplanationMovement{},
+		Sends:             []transactionGuardExplanationMovement{}, Receives: []transactionGuardExplanationMovement{},
 		Authorities: []transactionGuardExplanationAuthority{}, Recipients: []transactionGuardExplanationRecipient{},
 		InvokedPrograms: append([]string{}, decoded.ProgramIDs...), Reasons: []transactionGuardExplanationReason{},
 		HiddenOrSensitiveActions: []string{}, Limitations: append([]string{}, decoded.Limitations...),
@@ -208,7 +208,7 @@ func guardV3ExplanationAuthorities(operations []transactionGuardDecodedTokenOper
 		case "set_authority":
 			out = append(out, transactionGuardExplanationAuthority{
 				Kind: operation.Kind, Account: operation.Account, Authority: operation.Authority, NewAuthority: operation.NewAuthority,
-				Persistent: operation.NewAuthority != "revoked",
+				Persistent:  operation.NewAuthority != "revoked",
 				Explanation: "Control of a token account or mint authority is changed after this transaction.",
 			})
 		case "close_account":

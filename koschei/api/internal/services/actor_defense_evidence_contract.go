@@ -11,19 +11,19 @@ import (
 // ACTOR_INVESTIGATION_ENGINE.md section 4. It is derived deterministically from
 // the stored relation and metadata; it never upgrades an evidence class.
 type ActorDefenseEvidenceLine struct {
-	ActorRole                  string         `json:"actor_role"`
-	Timestamp                  time.Time      `json:"timestamp"`
-	SourceWallet               string         `json:"source_wallet"`
-	DestinationWallet          string         `json:"destination_wallet"`
-	Program                    string         `json:"program"`
-	Amount                     map[string]any `json:"amount"`
-	EvidenceLineComplete       bool           `json:"evidence_line_complete"`
-	EvidenceGaps               []string       `json:"evidence_gaps,omitempty"`
-	PossibleDust               bool           `json:"possible_dust"`
-	AddressPoisoningCandidate  bool           `json:"address_poisoning_candidate"`
-	GradeEligible              bool           `json:"grade_eligible"`
-	EvidenceLabels             []string       `json:"evidence_labels,omitempty"`
-	ClassificationReason       string         `json:"classification_reason,omitempty"`
+	ActorRole                 string         `json:"actor_role"`
+	Timestamp                 time.Time      `json:"timestamp"`
+	SourceWallet              string         `json:"source_wallet"`
+	DestinationWallet         string         `json:"destination_wallet"`
+	Program                   string         `json:"program"`
+	Amount                    map[string]any `json:"amount"`
+	EvidenceLineComplete      bool           `json:"evidence_line_complete"`
+	EvidenceGaps              []string       `json:"evidence_gaps,omitempty"`
+	PossibleDust              bool           `json:"possible_dust"`
+	AddressPoisoningCandidate bool           `json:"address_poisoning_candidate"`
+	GradeEligible             bool           `json:"grade_eligible"`
+	EvidenceLabels            []string       `json:"evidence_labels,omitempty"`
+	ClassificationReason      string         `json:"classification_reason,omitempty"`
 }
 
 // MarshalJSON preserves the existing evidence payload while adding the

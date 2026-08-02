@@ -77,11 +77,11 @@ func (h *Handler) CreateWalletChallenge(w http.ResponseWriter, r *http.Request) 
 	}
 	services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "wallet_challenge_created", "customer", "info", map[string]any{"wallet_address": wallet, "network": network, "challenge_id": challengeID}))
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"challenge_id": challengeID,
+		"challenge_id":   challengeID,
 		"wallet_address": wallet,
-		"network": network,
-		"message": message,
-		"expires_at": expiresAt,
+		"network":        network,
+		"message":        message,
+		"expires_at":     expiresAt,
 	})
 }
 

@@ -14,19 +14,19 @@ import (
 // from Koschei's existing Pump discovery, holder snapshot and trade ledgers.
 // Roles are evidence labels, not identity or wrongdoing claims.
 type ActorDefenseTokenObservation struct {
-	Mint            string    `json:"mint"`
-	Name            string    `json:"name,omitempty"`
-	Symbol          string    `json:"symbol,omitempty"`
-	Roles           []string  `json:"roles"`
-	CreatorSignature string   `json:"creator_signature,omitempty"`
-	HolderRank      int       `json:"holder_rank,omitempty"`
-	HolderPercentage float64  `json:"holder_percentage,omitempty"`
-	BuyCount        int64     `json:"buy_count,omitempty"`
-	SellCount       int64     `json:"sell_count,omitempty"`
-	SOLBought       float64   `json:"sol_bought,omitempty"`
-	SOLSold         float64   `json:"sol_sold,omitempty"`
-	FirstObservedAt time.Time `json:"first_observed_at,omitempty"`
-	LastObservedAt  time.Time `json:"last_observed_at,omitempty"`
+	Mint             string    `json:"mint"`
+	Name             string    `json:"name,omitempty"`
+	Symbol           string    `json:"symbol,omitempty"`
+	Roles            []string  `json:"roles"`
+	CreatorSignature string    `json:"creator_signature,omitempty"`
+	HolderRank       int       `json:"holder_rank,omitempty"`
+	HolderPercentage float64   `json:"holder_percentage,omitempty"`
+	BuyCount         int64     `json:"buy_count,omitempty"`
+	SellCount        int64     `json:"sell_count,omitempty"`
+	SOLBought        float64   `json:"sol_bought,omitempty"`
+	SOLSold          float64   `json:"sol_sold,omitempty"`
+	FirstObservedAt  time.Time `json:"first_observed_at,omitempty"`
+	LastObservedAt   time.Time `json:"last_observed_at,omitempty"`
 }
 
 type ActorDefenseRelatedActor struct {
@@ -76,9 +76,9 @@ type ActorDefenseTrack struct {
 }
 
 type ActorDefenseDossier struct {
-	Wallet        string                        `json:"wallet"`
-	Network       string                        `json:"network"`
-	Track         ActorDefenseTrack             `json:"track"`
+	Wallet        string                         `json:"wallet"`
+	Network       string                         `json:"network"`
+	Track         ActorDefenseTrack              `json:"track"`
 	Tokens        []ActorDefenseTokenObservation `json:"tokens"`
 	RelatedActors []ActorDefenseRelatedActor     `json:"related_actors"`
 	Evidence      []ActorDefenseEvidenceRecord   `json:"evidence"`
@@ -177,9 +177,9 @@ func (s *ActorDefenseStore) LoadWalletDossier(ctx context.Context, wallet, netwo
 	}
 	track.State = DeriveActorDefenseTrackState(track, related)
 	track.Dossier = map[string]any{
-		"token_count": len(tokens),
-		"direct_evidence_count": len(evidence),
-		"state_basis": []string{"pump_creator_observations", "owner_resolved_holder_snapshots", "pump_trade_ledger", "signed_transaction_evidence"},
+		"token_count":                 len(tokens),
+		"direct_evidence_count":       len(evidence),
+		"state_basis":                 []string{"pump_creator_observations", "owner_resolved_holder_snapshots", "pump_trade_ledger", "signed_transaction_evidence"},
 		"no_identity_or_intent_claim": true,
 	}
 	if err := s.upsertTrack(ctx, &track); err != nil {
@@ -190,17 +190,17 @@ func (s *ActorDefenseStore) LoadWalletDossier(ctx context.Context, wallet, netwo
 		Wallet: wallet, Network: network, Track: track, Tokens: tokens,
 		RelatedActors: related, Evidence: evidence,
 		Coverage: map[string]any{
-			"created_tokens": createdCount,
-			"dominant_holder_tokens": dominantCount,
-			"traded_tokens": tradedCount,
-			"related_actors": len(related),
+			"created_tokens":            createdCount,
+			"dominant_holder_tokens":    dominantCount,
+			"traded_tokens":             tradedCount,
+			"related_actors":            len(related),
 			"persisted_direct_evidence": len(evidence),
 		},
 		Policy: map[string]any{
-			"no_evidence_no_claim": true,
-			"wallet_addresses_are_case_sensitive": true,
+			"no_evidence_no_claim":                                           true,
+			"wallet_addresses_are_case_sensitive":                            true,
 			"verified_requires_transaction_or_owner_resolved_chain_evidence": true,
-			"identity_or_wrongdoing_claim": false,
+			"identity_or_wrongdoing_claim":                                   false,
 		},
 		GeneratedAt: time.Now().UTC(),
 	}, nil

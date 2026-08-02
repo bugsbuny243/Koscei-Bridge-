@@ -32,28 +32,28 @@ type transactionGuardCPIAccount struct {
 }
 
 type transactionGuardCPIAssetMovement struct {
-	AssetType                  string `json:"asset_type"`
-	Kind                       string `json:"kind"`
-	Source                     string `json:"source,omitempty"`
-	Destination                string `json:"destination,omitempty"`
-	Mint                       string `json:"mint,omitempty"`
-	AmountRaw                  string `json:"amount_raw,omitempty"`
-	Decimals                   *int   `json:"decimals,omitempty"`
-	ProgramID                  string `json:"program_id"`
-	ParentProgramID            string `json:"parent_program_id,omitempty"`
-	ParentInstructionIndex     int    `json:"parent_instruction_index"`
-	Sequence                   int    `json:"sequence"`
-	StackHeight                *int   `json:"stack_height,omitempty"`
-	SourceClassification       string `json:"source_classification,omitempty"`
-	DestinationClassification  string `json:"destination_classification,omitempty"`
-	SourceController           string `json:"source_controller,omitempty"`
-	DestinationController      string `json:"destination_controller,omitempty"`
-	WalletOrigin               bool   `json:"wallet_origin"`
-	InnerOnly                  bool   `json:"inner_only"`
-	PolicyCompared             bool   `json:"policy_compared"`
-	DeclaredByAccountPolicy    bool   `json:"declared_by_account_policy"`
-	UndeclaredByAccountPolicy  bool   `json:"undeclared_by_account_policy"`
-	EvidenceStatus             string `json:"evidence_status"`
+	AssetType                 string `json:"asset_type"`
+	Kind                      string `json:"kind"`
+	Source                    string `json:"source,omitempty"`
+	Destination               string `json:"destination,omitempty"`
+	Mint                      string `json:"mint,omitempty"`
+	AmountRaw                 string `json:"amount_raw,omitempty"`
+	Decimals                  *int   `json:"decimals,omitempty"`
+	ProgramID                 string `json:"program_id"`
+	ParentProgramID           string `json:"parent_program_id,omitempty"`
+	ParentInstructionIndex    int    `json:"parent_instruction_index"`
+	Sequence                  int    `json:"sequence"`
+	StackHeight               *int   `json:"stack_height,omitempty"`
+	SourceClassification      string `json:"source_classification,omitempty"`
+	DestinationClassification string `json:"destination_classification,omitempty"`
+	SourceController          string `json:"source_controller,omitempty"`
+	DestinationController     string `json:"destination_controller,omitempty"`
+	WalletOrigin              bool   `json:"wallet_origin"`
+	InnerOnly                 bool   `json:"inner_only"`
+	PolicyCompared            bool   `json:"policy_compared"`
+	DeclaredByAccountPolicy   bool   `json:"declared_by_account_policy"`
+	UndeclaredByAccountPolicy bool   `json:"undeclared_by_account_policy"`
+	EvidenceStatus            string `json:"evidence_status"`
 }
 
 type transactionGuardCPIInstruction struct {
@@ -98,11 +98,11 @@ type transactionGuardCPIFlowAnalysis struct {
 
 func unavailableTransactionGuardV3CPIFlow() transactionGuardCPIFlowAnalysis {
 	return transactionGuardCPIFlowAnalysis{
-		Requested: true,
-		Required:  envBool("TRANSACTION_GUARD_REQUIRE_CPI_FLOW", true),
-		Available: false,
-		Complete:  false,
-		Status:    "simulation_unavailable",
+		Requested:  true,
+		Required:   envBool("TRANSACTION_GUARD_REQUIRE_CPI_FLOW", true),
+		Available:  false,
+		Complete:   false,
+		Status:     "simulation_unavailable",
 		ProgramIDs: []string{}, Groups: []transactionGuardCPIGroup{},
 		AssetMovements: []transactionGuardCPIAssetMovement{}, Accounts: []transactionGuardCPIAccount{},
 		Limitations: []string{"CPI and inner-instruction evidence requires a successful Solana simulation response."},
@@ -118,11 +118,11 @@ func analyzeTransactionGuardV3CPIFlow(
 	pre, post []*services.SolanaAccountInfo,
 ) (transactionGuardCPIFlowAnalysis, []transactionFirewallFinding) {
 	analysis := transactionGuardCPIFlowAnalysis{
-		Requested: true,
-		Required:  envBool("TRANSACTION_GUARD_REQUIRE_CPI_FLOW", true),
-		Available: true,
-		Complete:  true,
-		Status:    "none_observed",
+		Requested:  true,
+		Required:   envBool("TRANSACTION_GUARD_REQUIRE_CPI_FLOW", true),
+		Available:  true,
+		Complete:   true,
+		Status:     "none_observed",
 		ProgramIDs: []string{}, Groups: []transactionGuardCPIGroup{},
 		AssetMovements: []transactionGuardCPIAssetMovement{}, Accounts: []transactionGuardCPIAccount{},
 		Limitations: []string{
@@ -316,21 +316,21 @@ func analyzeTransactionGuardV3CPIFlow(
 		}
 		findings = append(findings, transactionFirewallFinding{
 			Code: "cpi_flow_incomplete", Severity: severity,
-			Title: "CPI asset-flow evidence is incomplete",
+			Title:    "CPI asset-flow evidence is incomplete",
 			Evidence: fmt.Sprintf("unresolved_inner_instructions=%d total_inner_instructions=%d", analysis.UnresolvedInstructionCount, analysis.InnerInstructionCount), Score: 0,
 		})
 	}
 	for destination := range undeclaredDestinations {
 		findings = append(findings, transactionFirewallFinding{
 			Code: "cpi_undeclared_wallet_exit_" + guardV3CompactAddressHash(destination), Severity: "high",
-			Title: "Inner instruction sends wallet assets to an undeclared destination",
+			Title:    "Inner instruction sends wallet assets to an undeclared destination",
 			Evidence: compactGuardV3Evidence(fmt.Sprintf("destination=%s policy_accounts=%d", destination, len(policySet))), Score: 50,
 		})
 	}
 	if innerOnlyWalletMovement {
 		findings = append(findings, transactionFirewallFinding{
 			Code: "cpi_inner_only_wallet_movement", Severity: "info",
-			Title: "Wallet asset movement occurs inside CPI execution",
+			Title:    "Wallet asset movement occurs inside CPI execution",
 			Evidence: fmt.Sprintf("wallet_origin_movements=%d destinations=%d", analysis.WalletOriginMovementCount, len(walletDestinations)), Score: 0,
 		})
 	}
@@ -343,7 +343,7 @@ func analyzeTransactionGuardV3CPIFlow(
 	if vaultCount > 0 {
 		findings = append(findings, transactionFirewallFinding{
 			Code: "cpi_program_controlled_vault_candidates", Severity: "info",
-			Title: "Program-controlled vault candidates participate in CPI flow",
+			Title:    "Program-controlled vault candidates participate in CPI flow",
 			Evidence: fmt.Sprintf("vault_candidates=%d", vaultCount), Score: 0,
 		})
 	}

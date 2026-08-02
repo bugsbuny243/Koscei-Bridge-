@@ -57,10 +57,10 @@ func (h *Handler) OwnerDefenseSentinel(w http.ResponseWriter, r *http.Request) {
 	switch strings.ToLower(strings.TrimSpace(input.Action)) {
 	case "watch":
 		monitor, err := defense.UpsertProgramMonitor(r.Context(), h.DB, defense.ProgramMonitorInput{
-			ProgramID: input.ProgramID,
-			Network: input.Network,
+			ProgramID:           input.ProgramID,
+			Network:             input.Network,
 			ManifestArtifactRef: input.ManifestArtifactRef,
-			IntervalSeconds: input.IntervalSeconds,
+			IntervalSeconds:     input.IntervalSeconds,
 		})
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "program_monitor_rejected", "details": err.Error()})
@@ -93,11 +93,11 @@ func (h *Handler) OwnerDefenseSentinel(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"check": result,
-			"read_only_rpc": true,
+			"ok":                       true,
+			"check":                    result,
+			"read_only_rpc":            true,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported_program_sentinel_action"})

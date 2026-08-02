@@ -24,13 +24,13 @@ func (h *Handler) OwnerDefenseHarnessMaterialization(w http.ResponseWriter, r *h
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"materializations": items,
-			"dependency_resolution": false,
-			"source_executed": false,
-			"harness_executed": false,
+			"ok":                       true,
+			"materializations":         items,
+			"dependency_resolution":    false,
+			"source_executed":          false,
+			"harness_executed":         false,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 		return
 	}
@@ -57,12 +57,12 @@ func (h *Handler) OwnerDefenseHarnessMaterialization(w http.ResponseWriter, r *h
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok": true,
-		"materialization": item,
-		"dependency_resolution": false,
-		"source_executed": false,
-		"harness_executed": false,
+		"ok":                       true,
+		"materialization":          item,
+		"dependency_resolution":    false,
+		"source_executed":          false,
+		"harness_executed":         false,
 		"mainnet_transaction_sent": false,
-		"verdict_authority": false,
+		"verdict_authority":        false,
 	})
 }

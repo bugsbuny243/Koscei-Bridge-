@@ -63,11 +63,11 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 	}
 	tier := h.courtTier(ctx)
 	report := &CourtReport{
-		Status: "skipped",
+		Status:      "skipped",
 		TierApplied: tier,
-		CaseID: courtCaseID(in),
-		Authority: "the signed deterministic verdict is final; court output is commentary/explanation",
-		Errors: []string{},
+		CaseID:      courtCaseID(in),
+		Authority:   "the signed deterministic verdict is final; court output is commentary/explanation",
+		Errors:      []string{},
 		GeneratedAt: time.Now().UTC(),
 	}
 	if tier == "free" || tier == "basic" || h == nil || h.CourtClient == nil {
@@ -248,9 +248,9 @@ func (h *Handler) courtScheduledReport(ctx context.Context) *CourtReport {
 	}
 	tier := h.courtTier(ctx)
 	report := &CourtReport{
-		Status: "skipped",
+		Status:      "skipped",
 		TierApplied: tier,
-		Authority: "the signed deterministic verdict is final; court output is commentary/explanation",
+		Authority:   "the signed deterministic verdict is final; court output is commentary/explanation",
 		GeneratedAt: time.Now().UTC(),
 	}
 	if tier == "free" || tier == "basic" || h.CourtClient == nil {

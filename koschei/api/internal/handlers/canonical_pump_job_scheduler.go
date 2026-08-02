@@ -37,12 +37,12 @@ func StartCanonicalPumpJobScheduler(ctx context.Context, db *sql.DB, store *jobs
 	workerCtx, cancel := context.WithCancel(ctx)
 	scheduler := &canonicalPumpJobScheduler{
 		RadarStore: services.NewSecurityRadarStore(db), JobStore: store,
-		Provider: services.NewDexScreenerPumpVolumeClient(),
-		ThresholdUSD: services.PumpHighVolumeThresholdUSD(),
-		PollEvery: services.PumpHighVolumePollInterval(),
-		CandidateLimit: canonicalPumpEnvInt("PUMP_HIGH_VOLUME_CANDIDATE_PAGE_SIZE", 900, 30, 3000),
+		Provider:        services.NewDexScreenerPumpVolumeClient(),
+		ThresholdUSD:    services.PumpHighVolumeThresholdUSD(),
+		PollEvery:       services.PumpHighVolumePollInterval(),
+		CandidateLimit:  canonicalPumpEnvInt("PUMP_HIGH_VOLUME_CANDIDATE_PAGE_SIZE", 900, 30, 3000),
 		MaxJobsPerCycle: canonicalPumpMaxJobsPerCycle(),
-		ReportCooldown: time.Duration(canonicalPumpEnvInt("PUMP_HIGH_VOLUME_REPORT_COOLDOWN_SECONDS", 21600, 900, 86400)) * time.Second,
+		ReportCooldown:  time.Duration(canonicalPumpEnvInt("PUMP_HIGH_VOLUME_REPORT_COOLDOWN_SECONDS", 21600, 900, 86400)) * time.Second,
 		AttemptCooldown: time.Duration(canonicalPumpEnvInt("PUMP_HIGH_VOLUME_ATTEMPT_COOLDOWN_SECONDS", 1800, 300, 21600)) * time.Second,
 	}
 	go scheduler.Start(workerCtx)

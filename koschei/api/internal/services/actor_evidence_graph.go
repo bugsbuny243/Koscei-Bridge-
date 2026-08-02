@@ -52,10 +52,10 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 	out := ActorEvidenceGraph{
 		ActorWallet: actor, Nodes: []ActorEvidenceGraphNode{}, Edges: []ActorEvidenceGraphEdge{},
 		Policy: map[string]any{
-			"no_evidence_no_edge": true,
-			"inventory_does_not_create_edges": true,
+			"no_evidence_no_edge":                   true,
+			"inventory_does_not_create_edges":       true,
 			"external_attribution_is_observed_only": true,
-			"identity_or_wrongdoing_claim": false,
+			"identity_or_wrongdoing_claim":          false,
 		},
 	}
 	if actor == "" {
@@ -85,20 +85,20 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 			status = "unverified"
 		}
 		upsertNode(token.Mint, "token", actorGraphTokenRole(token.Roles), status, map[string]any{
-			"roles": token.Roles,
+			"roles":             token.Roles,
 			"creator_signature": token.CreatorSignature,
-			"holder_rank": token.HolderRank,
+			"holder_rank":       token.HolderRank,
 			"holder_percentage": token.HolderPercentage,
 			"first_observed_at": token.FirstObservedAt,
-			"last_observed_at": token.LastObservedAt,
+			"last_observed_at":  token.LastObservedAt,
 		})
 	}
 	for _, related := range dossier.RelatedActors {
 		upsertNode(related.Wallet, "wallet", "repeat_related_actor", "observed", map[string]any{
-			"shared_token_count": related.SharedTokenCount,
+			"shared_token_count":    related.SharedTokenCount,
 			"max_holder_percentage": related.MaxPercentage,
-			"first_observed_at": related.FirstObservedAt,
-			"last_observed_at": related.LastObservedAt,
+			"first_observed_at":     related.FirstObservedAt,
+			"last_observed_at":      related.LastObservedAt,
 		})
 	}
 
@@ -110,7 +110,7 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 		kind := actorGraphNodeKind(evidence.CounterpartKind)
 		role := actorGraphCounterpartRole(evidence)
 		upsertNode(counterpart, kind, role, evidence.VerificationStatus, map[string]any{
-			"token_mint": evidence.TokenMint,
+			"token_mint":      evidence.TokenMint,
 			"source_provider": evidence.Source,
 		})
 		sourceID := actor
@@ -124,7 +124,7 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 		edge := ActorEvidenceGraphEdge{
 			Source: sourceID, Target: targetID, Relation: strings.TrimSpace(evidence.Relation),
 			VerificationStatus: normalizeActorGraphStatus(evidence.VerificationStatus),
-			Signature: strings.TrimSpace(evidence.Signature), Slot: evidence.Slot,
+			Signature:          strings.TrimSpace(evidence.Signature), Slot: evidence.Slot,
 			ObservedAt: evidence.ObservedAt, TokenMint: strings.TrimSpace(evidence.TokenMint),
 			TokenAmount: evidence.TokenAmount, NativeAmount: evidence.AmountNative,
 			SourceProvider: strings.TrimSpace(evidence.Source), Metadata: metadata,

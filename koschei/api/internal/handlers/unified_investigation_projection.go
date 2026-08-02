@@ -16,7 +16,9 @@ func unifiedInvestigationTechnicalProjection(report map[string]any) map[string]a
 	}
 	out := make(map[string]any, len(keys))
 	for _, key := range keys {
-		if value, ok := report[key]; ok { out[key] = value }
+		if value, ok := report[key]; ok {
+			out[key] = value
+		}
 	}
 	return out
 }

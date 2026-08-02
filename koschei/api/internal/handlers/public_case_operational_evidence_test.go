@@ -10,20 +10,20 @@ import (
 func TestPublicCaseOperationalEvidenceRetainsDustWithGradeExclusionLabel(t *testing.T) {
 	raw := []any{
 		map[string]any{
-			"relation": "direct_sol_transfer_in",
-			"verification_status": "observed",
-			"actor_wallet": "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe",
-			"counterpart_id": "4qcD6f4EWDD4TiZj72BAn9jeXrU6tvBWkRAhPdpeTvHm",
-			"source_wallet": "4qcD6f4EWDD4TiZj72BAn9jeXrU6tvBWkRAhPdpeTvHm",
-			"destination_wallet": "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe",
-			"signature": "dust-signature",
-			"slot": 435027938,
-			"observed_at": "2026-07-25T00:56:26Z",
-			"amount": map[string]any{"native_sol": 0.00001},
-			"program": "system",
-			"possible_dust": true,
+			"relation":                    "direct_sol_transfer_in",
+			"verification_status":         "observed",
+			"actor_wallet":                "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe",
+			"counterpart_id":              "4qcD6f4EWDD4TiZj72BAn9jeXrU6tvBWkRAhPdpeTvHm",
+			"source_wallet":               "4qcD6f4EWDD4TiZj72BAn9jeXrU6tvBWkRAhPdpeTvHm",
+			"destination_wallet":          "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe",
+			"signature":                   "dust-signature",
+			"slot":                        435027938,
+			"observed_at":                 "2026-07-25T00:56:26Z",
+			"amount":                      map[string]any{"native_sol": 0.00001},
+			"program":                     "system",
+			"possible_dust":               true,
 			"address_poisoning_candidate": true,
-			"grade_eligible": false,
+			"grade_eligible":              false,
 		},
 	}
 	rows := publicCaseOperationalEvidenceRows(raw, 5)
@@ -48,17 +48,17 @@ func TestPublicCaseOperationalVanityClustersRemainInferred(t *testing.T) {
 	raw := map[string]any{
 		"address_similarity_clusters": []any{
 			map[string]any{
-				"pattern": "4qcD*",
+				"pattern":    "4qcD*",
 				"match_type": "shared_prefix_4",
 				"addresses": []any{
 					"4qcD8iSFLC5VDZphBtM7pSeevtHtD8Chi7Zmhcm9TvHm",
 					"4qcD6f4EWDD4TiZj72BAn9jeXrU6tvBWkRAhPdpeTvHm",
 				},
-				"address_count": 2,
+				"address_count":            2,
 				"distinct_signature_count": 7,
-				"verification_status": "inferred",
-				"grade_effect": "none",
-				"limitation": "Base58 visual similarity only. This does not prove shared identity, ownership, intent or common control.",
+				"verification_status":      "inferred",
+				"grade_effect":             "none",
+				"limitation":               "Base58 visual similarity only. This does not prove shared identity, ownership, intent or common control.",
 			},
 		},
 	}
@@ -87,7 +87,7 @@ func TestPublicCaseOperationalTemplateKeepsVanityClustersCollapsedWithShowAll(t 
 		OutcomeLabel: "SONUÇ BEKLETİLİYOR", OutcomeClass: "review",
 		OutcomeText: "Açık işler Koschei worker görevleridir.", GradeDisplay: "WITHHOLD",
 		GradeExplanation: "Açık otomatik işler varken işlem onayı verilmez.",
-		RuleReasons: []string{"Kanıt destekli kural yok."},
+		RuleReasons:      []string{"Kanıt destekli kural yok."},
 		VanityClusters: []publicCaseVanityCluster{{
 			Pattern: "EH1*…J1K", MatchType: "Shared Prefix 3 Suffix 3", State: "ÇIKARIM", Class: "inferred",
 			Addresses: []string{

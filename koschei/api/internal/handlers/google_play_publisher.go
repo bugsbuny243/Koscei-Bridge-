@@ -94,20 +94,20 @@ func googlePlayReadiness() map[string]any {
 		missing = append(missing, "ANDROID_PLAY_PACKAGE_NAME")
 	}
 	return map[string]any{
-		"ok":                       true,
-		"credentials_configured":   err == nil,
-		"credentials_source":       source,
-		"service_account":          maskGoogleEmail(credentials.ClientEmail),
-		"package_name":             packageName,
-		"package_configured":       packageName != "",
-		"track":                    safeGooglePlayTrack(os.Getenv("GOOGLE_PLAY_TRACK")),
-		"release_status":           safeGooglePlayReleaseStatus(os.Getenv("GOOGLE_PLAY_RELEASE_STATUS")),
-		"aab_upload_ready":         publisherReady,
-		"source_generation_ready":  aiProviderConfigured(),
+		"ok":                        true,
+		"credentials_configured":    err == nil,
+		"credentials_source":        source,
+		"service_account":           maskGoogleEmail(credentials.ClientEmail),
+		"package_name":              packageName,
+		"package_configured":        packageName != "",
+		"track":                     safeGooglePlayTrack(os.Getenv("GOOGLE_PLAY_TRACK")),
+		"release_status":            safeGooglePlayReleaseStatus(os.Getenv("GOOGLE_PLAY_RELEASE_STATUS")),
+		"aab_upload_ready":          publisherReady,
+		"source_generation_ready":   aiProviderConfigured(),
 		"automatic_aab_build_ready": false,
-		"automatic_pipeline_ready": false,
-		"missing_fields":           missing,
-		"builder_note":             "Current API image creates Expo source bundles but does not contain Node, Java, Android SDK, or an EAS build token.",
+		"automatic_pipeline_ready":  false,
+		"missing_fields":            missing,
+		"builder_note":              "Current API image creates Expo source bundles but does not contain Node, Java, Android SDK, or an EAS build token.",
 	}
 }
 
@@ -183,8 +183,8 @@ func (p *googlePlayPublisher) updateTrack(ctx context.Context, editID string, ve
 		releaseName = "Koschei Owner Game " + time.Now().UTC().Format("2006-01-02 15:04")
 	}
 	release := googlePlayRelease{
-		Name: releaseName,
-		Status: p.Status,
+		Name:         releaseName,
+		Status:       p.Status,
 		VersionCodes: []string{strconv.FormatInt(versionCode, 10)},
 	}
 	if releaseNotes = strings.TrimSpace(releaseNotes); releaseNotes != "" {

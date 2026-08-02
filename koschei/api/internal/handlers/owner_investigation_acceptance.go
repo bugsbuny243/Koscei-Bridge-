@@ -29,7 +29,9 @@ func (h *Handler) OwnerInvestigationAcceptance(w http.ResponseWriter, r *http.Re
 		return
 	}
 	network := strings.TrimSpace(input.Network)
-	if network == "" { network = "solana-mainnet" }
+	if network == "" {
+		network = "solana-mainnet"
+	}
 	classification := classifyRadarTarget(r.Context(), target)
 	if classification.Type != radarTargetTokenMint {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
@@ -44,10 +46,12 @@ func (h *Handler) OwnerInvestigationAcceptance(w http.ResponseWriter, r *http.Re
 	assembly := h.buildUnifiedInvestigationReport(ctx, target, network, "owner_unified_manual_scan")
 	acceptance := evaluateInvestigationAcceptance(assembly.Report, target, input.Profile)
 	status := http.StatusOK
-	if acceptance.Status == "fail" { status = http.StatusUnprocessableEntity }
+	if acceptance.Status == "fail" {
+		status = http.StatusUnprocessableEntity
+	}
 	writeJSON(w, status, map[string]any{
-		"ok": acceptance.Status != "fail",
-		"acceptance": acceptance,
+		"ok":                   acceptance.Status != "fail",
+		"acceptance":           acceptance,
 		"investigation_report": assembly.Report,
 	})
 }

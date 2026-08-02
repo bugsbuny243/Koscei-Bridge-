@@ -41,13 +41,13 @@ func TestPumpAndRaydiumTransactionArmsStaySourceSpecific(t *testing.T) {
 	raydiumReq := SecurityRadarRequest{Target: "raydium-target", Network: "solana-mainnet", Mode: "live_stream:" + ModuleRaydiumPoolGuardian}
 
 	pumpEvidence := arvisTransactionEvidence{
-		Available: true,
-		PumpRelated: true,
-		Signers: []string{"creator"},
-		FundingAccounts: []string{"funder"},
-		ProgramIDs: []string{defaultPumpProgramID},
+		Available:           true,
+		PumpRelated:         true,
+		Signers:             []string{"creator"},
+		FundingAccounts:     []string{"funder"},
+		ProgramIDs:          []string{defaultPumpProgramID},
 		TokenBalanceChanges: map[string]float64{},
-		LamportDeltas: map[string]int64{},
+		LamportDeltas:       map[string]int64{},
 	}
 	pumpArm := buildPumpTransactionArm(pumpReq, pumpEvidence, generatedAt)
 	if !pumpArm.Signed || !SecurityRadarVerdictHasVerifiedEvidence(pumpArm) {
@@ -58,12 +58,12 @@ func TestPumpAndRaydiumTransactionArmsStaySourceSpecific(t *testing.T) {
 	}
 
 	raydiumEvidence := arvisTransactionEvidence{
-		Available: true,
-		RaydiumRelated: true,
-		ProgramIDs: []string{"675kPX9MHTjS2zt1qfr1NYhd1B9M9QGK6cEcDDCo2t9"},
-		TokenMints: []string{"mint-a", "mint-b"},
+		Available:           true,
+		RaydiumRelated:      true,
+		ProgramIDs:          []string{"675kPX9MHTjS2zt1qfr1NYhd1B9M9QGK6cEcDDCo2t9"},
+		TokenMints:          []string{"mint-a", "mint-b"},
 		TokenBalanceChanges: map[string]float64{"mint-a": -10, "mint-b": 10},
-		LamportDeltas: map[string]int64{},
+		LamportDeltas:       map[string]int64{},
 	}
 	raydiumArm := buildRaydiumTransactionArm(raydiumReq, raydiumEvidence, generatedAt)
 	if !raydiumArm.Signed || !SecurityRadarVerdictHasVerifiedEvidence(raydiumArm) {

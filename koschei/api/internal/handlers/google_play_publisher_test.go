@@ -30,12 +30,12 @@ func testGoogleCredentialsJSON(t *testing.T, tokenURI string) string {
 	}
 	privateKey := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}))
 	raw, err := json.Marshal(map[string]string{
-		"type": "service_account",
-		"project_id": "koschei-test",
+		"type":           "service_account",
+		"project_id":     "koschei-test",
 		"private_key_id": "test-key",
-		"private_key": privateKey,
-		"client_email": "publisher@koschei-test.iam.gserviceaccount.com",
-		"token_uri": tokenURI,
+		"private_key":    privateKey,
+		"client_email":   "publisher@koschei-test.iam.gserviceaccount.com",
+		"token_uri":      tokenURI,
 	})
 	if err != nil {
 		t.Fatalf("json.Marshal() error = %v", err)

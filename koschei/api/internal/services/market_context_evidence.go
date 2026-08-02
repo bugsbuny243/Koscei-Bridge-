@@ -88,19 +88,19 @@ type LPHolderEvidence struct {
 // a token amount and must not be divided by the pool's active-tick liquidity.
 type CLMMLockedPositionEvidence struct {
 	LockedPositionAccount string   `json:"locked_position_account"`
-	PositionOwner          string   `json:"position_owner"`
-	PositionAccount        string   `json:"position_account"`
-	PositionNFTMint        string   `json:"position_nft_mint"`
-	LockedNFTAccount       string   `json:"locked_nft_account"`
-	CustodyAuthority       string   `json:"custody_authority"`
-	FeeNFTMint             string   `json:"fee_nft_mint"`
-	TickLowerIndex         int32    `json:"tick_lower_index"`
-	TickUpperIndex         int32    `json:"tick_upper_index"`
-	LiquidityRaw           string   `json:"liquidity_raw"`
-	RecentEpoch            uint64   `json:"recent_epoch"`
-	ReadSlot               uint64   `json:"read_slot,omitempty"`
-	VerificationStatus     string   `json:"verification_status"`
-	EvidenceKeys           []string `json:"evidence_keys"`
+	PositionOwner         string   `json:"position_owner"`
+	PositionAccount       string   `json:"position_account"`
+	PositionNFTMint       string   `json:"position_nft_mint"`
+	LockedNFTAccount      string   `json:"locked_nft_account"`
+	CustodyAuthority      string   `json:"custody_authority"`
+	FeeNFTMint            string   `json:"fee_nft_mint"`
+	TickLowerIndex        int32    `json:"tick_lower_index"`
+	TickUpperIndex        int32    `json:"tick_upper_index"`
+	LiquidityRaw          string   `json:"liquidity_raw"`
+	RecentEpoch           uint64   `json:"recent_epoch"`
+	ReadSlot              uint64   `json:"read_slot,omitempty"`
+	VerificationStatus    string   `json:"verification_status"`
+	EvidenceKeys          []string `json:"evidence_keys"`
 }
 
 type LiquidityMovementEvidence struct {

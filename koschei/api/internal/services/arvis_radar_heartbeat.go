@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	defaultRaydiumProgramID     = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
-	legacyRaydiumProgramID      = "675kPX9MHTjS2zt1qfr1NYhd1B9M9QGK6cEcDDCo2t9"
-	legacyRaydiumSourceID       = "675kPX9MHTjS2zt1qfr1NY5Wwrzj4mWjU7VtXv9syS2"
-	defaultPumpProgramID        = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
-	defaultPumpSwapProgramID    = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
+	defaultRaydiumProgramID  = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
+	legacyRaydiumProgramID   = "675kPX9MHTjS2zt1qfr1NYhd1B9M9QGK6cEcDDCo2t9"
+	legacyRaydiumSourceID    = "675kPX9MHTjS2zt1qfr1NY5Wwrzj4mWjU7VtXv9syS2"
+	defaultPumpProgramID     = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+	defaultPumpSwapProgramID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 )
 
 type arvisHeartbeatSource struct {

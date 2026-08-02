@@ -16,12 +16,12 @@ func TestUnifiedInvestigationTechnicalResultIsCallerNeutral(t *testing.T) {
 			{Module: "Token Authority Scanner", ModuleID: services.ModuleTokenAuthorityScanner, Signed: true, Signals: map[string]any{"real_onchain_evidence": true, "execution_status": services.ArvisExecutionCompleted, "mint_authority_present": false, "freeze_authority_present": false}, Evidence: []string{"authority parsed"}},
 			{Module: "Holder Concentration", ModuleID: services.ModuleHolderConcentration, Signed: true, Signals: map[string]any{"real_onchain_evidence": true, "execution_status": services.ArvisExecutionCompleted, "owner_resolved_top_holder_pct": 36.0}, Evidence: []string{"owner resolved"}},
 		},
-		Distribution: map[string]any{"available": true, "top_1_percentage": 36.0},
-		Market: services.TokenMarketSnapshot{Available: true, Mint: "MintParity111111111111111111111111111111111", LiquidityUSD: 50000},
-		Intelligence: services.HolderIntelligence{Available: true, Status: "evidence_backed", CirculatingSupply: 1000000, TopOwnerPercentage: 36, TopOwnerBalance: 360000, TopOwnerReferenceUSDValue: &ref, Rows: []services.HolderIntelligenceRow{}, Findings: []string{}, Limitations: []string{}},
-		Cluster: services.HolderClusterAnalysis{Findings: []string{}},
+		Distribution:    map[string]any{"available": true, "top_1_percentage": 36.0},
+		Market:          services.TokenMarketSnapshot{Available: true, Mint: "MintParity111111111111111111111111111111111", LiquidityUSD: 50000},
+		Intelligence:    services.HolderIntelligence{Available: true, Status: "evidence_backed", CirculatingSupply: 1000000, TopOwnerPercentage: 36, TopOwnerBalance: 360000, TopOwnerReferenceUSDValue: &ref, Rows: []services.HolderIntelligenceRow{}, Findings: []string{}, Limitations: []string{}},
+		Cluster:         services.HolderClusterAnalysis{Findings: []string{}},
 		LaunchForensics: services.LaunchForensicsAnalysis{Available: true, Status: "observed", Findings: []string{}, Limitations: []string{}},
-		SourceContext: map[string]any{"creator_wallet": "CreatorParity111111111111111111111111111111"},
+		SourceContext:   map[string]any{"creator_wallet": "CreatorParity111111111111111111111111111111"},
 	}
 	h := &Handler{}
 	assembly := h.assembleUnifiedInvestigationReport(context.Background(), core)

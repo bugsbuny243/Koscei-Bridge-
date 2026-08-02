@@ -45,16 +45,16 @@ type WorkerJob struct {
 	Attempts           int               `json:"attempts"`
 	MaxAttempts        int               `json:"max_attempts"`
 	WorkerID           string            `json:"worker_id,omitempty"`
-	LeaseExpiresAt     *time.Time         `json:"lease_expires_at,omitempty"`
+	LeaseExpiresAt     *time.Time        `json:"lease_expires_at,omitempty"`
 	Result             map[string]any    `json:"result,omitempty"`
 	ResultHash         string            `json:"result_hash,omitempty"`
 	ErrorCode          string            `json:"error_code,omitempty"`
 	ErrorMessage       string            `json:"error_message,omitempty"`
 	QueuedAt           time.Time         `json:"queued_at"`
-	StartedAt          *time.Time         `json:"started_at,omitempty"`
-	CompletedAt        *time.Time         `json:"completed_at,omitempty"`
-	FailedAt           *time.Time         `json:"failed_at,omitempty"`
-	UpdatedAt          time.Time          `json:"updated_at"`
+	StartedAt          *time.Time        `json:"started_at,omitempty"`
+	CompletedAt        *time.Time        `json:"completed_at,omitempty"`
+	FailedAt           *time.Time        `json:"failed_at,omitempty"`
+	UpdatedAt          time.Time         `json:"updated_at"`
 }
 
 func EnqueueWorkerJob(ctx context.Context, db *sql.DB, request WorkerJobRequest) (WorkerJob, error) {
@@ -83,14 +83,14 @@ func EnqueueWorkerJob(ctx context.Context, db *sql.DB, request WorkerJobRequest)
 	}
 
 	payload := map[string]any{
-		"action": request.Action,
+		"action":              request.Action,
 		"source_artifact_ref": artifact.ArtifactRef,
-		"profile_ref": request.ProfileRef,
+		"profile_ref":         request.ProfileRef,
 		"materialization_ref": request.MaterializationRef,
-		"finding_ref": request.FindingRef,
-		"patch_ref": request.PatchRef,
-		"commands": request.Commands,
-		"replacements": request.Replacements,
+		"finding_ref":         request.FindingRef,
+		"patch_ref":           request.PatchRef,
+		"commands":            request.Commands,
+		"replacements":        request.Replacements,
 	}
 	requestHash := hashJSON(payload)
 	now := time.Now().UTC()
@@ -334,11 +334,11 @@ func ProcessWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, sandboxEna
 			return nil, err
 		}
 		return map[string]any{
-			"action": job.Action,
-			"verification": report,
-			"worker_execution": true,
+			"action":                   job.Action,
+			"verification":             report,
+			"worker_execution":         true,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		}, nil
 	case WorkerActionRunLiteSVMHarness:
 		return nil, errors.New("Phase 12C LiteSVM execution runner is not enabled in this implementation slice")

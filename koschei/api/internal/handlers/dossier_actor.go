@@ -148,31 +148,31 @@ func actorDossierConnections(report map[string]any) map[string]any {
 	for _, raw := range dossierSlice(dossier["related_actors"]) {
 		item := dossierMap(raw)
 		related = append(related, map[string]any{
-			"wallet": item["wallet"],
-			"shared_token_count": item["shared_token_count"],
+			"wallet":                item["wallet"],
+			"shared_token_count":    item["shared_token_count"],
 			"max_holder_percentage": item["max_holder_percentage"],
-			"first_observed_at": item["first_observed_at"],
-			"last_observed_at": item["last_observed_at"],
-			"verification_status": "observed",
-			"source": "persistent_actor_index",
-			"limitation": "Observed recurrence is not identity, intent or common-control proof.",
+			"first_observed_at":     item["first_observed_at"],
+			"last_observed_at":      item["last_observed_at"],
+			"verification_status":   "observed",
+			"source":                "persistent_actor_index",
+			"limitation":            "Observed recurrence is not identity, intent or common-control proof.",
 		})
 	}
 	addressSimilarity := actorDossierAddressSimilarityClusters(dossier["evidence"])
 	return map[string]any{
-		"acceptance_status": acceptance["status"],
-		"evidence_state": acceptance["evidence_state"],
-		"summary": acceptance["summary"],
-		"evidence": dossierFirst(acceptance["evidence"], []any{}),
-		"limitations": dossierStrings(acceptance["limitations"]),
-		"related_actor_observations": related,
+		"acceptance_status":           acceptance["status"],
+		"evidence_state":              acceptance["evidence_state"],
+		"summary":                     acceptance["summary"],
+		"evidence":                    dossierFirst(acceptance["evidence"], []any{}),
+		"limitations":                 dossierStrings(acceptance["limitations"]),
+		"related_actor_observations":  related,
 		"address_similarity_clusters": addressSimilarity,
-		"evidence_graph": dossierFirst(actor["evidence_graph"], map[string]any{}),
+		"evidence_graph":              dossierFirst(actor["evidence_graph"], map[string]any{}),
 		"counts": map[string]any{
-			"verification_status": "observed",
-			"created_tokens": track["created_token_count"],
-			"dominant_holder_tokens": track["dominant_holder_token_count"],
-			"related_actors": track["related_actor_count"],
+			"verification_status":         "observed",
+			"created_tokens":              track["created_token_count"],
+			"dominant_holder_tokens":      track["dominant_holder_token_count"],
+			"related_actors":              track["related_actor_count"],
 			"address_similarity_clusters": len(addressSimilarity),
 		},
 		"boundary": "Observed recurrence does not prove identity, intent or common control. Address similarity clusters are deterministic visual candidates and remain INFERRED/watch-only.",
@@ -204,8 +204,8 @@ func actorDossierSectionLimitations(report map[string]any) map[string]any {
 	}
 	return map[string]any{
 		"acceptance_items": byItem,
-		"funding_origin": dossierStrings(funding["limitations"]),
-		"live_evidence": dossierStrings(live["limitations"]),
+		"funding_origin":   dossierStrings(funding["limitations"]),
+		"live_evidence":    dossierStrings(live["limitations"]),
 		"created_token_history": []string{
 			"Created-token observations require exact creator-to-mint evidence before they are presented as verified relations.",
 		},

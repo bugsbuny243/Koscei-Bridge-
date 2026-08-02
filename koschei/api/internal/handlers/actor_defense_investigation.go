@@ -143,16 +143,16 @@ func (h *Handler) OwnerActorDefenseInvestigation(w http.ResponseWriter, r *http.
 	final.Coverage["rule_verdict_persistence"] = rulePersistence
 	final.Coverage["numeric_score_disabled"] = true
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
-		"schema_version": "koschei-actor-defense-v3",
-		"ruleset_version": services.ActorDefenseRulesetVersion,
-		"target": target,
-		"wallet": wallet,
-		"network": network,
+		"ok":                    true,
+		"schema_version":        "koschei-actor-defense-v3",
+		"ruleset_version":       services.ActorDefenseRulesetVersion,
+		"target":                target,
+		"wallet":                wallet,
+		"network":               network,
 		"target_classification": classification,
-		"dossier": final,
-		"funding_origin": fundingOrigin,
-		"rule_verdict": ruleVerdict,
+		"dossier":               final,
+		"funding_origin":        fundingOrigin,
+		"rule_verdict":          ruleVerdict,
 	})
 }
 
@@ -160,16 +160,27 @@ func (h *Handler) collectActorFundingOrigin(ctx context.Context, store *services
 	timeout := time.Duration(actorDefenseEnvInt("ACTOR_FUNDING_TIMEOUT_SECONDS", 75, 20, 140)) * time.Second
 	fundingCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	origin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, services.ActorFundingOriginOptions{
-		PageSize: actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
-		MaxPages: actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
+	options := services.ActorFundingOriginOptions{
+		PageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
+		MaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
 		OldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
-	})
+	}
+	origin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, options)
 	if err != nil {
+		reason := "Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)
 		return services.ActorFundingOrigin{
 			Wallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
 			TrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
-			Limitations: []string{"Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)},
+			ResultState: services.ActorFundingResultMissing,
+			Boundary: services.ActorFundingBoundary{
+				Kind:                    "collector_error",
+				Reason:                  reason,
+				EffectivePageSize:       options.PageSize,
+				EffectiveMaxPages:       options.MaxPages,
+				EffectiveSignatureLimit: options.PageSize * options.MaxPages,
+				EffectiveParseLimit:     options.OldestTransactionsToParse,
+			},
+			Limitations: []string{reason},
 		}, "not_persisted"
 	}
 	evidence, ok := services.ActorFundingOriginEvidence(origin, network)
@@ -184,11 +195,11 @@ func (h *Handler) collectActorFundingOrigin(ctx context.Context, store *services
 
 func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *services.ActorDefenseStore, dossier services.ActorDefenseDossier) actorDefenseLiveCoverage {
 	coverage := actorDefenseLiveCoverage{
-		Status: "complete",
-		SignatureLimit: actorDefenseEnvInt("ACTOR_DEFENSE_SIGNATURE_LIMIT", 120, 20, 500),
+		Status:           "complete",
+		SignatureLimit:   actorDefenseEnvInt("ACTOR_DEFENSE_SIGNATURE_LIMIT", 120, 20, 500),
 		TransactionLimit: actorDefenseEnvInt("ACTOR_DEFENSE_TRANSACTION_LIMIT", 40, 5, 120),
-		EvidenceLimit: actorDefenseEnvInt("ACTOR_DEFENSE_EVIDENCE_LIMIT", 100, 10, 300),
-		Limitations: []string{},
+		EvidenceLimit:    actorDefenseEnvInt("ACTOR_DEFENSE_EVIDENCE_LIMIT", 100, 10, 300),
+		Limitations:      []string{},
 	}
 	rpcURL := creatorIntelRPCURL()
 	if rpcURL == "" {
@@ -289,15 +300,15 @@ func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *se
 					Signature: signature.Signature, Slot: signature.Slot, ObservedAt: observedAt,
 					TokenMint: tokenMint,
 					Metadata: map[string]any{
-						"actor_signed": true,
-						"creator_role_observed": dossier.Track.CreatedTokenCount > 0,
-						"instruction_types": liquidity.InstructionTypes,
+						"actor_signed":            true,
+						"creator_role_observed":   dossier.Track.CreatedTokenCount > 0,
+						"instruction_types":       liquidity.InstructionTypes,
 						"known_transaction_mints": transactionMints,
-						"source_wallet": dossier.Wallet,
-						"destination_wallet": liquidity.PoolWallet,
-						"pool_account": liquidity.PoolWallet,
-						"program": liquidity.Program,
-						"classification_scope": scope,
+						"source_wallet":           dossier.Wallet,
+						"destination_wallet":      liquidity.PoolWallet,
+						"pool_account":            liquidity.PoolWallet,
+						"program":                 liquidity.Program,
+						"classification_scope":    scope,
 					},
 				})
 			}
@@ -377,13 +388,13 @@ func actorDefenseInstructionEvidence(
 	mint := firstNonEmptyString(sourceOwner.Mint, destinationOwner.Mint, creatorIntelCleanString(info["mint"]))
 	amount := actorDefenseTokenAmount(info)
 	metadata := map[string]any{
-		"actor_signed": actorSigned,
-		"authority": authority,
-		"source_token_account": sourceAccount,
+		"actor_signed":              actorSigned,
+		"authority":                 authority,
+		"source_token_account":      sourceAccount,
 		"destination_token_account": destinationAccount,
-		"known_token": knownMints[mint],
-		"raw_amount": creatorIntelCleanString(info["amount"]),
-		"amount_scope": actorDefenseTokenAmountScope(info),
+		"known_token":               knownMints[mint],
+		"raw_amount":                creatorIntelCleanString(info["amount"]),
+		"amount_scope":              actorDefenseTokenAmountScope(info),
 	}
 	if sourceOwner.Owner == dossier.Wallet && destinationOwner.Owner != "" && destinationOwner.Owner != dossier.Wallet && authority == dossier.Wallet && actorSigned {
 		actorDefenseApplyRelatedActorMetadata(metadata, relatedActors, destinationOwner.Owner)

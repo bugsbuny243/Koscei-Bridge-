@@ -69,50 +69,55 @@ type publicCaseSignalView struct {
 }
 
 type publicCaseRuleView struct {
-	ID       string
-	Title    string
-	State    string
-	Class    string
-	Summary  string
-	Count    int
-	Effect   string
+	ID      string
+	Title   string
+	State   string
+	Class   string
+	Summary string
+	Count   int
+	Effect  string
 }
 
 type publicCaseFundingView struct {
-	Available    bool
-	Status       string
-	Class        string
-	Source       string
-	Destination  string
-	Amount       string
-	ObservedAt   string
-	Signature    string
-	Slot         string
-	Program      string
-	Limitations  []string
+	Available      bool
+	ClaimAvailable bool
+	State          string
+	Status         string
+	Class          string
+	Summary        string
+	Boundary       string
+	Raisable       string
+	Source         string
+	Destination    string
+	Amount         string
+	ObservedAt     string
+	Signature      string
+	Slot           string
+	Program        string
+	Limitations    []string
 }
 
 type publicCaseTokenView struct {
-	Mint         string
-	Display      string
-	Status       string
-	Class        string
-	FirstSeen    string
-	LastSeen     string
-	Roles        string
-	Signature    string
+	Mint      string
+	Display   string
+	Status    string
+	Class     string
+	FirstSeen string
+	LastSeen  string
+	Roles     string
+	Signature string
 }
 
 type publicCaseActorView struct {
-	Wallet        string
-	Display       string
-	Status        string
-	Class         string
-	SharedTokens  string
-	MaxHolder     string
-	FirstSeen     string
-	LastSeen      string
-	Limitation    string
+	Wallet       string
+	Display      string
+	Status       string
+	Class        string
+	SharedTokens string
+	MaxHolder    string
+	FirstSeen    string
+	LastSeen     string
+	Limitation   string
 }
 
 type publicCaseEvidenceView struct {
@@ -303,25 +308,83 @@ func publicCaseRules(raw any) []publicCaseRuleView {
 func publicCaseFunding(raw any) publicCaseFundingView {
 	funding := dossierMap(raw)
 	if len(funding) == 0 {
-		return publicCaseFundingView{}
+		return publicCaseFundingView{
+			Available: true, State: "missing", Status: "worker borcu", Class: "unknown",
+			Summary: "Funding-origin toplayıcısı henüz tamamlanmış veya zincir sınırıyla kapanmış bir sonuç üretmedi.",
+		}
 	}
-	status := firstPublicDossierString(dossierString(funding["verification_status"]), dossierString(funding["status"]), "unknown")
-	amount := "—"
+	boundary := dossierMap(funding["boundary"])
+	resultState := strings.ToLower(strings.TrimSpace(dossierString(funding["result_state"])))
+	verification := strings.ToLower(strings.TrimSpace(dossierString(funding["verification_status"])))
+	claimAvailable := resultState == "verified" && dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"
+	state := resultState
+	if claimAvailable {
+		state = "verified"
+	} else if state == "" {
+		state = "missing"
+	}
+	view := publicCaseFundingView{
+		Available:      true,
+		ClaimAvailable: claimAvailable,
+		State:          state,
+		Class:          publicCaseStateClass(state),
+		Source:         dossierString(funding["source_wallet"]),
+		Destination:    dossierString(funding["destination_wallet"]),
+		ObservedAt:     publicCaseTimeText(funding["observed_at"]),
+		Signature:      dossierString(funding["signature"]),
+		Slot:           publicCaseNumber(funding["slot"]),
+		Program:        dossierString(funding["program"]),
+		Limitations:    publicCaseStrings(funding["limitations"]),
+	}
 	if value := publicCaseFloat(funding["amount_sol"]); value != 0 {
-		amount = strconv.FormatFloat(value, 'f', -1, 64) + " SOL"
+		view.Amount = strconv.FormatFloat(value, 'f', -1, 64) + " SOL"
+	} else {
+		view.Amount = "—"
 	}
-	return publicCaseFundingView{
-		Available:   true,
-		Status:      status,
-		Class:       publicCaseStateClass(status),
-		Source:      dossierString(funding["source_wallet"]),
-		Destination: dossierString(funding["destination_wallet"]),
-		Amount:      amount,
-		ObservedAt:  publicCaseTimeText(funding["observed_at"]),
-		Signature:   dossierString(funding["signature"]),
-		Slot:        publicCaseNumber(funding["slot"]),
-		Program:     dossierString(funding["program"]),
-		Limitations: publicCaseStrings(funding["limitations"]),
+	pages := publicDossierInt(boundary["pages_scanned"])
+	signatures := publicDossierInt(boundary["signatures_walked"])
+	parsed := publicDossierInt(boundary["transactions_parsed"])
+	oldestSlot := publicCaseNumber(boundary["oldest_slot"])
+	view.Boundary = fmt.Sprintf("%d sayfa · %d imza · %d transaction · en eski slot %s", pages, signatures, parsed, oldestSlot)
+	raisable := publicCaseBool(boundary["raisable"])
+	if raisable {
+		view.Raisable = "Bu etkin çalışma penceresi, yayınlanan sert tavan içinde yükseltilebilir."
+	} else if resultState == "bounded" {
+		view.Raisable = "Bu koşu kod sürümünün sert tavanına ulaştı; yapılandırmayla daha derine inilemez."
+	}
+	switch state {
+	case "verified":
+		if claimAvailable {
+			view.Status = firstPublicDossierString(verification, "verified")
+			view.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+		} else {
+			view.Status = "doğrulanmış sonuç"
+			view.Summary = "Mevcut imza geçmişi tamamlandı; kanonik doğrudan funding transferi gözlenmedi ve funding iddiası üretilmedi."
+		}
+	case "bounded":
+		view.Status = "zincir sınırı"
+		view.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik initial-funding iddiası üretilemedi. Bu sonuç açık worker borcu değildir."
+		if reason := dossierString(boundary["reason"]); reason != "" {
+			view.Limitations = append([]string{reason}, view.Limitations...)
+		}
+	default:
+		view.State = "missing"
+		view.Status = "worker borcu"
+		view.Class = publicCaseStateClass("missing")
+		view.Summary = "Funding-origin collector henüz tamamlanmış veya geçerli bounded sonuç üretmedi; otomatik iş açık kalır."
+	}
+	return view
+}
+
+func publicCaseBool(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		parsed, _ := strconv.ParseBool(strings.TrimSpace(typed))
+		return parsed
+	default:
+		return false
 	}
 }
 
@@ -452,6 +515,8 @@ func publicCaseStateClass(value string) string {
 		return "verified"
 	case "observed", "watch", "monitor":
 		return "observed"
+	case "bounded", "bounded_by_chain":
+		return "inferred"
 	case "inferred":
 		return "inferred"
 	case "failed", "fail", "critical", "high", "error":
@@ -633,7 +698,7 @@ var publicCaseHTML = template.Must(template.New("public-case").Parse(`<!doctype 
 {{if .Rules}}<section class="panel"><div class="panel-head"><div><span class="eyebrow">Triggered deterministic rules</span><h2>Grade’i etkileyen kurallar</h2></div><span class="count">{{len .Rules}} rule</span></div><div class="rule-list">{{range .Rules}}<article class="rule"><span class="state {{.Class}}">{{.State}}</span><div><code>{{.ID}}</code><h3>{{.Title}}</h3><p>{{.Summary}}</p><small>{{.Count}} observation · {{.Effect}}</small></div></article>{{end}}</div></section>{{end}}
 
 <section class="split-grid">
-<article class="panel funding"><div class="panel-head"><div><span class="eyebrow">Funding origin</span><h2>İlk fonlama izi</h2></div>{{if .Funding.Available}}<span class="state {{.Funding.Class}}">{{.Funding.Status}}</span>{{end}}</div>{{if .Funding.Available}}<div class="flow"><div><span>Kaynak</span><code>{{.Funding.Source}}</code></div><i>→</i><div><span>Hedef</span><code>{{.Funding.Destination}}</code></div></div><div class="fact-grid"><div><span>Miktar</span><b>{{.Funding.Amount}}</b></div><div><span>Zaman</span><b>{{.Funding.ObservedAt}}</b></div><div><span>Program</span><code>{{.Funding.Program}}</code></div><div><span>Slot</span><code>{{.Funding.Slot}}</code></div></div>{{if .Funding.Signature}}<a class="evidence-link" href="https://solscan.io/tx/{{.Funding.Signature}}" rel="noreferrer">İşlemi Solscan’de aç ↗</a>{{end}}{{range .Funding.Limitations}}<p class="limitation">{{.}}</p>{{end}}{{else}}<div class="empty">Bu bundle içinde doğrulanabilir funding origin bulunmadı.</div>{{end}}</article>
+<article class="panel funding"><div class="panel-head"><div><span class="eyebrow">Funding origin</span><h2>İlk fonlama izi</h2></div><span class="state {{.Funding.Class}}">{{.Funding.Status}}</span></div><p>{{.Funding.Summary}}</p>{{if .Funding.Boundary}}<p class="limitation">Etkin sınır: {{.Funding.Boundary}}</p>{{end}}{{if .Funding.Raisable}}<p class="limitation">{{.Funding.Raisable}}</p>{{end}}{{if .Funding.ClaimAvailable}}<div class="flow"><div><span>Kaynak</span><code>{{.Funding.Source}}</code></div><i>→</i><div><span>Hedef</span><code>{{.Funding.Destination}}</code></div></div><div class="fact-grid"><div><span>Miktar</span><b>{{.Funding.Amount}}</b></div><div><span>Zaman</span><b>{{.Funding.ObservedAt}}</b></div><div><span>Program</span><code>{{.Funding.Program}}</code></div><div><span>Slot</span><code>{{.Funding.Slot}}</code></div></div>{{if .Funding.Signature}}<a class="evidence-link" href="https://solscan.io/tx/{{.Funding.Signature}}" rel="noreferrer">İşlemi Solscan’de aç ↗</a>{{end}}{{end}}{{range .Funding.Limitations}}<p class="limitation">{{.}}</p>{{end}}</article>
 
 <article class="panel"><div class="panel-head"><div><span class="eyebrow">Actor recurrence</span><h2>Bağlantılı aktör gözlemleri</h2></div><span class="count">{{len .RelatedActors}}</span></div>{{if .RelatedActors}}<div class="actor-list">{{range .RelatedActors}}<article><div><b>{{.Display}}</b><code>{{.Wallet}}</code></div><span class="state {{.Class}}">{{.Status}}</span><dl><div><dt>Shared token</dt><dd>{{.SharedTokens}}</dd></div><div><dt>Max holder</dt><dd>{{.MaxHolder}}</dd></div><div><dt>İlk / son</dt><dd>{{.FirstSeen}}<br>{{.LastSeen}}</dd></div></dl><p>{{.Limitation}}</p></article>{{end}}</div>{{else}}<div class="empty">Tekrar eden related-actor gözlemi yok.</div>{{end}}</article>
 </section>

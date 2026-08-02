@@ -22,8 +22,8 @@ func (h *Handler) OwnerDefenseDeployment(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"deployments": items,
+			"ok":                true,
+			"deployments":       items,
 			"verdict_authority": false,
 		})
 	case http.MethodPost:
@@ -47,17 +47,17 @@ func (h *Handler) OwnerDefenseDeployment(w http.ResponseWriter, r *http.Request)
 		snapshot, err := defense.ResolveAndPersistDeployment(ctx, h.DB, h.SolanaRPC, input)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{
-				"error": "deployment_resolution_failed",
+				"error":   "deployment_resolution_failed",
 				"details": err.Error(),
 			})
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{
-			"ok": true,
-			"deployment": snapshot,
-			"read_only_rpc": true,
+			"ok":                       true,
+			"deployment":               snapshot,
+			"read_only_rpc":            true,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

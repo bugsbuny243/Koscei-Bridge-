@@ -80,9 +80,9 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		hit := ActorDefenseRuleHit{
 			RuleID: ActorRuleCompoundCreatorReuse, Title: "Creator/deployer reuse",
 			Tier: "compounding", EvidenceStatus: status, GradeEffect: "compounding_input",
-			Count: track.CreatedTokenCount,
+			Count:   track.CreatedTokenCount,
 			Summary: fmt.Sprintf("The same creator/deployer wallet is connected to %d observed tokens.", track.CreatedTokenCount),
-			Facts: map[string]any{"created_token_count": track.CreatedTokenCount},
+			Facts:   map[string]any{"created_token_count": track.CreatedTokenCount},
 		}
 		actorRulePlaceHit(hit, &compound, &watch, &unverified)
 	}
@@ -91,9 +91,9 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		hit := ActorDefenseRuleHit{
 			RuleID: ActorRuleCompoundHolderReuse, Title: "Dominant-holder reuse",
 			Tier: "compounding", EvidenceStatus: status, GradeEffect: "compounding_input",
-			Count: track.DominantHolderTokenCount,
+			Count:   track.DominantHolderTokenCount,
 			Summary: fmt.Sprintf("The same owner-resolved wallet is a dominant holder across %d observed tokens.", track.DominantHolderTokenCount),
-			Facts: map[string]any{"dominant_holder_token_count": track.DominantHolderTokenCount},
+			Facts:   map[string]any{"dominant_holder_token_count": track.DominantHolderTokenCount},
 		}
 		actorRulePlaceHit(hit, &compound, &watch, &unverified)
 	}
@@ -102,9 +102,9 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		hit := ActorDefenseRuleHit{
 			RuleID: ActorRuleCompoundRelatedActorReuse, Title: "Cross-token related-actor recurrence",
 			Tier: "compounding", EvidenceStatus: status, GradeEffect: "compounding_input",
-			Count: track.RelatedActorCount,
+			Count:   track.RelatedActorCount,
 			Summary: fmt.Sprintf("%d owner-resolved related wallets recur across the actor token surface.", track.RelatedActorCount),
-			Facts: map[string]any{"related_actor_count": track.RelatedActorCount},
+			Facts:   map[string]any{"related_actor_count": track.RelatedActorCount},
 		}
 		actorRulePlaceHit(hit, &compound, &watch, &unverified)
 	}
@@ -197,9 +197,9 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		watch = append(watch, ActorDefenseRuleHit{
 			RuleID: ActorRuleWatchInferredEvidence, Title: "Inferred relation watch flag",
 			Tier: "watch", EvidenceStatus: "inferred", GradeEffect: "none",
-			Count: count,
+			Count:   count,
 			Summary: "Inferred relations remain visible for investigation but cannot lower the grade.",
-			Facts: map[string]any{"relations": relations},
+			Facts:   map[string]any{"relations": relations},
 		})
 	}
 
@@ -246,9 +246,9 @@ func EvaluateActorDefenseRules(track ActorDefenseTrack, evidence []ActorDefenseE
 		Grade: grade, Verdict: verdict, RulesetVersion: ActorDefenseRulesetVersion,
 		TriggeredRules: triggered, WatchFlags: watch,
 		ExcludedUnverifiedEvidence: unverified,
-		DecisionPath: decision,
-		NarrativeSource: "deterministic_rules_only_ai_may_explain_but_not_grade",
-		GeneratedAt: now,
+		DecisionPath:               decision,
+		NarrativeSource:            "deterministic_rules_only_ai_may_explain_but_not_grade",
+		GeneratedAt:                now,
 	}
 	if grade != "-" && len(triggered) > 0 {
 		result.Signed = true
@@ -337,10 +337,10 @@ func actorRuleEvidenceHit(id, title, tier, status, cap, effect, summary string, 
 		RuleID: id, Title: title, Tier: tier, EvidenceStatus: status,
 		GradeCap: cap, GradeEffect: effect, Count: 1, Summary: summary,
 		Facts: map[string]any{
-			"relation": item.Relation,
+			"relation":         item.Relation,
 			"counterpart_kind": item.CounterpartKind,
-			"counterpart_id": item.CounterpartID,
-			"observed_at": item.ObservedAt,
+			"counterpart_id":   item.CounterpartID,
+			"observed_at":      item.ObservedAt,
 			"occurrence_count": item.OccurrenceCount,
 		},
 	}
@@ -386,12 +386,12 @@ func actorRuleCollectDirectTransfer(groups map[string]*actorRuleDirectTransferGr
 	group := groups[key]
 	if group == nil {
 		group = &actorRuleDirectTransferGroup{
-			Relation: relation,
+			Relation:        relation,
 			CounterpartKind: counterpartKind,
-			CounterpartID: counterpartID,
-			EvidenceStatus: normalizeActorEvidenceStatus(status),
-			Signatures: map[string]bool{},
-			EvidenceKeys: map[string]bool{},
+			CounterpartID:   counterpartID,
+			EvidenceStatus:  normalizeActorEvidenceStatus(status),
+			Signatures:      map[string]bool{},
+			EvidenceKeys:    map[string]bool{},
 		}
 		groups[key] = group
 	}
@@ -416,21 +416,21 @@ func actorRuleRepeatedTransferHits(groups map[string]*actorRuleDirectTransferGro
 			continue
 		}
 		out = append(out, ActorDefenseRuleHit{
-			RuleID: ActorRuleCompoundRepeatedTransfer,
-			Title: "Repeated direct transfer relation",
-			Tier: "compounding",
+			RuleID:         ActorRuleCompoundRepeatedTransfer,
+			Title:          "Repeated direct transfer relation",
+			Tier:           "compounding",
 			EvidenceStatus: group.EvidenceStatus,
-			GradeEffect: "compounding_input",
-			Count: len(signatures),
-			Summary: fmt.Sprintf("The %s relation with counterpart %s repeated across %d distinct transaction signatures.", group.Relation, group.CounterpartID, len(signatures)),
-			EvidenceKeys: actorRuleMapStrings(group.EvidenceKeys),
-			Signatures: signatures,
+			GradeEffect:    "compounding_input",
+			Count:          len(signatures),
+			Summary:        fmt.Sprintf("The %s relation with counterpart %s repeated across %d distinct transaction signatures.", group.Relation, group.CounterpartID, len(signatures)),
+			EvidenceKeys:   actorRuleMapStrings(group.EvidenceKeys),
+			Signatures:     signatures,
 			Facts: map[string]any{
-				"relation": group.Relation,
-				"counterpart_kind": group.CounterpartKind,
-				"counterpart_id": group.CounterpartID,
+				"relation":                 group.Relation,
+				"counterpart_kind":         group.CounterpartKind,
+				"counterpart_id":           group.CounterpartID,
 				"distinct_signature_count": len(signatures),
-				"dedupe_key": "signature+relation+counterpart",
+				"dedupe_key":               "signature+relation+counterpart",
 			},
 		})
 	}

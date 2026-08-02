@@ -88,11 +88,17 @@ func exposureToken2022RiskIndex(isToken2022 bool, penalty int, extensions []toke
 	for _, extension := range extensions {
 		switch strings.ToLower(strings.TrimSpace(extension.Severity)) {
 		case "critical":
-			if risk < 85 { risk = 85 }
+			if risk < 85 {
+				risk = 85
+			}
 		case "high":
-			if risk < 65 { risk = 65 }
+			if risk < 65 {
+				risk = 65
+			}
 		case "medium":
-			if risk < 35 { risk = 35 }
+			if risk < 35 {
+				risk = 35
+			}
 		}
 	}
 	if risk > 95 {

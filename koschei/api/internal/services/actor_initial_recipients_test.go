@@ -41,7 +41,9 @@ func (fixture *recipientRPCFixture) server(t *testing.T) *httptest.Server {
 		fixture.methods = append(fixture.methods, request.Method)
 		fixture.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		write := func(result any) { _ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": result}) }
+		write := func(result any) {
+			_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": result})
+		}
 
 		switch request.Method {
 		case "getTransaction":
@@ -85,7 +87,7 @@ func (fixture *recipientRPCFixture) server(t *testing.T) *httptest.Server {
 			write([]any{})
 		case "getAccountInfo":
 			write(map[string]any{"value": map[string]any{
-				"data": map[string]any{"parsed": map[string]any{"type": "mint", "info": map[string]any{}}},
+				"data":       map[string]any{"parsed": map[string]any{"type": "mint", "info": map[string]any{}}},
 				"executable": false, "lamports": 1, "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "space": 82,
 			}})
 		case "getTokenSupply":
@@ -99,7 +101,7 @@ func (fixture *recipientRPCFixture) server(t *testing.T) *httptest.Server {
 				address, _ := raw.(string)
 				if address == fixture.destinationATA {
 					values = append(values, map[string]any{
-						"data": map[string]any{"parsed": map[string]any{"type": "account", "info": map[string]any{"owner": fixture.recipient, "mint": fixture.mint}}},
+						"data":       map[string]any{"parsed": map[string]any{"type": "account", "info": map[string]any{"owner": fixture.recipient, "mint": fixture.mint}}},
 						"executable": false, "lamports": 1, "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "space": 165,
 					})
 				} else if address == fixture.recipient {
@@ -166,10 +168,10 @@ func TestInvestigateActorInitialRecipientsUsesMintSpecificATAOnly(t *testing.T) 
 
 func TestActorInitialRecipientEvidenceSeparatesCompleteAndBoundedHistory(t *testing.T) {
 	report := ActorInitialRecipientReport{
-		Mint: "Mint111",
-		CreatorWallet: "Creator111",
+		Mint:              "Mint111",
+		CreatorWallet:     "Creator111",
 		DistributionScope: "bounded_creator_token_account_history",
-		HistoryComplete: false,
+		HistoryComplete:   false,
 		Recipients: []ActorInitialRecipient{{
 			Sequence: 1, Wallet: "Recipient111", SourceTokenAccount: "SourceATA", DestinationTokenAccount: "DestATA",
 			Amount: 10, Signature: "Sig111", Slot: 123, ObservedAt: time.Unix(1700000000, 0).UTC(),
@@ -215,7 +217,7 @@ func recipientCreationTransaction(creator, mint, sourceATA string) map[string]an
 			map[string]any{"accountIndex": float64(0), "owner": creator, "mint": mint, "uiTokenAmount": map[string]any{"amount": "1000000000", "decimals": float64(6), "uiAmount": 1000.0}},
 		}},
 		"transaction": map[string]any{"message": map[string]any{
-			"accountKeys": []any{map[string]any{"pubkey": sourceATA, "signer": false}, map[string]any{"pubkey": creator, "signer": true}},
+			"accountKeys":  []any{map[string]any{"pubkey": sourceATA, "signer": false}, map[string]any{"pubkey": creator, "signer": true}},
 			"instructions": []any{},
 		}},
 	}
@@ -242,7 +244,7 @@ func recipientDistributionTransaction(creator, recipient, mint, sourceATA, desti
 				map[string]any{"pubkey": creator, "signer": true},
 			},
 			"instructions": []any{map[string]any{
-				"program": "spl-token",
+				"program":   "spl-token",
 				"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 				"parsed": map[string]any{"type": "transferChecked", "info": map[string]any{
 					"source": sourceATA, "destination": destinationATA, "authority": creator, "mint": mint,

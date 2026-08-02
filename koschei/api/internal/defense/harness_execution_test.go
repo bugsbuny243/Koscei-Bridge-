@@ -138,9 +138,9 @@ func TestHarnessExecutionProfileStaysBlockedUntilToolchainIsPinned(t *testing.T)
 	}
 	idlRaw, _ := json.Marshal(map[string]any{
 		"instructions": []any{map[string]any{
-			"name": "withdraw",
+			"name":     "withdraw",
 			"accounts": []any{map[string]any{"name": "authority", "signer": true}},
-			"args": []any{},
+			"args":     []any{},
 		}},
 	})
 	idl, err := StoreArtifact(ctx, db, ArtifactInput{
@@ -155,7 +155,7 @@ func TestHarnessExecutionProfileStaysBlockedUntilToolchainIsPinned(t *testing.T)
 		t.Fatal(err)
 	}
 	harnessRaw, _ := json.Marshal(map[string]string{
-		"Cargo.toml": "[package]\nname='koschei-harness'\nversion='0.1.0'\nedition='2021'\n",
+		"Cargo.toml":               "[package]\nname='koschei-harness'\nversion='0.1.0'\nedition='2021'\n",
 		"tests/koschei_litesvm.rs": "#[test] fn confirmed_invariant() { assert!(true); }\n",
 	})
 	harnessArtifact, err := StoreArtifact(ctx, db, ArtifactInput{

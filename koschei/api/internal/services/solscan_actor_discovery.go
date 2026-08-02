@@ -16,22 +16,22 @@ import (
 const defaultSolscanAPIBaseURL = "https://pro-api.solscan.io/v2.0"
 
 type SolscanFundedBy struct {
-	Wallet    string    `json:"wallet,omitempty"`
-	Signature string    `json:"signature,omitempty"`
-	BlockTime int64     `json:"block_time,omitempty"`
+	Wallet     string    `json:"wallet,omitempty"`
+	Signature  string    `json:"signature,omitempty"`
+	BlockTime  int64     `json:"block_time,omitempty"`
 	ObservedAt time.Time `json:"observed_at,omitempty"`
 }
 
 type SolscanAccountMetadata struct {
-	Available      bool             `json:"available"`
-	AccountAddress string           `json:"account_address,omitempty"`
-	Label          string           `json:"label,omitempty"`
-	Icon           string           `json:"icon,omitempty"`
-	Tags           []string         `json:"tags"`
-	AccountType    string           `json:"account_type,omitempty"`
-	Domain         string           `json:"domain,omitempty"`
-	ActiveAgeDays  int64            `json:"active_age_days,omitempty"`
-	FundedBy       SolscanFundedBy   `json:"funded_by"`
+	Available      bool            `json:"available"`
+	AccountAddress string          `json:"account_address,omitempty"`
+	Label          string          `json:"label,omitempty"`
+	Icon           string          `json:"icon,omitempty"`
+	Tags           []string        `json:"tags"`
+	AccountType    string          `json:"account_type,omitempty"`
+	Domain         string          `json:"domain,omitempty"`
+	ActiveAgeDays  int64           `json:"active_age_days,omitempty"`
+	FundedBy       SolscanFundedBy `json:"funded_by"`
 }
 
 type SolscanAccountTransaction struct {
@@ -54,17 +54,17 @@ type SolscanTokenAccountObservation struct {
 }
 
 type SolscanActorDiscovery struct {
-	Configured            bool                              `json:"configured"`
-	Available             bool                              `json:"available"`
-	Status                string                            `json:"status"`
-	Provider              string                            `json:"provider"`
-	Wallet                string                            `json:"wallet"`
-	Metadata              SolscanAccountMetadata            `json:"metadata"`
-	TransactionCandidates []SolscanAccountTransaction       `json:"transaction_candidates"`
-	TokenAccounts         []SolscanTokenAccountObservation  `json:"token_accounts"`
-	EndpointStatus        map[string]string                 `json:"endpoint_status"`
-	ObservedAt            time.Time                         `json:"observed_at"`
-	Limitations           []string                          `json:"limitations"`
+	Configured            bool                             `json:"configured"`
+	Available             bool                             `json:"available"`
+	Status                string                           `json:"status"`
+	Provider              string                           `json:"provider"`
+	Wallet                string                           `json:"wallet"`
+	Metadata              SolscanAccountMetadata           `json:"metadata"`
+	TransactionCandidates []SolscanAccountTransaction      `json:"transaction_candidates"`
+	TokenAccounts         []SolscanTokenAccountObservation `json:"token_accounts"`
+	EndpointStatus        map[string]string                `json:"endpoint_status"`
+	ObservedAt            time.Time                        `json:"observed_at"`
+	Limitations           []string                         `json:"limitations"`
 }
 
 type SolscanClient struct {
@@ -91,9 +91,9 @@ type solscanMetadataPayload struct {
 	AccountDomain  string   `json:"account_domain"`
 	ActiveAge      int64    `json:"active_age"`
 	FundedBy       struct {
-		FundedBy string `json:"funded_by"`
-		TxHash   string `json:"tx_hash"`
-		BlockTime int64 `json:"block_time"`
+		FundedBy  string `json:"funded_by"`
+		TxHash    string `json:"tx_hash"`
+		BlockTime int64  `json:"block_time"`
 	} `json:"funded_by"`
 }
 
@@ -138,11 +138,11 @@ func (c *SolscanClient) DiscoverActor(ctx context.Context, wallet string, transa
 	wallet = strings.TrimSpace(wallet)
 	out := SolscanActorDiscovery{
 		Configured: strings.TrimSpace(c.APIKey) != "",
-		Status: "not_configured", Provider: "solscan_pro_api_v2", Wallet: wallet,
-		Metadata: SolscanAccountMetadata{Tags: []string{}},
+		Status:     "not_configured", Provider: "solscan_pro_api_v2", Wallet: wallet,
+		Metadata:              SolscanAccountMetadata{Tags: []string{}},
 		TransactionCandidates: []SolscanAccountTransaction{},
-		TokenAccounts: []SolscanTokenAccountObservation{},
-		EndpointStatus: map[string]string{}, ObservedAt: time.Now().UTC(), Limitations: []string{},
+		TokenAccounts:         []SolscanTokenAccountObservation{},
+		EndpointStatus:        map[string]string{}, ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
 	if wallet == "" {
 		out.Status = "wallet_required"
@@ -210,18 +210,18 @@ func (c *SolscanClient) fetchMetadata(ctx context.Context, wallet string) (Solsc
 		fundedAt = time.Unix(payload.FundedBy.BlockTime, 0).UTC()
 	}
 	return SolscanAccountMetadata{
-		Available: true,
+		Available:      true,
 		AccountAddress: strings.TrimSpace(payload.AccountAddress),
-		Label: strings.TrimSpace(payload.AccountLabel),
-		Icon: strings.TrimSpace(payload.AccountIcon),
-		Tags: normalizeSolscanStrings(payload.AccountTags),
-		AccountType: strings.TrimSpace(payload.AccountType),
-		Domain: strings.TrimSpace(payload.AccountDomain),
-		ActiveAgeDays: payload.ActiveAge,
+		Label:          strings.TrimSpace(payload.AccountLabel),
+		Icon:           strings.TrimSpace(payload.AccountIcon),
+		Tags:           normalizeSolscanStrings(payload.AccountTags),
+		AccountType:    strings.TrimSpace(payload.AccountType),
+		Domain:         strings.TrimSpace(payload.AccountDomain),
+		ActiveAgeDays:  payload.ActiveAge,
 		FundedBy: SolscanFundedBy{
-			Wallet: strings.TrimSpace(payload.FundedBy.FundedBy),
-			Signature: strings.TrimSpace(payload.FundedBy.TxHash),
-			BlockTime: payload.FundedBy.BlockTime,
+			Wallet:     strings.TrimSpace(payload.FundedBy.FundedBy),
+			Signature:  strings.TrimSpace(payload.FundedBy.TxHash),
+			BlockTime:  payload.FundedBy.BlockTime,
 			ObservedAt: fundedAt,
 		},
 	}, nil
@@ -364,13 +364,13 @@ func SolscanActorDiscoveryEvidence(discovery SolscanActorDiscovery, network stri
 			CounterpartKind: "wallet", CounterpartID: funder,
 			Relation: "external_funding_attribution", VerificationStatus: "observed",
 			EvidenceKey: "solscan:funded_by:" + wallet + ":" + funder,
-			Source: "solscan_pro_api_v2", Signature: strings.TrimSpace(metadata.FundedBy.Signature),
+			Source:      "solscan_pro_api_v2", Signature: strings.TrimSpace(metadata.FundedBy.Signature),
 			ObservedAt: observedAt, OccurrenceCount: 1,
 			Metadata: map[string]any{
 				"source_wallet": funder, "destination_wallet": wallet,
-				"external_attribution_only": true,
+				"external_attribution_only":           true,
 				"requires_rpc_signature_verification": true,
-				"identity_or_wrongdoing_claim": false,
+				"identity_or_wrongdoing_claim":        false,
 			},
 		})
 	}
@@ -385,7 +385,7 @@ func SolscanActorDiscoveryEvidence(discovery SolscanActorDiscovery, network stri
 			CounterpartKind: "token", CounterpartID: mint,
 			Relation: "external_token_account_observation", VerificationStatus: "observed",
 			EvidenceKey: "solscan:token_account:" + account,
-			Source: "solscan_pro_api_v2", ObservedAt: now, TokenMint: mint, OccurrenceCount: 1,
+			Source:      "solscan_pro_api_v2", ObservedAt: now, TokenMint: mint, OccurrenceCount: 1,
 			Metadata: map[string]any{
 				"token_account": account, "amount_raw": tokenAccount.AmountRaw,
 				"decimals": tokenAccount.Decimals, "reported_owner": tokenAccount.Owner,

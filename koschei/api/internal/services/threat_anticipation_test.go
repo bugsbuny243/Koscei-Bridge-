@@ -11,9 +11,9 @@ func TestThreatAnticipationClassifiesDominantHolderCapacityWithoutPredictingInte
 		Target: "mint",
 		Market: TokenMarketSnapshot{Available: true, LiquidityUSD: 1_859_470.27},
 		Holder: HolderIntelligence{
-			Available: true,
-			TopOwnerPercentage: 58.7504,
-			TopOwnerBalance: 587_504,
+			Available:                 true,
+			TopOwnerPercentage:        58.7504,
+			TopOwnerBalance:           587_504,
 			TopOwnerReferenceUSDValue: &value,
 			Rows: []HolderIntelligenceRow{{
 				OwnerWallet: "owner", OwnerResolved: true, RiskBearing: true,
@@ -22,10 +22,10 @@ func TestThreatAnticipationClassifiesDominantHolderCapacityWithoutPredictingInte
 		},
 		Arms: []SecurityRadarVerdict{{
 			ModuleID: ModuleTokenAuthorityScanner,
-			Signed: true,
+			Signed:   true,
 			Signals: map[string]any{
-				"evidence_status": "verified",
-				"mint_authority_present": false,
+				"evidence_status":          "verified",
+				"mint_authority_present":   false,
 				"freeze_authority_present": false,
 			},
 		}},
@@ -62,7 +62,7 @@ func TestThreatAnticipationDetectsObservedCommonExit(t *testing.T) {
 		Target: "mint",
 		Cluster: HolderClusterAnalysis{
 			Available: true,
-			Flow: HolderClusterFlowAnalysis{Available: true, CommonExitGroupCount: 1},
+			Flow:      HolderClusterFlowAnalysis{Available: true, CommonExitGroupCount: 1},
 		},
 	})
 	path := pathwayByID(t, report, "coordinated_holder_exit")
@@ -76,10 +76,10 @@ func TestThreatAnticipationUsesVerifiedUnlockedLPStatus(t *testing.T) {
 		Target: "mint",
 		Arms: []SecurityRadarVerdict{{
 			ModuleID: ModuleLiquidityMovement,
-			Signed: true,
+			Signed:   true,
 			Signals: map[string]any{
 				"evidence_status": "verified",
-				"lp_lock_status": "unlocked",
+				"lp_lock_status":  "unlocked",
 			},
 		}},
 	})

@@ -15,60 +15,60 @@ var reproductionMarkerPattern = regexp.MustCompile(`^KOSCHEI_[A-Z0-9_:-]{8,120}$
 var invariantVersionPattern = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 
 type ReproductionInvariantInput struct {
-	FindingRef     string `json:"finding_ref"`
+	FindingRef        string `json:"finding_ref"`
 	SourceArtifactRef string `json:"source_artifact_ref"`
-	InvariantVersion string `json:"invariant_version"`
-	Command        string `json:"command"`
-	BaselineMarker string `json:"baseline_marker"`
-	PatchedMarker  string `json:"patched_marker"`
-	Rationale      string `json:"rationale"`
+	InvariantVersion  string `json:"invariant_version"`
+	Command           string `json:"command"`
+	BaselineMarker    string `json:"baseline_marker"`
+	PatchedMarker     string `json:"patched_marker"`
+	Rationale         string `json:"rationale"`
 }
 
 type ReproductionInvariant struct {
-	InvariantRef     string    `json:"invariant_ref"`
-	InvariantVersion string    `json:"invariant_version"`
-	ProgramID        string    `json:"program_id"`
-	Network          string    `json:"network"`
-	FindingRef       string    `json:"finding_ref"`
-	SourceArtifactRef string   `json:"source_artifact_ref"`
-	Command          string    `json:"command"`
-	BaselineMarker   string    `json:"baseline_marker"`
-	PatchedMarker    string    `json:"patched_marker"`
-	Rationale        string    `json:"rationale"`
-	ApprovedBy       string    `json:"approved_by"`
-	ApprovalHash     string    `json:"approval_hash"`
-	Active           bool      `json:"active"`
-	VerdictAuthority bool      `json:"verdict_authority"`
-	CreatedAt        time.Time `json:"created_at"`
+	InvariantRef      string    `json:"invariant_ref"`
+	InvariantVersion  string    `json:"invariant_version"`
+	ProgramID         string    `json:"program_id"`
+	Network           string    `json:"network"`
+	FindingRef        string    `json:"finding_ref"`
+	SourceArtifactRef string    `json:"source_artifact_ref"`
+	Command           string    `json:"command"`
+	BaselineMarker    string    `json:"baseline_marker"`
+	PatchedMarker     string    `json:"patched_marker"`
+	Rationale         string    `json:"rationale"`
+	ApprovedBy        string    `json:"approved_by"`
+	ApprovalHash      string    `json:"approval_hash"`
+	Active            bool      `json:"active"`
+	VerdictAuthority  bool      `json:"verdict_authority"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type ReproductionPair struct {
-	Invariant  ReproductionInvariant `json:"invariant"`
-	PatchRef   string                `json:"patch_ref"`
+	Invariant   ReproductionInvariant `json:"invariant"`
+	PatchRef    string                `json:"patch_ref"`
 	BaselineJob WorkerJob             `json:"baseline_job"`
 	PatchedJob  WorkerJob             `json:"patched_job"`
 }
 
 type ReproductionRun struct {
-	RunRef                    string    `json:"run_ref"`
-	InvariantRef              string    `json:"invariant_ref"`
-	ProgramID                 string    `json:"program_id"`
-	Network                   string    `json:"network"`
-	FindingRef                string    `json:"finding_ref"`
-	PatchRef                  string    `json:"patch_ref"`
-	BaselineJobRef            string    `json:"baseline_job_ref"`
-	PatchedJobRef             string    `json:"patched_job_ref"`
-	BaselineVerificationRef   string    `json:"baseline_verification_ref"`
-	PatchedVerificationRef    string    `json:"patched_verification_ref"`
-	BaselineMarkerObserved    bool      `json:"baseline_marker_observed"`
-	PatchedMarkerObserved     bool      `json:"patched_marker_observed"`
-	Status                    string    `json:"status"`
-	EvidenceRefs              []string  `json:"evidence_refs"`
-	Limitations               []string  `json:"limitations"`
-	RunHash                   string    `json:"run_hash"`
-	ProofRef                  string    `json:"proof_ref,omitempty"`
-	VerdictAuthority          bool      `json:"verdict_authority"`
-	CreatedAt                 time.Time `json:"created_at"`
+	RunRef                  string    `json:"run_ref"`
+	InvariantRef            string    `json:"invariant_ref"`
+	ProgramID               string    `json:"program_id"`
+	Network                 string    `json:"network"`
+	FindingRef              string    `json:"finding_ref"`
+	PatchRef                string    `json:"patch_ref"`
+	BaselineJobRef          string    `json:"baseline_job_ref"`
+	PatchedJobRef           string    `json:"patched_job_ref"`
+	BaselineVerificationRef string    `json:"baseline_verification_ref"`
+	PatchedVerificationRef  string    `json:"patched_verification_ref"`
+	BaselineMarkerObserved  bool      `json:"baseline_marker_observed"`
+	PatchedMarkerObserved   bool      `json:"patched_marker_observed"`
+	Status                  string    `json:"status"`
+	EvidenceRefs            []string  `json:"evidence_refs"`
+	Limitations             []string  `json:"limitations"`
+	RunHash                 string    `json:"run_hash"`
+	ProofRef                string    `json:"proof_ref,omitempty"`
+	VerdictAuthority        bool      `json:"verdict_authority"`
+	CreatedAt               time.Time `json:"created_at"`
 }
 
 type storedVerification struct {
@@ -125,14 +125,14 @@ func CreateReproductionInvariant(ctx context.Context, db *sql.DB, input Reproduc
 		return ReproductionInvariant{}, errors.New("invariant source artifact does not match the finding")
 	}
 	payload := map[string]any{
-		"finding_ref": input.FindingRef,
+		"finding_ref":         input.FindingRef,
 		"source_artifact_ref": artifact.ArtifactRef,
-		"version": input.InvariantVersion,
-		"command": input.Command,
-		"baseline_marker": input.BaselineMarker,
-		"patched_marker": input.PatchedMarker,
-		"rationale": input.Rationale,
-		"approved_by": "owner",
+		"version":             input.InvariantVersion,
+		"command":             input.Command,
+		"baseline_marker":     input.BaselineMarker,
+		"patched_marker":      input.PatchedMarker,
+		"rationale":           input.Rationale,
+		"approved_by":         "owner",
 	}
 	approvalHash := hashJSON(payload)
 	ref := prefixedID("KRI1-", payload)
@@ -195,23 +195,23 @@ func PrepareReproductionPair(ctx context.Context, db *sql.DB, invariantRef, patc
 		replacements[clean] = file.Content
 	}
 	baseline, err := EnqueueWorkerJob(ctx, db, WorkerJobRequest{
-		Action: WorkerActionVerifyBundle,
+		Action:            WorkerActionVerifyBundle,
 		SourceArtifactRef: invariant.SourceArtifactRef,
-		FindingRef: invariant.FindingRef,
-		Commands: []string{invariant.Command},
-		MaxAttempts: 2,
+		FindingRef:        invariant.FindingRef,
+		Commands:          []string{invariant.Command},
+		MaxAttempts:       2,
 	})
 	if err != nil {
 		return ReproductionPair{}, err
 	}
 	patched, err := EnqueueWorkerJob(ctx, db, WorkerJobRequest{
-		Action: WorkerActionVerifyBundle,
+		Action:            WorkerActionVerifyBundle,
 		SourceArtifactRef: invariant.SourceArtifactRef,
-		FindingRef: invariant.FindingRef,
-		PatchRef: patchRef,
-		Commands: []string{invariant.Command},
-		Replacements: replacements,
-		MaxAttempts: 2,
+		FindingRef:        invariant.FindingRef,
+		PatchRef:          patchRef,
+		Commands:          []string{invariant.Command},
+		Replacements:      replacements,
+		MaxAttempts:       2,
 	})
 	if err != nil {
 		return ReproductionPair{}, err
@@ -275,15 +275,15 @@ func FinalizeReproductionPair(ctx context.Context, db *sql.DB, invariantRef, pat
 		"patch:" + strings.TrimSpace(patchRef),
 	}
 	payload := map[string]any{
-		"invariant_ref": invariant.InvariantRef,
-		"patch_ref": strings.TrimSpace(patchRef),
-		"baseline_job_ref": baselineJob.JobRef,
-		"patched_job_ref": patchedJob.JobRef,
+		"invariant_ref":             invariant.InvariantRef,
+		"patch_ref":                 strings.TrimSpace(patchRef),
+		"baseline_job_ref":          baselineJob.JobRef,
+		"patched_job_ref":           patchedJob.JobRef,
 		"baseline_verification_ref": baseline.VerificationRef,
-		"patched_verification_ref": patched.VerificationRef,
-		"baseline_marker_observed": baselineMarkerObserved,
-		"patched_marker_observed": patchedMarkerObserved,
-		"status": status,
+		"patched_verification_ref":  patched.VerificationRef,
+		"baseline_marker_observed":  baselineMarkerObserved,
+		"patched_marker_observed":   patchedMarkerObserved,
+		"status":                    status,
 	}
 	runHash := hashJSON(payload)
 	runRef := prefixedID("KRR1-", payload)
@@ -291,12 +291,12 @@ func FinalizeReproductionPair(ctx context.Context, db *sql.DB, invariantRef, pat
 	if status == "verified" {
 		proofPayload := map[string]any{
 			"invariant_ref": invariant.InvariantRef,
-			"finding_ref": invariant.FindingRef,
-			"patch_ref": strings.TrimSpace(patchRef),
-			"before": baseline.VerificationRef,
-			"after": patched.VerificationRef,
-			"status": "verified",
-			"evidence": evidence,
+			"finding_ref":   invariant.FindingRef,
+			"patch_ref":     strings.TrimSpace(patchRef),
+			"before":        baseline.VerificationRef,
+			"after":         patched.VerificationRef,
+			"status":        "verified",
+			"evidence":      evidence,
 		}
 		proofHash := hashJSON(proofPayload)
 		proofRef = prefixedID("KPF1-", proofPayload)
@@ -373,12 +373,16 @@ func verificationContainsMarker(verification storedVerification, marker string) 
 }
 
 func ListReproductionRuns(ctx context.Context, db *sql.DB, findingRef string, limit int) ([]ReproductionRun, error) {
-	if limit <= 0 || limit > 200 { limit = 50 }
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
 	rows, err := db.QueryContext(ctx, `SELECT run_ref,invariant_ref,program_id,network,finding_ref,patch_ref,baseline_job_ref,patched_job_ref,
 		baseline_verification_ref,patched_verification_ref,baseline_marker_observed,patched_marker_observed,status,evidence_refs,limitations,
 		run_hash,COALESCE(proof_ref,''),verdict_authority,created_at FROM defense_reproduction_runs
 		WHERE ($1='' OR finding_ref=$1) ORDER BY created_at DESC LIMIT $2`, strings.TrimSpace(findingRef), limit)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	out := []ReproductionRun{}
 	for rows.Next() {
@@ -387,7 +391,9 @@ func ListReproductionRuns(ctx context.Context, db *sql.DB, findingRef string, li
 		if err := rows.Scan(&item.RunRef, &item.InvariantRef, &item.ProgramID, &item.Network, &item.FindingRef, &item.PatchRef,
 			&item.BaselineJobRef, &item.PatchedJobRef, &item.BaselineVerificationRef, &item.PatchedVerificationRef,
 			&item.BaselineMarkerObserved, &item.PatchedMarkerObserved, &item.Status, &evidenceRaw, &limitationsRaw,
-			&item.RunHash, &item.ProofRef, &item.VerdictAuthority, &item.CreatedAt); err != nil { return nil, err }
+			&item.RunHash, &item.ProofRef, &item.VerdictAuthority, &item.CreatedAt); err != nil {
+			return nil, err
+		}
 		_ = json.Unmarshal(evidenceRaw, &item.EvidenceRefs)
 		_ = json.Unmarshal(limitationsRaw, &item.Limitations)
 		out = append(out, item)

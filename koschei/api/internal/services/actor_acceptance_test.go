@@ -63,7 +63,7 @@ func TestEvaluateActorAcceptanceWithholdsIncompleteClaims(t *testing.T) {
 		Wallet: wallet, Network: "solana-mainnet", TargetKind: "wallet",
 		Dossier: ActorDefenseDossier{
 			Wallet: wallet,
-			Track: ActorDefenseTrack{CreatedTokenCount: 2, DominantHolderTokenCount: 2},
+			Track:  ActorDefenseTrack{CreatedTokenCount: 2, DominantHolderTokenCount: 2},
 			Tokens: []ActorDefenseTokenObservation{{Mint: "mint-a", Roles: []string{"creator_deployer"}}},
 			Evidence: []ActorDefenseEvidenceRecord{{
 				ActorWallet: wallet, CounterpartID: "mint-a", Relation: "created_token",
@@ -71,7 +71,7 @@ func TestEvaluateActorAcceptanceWithholdsIncompleteClaims(t *testing.T) {
 			}},
 		},
 		FundingOrigin: ActorFundingOrigin{Wallet: wallet, Status: "rpc_unavailable", TrailStatus: "not_investigated", VerificationStatus: "unverified"},
-		Verdict: ActorDefenseRuleVerdict{Grade: "-", Verdict: "no_grade_trigger", RulesetVersion: ActorDefenseRulesetVersion},
+		Verdict:       ActorDefenseRuleVerdict{Grade: "-", Verdict: "no_grade_trigger", RulesetVersion: ActorDefenseRulesetVersion},
 	})
 	if result.Status != ActorAcceptanceFail {
 		t.Fatalf("expected fail-closed acceptance, got %s", result.Status)
@@ -93,7 +93,7 @@ func TestActorAcceptanceDirectRelationRequiresVerifiedEvidence(t *testing.T) {
 	row.VerificationStatus = "inferred"
 	result := EvaluateActorAcceptance(ActorAcceptanceInput{
 		Wallet: "creator", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Evidence: []ActorDefenseEvidenceRecord{row}},
+		Dossier:       ActorDefenseDossier{Evidence: []ActorDefenseEvidenceRecord{row}},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 	})
 	if result.Items[8].Status != ActorAcceptancePass || result.Items[8].EvidenceState != "not_verified" {
@@ -108,8 +108,8 @@ func TestActorAcceptanceRejectsMissingProgramMetadata(t *testing.T) {
 	result := EvaluateActorAcceptance(ActorAcceptanceInput{
 		Wallet: "creator", Network: "solana-mainnet", TargetKind: "wallet",
 		Dossier: ActorDefenseDossier{
-			Track: ActorDefenseTrack{CreatedTokenCount: 1},
-			Tokens: []ActorDefenseTokenObservation{{Mint: "mint", Roles: []string{"creator_deployer"}}},
+			Track:    ActorDefenseTrack{CreatedTokenCount: 1},
+			Tokens:   []ActorDefenseTokenObservation{{Mint: "mint", Roles: []string{"creator_deployer"}}},
 			Evidence: []ActorDefenseEvidenceRecord{row},
 		},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},

@@ -184,9 +184,9 @@ func UnifiedRadarVerdictFingerprint(network, targetKind, targetID string, verdic
 		Network: normalizeRadarNetwork(network), TargetKind: strings.TrimSpace(targetKind),
 		TargetID: strings.TrimSpace(targetID), Grade: normalizeUnifiedGrade(verdict.Grade),
 		Verdict: strings.TrimSpace(verdict.Verdict), Ruleset: strings.TrimSpace(verdict.RulesetVersion),
-		ActorRuleset: strings.TrimSpace(verdict.ActorRuleset),
+		ActorRuleset:   strings.TrimSpace(verdict.ActorRuleset),
 		TriggeredRules: nonNilActorRuleHits(verdict.TriggeredRules),
-		WatchFlags: nonNilActorRuleHits(verdict.WatchFlags), Behavior: nonNilUnifiedSignals(behavior.Signals),
+		WatchFlags:     nonNilActorRuleHits(verdict.WatchFlags), Behavior: nonNilUnifiedSignals(behavior.Signals),
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

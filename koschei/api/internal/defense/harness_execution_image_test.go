@@ -42,15 +42,15 @@ func insertPinnedToolchainAttestationAt(t *testing.T, ctx context.Context, db *s
 	binaryPath := "/usr/local/bin/" + toolName
 	binaryHash := hashValue([]byte("binary:" + toolName + ":" + imageDigest))
 	payload := map[string]any{
-		"worker_id": workerID,
+		"worker_id":           workerID,
 		"worker_image_digest": imageDigest,
-		"tool_name": toolName,
-		"command": toolName + " --version",
-		"available": true,
-		"version_hash": versionHash,
-		"binary_path": binaryPath,
-		"binary_hash": binaryHash,
-		"observed_at": observedAt.Format(time.RFC3339Nano),
+		"tool_name":           toolName,
+		"command":             toolName + " --version",
+		"available":           true,
+		"version_hash":        versionHash,
+		"binary_path":         binaryPath,
+		"binary_hash":         binaryHash,
+		"observed_at":         observedAt.Format(time.RFC3339Nano),
 	}
 	attestationRef := prefixedID("KTA1-", payload)
 	attestationHash := hashJSON(payload)

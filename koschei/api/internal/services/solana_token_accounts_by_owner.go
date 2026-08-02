@@ -14,9 +14,9 @@ type SolanaOwnedTokenAccount struct {
 			Parsed struct {
 				Type string `json:"type"`
 				Info struct {
-					Mint        string `json:"mint"`
-					Owner       string `json:"owner"`
-					State       string `json:"state"`
+					Mint        string            `json:"mint"`
+					Owner       string            `json:"owner"`
+					State       string            `json:"state"`
 					TokenAmount SolanaTokenAmount `json:"tokenAmount"`
 				} `json:"info"`
 			} `json:"parsed"`

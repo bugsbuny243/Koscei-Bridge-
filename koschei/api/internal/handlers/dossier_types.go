@@ -57,8 +57,8 @@ type dossierBody struct {
 	VerdictCard           any            `json:"verdict_card"`
 	ThreatAnticipation    any            `json:"threat_anticipation,omitempty"`
 	EvidenceArms          any            `json:"evidence_arms,omitempty"`
-	TransactionEvidence  any            `json:"transaction_evidence,omitempty"`
-	EvidenceReferences   any            `json:"evidence_references,omitempty"`
+	TransactionEvidence   any            `json:"transaction_evidence,omitempty"`
+	EvidenceReferences    any            `json:"evidence_references,omitempty"`
 	ActorDossier          any            `json:"actor_dossier,omitempty"`
 	ActorAcceptance       any            `json:"actor_acceptance,omitempty"`
 	CreatedTokenHistory   any            `json:"created_token_history,omitempty"`

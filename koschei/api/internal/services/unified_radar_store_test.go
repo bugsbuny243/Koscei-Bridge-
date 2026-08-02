@@ -31,7 +31,7 @@ func TestUnifiedRadarVerdictFingerprintIsStable(t *testing.T) {
 func TestUnifiedRadarVerdictFingerprintChangesWithRules(t *testing.T) {
 	base := UnifiedRadarVerdict{
 		Grade: "B", Verdict: "compounding_rule", RulesetVersion: UnifiedRadarRulesetVersion,
-		ActorRuleset: ActorDefenseRulesetVersion,
+		ActorRuleset:   ActorDefenseRulesetVersion,
 		TriggeredRules: []ActorDefenseRuleHit{{RuleID: UnifiedRuleVolumeLiquidityGap, EvidenceStatus: "observed"}},
 	}
 	changed := base

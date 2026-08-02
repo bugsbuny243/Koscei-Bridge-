@@ -111,8 +111,8 @@ func attachCreatorReportProjections(report map[string]any) {
 	if _, exists := report["creator_intelligence"]; !exists {
 		if wallet == "" {
 			report["creator_intelligence"] = map[string]any{
-				"available": false,
-				"status": "creator_wallet_not_observed",
+				"available":      false,
+				"status":         "creator_wallet_not_observed",
 				"creator_wallet": "",
 			}
 		} else {
@@ -123,16 +123,16 @@ func attachCreatorReportProjections(report map[string]any) {
 				"observed",
 			)
 			report["creator_intelligence"] = map[string]any{
-				"available": true,
-				"status": status,
-				"creator_wallet": wallet,
-				"dossier": actor["dossier"],
-				"rule_verdict": actor["rule_verdict"],
-				"integration_run": actor["integration_run"],
-				"external_discovery": actor["external_discovery"],
-				"funding_origin": actor["funding_origin"],
+				"available":           true,
+				"status":              status,
+				"creator_wallet":      wallet,
+				"dossier":             actor["dossier"],
+				"rule_verdict":        actor["rule_verdict"],
+				"integration_run":     actor["integration_run"],
+				"external_discovery":  actor["external_discovery"],
+				"funding_origin":      actor["funding_origin"],
 				"actor_live_evidence": actor["actor_live_evidence"],
-				"source": "canonical_actor_investigation",
+				"source":              "canonical_actor_investigation",
 			}
 		}
 	}
@@ -144,7 +144,7 @@ func attachCreatorReportProjections(report map[string]any) {
 	if !exists || distribution == nil {
 		report["creator_distribution"] = map[string]any{
 			"available": false,
-			"status": "creator_mint_relation_not_resolved",
+			"status":    "creator_mint_relation_not_resolved",
 		}
 		return
 	}
@@ -156,9 +156,9 @@ func attachCreatorReportProjections(report map[string]any) {
 		status != "persistence_unavailable"
 	report["creator_distribution"] = map[string]any{
 		"available": available,
-		"status": status,
-		"report": distribution,
-		"source": "canonical_actor_distribution",
+		"status":    status,
+		"report":    distribution,
+		"source":    "canonical_actor_distribution",
 	}
 }
 

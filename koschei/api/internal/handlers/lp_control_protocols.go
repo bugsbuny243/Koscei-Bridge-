@@ -23,7 +23,7 @@ func collectProtocolLPControlEvidence(ctx context.Context, rpc solanaRPCCall, ne
 		Status: services.LPControlUnverified, PoolAddress: strings.TrimSpace(pool), TokenMint: strings.TrimSpace(mint),
 		CreatorWallet: strings.TrimSpace(creator),
 		ObservedAt:    time.Now().UTC(), LargestLPHolders: []services.LPHolderEvidence{},
-		LockedPositions: []services.CLMMLockedPositionEvidence{},
+		LockedPositions:    []services.CLMMLockedPositionEvidence{},
 		LiquidityMovements: []services.LiquidityMovementEvidence{}, EvidenceKeys: []string{}, Limitations: []string{},
 	}
 	if rpc == nil || out.PoolAddress == "" {

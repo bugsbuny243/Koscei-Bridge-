@@ -105,7 +105,6 @@ Files: `internal/workerwake/workerwake.go` (new),
 `internal/jobs/store.go`, `internal/handlers/webhooks.go`,
 `internal/handlers/canonical_investigation_job_worker.go`.
 
-
 Additional audit corrections made before publication:
 
 - webhook retry scheduling excludes paused endpoints, preventing a due paused row
@@ -201,33 +200,59 @@ Ordered by what blocks what.
 
 ---
 
-## 4. Verification status of this pass — read this
+## 4. Verification status of this pass — completed August 2, 2026
 
-The full repository requires Go 1.25.12, while the local audit environment has
-Go 1.23.2 and no network access. The standalone `internal/workerwake` package was
-formatted and passed `go test -race`; all changed Go files pass `gofmt -l`.
-Repository-wide compile, vet, PostgreSQL migration execution and tests still
-must run in the repository CI before merge.
+The July 26 consolidation was re-verified in GitHub Actions on the repository's
+required toolchain, `go version go1.25.12 linux/amd64`, against PostgreSQL 17.10.
+The first strict run correctly failed because `gofmt -l .` exposed repository-wide
+formatting debt. The complete Go tree was normalized with `gofmt -w koschei/api`,
+and the permanent verification run then passed every gate without weakening any
+check.
 
-The required merge checks remain:
+Commands and results from `Release Gates Verification` run 6:
 
-```bash
-cd koschei/api
-gofmt -l .        # expect no output
-go vet ./...
-go build ./...
+```text
+go version
+# go version go1.25.12 linux/amd64
+
+gofmt -l .
+# no output
+
+for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+  psql --set=ON_ERROR_STOP=1 --file="$migration"
+done
+# all migrations passed on PostgreSQL 17.10
+
+SELECT encode(sha256(convert_to('{}','UTF8')),'hex');
+# 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+
+go test -v ./internal/services -run '^TestRetentionArchiveDeletePostgres17$' -count=1
+# PASS: initial archive/delete, resumed ON CONFLICT path, checksum-mismatch fail-closed path
+
 go test ./...
+# PASS
+
+go test -race ./internal/handlers ./internal/services ./internal/defense
+# PASS
+
+go vet ./...
+# PASS
+
+CGO_ENABLED=0 GOOS=linux go build ./...
+# PASS
 ```
 
-Two specific things to check first, because they are the likeliest failures:
+The transaction-guard v3 authority, CPI-flow and threat-history collectors are
+also protected by a reachability/fail-closed test anchored in the registered v2
+evidence-first handler. The test requires all three collectors and the final
+assessment/response functions to remain called from that endpoint, and confirms
+that incomplete required evidence produces `withhold` with unknown risk rather
+than an allow/deny decision.
 
-- `sha256()` and `convert_to()` in migration 084 and in the retention statement
-  require PostgreSQL 11+; the target is 17, but the CI migration validation
-  should confirm rather than assume.
-- The single-statement `WITH ... FOR UPDATE SKIP LOCKED` archive-and-delete
-  should be exercised against a populated table, including a resumed run over
-  already-archived rows, to confirm the `ON CONFLICT DO UPDATE` path returns
-  those rows as intended.
+**Task 5 verification gate is closed.** This result verifies the repository tree
+and the July 26 consolidation mechanics; it does not close the separate archive
+export, OpenAPI, funding-origin bounded-state or migration-hygiene gates listed
+in the August 2 release briefing.
 
 ---
 

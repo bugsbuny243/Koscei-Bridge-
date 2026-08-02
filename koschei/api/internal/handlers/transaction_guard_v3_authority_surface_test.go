@@ -160,6 +160,6 @@ func guardV3AuthorityTokenInfo(t *testing.T, mint, owner, delegate string, deleg
 	binary.LittleEndian.PutUint64(data[121:129], delegatedAmount)
 	return &services.SolanaAccountInfo{
 		Owner: guardV3SPLTokenProgramID,
-		Data: []string{base64.StdEncoding.EncodeToString(data), "base64"},
+		Data:  []string{base64.StdEncoding.EncodeToString(data), "base64"},
 	}
 }

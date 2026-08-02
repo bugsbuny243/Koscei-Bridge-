@@ -9,12 +9,12 @@ import (
 )
 
 type ActorDistributionTarget struct {
-	CreatorWallet       string    `json:"creator_wallet"`
-	Mint                string    `json:"mint"`
-	CreationSignature   string    `json:"creation_signature,omitempty"`
-	VerificationStatus  string    `json:"verification_status"`
-	FirstObservedAt     time.Time `json:"first_observed_at"`
-	LastObservedAt      time.Time `json:"last_observed_at"`
+	CreatorWallet      string    `json:"creator_wallet"`
+	Mint               string    `json:"mint"`
+	CreationSignature  string    `json:"creation_signature,omitempty"`
+	VerificationStatus string    `json:"verification_status"`
+	FirstObservedAt    time.Time `json:"first_observed_at"`
+	LastObservedAt     time.Time `json:"last_observed_at"`
 }
 
 // ResolvePersistentCreatorMint prevents the recipient investigator from

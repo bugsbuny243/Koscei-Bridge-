@@ -38,22 +38,22 @@ func TestDefenseWorkerQueueLifecycle(t *testing.T) {
 		"src/lib.rs": "pub fn ok() -> bool { true }\n",
 	})
 	artifact, err := StoreArtifact(ctx, db, ArtifactInput{
-		ProgramID: programID,
-		Network: "solana-mainnet",
-		ArtifactType: "source_bundle",
+		ProgramID:       programID,
+		Network:         "solana-mainnet",
+		ArtifactType:    "source_bundle",
 		ContentEncoding: "json",
-		Content: string(bundle),
-		TrustLevel: "observed",
-		CreatedBy: "ci",
+		Content:         string(bundle),
+		TrustLevel:      "observed",
+		CreatedBy:       "ci",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	job, err := EnqueueWorkerJob(ctx, db, WorkerJobRequest{
-		Action: WorkerActionVerifyBundle,
+		Action:            WorkerActionVerifyBundle,
 		SourceArtifactRef: artifact.ArtifactRef,
-		Commands: []string{"cargo test"},
-		MaxAttempts: 2,
+		Commands:          []string{"cargo test"},
+		MaxAttempts:       2,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -97,21 +97,21 @@ func TestDefenseWorkerRejectsUnallowlistedCommand(t *testing.T) {
 	programID := fmt.Sprintf("CIWorkerReject%d", time.Now().UnixNano())
 	bundle, _ := json.Marshal(map[string]string{"src/lib.rs": "pub fn ok() {}\n"})
 	artifact, err := StoreArtifact(ctx, db, ArtifactInput{
-		ProgramID: programID,
-		Network: "solana-mainnet",
-		ArtifactType: "source_bundle",
+		ProgramID:       programID,
+		Network:         "solana-mainnet",
+		ArtifactType:    "source_bundle",
 		ContentEncoding: "json",
-		Content: string(bundle),
-		TrustLevel: "observed",
-		CreatedBy: "ci",
+		Content:         string(bundle),
+		TrustLevel:      "observed",
+		CreatedBy:       "ci",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = EnqueueWorkerJob(ctx, db, WorkerJobRequest{
-		Action: WorkerActionVerifyBundle,
+		Action:            WorkerActionVerifyBundle,
 		SourceArtifactRef: artifact.ArtifactRef,
-		Commands: []string{"sh -c whoami"},
+		Commands:          []string{"sh -c whoami"},
 	})
 	if err == nil {
 		t.Fatal("unallowlisted shell command was accepted")

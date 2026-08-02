@@ -17,9 +17,9 @@ func TestOperationalAcceptanceAcceptsSignedDeterministicWithhold(t *testing.T) {
 
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "ActorWallet", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
+		Dossier:       ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
-		Verdict: verdict,
+		Verdict:       verdict,
 	})
 	item := result.Items[9]
 	if item.ID != "AC-10" || item.Status != ActorAcceptancePass || item.EvidenceState != "withheld" {
@@ -33,7 +33,7 @@ func TestOperationalAcceptanceAcceptsSignedDeterministicWithhold(t *testing.T) {
 func TestOperationalAcceptanceRejectsUnsignedWithhold(t *testing.T) {
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "ActorWallet", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
+		Dossier:       ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 		Verdict: ActorDefenseRuleVerdict{
 			Grade: "-", Verdict: "watch_only", RulesetVersion: ActorDefenseRulesetVersion,
@@ -49,7 +49,7 @@ func TestOperationalAcceptanceRejectsUnsignedWithhold(t *testing.T) {
 func TestOperationalAcceptanceStillRequiresEvidenceForLetterGrade(t *testing.T) {
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "ActorWallet", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
+		Dossier:       ActorDefenseDossier{Wallet: "ActorWallet", Network: "solana-mainnet"},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 		Verdict: ActorDefenseRuleVerdict{
 			Grade: "B", Verdict: "compounding_rule", RulesetVersion: ActorDefenseRulesetVersion,

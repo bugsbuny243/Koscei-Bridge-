@@ -35,7 +35,7 @@ func TestLargestHolderFactBelongsOnlyToHolderArm(t *testing.T) {
 	req := SecurityRadarRequest{Target: "Mint22222222222222222222222222222222222222", Network: "solana-mainnet", Mode: "manual_test"}
 	profile := radarEvidenceProfile{
 		LiveRPC: true, AccountExists: true, IsTokenMint: true,
-		AccountOwner: "TokenProgram111111111111111111111111111111",
+		AccountOwner:    "TokenProgram111111111111111111111111111111",
 		LargestAccounts: 20, LargestHolderPct: 61, Top10HolderPct: 88,
 		RawLargestHolderPct: 61, RawTop10HolderPct: 88, TokenSupply: 1000000,
 		DataQuality: "live_rpc_evidence", EvidenceStatus: "verified_rpc_observation",

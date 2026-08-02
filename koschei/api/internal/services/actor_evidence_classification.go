@@ -8,11 +8,11 @@ import (
 const ActorPossibleDustNativeSOLMax = 0.00001
 
 type ActorDefenseEvidenceClassification struct {
-	PossibleDust               bool     `json:"possible_dust"`
-	AddressPoisoningCandidate  bool     `json:"address_poisoning_candidate"`
-	GradeEligible              bool     `json:"grade_eligible"`
-	Labels                     []string `json:"evidence_labels,omitempty"`
-	Reason                     string   `json:"classification_reason,omitempty"`
+	PossibleDust              bool     `json:"possible_dust"`
+	AddressPoisoningCandidate bool     `json:"address_poisoning_candidate"`
+	GradeEligible             bool     `json:"grade_eligible"`
+	Labels                    []string `json:"evidence_labels,omitempty"`
+	Reason                    string   `json:"classification_reason,omitempty"`
 }
 
 // ClassifyActorDefenseEvidence keeps micro-transfer observations visible while

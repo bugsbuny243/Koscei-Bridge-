@@ -1,0 +1,47 @@
+name: OpenAPI Contract
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "koschei/api/openapi.yaml"
+      - "koschei/api/cmd/openapi-gen/**"
+      - "koschei/api/internal/openapi/**"
+      - "koschei/api/internal/http/**"
+      - ".github/workflows/openapi-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/openapi.yaml"
+      - "koschei/api/cmd/openapi-gen/**"
+      - "koschei/api/internal/openapi/**"
+      - "koschei/api/internal/http/**"
+      - ".github/workflows/openapi-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate OpenAPI 3.1 syntax and semantics
+        run: |
+          python -m pip install --disable-pip-version-check openapi-spec-validator==0.7.2
+          openapi-spec-validator openapi.yaml
+      - name: Verify registered route drift
+        run: |
+          go run ./cmd/openapi-gen -check
+          go test ./internal/openapi -count=1

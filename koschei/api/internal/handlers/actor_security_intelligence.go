@@ -178,9 +178,9 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 			"source": creatorIntelCleanString(source["source"]),
 		})
 		g.addLink(creatorWallet, target, "created_or_deployed", creatorRelationVerified, map[string]any{
-			"signature": creatorIntelCleanString(source["signature"]),
+			"signature":   creatorIntelCleanString(source["signature"]),
 			"observed_at": creatorIntelCleanString(source["observed_at"]),
-			"evidence": []string{"Launch source reported this wallet as the creator/deployer relation."},
+			"evidence":    []string{"Launch source reported this wallet as the creator/deployer relation."},
 		})
 	}
 
@@ -201,12 +201,12 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 		g.addNode(id, kind, row.Role, confidence, map[string]any{
 			"holder_rank": row.Rank, "raw_percentage": row.RawPercentage,
 			"circulating_percentage": row.CirculatingPercentage,
-			"token_account_count": row.TokenAccountCount,
+			"token_account_count":    row.TokenAccountCount,
 		})
 		g.addLink(id, target, "controls_token_balance", row.OwnerResolved || row.ExcludedFromHolderRisk, map[string]any{
 			"amount_token": row.Balance, "raw_percentage": row.RawPercentage,
 			"circulating_percentage": row.CirculatingPercentage,
-			"evidence": row.Evidence,
+			"evidence":               row.Evidence,
 		})
 	}
 
@@ -218,9 +218,9 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 		}
 		g.addNode(mint, "token", "creator_observed_launch", "observed", nil)
 		g.addLink(creatorWallet, mint, "observed_launch_relation", true, map[string]any{
-			"signature": creatorIntelCleanString(launch["signature"]),
+			"signature":   creatorIntelCleanString(launch["signature"]),
 			"observed_at": fmt.Sprint(launch["observed_at"]),
-			"source": creatorIntelCleanString(launch["source"]),
+			"source":      creatorIntelCleanString(launch["source"]),
 		})
 	}
 
@@ -231,10 +231,10 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 		}
 		g.addNode(wallet, "wallet", "creator_funder", "observed", nil)
 		g.addLink(wallet, creatorWallet, "funded_creator", true, map[string]any{
-			"amount_sol": creatorIntelFloat(row["amount"]),
-			"transactions": creatorIntelInt(row["transactions"]),
+			"amount_sol":        creatorIntelFloat(row["amount"]),
+			"transactions":      creatorIntelInt(row["transactions"]),
 			"first_observed_at": creatorIntelCleanString(row["first_observed_at"]),
-			"last_observed_at": creatorIntelCleanString(row["last_observed_at"]),
+			"last_observed_at":  creatorIntelCleanString(row["last_observed_at"]),
 		})
 	}
 
@@ -254,11 +254,11 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 			"holder_rank": row["holder_rank"], "holder_percentage": row["holder_percentage"],
 		})
 		g.addLink(creatorWallet, wallet, "creator_token_outflow_recipient", true, map[string]any{
-			"amount_token": creatorIntelFloat(row["amount"]),
-			"transactions": creatorIntelInt(row["transactions"]),
+			"amount_token":       creatorIntelFloat(row["amount"]),
+			"transactions":       creatorIntelInt(row["transactions"]),
 			"matches_top_holder": matched,
-			"first_observed_at": creatorIntelCleanString(row["first_observed_at"]),
-			"last_observed_at": creatorIntelCleanString(row["last_observed_at"]),
+			"first_observed_at":  creatorIntelCleanString(row["first_observed_at"]),
+			"last_observed_at":   creatorIntelCleanString(row["last_observed_at"]),
 		})
 	}
 
@@ -274,9 +274,9 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 		if strings.TrimSpace(wallet.FundingSource) != "" {
 			g.addNode(wallet.FundingSource, "wallet", "holder_funder", "observed", nil)
 			g.addLink(wallet.FundingSource, wallet.Wallet, "funded_top_holder", true, map[string]any{
-				"amount_sol": wallet.FundingAmountSOL,
+				"amount_sol":  wallet.FundingAmountSOL,
 				"observed_at": wallet.FundingObservedAt,
-				"evidence": wallet.Evidence,
+				"evidence":    wallet.Evidence,
 			})
 		}
 	}
@@ -295,36 +295,36 @@ func buildActorSecurityIntelligence(target string, source, creator map[string]an
 	crossLinks := actorCrossLinkCount(g.links)
 	creatorChecked := creatorIntelInt(creator["recent_transactions_checked"])
 	coverage := map[string]any{
-		"top_holder_balances": len(holder.Rows),
-		"holder_wallets_requested": cluster.WalletsRequested,
-		"holder_wallets_analyzed": cluster.WalletsAnalyzed,
-		"creator_signatures_seen": creatorIntelInt(creator["recent_signatures_seen"]),
+		"top_holder_balances":          len(holder.Rows),
+		"holder_wallets_requested":     cluster.WalletsRequested,
+		"holder_wallets_analyzed":      cluster.WalletsAnalyzed,
+		"creator_signatures_seen":      creatorIntelInt(creator["recent_signatures_seen"]),
 		"creator_transactions_checked": creatorChecked,
-		"creator_relation_verified": creatorRelationVerified,
-		"cross_actor_links": crossLinks,
+		"creator_relation_verified":    creatorRelationVerified,
+		"cross_actor_links":            crossLinks,
 	}
 
 	findings := actorSecurityFindings(creatorWallet, creator, holder, cluster, creatorHolderLinks, crossLinks)
 	status, confidence := actorSecurityStatus(creatorWallet, creatorRelationVerified, creatorChecked, cluster.WalletsAnalyzed, crossLinks)
 	return map[string]any{
 		"available": creatorWallet != "" || cluster.WalletsAnalyzed > 0,
-		"status": status, "confidence": confidence,
-		"identity_scope": "wallet_level_control_network_only",
-		"creator_wallet": creatorWallet,
-		"creator_relation_verified": creatorRelationVerified,
-		"previous_launch_count": creatorIntelInt(creator["previous_launch_count"]),
-		"creator_is_top_holder": creator["creator_is_top_holder"],
-		"creator_holder_percentage": creator["creator_holder_percentage"],
-		"sale_like_transactions": creatorIntelInt(creator["sale_like_transactions"]),
-		"early_sale_like_transactions": creatorIntelInt(creator["early_sale_like_transactions"]),
+		"status":    status, "confidence": confidence,
+		"identity_scope":                  "wallet_level_control_network_only",
+		"creator_wallet":                  creatorWallet,
+		"creator_relation_verified":       creatorRelationVerified,
+		"previous_launch_count":           creatorIntelInt(creator["previous_launch_count"]),
+		"creator_is_top_holder":           creator["creator_is_top_holder"],
+		"creator_holder_percentage":       creator["creator_holder_percentage"],
+		"sale_like_transactions":          creatorIntelInt(creator["sale_like_transactions"]),
+		"early_sale_like_transactions":    creatorIntelInt(creator["early_sale_like_transactions"]),
 		"creator_linked_top_holder_count": creatorHolderLinks,
-		"shared_funding_group_count": cluster.SharedFundingGroupCount,
-		"synchronized_wallet_count": cluster.SynchronizedWalletCount,
-		"common_exit_group_count": cluster.Flow.CommonExitGroupCount,
-		"internal_transfer_count": cluster.Flow.InternalTransferCount,
-		"coverage": coverage,
-		"nodes": g.nodes, "links": g.links,
-		"findings": findings,
+		"shared_funding_group_count":      cluster.SharedFundingGroupCount,
+		"synchronized_wallet_count":       cluster.SynchronizedWalletCount,
+		"common_exit_group_count":         cluster.Flow.CommonExitGroupCount,
+		"internal_transfer_count":         cluster.Flow.InternalTransferCount,
+		"coverage":                        coverage,
+		"nodes":                           g.nodes, "links": g.links,
+		"findings":           findings,
 		"recommended_action": actorRecommendedAction(status, crossLinks, creatorWallet, cluster.WalletsAnalyzed),
 		"limitations": []string{
 			"Cüzdan bağlantıları gerçek dünya kimliği veya suç isnadı değildir; yalnız zincir üstü kontrol ve fon akışı kanıtıdır.",

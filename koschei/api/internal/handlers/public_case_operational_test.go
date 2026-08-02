@@ -64,7 +64,7 @@ func TestPublicCaseOperationalTemplateExplainsWhoDoesWhat(t *testing.T) {
 		OutcomeLabel: "SONUÇ BEKLETİLİYOR", OutcomeClass: "review",
 		OutcomeText: "Açık işler Koschei worker görevleridir.", GradeDisplay: "WITHHOLD",
 		GradeExplanation: "Açık otomatik işler varken işlem onayı verilmez.",
-		Completed: []string{"Cüzdan hedefi doğrulandı."},
+		Completed:        []string{"Cüzdan hedefi doğrulandı."},
 		Jobs: []publicCaseOperationalJob{{
 			ID: "AC-07", Title: "Likidite izini tamamla", State: "OTOMATİK İŞ AÇIK", Class: "queued",
 			Worker: "ARVIS Liquidity Intelligence Worker", AutomaticAction: "DEX/pool add/remove imzalarını tarayacak.",

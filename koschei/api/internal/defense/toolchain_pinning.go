@@ -107,15 +107,15 @@ func AttestPinnedLocalToolchain(ctx context.Context, db *sql.DB, workerID string
 		pinned := available && workerImageDigest != "" && binaryHash != ""
 		versionHash := hashValue(version)
 		payload := map[string]any{
-			"worker_id": workerID,
+			"worker_id":           workerID,
 			"worker_image_digest": workerImageDigest,
-			"tool_name": spec.Name,
-			"command": strings.Join(spec.Args, " "),
-			"available": available,
-			"version_hash": versionHash,
-			"binary_path": binaryPath,
-			"binary_hash": binaryHash,
-			"observed_at": observedAt.Format(time.RFC3339Nano),
+			"tool_name":           spec.Name,
+			"command":             strings.Join(spec.Args, " "),
+			"available":           available,
+			"version_hash":        versionHash,
+			"binary_path":         binaryPath,
+			"binary_hash":         binaryHash,
+			"observed_at":         observedAt.Format(time.RFC3339Nano),
 		}
 		attestationHash := hashJSON(payload)
 		ref := prefixedID("KTA1-", payload)

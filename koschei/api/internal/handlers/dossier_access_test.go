@@ -28,7 +28,9 @@ func TestStoredEnterpriseGateAllowsEnterpriseWithoutRPC(t *testing.T) {
 	handler := h.requireStoredTokenTierWithEvaluator("enterprise", evaluator, func(w http.ResponseWriter, r *http.Request) {
 		reached = true
 		value, ok := r.Context().Value(tokenAccessRequestContextKey{}).(tokenAccessRequestContext)
-		if !ok || value.Evaluation.Tier != "enterprise" { t.Fatalf("request context=%#v ok=%t", value, ok) }
+		if !ok || value.Evaluation.Tier != "enterprise" {
+			t.Fatalf("request context=%#v ok=%t", value, ok)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	response := httptest.NewRecorder()
@@ -47,16 +49,22 @@ func TestStoredEnterpriseGateRejectsPro(t *testing.T) {
 	handler := h.requireStoredTokenTierWithEvaluator("enterprise", evaluator, func(http.ResponseWriter, *http.Request) { reached = true })
 	response := httptest.NewRecorder()
 	handler(response, dossierAuthRequest())
-	if response.Code != http.StatusForbidden || reached { t.Fatalf("status=%d reached=%t", response.Code, reached) }
+	if response.Code != http.StatusForbidden || reached {
+		t.Fatalf("status=%d reached=%t", response.Code, reached)
+	}
 }
 
 func TestStoredEnterpriseGateRequiresSnapshot(t *testing.T) {
-	evaluator := func(context.Context, string) (tokenAccessEvaluation, error) { return tokenAccessEvaluation{}, errors.New("missing snapshot") }
+	evaluator := func(context.Context, string) (tokenAccessEvaluation, error) {
+		return tokenAccessEvaluation{}, errors.New("missing snapshot")
+	}
 	h := &Handler{}
 	handler := h.requireStoredTokenTierWithEvaluator("enterprise", evaluator, func(http.ResponseWriter, *http.Request) { t.Fatal("next reached") })
 	response := httptest.NewRecorder()
 	handler(response, dossierAuthRequest())
-	if response.Code != http.StatusForbidden { t.Fatalf("status=%d body=%s", response.Code, response.Body.String()) }
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
 }
 
 func TestStoredEnterpriseGateRejectsInvalidRequiredTier(t *testing.T) {
@@ -65,12 +73,18 @@ func TestStoredEnterpriseGateRejectsInvalidRequiredTier(t *testing.T) {
 	handler := h.requireStoredTokenTierWithEvaluator("unknown", evaluator, func(http.ResponseWriter, *http.Request) { t.Fatal("next reached") })
 	response := httptest.NewRecorder()
 	handler(response, dossierAuthRequest())
-	if response.Code != http.StatusServiceUnavailable { t.Fatalf("status=%d", response.Code) }
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status=%d", response.Code)
+	}
 }
 
 func TestDossierOwnerCredentialDetection(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/dossier/Mint111", nil)
-	if dossierOwnerCredentialPresent(req) { t.Fatal("empty request detected as owner") }
+	if dossierOwnerCredentialPresent(req) {
+		t.Fatal("empty request detected as owner")
+	}
 	req.Header.Set("x-koschei-secret", "secret")
-	if !dossierOwnerCredentialPresent(req) { t.Fatal("owner header was not detected") }
+	if !dossierOwnerCredentialPresent(req) {
+		t.Fatal("owner header was not detected")
+	}
 }

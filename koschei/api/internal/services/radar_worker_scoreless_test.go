@@ -20,19 +20,19 @@ func TestBackgroundWorkersDoNotCallLegacyNumericRadarEngine(t *testing.T) {
 
 func TestStreamPublicationUsesVerifiedEvidenceNotRiskIndex(t *testing.T) {
 	verdict := SecurityRadarVerdict{
-		ModuleID: ModulePumpSybilRadar,
-		Signed: true,
-		Grade: "-",
+		ModuleID:  ModulePumpSybilRadar,
+		Signed:    true,
+		Grade:     "-",
 		RiskIndex: 0,
 		Signals: map[string]any{
 			"real_onchain_evidence": true,
-			"data_quality": "live_rpc_evidence",
-			"is_token_mint": true,
+			"data_quality":          "live_rpc_evidence",
+			"is_token_mint":         true,
 		},
 	}
 	event := SecurityRadarStreamEventRecord{
-		Target: "Mint111111111111111111111111111111111111",
-		Signature: "Signature111111111111111111111111111111",
+		Target:          "Mint111111111111111111111111111111111111",
+		Signature:       "Signature111111111111111111111111111111",
 		EvidenceQuality: "decoded_stream_hint",
 	}
 	if !shouldPublishSBX1CustomerVerdict(event, verdict, verdict.Signals) {

@@ -14,12 +14,12 @@ func analyzeTransactionGuardV3AuthoritySurface(
 	snapshots transactionGuardAuthoritySnapshots,
 ) (transactionGuardAuthoritySurfaceAnalysis, []transactionFirewallFinding) {
 	analysis := transactionGuardAuthoritySurfaceAnalysis{
-		Requested: true,
-		Required:  envBool("TRANSACTION_GUARD_REQUIRE_AUTHORITY_SURFACE", true),
-		Available: decoded.Available,
-		Complete:  decoded.Complete,
-		Status:    "none_observed",
-		Events:    []transactionGuardAuthorityEvent{},
+		Requested:              true,
+		Required:               envBool("TRANSACTION_GUARD_REQUIRE_AUTHORITY_SURFACE", true),
+		Available:              decoded.Available,
+		Complete:               decoded.Complete,
+		Status:                 "none_observed",
+		Events:                 []transactionGuardAuthorityEvent{},
 		TransferHookProgramIDs: []string{},
 		Limitations: []string{
 			"Token-2022 extension instructions are decoded from the signed transaction and successful simulation path.",
@@ -44,9 +44,9 @@ func analyzeTransactionGuardV3AuthoritySurface(
 		if err != nil {
 			analysis.Complete = false
 			findings = append(findings, transactionFirewallFinding{
-				Code: "authority_instruction_unresolved_" + strconv.Itoa(instruction.Index) + "_" + strconv.Itoa(instruction.InnerSequence),
+				Code:     "authority_instruction_unresolved_" + strconv.Itoa(instruction.Index) + "_" + strconv.Itoa(instruction.InnerSequence),
 				Severity: guardV3RequiredSeverity(analysis.Required),
-				Title: "Authority-changing token instruction could not be fully decoded",
+				Title:    "Authority-changing token instruction could not be fully decoded",
 				Evidence: compactGuardV3Evidence(err.Error()), Score: 0,
 			})
 			continue

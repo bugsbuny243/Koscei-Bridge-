@@ -23,9 +23,9 @@ func TestBuildPublicDossierCaseProjectsOnlyDiscoveryFields(t *testing.T) {
 				map[string]any{"id": "AC-03", "state": "inferred"},
 				map[string]any{"id": "AC-04", "state": "unknown"},
 			}},
-			ActorAcceptance: map[string]any{"pass_count": 5.0, "fail_count": 2.0, "not_investigated_count": 3.0},
+			ActorAcceptance:     map[string]any{"pass_count": 5.0, "fail_count": 2.0, "not_investigated_count": 3.0},
 			CreatedTokenHistory: []any{map[string]any{"mint": "Mint1"}, map[string]any{"mint": "Mint2"}},
-			TechnicalReport: map[string]any{"private_internal_field": "must_not_be_projected"},
+			TechnicalReport:     map[string]any{"private_internal_field": "must_not_be_projected"},
 		},
 		BundleHash: "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
 	}

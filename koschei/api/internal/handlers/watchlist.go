@@ -534,7 +534,7 @@ func compareWatchlistSnapshots(previous *watchlistTokenSnapshot, current watchli
 		severity := watchlistSeverity(current.Score)
 		alerts = append(alerts, watchlistAlertCandidate{
 			EventType: "risk_increased", Severity: severity, Title: "Risk seviyesi yükseldi",
-			Message: fmt.Sprintf("Güvenlik skoru %d puan düşerek %d oldu.", -delta, current.Score),
+			Message:       fmt.Sprintf("Güvenlik skoru %d puan düşerek %d oldu.", -delta, current.Score),
 			PreviousValue: previous.Score, CurrentValue: current.Score,
 			Evidence: map[string]any{"risk_level": current.RiskLevel, "findings": current.Findings},
 		})
@@ -542,7 +542,7 @@ func compareWatchlistSnapshots(previous *watchlistTokenSnapshot, current watchli
 	if previous.Score >= threshold && current.Score < threshold {
 		alerts = append(alerts, watchlistAlertCandidate{
 			EventType: "threshold_crossed", Severity: watchlistSeverity(current.Score), Title: "Güvenlik tabanı aşıldı",
-			Message: fmt.Sprintf("Skor %d güvenlik tabanının altına düştü.", threshold),
+			Message:       fmt.Sprintf("Skor %d güvenlik tabanının altına düştü.", threshold),
 			PreviousValue: previous.Score, CurrentValue: current.Score,
 			Evidence: map[string]any{"threshold": threshold, "risk_level": current.RiskLevel},
 		})
@@ -556,7 +556,7 @@ func compareWatchlistSnapshots(previous *watchlistTokenSnapshot, current watchli
 	if current.LargestHolderPercent-previous.LargestHolderPercent >= 10 {
 		alerts = append(alerts, watchlistAlertCandidate{
 			EventType: "holder_concentration_increased", Severity: "high", Title: "Holder yoğunluğu yükseldi",
-			Message: "En büyük token hesabının arz payı en az 10 puan arttı.",
+			Message:       "En büyük token hesabının arz payı en az 10 puan arttı.",
 			PreviousValue: previous.LargestHolderPercent, CurrentValue: current.LargestHolderPercent,
 			Evidence: map[string]any{"top_ten_percent": current.TopTenPercent},
 		})
@@ -564,7 +564,7 @@ func compareWatchlistSnapshots(previous *watchlistTokenSnapshot, current watchli
 	if previous.Supply != "" && current.Supply != "" && previous.Supply != current.Supply {
 		alerts = append(alerts, watchlistAlertCandidate{
 			EventType: "supply_changed", Severity: "high", Title: "Token arzı değişti",
-			Message: "Gözlenen ham token arzı önceki kontrolden farklı.",
+			Message:       "Gözlenen ham token arzı önceki kontrolden farklı.",
 			PreviousValue: previous.Supply, CurrentValue: current.Supply,
 			Evidence: map[string]any{"mint_authority": current.MintAuthority},
 		})
@@ -596,7 +596,9 @@ func deduplicateWatchlistAlerts(input []watchlistAlertCandidate) []watchlistAler
 		seen[key] = struct{}{}
 		out = append(out, item)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return watchlistSeverityRank(out[i].Severity) > watchlistSeverityRank(out[j].Severity) })
+	sort.SliceStable(out, func(i, j int) bool {
+		return watchlistSeverityRank(out[i].Severity) > watchlistSeverityRank(out[j].Severity)
+	})
 	return out
 }
 

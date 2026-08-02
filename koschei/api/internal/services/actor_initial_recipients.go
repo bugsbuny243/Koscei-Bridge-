@@ -17,27 +17,27 @@ type ActorInitialRecipientOptions struct {
 }
 
 type ActorInitialRecipient struct {
-	Sequence               int       `json:"sequence"`
-	Wallet                 string    `json:"wallet"`
-	SourceTokenAccount     string    `json:"source_token_account"`
-	DestinationTokenAccount string   `json:"destination_token_account"`
-	Amount                 float64   `json:"amount"`
-	RawAmount              string    `json:"raw_amount,omitempty"`
-	Decimals               int       `json:"decimals"`
-	Signature              string    `json:"signature"`
-	Slot                   int64     `json:"slot"`
-	ObservedAt             time.Time `json:"observed_at"`
-	Program                string    `json:"program"`
-	VerificationStatus     string    `json:"verification_status"`
-	CurrentBalanceStatus   string    `json:"current_balance_status"`
-	CurrentBalanceRaw      string    `json:"current_balance_raw"`
-	CurrentBalance         float64   `json:"current_balance"`
-	CurrentTokenAccounts   []string  `json:"current_token_accounts"`
-	MatchesTopHolder       bool      `json:"matches_top_holder"`
-	TopHolderRank          int       `json:"top_holder_rank,omitempty"`
-	TopHolderPercentage    float64   `json:"top_holder_percentage,omitempty"`
-	Fate                   string    `json:"fate"`
-	Limitations            []string  `json:"limitations"`
+	Sequence                int       `json:"sequence"`
+	Wallet                  string    `json:"wallet"`
+	SourceTokenAccount      string    `json:"source_token_account"`
+	DestinationTokenAccount string    `json:"destination_token_account"`
+	Amount                  float64   `json:"amount"`
+	RawAmount               string    `json:"raw_amount,omitempty"`
+	Decimals                int       `json:"decimals"`
+	Signature               string    `json:"signature"`
+	Slot                    int64     `json:"slot"`
+	ObservedAt              time.Time `json:"observed_at"`
+	Program                 string    `json:"program"`
+	VerificationStatus      string    `json:"verification_status"`
+	CurrentBalanceStatus    string    `json:"current_balance_status"`
+	CurrentBalanceRaw       string    `json:"current_balance_raw"`
+	CurrentBalance          float64   `json:"current_balance"`
+	CurrentTokenAccounts    []string  `json:"current_token_accounts"`
+	MatchesTopHolder        bool      `json:"matches_top_holder"`
+	TopHolderRank           int       `json:"top_holder_rank,omitempty"`
+	TopHolderPercentage     float64   `json:"top_holder_percentage,omitempty"`
+	Fate                    string    `json:"fate"`
+	Limitations             []string  `json:"limitations"`
 }
 
 type ActorInitialRecipientReport struct {
@@ -175,11 +175,17 @@ func InvestigateActorInitialRecipients(ctx context.Context, rpcURL, creator, min
 	sort.SliceStable(signatures, func(i, j int) bool {
 		left, right := actorFundingSignatureTime(signatures[i]), actorFundingSignatureTime(signatures[j])
 		if !left.Equal(right) {
-			if left.IsZero() { return false }
-			if right.IsZero() { return true }
+			if left.IsZero() {
+				return false
+			}
+			if right.IsZero() {
+				return true
+			}
 			return left.Before(right)
 		}
-		if signatures[i].Slot != signatures[j].Slot { return signatures[i].Slot < signatures[j].Slot }
+		if signatures[i].Slot != signatures[j].Slot {
+			return signatures[i].Slot < signatures[j].Slot
+		}
 		return signatures[i].Signature < signatures[j].Signature
 	})
 	result.SignaturesScanned = len(signatures)
@@ -214,22 +220,22 @@ func InvestigateActorInitialRecipients(ctx context.Context, rpcURL, creator, min
 	result.TopHolderStatus = holderStatus
 	for index, transfer := range transfers {
 		recipient := ActorInitialRecipient{
-			Sequence: index + 1,
-			Wallet: transfer.Wallet,
-			SourceTokenAccount: transfer.SourceTokenAccount,
+			Sequence:                index + 1,
+			Wallet:                  transfer.Wallet,
+			SourceTokenAccount:      transfer.SourceTokenAccount,
 			DestinationTokenAccount: transfer.DestinationTokenAccount,
-			Amount: transfer.Amount,
-			RawAmount: transfer.RawAmount,
-			Decimals: transfer.Decimals,
-			Signature: transfer.Signature,
-			Slot: transfer.Slot,
-			ObservedAt: transfer.ObservedAt,
-			Program: transfer.Program,
-			VerificationStatus: "verified",
-			CurrentBalanceStatus: "not_investigated",
-			CurrentBalanceRaw: "0",
-			CurrentTokenAccounts: []string{},
-			Limitations: []string{},
+			Amount:                  transfer.Amount,
+			RawAmount:               transfer.RawAmount,
+			Decimals:                transfer.Decimals,
+			Signature:               transfer.Signature,
+			Slot:                    transfer.Slot,
+			ObservedAt:              transfer.ObservedAt,
+			Program:                 transfer.Program,
+			VerificationStatus:      "verified",
+			CurrentBalanceStatus:    "not_investigated",
+			CurrentBalanceRaw:       "0",
+			CurrentTokenAccounts:    []string{},
+			Limitations:             []string{},
 		}
 		balance, err := SolanaGetTokenAccountsByOwnerForMint(ctx, rpcURL, transfer.Wallet, mint)
 		result.RecipientBalanceQueries++
@@ -286,40 +292,40 @@ func ActorInitialRecipientEvidence(report ActorInitialRecipientReport, network s
 			continue
 		}
 		out = append(out, ActorDefenseEvidenceRecord{
-			Network: normalizeRadarNetwork(network),
-			ActorWallet: strings.TrimSpace(report.CreatorWallet),
-			CounterpartKind: "wallet",
-			CounterpartID: strings.TrimSpace(recipient.Wallet),
-			Relation: relation,
+			Network:            normalizeRadarNetwork(network),
+			ActorWallet:        strings.TrimSpace(report.CreatorWallet),
+			CounterpartKind:    "wallet",
+			CounterpartID:      strings.TrimSpace(recipient.Wallet),
+			Relation:           relation,
 			VerificationStatus: "verified",
-			EvidenceKey: fmt.Sprintf("%s:%s:%d", recipient.Signature, relation, recipient.Sequence),
-			Source: "mint_specific_ata_history",
-			Signature: recipient.Signature,
-			Slot: recipient.Slot,
-			ObservedAt: recipient.ObservedAt,
-			TokenMint: report.Mint,
-			TokenAmount: recipient.Amount,
+			EvidenceKey:        fmt.Sprintf("%s:%s:%d", recipient.Signature, relation, recipient.Sequence),
+			Source:             "mint_specific_ata_history",
+			Signature:          recipient.Signature,
+			Slot:               recipient.Slot,
+			ObservedAt:         recipient.ObservedAt,
+			TokenMint:          report.Mint,
+			TokenAmount:        recipient.Amount,
 			Metadata: map[string]any{
-				"actor_role": "creator_deployer",
-				"source_wallet": report.CreatorWallet,
-				"destination_wallet": recipient.Wallet,
-				"program": recipient.Program,
-				"source_token_account": recipient.SourceTokenAccount,
+				"actor_role":                "creator_deployer",
+				"source_wallet":             report.CreatorWallet,
+				"destination_wallet":        recipient.Wallet,
+				"program":                   recipient.Program,
+				"source_token_account":      recipient.SourceTokenAccount,
 				"destination_token_account": recipient.DestinationTokenAccount,
-				"raw_amount": recipient.RawAmount,
-				"decimals": recipient.Decimals,
-				"recipient_sequence": recipient.Sequence,
-				"distribution_scope": report.DistributionScope,
-				"history_complete": report.HistoryComplete,
-				"current_balance_status": recipient.CurrentBalanceStatus,
-				"current_balance_raw": recipient.CurrentBalanceRaw,
-				"current_balance": recipient.CurrentBalance,
-				"matches_top_holder": recipient.MatchesTopHolder,
-				"top_holder_rank": recipient.TopHolderRank,
-				"top_holder_percentage": recipient.TopHolderPercentage,
-				"fate": recipient.Fate,
-				"mint_specific_ata_only": true,
-				"persistent_actor_index": true,
+				"raw_amount":                recipient.RawAmount,
+				"decimals":                  recipient.Decimals,
+				"recipient_sequence":        recipient.Sequence,
+				"distribution_scope":        report.DistributionScope,
+				"history_complete":          report.HistoryComplete,
+				"current_balance_status":    recipient.CurrentBalanceStatus,
+				"current_balance_raw":       recipient.CurrentBalanceRaw,
+				"current_balance":           recipient.CurrentBalance,
+				"matches_top_holder":        recipient.MatchesTopHolder,
+				"top_holder_rank":           recipient.TopHolderRank,
+				"top_holder_percentage":     recipient.TopHolderPercentage,
+				"fate":                      recipient.Fate,
+				"mint_specific_ata_only":    true,
+				"persistent_actor_index":    true,
 			},
 		})
 	}
@@ -328,13 +334,21 @@ func ActorInitialRecipientEvidence(report ActorInitialRecipientReport, network s
 
 func normalizeActorRecipientOptions(options ActorInitialRecipientOptions) (maxRecipients, pageSize, maxPages, maxTransactions int) {
 	maxRecipients = options.MaxRecipients
-	if maxRecipients <= 0 || maxRecipients > 20 { maxRecipients = 20 }
+	if maxRecipients <= 0 || maxRecipients > 20 {
+		maxRecipients = 20
+	}
 	pageSize = options.SignaturePageSize
-	if pageSize <= 0 || pageSize > 1000 { pageSize = 250 }
+	if pageSize <= 0 || pageSize > 1000 {
+		pageSize = 250
+	}
 	maxPages = options.MaxPagesPerTokenATA
-	if maxPages <= 0 || maxPages > 20 { maxPages = 8 }
+	if maxPages <= 0 || maxPages > 20 {
+		maxPages = 8
+	}
 	maxTransactions = options.MaxTransactionsParse
-	if maxTransactions <= 0 || maxTransactions > 500 { maxTransactions = 160 }
+	if maxTransactions <= 0 || maxTransactions > 500 {
+		maxTransactions = 160
+	}
 	return
 }
 
@@ -359,17 +373,23 @@ func actorRecipientOwnedTokenAccounts(tx map[string]any, owner, mint string) []s
 	collect(meta["preTokenBalances"])
 	collect(meta["postTokenBalances"])
 	out := make([]string, 0, len(seen))
-	for value := range seen { out = append(out, value) }
+	for value := range seen {
+		out = append(out, value)
+	}
 	sort.Strings(out)
 	return out
 }
 
 func actorRecipientTransfersFromTransaction(tx map[string]any, signature SolanaSignatureInfo, creator, mint string, sourceAccounts map[string]bool) []actorRecipientTransfer {
 	meta := actorRecipientMap(tx["meta"])
-	if meta["err"] != nil { return nil }
+	if meta["err"] != nil {
+		return nil
+	}
 	message := actorRecipientMap(actorRecipientMap(tx["transaction"])["message"])
 	keys, signers := actorRecipientAccountKeysAndSigners(message)
-	if !signers[creator] { return nil }
+	if !signers[creator] {
+		return nil
+	}
 	owners := actorRecipientTokenAccountOwners(meta, keys)
 	observedAt := actorFundingTransactionTime(signature, tx)
 	out := []actorRecipientTransfer{}
@@ -380,34 +400,40 @@ func actorRecipientTransfersFromTransaction(tx map[string]any, signature SolanaS
 		}
 		parsed := actorRecipientMap(instruction["parsed"])
 		kind := strings.ToLower(strings.TrimSpace(actorRecipientString(parsed["type"])))
-		if kind != "transfer" && kind != "transferchecked" { continue }
+		if kind != "transfer" && kind != "transferchecked" {
+			continue
+		}
 		info := actorRecipientMap(parsed["info"])
 		sourceATA := strings.TrimSpace(actorRecipientString(info["source"]))
 		destinationATA := strings.TrimSpace(actorRecipientString(info["destination"]))
 		authority := strings.TrimSpace(actorRecipientString(info["authority"]))
-		if !sourceAccounts[sourceATA] || authority != creator || destinationATA == "" { continue }
+		if !sourceAccounts[sourceATA] || authority != creator || destinationATA == "" {
+			continue
+		}
 		sourceOwner := owners[sourceATA]
 		destinationOwner := owners[destinationATA]
 		transferMint := firstActorFundingString(sourceOwner.Mint, destinationOwner.Mint, actorRecipientString(info["mint"]))
-		if transferMint != mint || sourceOwner.Owner != creator || destinationOwner.Owner == "" || destinationOwner.Owner == creator { continue }
+		if transferMint != mint || sourceOwner.Owner != creator || destinationOwner.Owner == "" || destinationOwner.Owner == creator {
+			continue
+		}
 		amount, raw, decimals := actorRecipientTransferAmount(info)
 		out = append(out, actorRecipientTransfer{
-			Wallet: destinationOwner.Owner,
-			SourceTokenAccount: sourceATA,
+			Wallet:                  destinationOwner.Owner,
+			SourceTokenAccount:      sourceATA,
 			DestinationTokenAccount: destinationATA,
-			Amount: amount,
-			RawAmount: raw,
-			Decimals: decimals,
-			Signature: signature.Signature,
-			Slot: signature.Slot,
-			ObservedAt: observedAt,
-			Program: program,
+			Amount:                  amount,
+			RawAmount:               raw,
+			Decimals:                decimals,
+			Signature:               signature.Signature,
+			Slot:                    signature.Slot,
+			ObservedAt:              observedAt,
+			Program:                 program,
 		})
 	}
 	return out
 }
 
-type actorRecipientTokenOwner struct { Owner, Mint string }
+type actorRecipientTokenOwner struct{ Owner, Mint string }
 
 func actorRecipientTokenAccountOwners(meta map[string]any, keys []string) map[string]actorRecipientTokenOwner {
 	out := map[string]actorRecipientTokenOwner{}
@@ -416,10 +442,14 @@ func actorRecipientTokenAccountOwners(meta map[string]any, keys []string) map[st
 		for _, item := range items {
 			row := actorRecipientMap(item)
 			index := actorRecipientInt(row["accountIndex"])
-			if index < 0 || index >= len(keys) { continue }
+			if index < 0 || index >= len(keys) {
+				continue
+			}
 			owner := strings.TrimSpace(actorRecipientString(row["owner"]))
 			mint := strings.TrimSpace(actorRecipientString(row["mint"]))
-			if owner != "" || mint != "" { out[keys[index]] = actorRecipientTokenOwner{Owner: owner, Mint: mint} }
+			if owner != "" || mint != "" {
+				out[keys[index]] = actorRecipientTokenOwner{Owner: owner, Mint: mint}
+			}
 		}
 	}
 	collect(meta["preTokenBalances"])
@@ -430,18 +460,30 @@ func actorRecipientTokenAccountOwners(meta map[string]any, keys []string) map[st
 func actorRecipientTopHolders(ctx context.Context, rpcURL, mint string) (map[string]actorRecipientTopHolder, string) {
 	out := map[string]actorRecipientTopHolder{}
 	supply, err := SolanaGetTokenSupply(ctx, rpcURL, mint)
-	if err != nil { return out, "supply_unavailable" }
+	if err != nil {
+		return out, "supply_unavailable"
+	}
 	largest, err := SolanaGetTokenLargestAccounts(ctx, rpcURL, mint)
-	if err != nil { return out, "largest_accounts_unavailable" }
+	if err != nil {
+		return out, "largest_accounts_unavailable"
+	}
 	total := solanaTokenAmountFloat(supply.Value)
-	if total <= 0 { return out, "invalid_supply" }
+	if total <= 0 {
+		return out, "invalid_supply"
+	}
 	analysis := AnalyzeSolanaHolderRoles(ctx, rpcURL, total, largest.Value)
-	if !analysis.Available { return out, analysis.Status }
+	if !analysis.Available {
+		return out, analysis.Status
+	}
 	for _, account := range analysis.Accounts {
 		wallet := strings.TrimSpace(account.OwnerWallet)
-		if wallet == "" { continue }
+		if wallet == "" {
+			continue
+		}
 		row := out[wallet]
-		if row.Rank == 0 || account.Rank < row.Rank { row.Rank = account.Rank }
+		if row.Rank == 0 || account.Rank < row.Rank {
+			row.Rank = account.Rank
+		}
 		row.Percentage += account.RawPercentage
 		out[wallet] = row
 	}
@@ -468,12 +510,16 @@ func actorRecipientInstructions(message, meta map[string]any) []map[string]any {
 		items, _ := raw.([]any)
 		for _, item := range items {
 			row := actorRecipientMap(item)
-			if len(row) > 0 { out = append(out, row) }
+			if len(row) > 0 {
+				out = append(out, row)
+			}
 		}
 	}
 	appendRows(message["instructions"])
 	inner, _ := meta["innerInstructions"].([]any)
-	for _, item := range inner { appendRows(actorRecipientMap(item)["instructions"]) }
+	for _, item := range inner {
+		appendRows(actorRecipientMap(item)["instructions"])
+	}
 	return out
 }
 
@@ -496,18 +542,67 @@ func actorRecipientAccountKeysAndSigners(message map[string]any) ([]string, map[
 			key = strings.TrimSpace(actorRecipientString(value["pubkey"]))
 			signer = actorRecipientBool(value["signer"])
 		}
-		if key == "" { continue }
+		if key == "" {
+			continue
+		}
 		keys = append(keys, key)
-		if signer { signers[key] = true }
+		if signer {
+			signers[key] = true
+		}
 	}
 	return keys, signers
 }
 
 func actorRecipientMap(value any) map[string]any {
-	if result, ok := value.(map[string]any); ok { return result }
+	if result, ok := value.(map[string]any); ok {
+		return result
+	}
 	return map[string]any{}
 }
-func actorRecipientString(value any) string { if value == nil { return "" }; return strings.TrimSpace(fmt.Sprint(value)) }
-func actorRecipientInt(value any) int { switch v := value.(type) { case int: return v; case int64: return int(v); case float64: return int(v); case string: parsed,_:=strconv.Atoi(strings.TrimSpace(v)); return parsed; default: return -1 } }
-func actorRecipientFloat(value any) float64 { switch v:=value.(type) { case float64: return v; case int: return float64(v); case int64: return float64(v); case string: parsed,_:=strconv.ParseFloat(strings.TrimSpace(v),64); return parsed; default: return 0 } }
-func actorRecipientBool(value any) bool { switch v:=value.(type) { case bool: return v; case string: parsed,_:=strconv.ParseBool(strings.TrimSpace(v)); return parsed; default: return false } }
+func actorRecipientString(value any) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+func actorRecipientInt(value any) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		parsed, _ := strconv.Atoi(strings.TrimSpace(v))
+		return parsed
+	default:
+		return -1
+	}
+}
+func actorRecipientFloat(value any) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		parsed, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return parsed
+	default:
+		return 0
+	}
+}
+func actorRecipientBool(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		parsed, _ := strconv.ParseBool(strings.TrimSpace(v))
+		return parsed
+	default:
+		return false
+	}
+}

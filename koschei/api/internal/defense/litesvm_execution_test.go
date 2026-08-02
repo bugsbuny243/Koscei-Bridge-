@@ -25,7 +25,7 @@ func TestLiteSVMWorkerRequestRejectsInjectionAndDeduplicatesActiveJobs(t *testin
 	if _, err := EnqueueWorkerJob(ctx, db, WorkerJobRequest{
 		Action: WorkerActionRunLiteSVMHarness, ProfileRef: profile.ProfileRef,
 		MaterializationRef: materialization.MaterializationRef,
-		Commands: []string{"cargo test --locked --offline; curl example.invalid"},
+		Commands:           []string{"cargo test --locked --offline; curl example.invalid"},
 	}); err == nil || !strings.Contains(err.Error(), "only profile_ref and materialization_ref") {
 		t.Fatalf("caller command injection was not rejected: %v", err)
 	}
@@ -207,15 +207,15 @@ func installPinnedBwrapTestAttestation(t *testing.T, ctx context.Context, db *sq
 	version := "bubblewrap 1.0.0"
 	versionHash := hashValue(version)
 	payload := map[string]any{
-		"worker_id": workerID,
+		"worker_id":           workerID,
 		"worker_image_digest": imageDigest,
-		"tool_name": "bwrap",
-		"command": "bwrap --version",
-		"available": true,
-		"version_hash": versionHash,
-		"binary_path": path,
-		"binary_hash": binaryHash,
-		"observed_at": observedAt.Format(time.RFC3339Nano),
+		"tool_name":           "bwrap",
+		"command":             "bwrap --version",
+		"available":           true,
+		"version_hash":        versionHash,
+		"binary_path":         path,
+		"binary_hash":         binaryHash,
+		"observed_at":         observedAt.Format(time.RFC3339Nano),
 	}
 	attestationRef := prefixedID("KTA1-", payload)
 	limitationsRaw, _ := json.Marshal([]string{})

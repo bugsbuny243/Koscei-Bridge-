@@ -39,15 +39,15 @@ func ProcessWorkerJobWithRuntime(ctx context.Context, db *sql.DB, job WorkerJob,
 		return nil, err
 	}
 	return map[string]any{
-		"action": job.Action,
-		"attempt": attempt,
-		"worker_execution": true,
-		"network_access": false,
-		"dependency_resolution": false,
+		"action":                   job.Action,
+		"attempt":                  attempt,
+		"worker_execution":         true,
+		"network_access":           false,
+		"dependency_resolution":    false,
 		"wallet_material_accessed": false,
-		"mainnet_rpc_accessed": false,
+		"mainnet_rpc_accessed":     false,
 		"mainnet_transaction_sent": false,
-		"verdict_authority": false,
+		"verdict_authority":        false,
 	}, nil
 }
 
@@ -161,19 +161,19 @@ func ExecuteLiteSVMWorkerJob(ctx context.Context, db *sql.DB, job WorkerJob, run
 		limitations = append(limitations, "Process output exceeded the immutable profile bound and was truncated deterministically.")
 	}
 	attempt, persistErr := PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: job.Attempts,
-		Status: status,
-		StartedAt: startedAt,
-		CompletedAt: completedAt,
-		ExitCode: &exitCode,
+		AttemptNumber:     job.Attempts,
+		Status:            status,
+		StartedAt:         startedAt,
+		CompletedAt:       completedAt,
+		ExitCode:          &exitCode,
 		TerminationReason: terminationReason,
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		StdoutTruncated: stdout.Truncated(),
-		StderrTruncated: stderr.Truncated(),
-		SourceExecuted: true,
-		HarnessExecuted: true,
-		Limitations: limitations,
+		Stdout:            stdout.String(),
+		Stderr:            stderr.String(),
+		StdoutTruncated:   stdout.Truncated(),
+		StderrTruncated:   stderr.Truncated(),
+		SourceExecuted:    true,
+		HarnessExecuted:   true,
+		Limitations:       limitations,
 	})
 	if persistErr != nil {
 		return LiteSVMExecutionAttempt{}, persistErr
@@ -374,19 +374,19 @@ func validateLiteSVMWorkRoot(value string) (string, error) {
 
 func persistLiteSVMRejectedProcessResult(ctx context.Context, db *sql.DB, plan LiteSVMExecutionPlan, attemptNumber int, startedAt, completedAt time.Time, exitCode int, stdout, stderr *boundedExecutionBuffer, reason string) (LiteSVMExecutionAttempt, error) {
 	return PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: attemptNumber,
-		Status: "rejected",
-		StartedAt: startedAt,
-		CompletedAt: completedAt,
-		ExitCode: &exitCode,
+		AttemptNumber:     attemptNumber,
+		Status:            "rejected",
+		StartedAt:         startedAt,
+		CompletedAt:       completedAt,
+		ExitCode:          &exitCode,
 		TerminationReason: reason,
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		StdoutTruncated: stdout.Truncated(),
-		StderrTruncated: stderr.Truncated(),
-		SourceExecuted: false,
-		HarnessExecuted: false,
-		Limitations: []string{"Bubblewrap failed before the fixed Cargo command could be treated as launched."},
+		Stdout:            stdout.String(),
+		Stderr:            stderr.String(),
+		StdoutTruncated:   stdout.Truncated(),
+		StderrTruncated:   stderr.Truncated(),
+		SourceExecuted:    false,
+		HarnessExecuted:   false,
+		Limitations:       []string{"Bubblewrap failed before the fixed Cargo command could be treated as launched."},
 	})
 }
 
@@ -396,14 +396,14 @@ func persistLiteSVMStartRejection(ctx context.Context, db *sql.DB, plan LiteSVME
 		limitations = append(limitations, boundedFailureText(cause.Error()))
 	}
 	return PersistLiteSVMExecutionAttempt(ctx, db, plan, LiteSVMExecutionOutcome{
-		AttemptNumber: attemptNumber,
-		Status: "rejected",
-		StartedAt: startedAt,
-		CompletedAt: time.Now().UTC(),
+		AttemptNumber:     attemptNumber,
+		Status:            "rejected",
+		StartedAt:         startedAt,
+		CompletedAt:       time.Now().UTC(),
 		TerminationReason: reason,
-		SourceExecuted: false,
-		HarnessExecuted: false,
-		Limitations: limitations,
+		SourceExecuted:    false,
+		HarnessExecuted:   false,
+		Limitations:       limitations,
 	})
 }
 

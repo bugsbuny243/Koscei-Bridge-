@@ -34,7 +34,9 @@ func main() {
 	sentinelID := strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_SENTINEL_ID"))
 	if sentinelID == "" {
 		host, _ := os.Hostname()
-		if strings.TrimSpace(host) == "" { host = "railway-sentinel" }
+		if strings.TrimSpace(host) == "" {
+			host = "railway-sentinel"
+		}
 		sentinelID = "sentinel-" + host
 	}
 	pollInterval := envDurationSeconds("KOSCHEI_DEFENSE_SENTINEL_POLL_SECONDS", 10, 2, 300)
@@ -87,21 +89,32 @@ func main() {
 
 func envBool(name string, fallback bool) bool {
 	raw := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
-	if raw == "" { return fallback }
+	if raw == "" {
+		return fallback
+	}
 	switch raw {
-	case "1", "true", "yes", "on": return true
-	case "0", "false", "no", "off": return false
-	default: return fallback
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
 	}
 }
 
 func envDurationSeconds(name string, fallback, minimum, maximum int) time.Duration {
 	value := fallback
 	if raw := strings.TrimSpace(os.Getenv(name)); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err == nil { value = parsed }
+		if parsed, err := strconv.Atoi(raw); err == nil {
+			value = parsed
+		}
 	}
-	if value < minimum { value = minimum }
-	if value > maximum { value = maximum }
+	if value < minimum {
+		value = minimum
+	}
+	if value > maximum {
+		value = maximum
+	}
 	return time.Duration(value) * time.Second
 }
 

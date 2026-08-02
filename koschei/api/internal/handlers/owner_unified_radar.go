@@ -240,7 +240,7 @@ func (h *Handler) ownerUnifiedWalletRadar(w http.ResponseWriter, r *http.Request
 			"numeric_final_score_disabled": true, "no_evidence_no_claim": true,
 			"inferred_watch_only": true, "unverified_excluded": true,
 			"external_attribution_is_observed_only": true,
-			"identity_scope": "onchain_wallet_only", "caller_type_changes_evidence": false,
+			"identity_scope":                        "onchain_wallet_only", "caller_type_changes_evidence": false,
 		},
 	}
 	writeJSON(w, http.StatusOK, response)

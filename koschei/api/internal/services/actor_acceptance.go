@@ -15,6 +15,7 @@ const ActorAcceptanceContractVersion = "koschei-actor-acceptance-v1"
 const (
 	ActorAcceptancePass            = "pass"
 	ActorAcceptanceFail            = "fail"
+	ActorAcceptanceBounded         = "bounded"
 	ActorAcceptanceNotInvestigated = "not_investigated"
 )
 
@@ -73,6 +74,7 @@ type ActorAcceptanceResult struct {
 	PassCount            int                    `json:"pass_count"`
 	FailCount            int                    `json:"fail_count"`
 	NotInvestigatedCount int                    `json:"not_investigated_count"`
+	BoundedCount         int                    `json:"bounded_count"`
 	Items                []ActorAcceptanceItem  `json:"items"`
 	Verdict              ActorAcceptanceVerdict `json:"verdict"`
 	AcceptanceHash       string                 `json:"acceptance_hash"`
@@ -109,6 +111,8 @@ func EvaluateActorAcceptance(input ActorAcceptanceInput) ActorAcceptanceResult {
 			result.PassCount++
 		case ActorAcceptanceFail:
 			result.FailCount++
+		case ActorAcceptanceBounded:
+			result.BoundedCount++
 		default:
 			result.NotInvestigatedCount++
 		}
@@ -118,6 +122,8 @@ func EvaluateActorAcceptance(input ActorAcceptanceInput) ActorAcceptanceResult {
 		result.Status = ActorAcceptanceFail
 	case result.NotInvestigatedCount > 0:
 		result.Status = "partial"
+	case result.BoundedCount > 0:
+		result.Status = ActorAcceptanceBounded
 	default:
 		result.Status = ActorAcceptancePass
 	}
@@ -137,6 +143,23 @@ func actorAcceptanceCreatedTokens(dossier ActorDefenseDossier) ActorAcceptanceIt
 }
 
 func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcceptanceItem {
+	if origin.ResultState == ActorFundingResultBounded {
+		boundary := origin.Boundary
+		summary := fmt.Sprintf(
+			"Funding-origin investigation completed at a published boundary: %d page(s), %d signature(s), %d parsed transaction(s); no initial-funding claim was emitted.",
+			boundary.PagesScanned, boundary.SignaturesWalked, boundary.TransactionsParsed,
+		)
+		limitation := boundary.Reason
+		if limitation == "" {
+			limitation = "The effective chain boundary was reached without a complete canonical initial-funding evidence line."
+		}
+		if boundary.Raisable {
+			limitation += " The effective working boundary is raisable within the published hard ceiling."
+		} else {
+			limitation += " The run reached a non-raisable hard boundary for this code version."
+		}
+		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceBounded, "bounded_by_chain", summary, limitation)
+	}
 	row, ok := actorAcceptanceFundingLine(origin, network)
 	if ok {
 		summary := "Funding source observed; identity remains limited to an on-chain wallet."
@@ -145,10 +168,20 @@ func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcce
 		}
 		return actorAcceptanceItem("AC-04", "Initial funding origin is shown", ActorAcceptancePass, normalizeActorEvidenceStatus(origin.VerificationStatus), summary, []ActorAcceptanceEvidenceLine{row})
 	}
-	if origin.Status == "not_investigated" || origin.Status == "stored_evidence_only" || origin.TrailStatus == "not_investigated" {
-		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceNotInvestigated, "not_investigated", "Funding origin was not investigated.", actorAcceptanceFirstLimitation(origin.Limitations, "Funding-origin collection did not produce a complete evidence line."))
+	if origin.ResultState == ActorFundingResultVerified && origin.HistoryComplete {
+		return actorAcceptanceItem(
+			"AC-04",
+			"Initial funding origin is shown",
+			ActorAcceptancePass,
+			"verified_not_observed",
+			"The complete available signature history was investigated and no qualifying direct system funding transfer was observed.",
+			[]ActorAcceptanceEvidenceLine{},
+		)
 	}
-	return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceFail, "unavailable", "Funding-origin collection ran but did not produce a complete canonical evidence line.", actorAcceptanceFirstLimitation(origin.Limitations, "Missing or malformed funding evidence fails closed."))
+	if origin.ResultState == ActorFundingResultMissing || origin.Status == "not_investigated" || origin.Status == "stored_evidence_only" || origin.TrailStatus == "not_investigated" {
+		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceNotInvestigated, "missing_worker_debt", "Funding-origin collection has not completed; this remains worker debt.", actorAcceptanceFirstLimitation(origin.Limitations, "Funding-origin collection did not produce a completed or bounded result."))
+	}
+	return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceFail, "unavailable", "Funding-origin collection ran but did not produce a complete canonical evidence line or a valid published boundary.", actorAcceptanceFirstLimitation(origin.Limitations, "Missing or malformed funding evidence fails closed."))
 }
 
 func actorAcceptanceRecipients(dossier ActorDefenseDossier) ActorAcceptanceItem {
@@ -322,8 +355,8 @@ func actorAcceptanceVerdict(verdict ActorDefenseRuleVerdict) ActorAcceptanceVerd
 	out := ActorAcceptanceVerdict{
 		Grade: verdict.Grade, Verdict: verdict.Verdict, RulesetVersion: verdict.RulesetVersion,
 		TriggeredRules: append([]ActorDefenseRuleHit{}, verdict.TriggeredRules...),
-		WatchFlags: append([]ActorDefenseRuleHit{}, verdict.WatchFlags...),
-		DecisionPath: append([]string{}, verdict.DecisionPath...), Signed: verdict.Signed, Signature: verdict.Signature,
+		WatchFlags:     append([]ActorDefenseRuleHit{}, verdict.WatchFlags...),
+		DecisionPath:   append([]string{}, verdict.DecisionPath...), Signed: verdict.Signed, Signature: verdict.Signature,
 	}
 	actorRuleSortHits(out.TriggeredRules)
 	actorRuleSortHits(out.WatchFlags)

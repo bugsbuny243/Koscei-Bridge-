@@ -24,7 +24,7 @@ func buildTransactionGuardV3ExplanationWithAuthority(
 			Kind: event.Kind, Account: firstNonEmptyString(event.Account, event.Source, event.Mint),
 			Authority: event.CurrentAuthority, Delegate: event.Delegate,
 			NewAuthority: firstNonEmptyString(event.NewAuthority, event.TransferHookProgramID),
-			AmountRaw: event.AmountRaw, Persistent: event.Persistent,
+			AmountRaw:    event.AmountRaw, Persistent: event.Persistent,
 			Explanation: guardV3AuthorityHumanExplanation(event),
 		}
 		key := guardV3ExplanationAuthorityKey(item.Kind, item.Account, item.Delegate, item.NewAuthority)

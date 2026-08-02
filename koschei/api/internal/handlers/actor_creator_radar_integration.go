@@ -11,20 +11,20 @@ import (
 
 type actorCreatorRelationRun struct {
 	Status      string                              `json:"status"`
-	Target      services.ActorDistributionTarget   `json:"target"`
+	Target      services.ActorDistributionTarget    `json:"target"`
 	Evidence    services.ActorDefenseEvidenceRecord `json:"evidence"`
 	Persistence string                              `json:"persistence"`
 	Limitations []string                            `json:"limitations"`
 }
 
 type actorDistributionIntegrationRun struct {
-	Status              string                                `json:"status"`
+	Status              string                               `json:"status"`
 	Target              services.ActorDistributionTarget     `json:"target"`
 	Report              services.ActorInitialRecipientReport `json:"report"`
-	EvidenceProduced    int                                   `json:"evidence_produced"`
-	EvidencePersisted   int                                   `json:"evidence_persisted"`
-	PersistenceFailures int                                   `json:"persistence_failures"`
-	Limitations         []string                              `json:"limitations"`
+	EvidenceProduced    int                                  `json:"evidence_produced"`
+	EvidencePersisted   int                                  `json:"evidence_persisted"`
+	PersistenceFailures int                                  `json:"persistence_failures"`
+	Limitations         []string                             `json:"limitations"`
 }
 
 func newActorCreatorRelationRun(creator, mint string) actorCreatorRelationRun {
@@ -34,7 +34,7 @@ func newActorCreatorRelationRun(creator, mint string) actorCreatorRelationRun {
 			CreatorWallet: strings.TrimSpace(creator), Mint: strings.TrimSpace(mint),
 			VerificationStatus: "unverified",
 		},
-		Evidence: services.ActorDefenseEvidenceRecord{Metadata: map[string]any{}},
+		Evidence:    services.ActorDefenseEvidenceRecord{Metadata: map[string]any{}},
 		Persistence: "not_requested", Limitations: []string{},
 	}
 }
@@ -143,19 +143,19 @@ func (h *Handler) persistCanonicalCreatorMintRelation(ctx context.Context, store
 		CounterpartKind: "token", CounterpartID: mint,
 		Relation: "created_token", VerificationStatus: verificationStatus,
 		EvidenceKey: "canonical_creator_relation:" + mint,
-		Source: evidenceSource, Signature: signature, Slot: slot, ObservedAt: observedAt,
+		Source:      evidenceSource, Signature: signature, Slot: slot, ObservedAt: observedAt,
 		TokenMint: mint, OccurrenceCount: 1,
 		Metadata: map[string]any{
-			"actor_role": "creator_deployer",
-			"source_wallet": creator,
-			"destination_wallet": mint,
-			"program": program,
+			"actor_role":                     "creator_deployer",
+			"source_wallet":                  creator,
+			"destination_wallet":             mint,
+			"program":                        program,
 			"creator_relation_verified_flag": verifiedFlag,
-			"creator_relation_scope": creatorIntelCleanString(source["creator_scope"]),
-			"source_event_type": creatorIntelCleanString(source["event_type"]),
-			"source_module_id": creatorIntelCleanString(source["module_id"]),
-			"persistent_actor_index": true,
-			"identity_or_wrongdoing_claim": false,
+			"creator_relation_scope":         creatorIntelCleanString(source["creator_scope"]),
+			"source_event_type":              creatorIntelCleanString(source["event_type"]),
+			"source_module_id":               creatorIntelCleanString(source["module_id"]),
+			"persistent_actor_index":         true,
+			"identity_or_wrongdoing_claim":   false,
 		},
 	}
 	out.Evidence = item
@@ -220,9 +220,9 @@ func (h *Handler) collectCanonicalActorDistribution(ctx context.Context, store *
 		target.Mint,
 		target.CreationSignature,
 		services.ActorInitialRecipientOptions{
-			MaxRecipients: actorDefenseEnvInt("ACTOR_RECIPIENT_LIMIT", 20, 1, 20),
-			SignaturePageSize: actorDefenseEnvInt("ACTOR_RECIPIENT_SIGNATURE_PAGE_SIZE", 250, 50, 1000),
-			MaxPagesPerTokenATA: actorDefenseEnvInt("ACTOR_RECIPIENT_MAX_PAGES_PER_ATA", 8, 1, 20),
+			MaxRecipients:        actorDefenseEnvInt("ACTOR_RECIPIENT_LIMIT", 20, 1, 20),
+			SignaturePageSize:    actorDefenseEnvInt("ACTOR_RECIPIENT_SIGNATURE_PAGE_SIZE", 250, 50, 1000),
+			MaxPagesPerTokenATA:  actorDefenseEnvInt("ACTOR_RECIPIENT_MAX_PAGES_PER_ATA", 8, 1, 20),
 			MaxTransactionsParse: actorDefenseEnvInt("ACTOR_RECIPIENT_TRANSACTION_LIMIT", 160, 10, 500),
 		},
 	)

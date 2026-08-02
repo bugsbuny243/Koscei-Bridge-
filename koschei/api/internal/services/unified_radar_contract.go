@@ -145,20 +145,20 @@ func (verdict UnifiedRadarVerdict) MarshalJSON() ([]byte, error) {
 		CreatedAt       time.Time             `json:"created_at"`
 		GeneratedAt     time.Time             `json:"generated_at,omitempty"`
 	}{
-		Grade: normalizeUnifiedContractGrade(contract.Grade),
-		Verdict: strings.TrimSpace(contract.Verdict),
-		Evidence: evidence,
-		RuleVersion: contract.RulesetVersion,
-		RulesetVersion: contract.RulesetVersion,
-		ActorRuleset: strings.TrimSpace(contract.ActorRuleset),
-		TriggeredRules: contract.TriggeredRules,
-		WatchFlags: contract.WatchFlags,
-		DecisionPath: contract.DecisionPath,
+		Grade:           normalizeUnifiedContractGrade(contract.Grade),
+		Verdict:         strings.TrimSpace(contract.Verdict),
+		Evidence:        evidence,
+		RuleVersion:     contract.RulesetVersion,
+		RulesetVersion:  contract.RulesetVersion,
+		ActorRuleset:    strings.TrimSpace(contract.ActorRuleset),
+		TriggeredRules:  contract.TriggeredRules,
+		WatchFlags:      contract.WatchFlags,
+		DecisionPath:    contract.DecisionPath,
 		NarrativeSource: strings.TrimSpace(contract.NarrativeSource),
-		Signed: true,
-		Signature: signature,
-		CreatedAt: contract.GeneratedAt,
-		GeneratedAt: contract.GeneratedAt,
+		Signed:          true,
+		Signature:       signature,
+		CreatedAt:       contract.GeneratedAt,
+		GeneratedAt:     contract.GeneratedAt,
 	}
 	return json.Marshal(payload)
 }
@@ -199,11 +199,11 @@ func signUnifiedVerdictContractState(verdict UnifiedRadarVerdict, evidence []str
 		Evidence    []string `json:"evidence"`
 		Decision    []string `json:"decision_path"`
 	}{
-		Grade: normalizeUnifiedContractGrade(verdict.Grade),
+		Grade:       normalizeUnifiedContractGrade(verdict.Grade),
 		RuleVersion: strings.TrimSpace(verdict.RulesetVersion),
-		Rules: rules,
-		Evidence: evidence,
-		Decision: nonNilStrings(verdict.DecisionPath),
+		Rules:       rules,
+		Evidence:    evidence,
+		Decision:    nonNilStrings(verdict.DecisionPath),
 	}
 	raw, _ := json.Marshal(payload)
 	sum := sha256.Sum256(raw)

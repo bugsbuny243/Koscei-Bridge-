@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	WorkerActionRunLiteSVMHarness   = "run_litesvm_harness"
+	WorkerActionRunLiteSVMHarness  = "run_litesvm_harness"
 	LiteSVMExecutionAttemptVersion = "v1.0.0"
-	liteSVMSandboxPolicyVersion     = "koschei-bwrap-litesvm-v1"
+	liteSVMSandboxPolicyVersion    = "koschei-bwrap-litesvm-v1"
 )
 
 var fixedLiteSVMCommandArgv = []string{"cargo", "test", "--locked", "--offline"}
@@ -32,33 +32,33 @@ type LiteSVMExecutableEvidence struct {
 }
 
 type LiteSVMExecutionPlan struct {
-	JobRef                   string                      `json:"job_ref"`
-	Profile                  HarnessExecutionProfile     `json:"profile"`
-	Materialization          HarnessMaterialization      `json:"materialization"`
-	SourceHarnessArtifact    Artifact                    `json:"-"`
-	MaterializedArtifact     Artifact                    `json:"-"`
-	Bundle                   map[string]string           `json:"-"`
-	CommandArgv              []string                    `json:"command_argv"`
-	CommandHash              string                      `json:"command_hash"`
-	SandboxPolicy            map[string]any              `json:"sandbox_policy"`
-	SandboxPolicyHash        string                      `json:"sandbox_policy_hash"`
-	EnvironmentTemplate      map[string]string           `json:"environment_template"`
-	EnvironmentHash          string                      `json:"environment_hash"`
-	InputHash                string                      `json:"input_hash"`
-	ToolAttestationRefs      []string                    `json:"tool_attestation_refs"`
-	ExecutableEvidence       []LiteSVMExecutableEvidence `json:"executable_evidence"`
-	CargoExecutablePath      string                      `json:"cargo_executable_path"`
-	CargoExecutableHash      string                      `json:"cargo_executable_hash"`
-	SandboxExecutablePath    string                      `json:"sandbox_executable_path"`
-	SandboxExecutableHash    string                      `json:"sandbox_executable_hash"`
-	MaxDurationSeconds       int                         `json:"max_duration_seconds"`
-	MaxOutputBytes           int                         `json:"max_output_bytes"`
-	NetworkAccess            bool                        `json:"network_access"`
-	DependencyResolution     bool                        `json:"dependency_resolution"`
-	WalletMaterialAccessed   bool                        `json:"wallet_material_accessed"`
-	MainnetRPCAccessed       bool                        `json:"mainnet_rpc_accessed"`
-	MainnetTransactionSent   bool                        `json:"mainnet_transaction_sent"`
-	VerdictAuthority         bool                        `json:"verdict_authority"`
+	JobRef                 string                      `json:"job_ref"`
+	Profile                HarnessExecutionProfile     `json:"profile"`
+	Materialization        HarnessMaterialization      `json:"materialization"`
+	SourceHarnessArtifact  Artifact                    `json:"-"`
+	MaterializedArtifact   Artifact                    `json:"-"`
+	Bundle                 map[string]string           `json:"-"`
+	CommandArgv            []string                    `json:"command_argv"`
+	CommandHash            string                      `json:"command_hash"`
+	SandboxPolicy          map[string]any              `json:"sandbox_policy"`
+	SandboxPolicyHash      string                      `json:"sandbox_policy_hash"`
+	EnvironmentTemplate    map[string]string           `json:"environment_template"`
+	EnvironmentHash        string                      `json:"environment_hash"`
+	InputHash              string                      `json:"input_hash"`
+	ToolAttestationRefs    []string                    `json:"tool_attestation_refs"`
+	ExecutableEvidence     []LiteSVMExecutableEvidence `json:"executable_evidence"`
+	CargoExecutablePath    string                      `json:"cargo_executable_path"`
+	CargoExecutableHash    string                      `json:"cargo_executable_hash"`
+	SandboxExecutablePath  string                      `json:"sandbox_executable_path"`
+	SandboxExecutableHash  string                      `json:"sandbox_executable_hash"`
+	MaxDurationSeconds     int                         `json:"max_duration_seconds"`
+	MaxOutputBytes         int                         `json:"max_output_bytes"`
+	NetworkAccess          bool                        `json:"network_access"`
+	DependencyResolution   bool                        `json:"dependency_resolution"`
+	WalletMaterialAccessed bool                        `json:"wallet_material_accessed"`
+	MainnetRPCAccessed     bool                        `json:"mainnet_rpc_accessed"`
+	MainnetTransactionSent bool                        `json:"mainnet_transaction_sent"`
+	VerdictAuthority       bool                        `json:"verdict_authority"`
 }
 
 type LiteSVMExecutionOutcome struct {

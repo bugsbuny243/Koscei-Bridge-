@@ -127,10 +127,10 @@ type clmmFixtureOptions struct {
 
 type clmmLockFixture struct {
 	pool, creator, tokenMint, quoteMint, tokenVault, quoteVault string
-	lockAccount, positionAccount, lockedNFTAccount             string
-	feeNFTMint, positionNFTMint                                string
-	positionLiquidity                                          *big.Int
-	readSlot                                                   uint64
+	lockAccount, positionAccount, lockedNFTAccount              string
+	feeNFTMint, positionNFTMint                                 string
+	positionLiquidity                                           *big.Int
+	readSlot                                                    uint64
 }
 
 func newCLMMLockFixture() clmmLockFixture {

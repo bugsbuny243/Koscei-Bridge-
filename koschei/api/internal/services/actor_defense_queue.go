@@ -101,11 +101,11 @@ func (s *ActorDefenseStore) ListVerificationQueue(ctx context.Context, network, 
 		}
 		band, reason := ActorDefenseVerificationBand(track, verdict)
 		items = append(items, ActorDefenseQueueItem{
-			Track: track,
-			RuleVerdict: verdict,
-			VerificationBand: band,
-			BandReason: reason,
-			NextAction: ActorDefenseRuleNextAction(track, verdict),
+			Track:             track,
+			RuleVerdict:       verdict,
+			VerificationBand:  band,
+			BandReason:        reason,
+			NextAction:        ActorDefenseRuleNextAction(track, verdict),
 			NeedsLiveEvidence: actorDefenseNeedsLiveEvidence(track, verdict),
 		})
 	}
@@ -117,12 +117,12 @@ func (s *ActorDefenseStore) ListVerificationQueue(ctx context.Context, network, 
 		Items: items, Counts: counts, Total: total, Network: network, StateFilter: state,
 		GeneratedAt: time.Now().UTC(),
 		Policy: map[string]any{
-			"ruleset_version": ActorDefenseRulesetVersion,
-			"numeric_score": false,
-			"weighted_formula": false,
-			"queue_order": []string{"hard_trigger", "compounding", "evidence_pending", "watch", "verified_review", "monitor"},
-			"inferred_policy": "watch_only",
-			"unverified_policy": "excluded",
+			"ruleset_version":                 ActorDefenseRulesetVersion,
+			"numeric_score":                   false,
+			"weighted_formula":                false,
+			"queue_order":                     []string{"hard_trigger", "compounding", "evidence_pending", "watch", "verified_review", "monitor"},
+			"inferred_policy":                 "watch_only",
+			"unverified_policy":               "excluded",
 			"no_identity_or_wrongdoing_claim": true,
 		},
 	}, nil

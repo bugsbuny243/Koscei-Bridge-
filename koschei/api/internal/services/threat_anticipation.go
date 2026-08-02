@@ -18,18 +18,18 @@ type ThreatAnticipationInput struct {
 }
 
 type ThreatExitCapacity struct {
-	Available                     bool     `json:"available"`
-	Status                        string   `json:"status"`
-	DominantOwnerWallet           string   `json:"dominant_owner_wallet,omitempty"`
-	OwnerResolved                 bool     `json:"owner_resolved"`
-	OwnerPercentage               float64  `json:"owner_percentage"`
-	OwnerBalance                  float64  `json:"owner_balance"`
-	OwnerReferenceUSDValue        *float64 `json:"owner_reference_usd_value,omitempty"`
-	LiquidityUSD                  float64  `json:"liquidity_usd"`
-	PositionLiquidityMultiple     *float64 `json:"position_liquidity_multiple,omitempty"`
-	Capacity                      string   `json:"capacity"`
-	Interpretation                string   `json:"interpretation"`
-	Limitations                   []string `json:"limitations"`
+	Available                 bool     `json:"available"`
+	Status                    string   `json:"status"`
+	DominantOwnerWallet       string   `json:"dominant_owner_wallet,omitempty"`
+	OwnerResolved             bool     `json:"owner_resolved"`
+	OwnerPercentage           float64  `json:"owner_percentage"`
+	OwnerBalance              float64  `json:"owner_balance"`
+	OwnerReferenceUSDValue    *float64 `json:"owner_reference_usd_value,omitempty"`
+	LiquidityUSD              float64  `json:"liquidity_usd"`
+	PositionLiquidityMultiple *float64 `json:"position_liquidity_multiple,omitempty"`
+	Capacity                  string   `json:"capacity"`
+	Interpretation            string   `json:"interpretation"`
+	Limitations               []string `json:"limitations"`
 }
 
 type ThreatPathway struct {
@@ -74,33 +74,33 @@ type RugPathwayAssessment struct {
 }
 
 type ThreatAnticipationReport struct {
-	Version          string                   `json:"version"`
-	Target           string                   `json:"target"`
-	Status           string                   `json:"status"`
-	PrimaryExposure  string                   `json:"primary_exposure"`
-	ExitCapacity     ThreatExitCapacity       `json:"exit_capacity"`
-	RugAssessment    RugPathwayAssessment     `json:"rug_pathway_assessment"`
-	Pathways         []ThreatPathway          `json:"pathways"`
-	Scenarios        []ThreatScenario         `json:"scenarios"`
-	WatchSignals     []ThreatWatchSignal      `json:"watch_signals"`
-	MissingEvidence  []string                 `json:"missing_evidence"`
-	GeneratedAt      time.Time                `json:"generated_at"`
-	EvidencePolicy   map[string]bool          `json:"evidence_policy"`
+	Version         string               `json:"version"`
+	Target          string               `json:"target"`
+	Status          string               `json:"status"`
+	PrimaryExposure string               `json:"primary_exposure"`
+	ExitCapacity    ThreatExitCapacity   `json:"exit_capacity"`
+	RugAssessment   RugPathwayAssessment `json:"rug_pathway_assessment"`
+	Pathways        []ThreatPathway      `json:"pathways"`
+	Scenarios       []ThreatScenario     `json:"scenarios"`
+	WatchSignals    []ThreatWatchSignal  `json:"watch_signals"`
+	MissingEvidence []string             `json:"missing_evidence"`
+	GeneratedAt     time.Time            `json:"generated_at"`
+	EvidencePolicy  map[string]bool      `json:"evidence_policy"`
 }
 
 func BuildThreatAnticipation(in ThreatAnticipationInput) ThreatAnticipationReport {
 	out := ThreatAnticipationReport{
-		Version: ThreatAnticipationVersion,
-		Target: strings.TrimSpace(in.Target),
-		Status: "insufficient_evidence",
+		Version:         ThreatAnticipationVersion,
+		Target:          strings.TrimSpace(in.Target),
+		Status:          "insufficient_evidence",
 		PrimaryExposure: "No evidence-backed threat pathway could be prioritized.",
-		Pathways: []ThreatPathway{}, Scenarios: []ThreatScenario{}, WatchSignals: []ThreatWatchSignal{}, MissingEvidence: []string{},
+		Pathways:        []ThreatPathway{}, Scenarios: []ThreatScenario{}, WatchSignals: []ThreatWatchSignal{}, MissingEvidence: []string{},
 		GeneratedAt: time.Now().UTC(),
 		EvidencePolicy: map[string]bool{
-			"predicts_intent": false,
-			"numeric_rug_probability_disabled": true,
-			"capacity_is_not_intent": true,
-			"unverified_paths_cannot_change_grade": true,
+			"predicts_intent":                             false,
+			"numeric_rug_probability_disabled":            true,
+			"capacity_is_not_intent":                      true,
+			"unverified_paths_cannot_change_grade":        true,
 			"deterministic_verdict_remains_authoritative": true,
 		},
 	}
@@ -226,8 +226,8 @@ func buildAuthorityThreatPath(arms []SecurityRadarVerdict, mint bool) ThreatPath
 func buildLiquidityThreatPath(arms []SecurityRadarVerdict) ThreatPathway {
 	path := ThreatPathway{
 		ID: "liquidity_removal", Label: "Liquidity removal", Status: "unknown", Capacity: "unknown", EvidenceStatus: "unverified",
-		Summary: "Liquidity amount is not the same as liquidity control. LP ownership, burn/lock state and unlock conditions are not yet verified.",
-		EvidenceKeys: []string{"liquidity_movement", "raydium_pool_guardian"},
+		Summary:          "Liquidity amount is not the same as liquidity control. LP ownership, burn/lock state and unlock conditions are not yet verified.",
+		EvidenceKeys:     []string{"liquidity_movement", "raydium_pool_guardian"},
 		RequiredEvidence: []string{"LP mint and LP token owner", "burn or locker proof", "unlock timestamp", "parsed add/remove signatures", "pool reserve deltas"},
 	}
 	liquidity, hasLiquidity := threatArm(arms, ModuleLiquidityMovement)
@@ -387,17 +387,17 @@ func buildThreatScenarios(in ThreatAnticipationInput, report ThreatAnticipationR
 	if report.ExitCapacity.Available && (report.ExitCapacity.Capacity == "critical" || report.ExitCapacity.Capacity == "high" || report.ExitCapacity.Capacity == "elevated") {
 		out = append(out, ThreatScenario{
 			ID: "direct_market_exit", Title: "Direct or staged market exit", Classification: "capacity_scenario", EvidenceStatus: "observed",
-			Basis: report.ExitCapacity.Interpretation,
+			Basis:        report.ExitCapacity.Interpretation,
 			EvidenceKeys: []string{"holder_intelligence.rows[0]", "market.liquidity_usd"},
-			NextSignals: []string{"dominant owner balance decreases", "first parsed DEX/aggregator sell", "transfer to a known exchange or service deposit", "sell frequency or sold amount accelerates"},
+			NextSignals:  []string{"dominant owner balance decreases", "first parsed DEX/aggregator sell", "transfer to a known exchange or service deposit", "sell frequency or sold amount accelerates"},
 		})
 	}
 	if report.ExitCapacity.OwnerPercentage >= 20 {
 		out = append(out, ThreatScenario{
 			ID: "wallet_fragmentation", Title: "Wallet fragmentation before exit", Classification: "watch_scenario", EvidenceStatus: "inferred",
-			Basis: "A large owner has enough inventory to split the position across multiple wallets; no fragmentation is claimed until transfers are observed.",
+			Basis:        "A large owner has enough inventory to split the position across multiple wallets; no fragmentation is claimed until transfers are observed.",
 			EvidenceKeys: []string{"holder_intelligence.top_owner_percentage"},
-			NextSignals: []string{"transfers to multiple newly funded wallets", "similar transfer amounts inside a short window", "recipient wallets interact with the same DEX route"},
+			NextSignals:  []string{"transfers to multiple newly funded wallets", "similar transfer amounts inside a short window", "recipient wallets interact with the same DEX route"},
 		})
 	}
 	for _, path := range report.Pathways {

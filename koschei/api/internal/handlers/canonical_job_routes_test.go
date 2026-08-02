@@ -4,8 +4,8 @@ import "testing"
 
 func TestWeb3JobTypeFromPathExposesCanonicalCustomerRoute(t *testing.T) {
 	cases := map[string]string{
-		"/api/v1/radar/jobs":  CanonicalInvestigationJobType,
-		"/api/jobs/token-scan": legacyTokenScanJobType,
+		"/api/v1/radar/jobs":     CanonicalInvestigationJobType,
+		"/api/jobs/token-scan":   legacyTokenScanJobType,
 		"/api/jobs/wallet-score": "wallet_score",
 		"/api/jobs/tx-decode":    "tx_decode",
 	}

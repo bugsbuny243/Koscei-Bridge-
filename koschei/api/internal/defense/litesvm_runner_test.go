@@ -127,13 +127,13 @@ func TestBubblewrapPreflightContainsNoSourceMount(t *testing.T) {
 func TestProcessWorkerJobWithRuntimeFailsClosedBeforeLiteSVMPreparation(t *testing.T) {
 	job := WorkerJob{Action: WorkerActionRunLiteSVMHarness, ProfileRef: "KHEP1-example", MaterializationRef: "KHM1-example"}
 	base := LiteSVMWorkerRuntime{
-		WorkerID: "worker",
-		WorkerImageDigest: "sha256:" + strings.Repeat("a", 64),
-		WorkerEnabled: true,
-		SandboxEnabled: true,
+		WorkerID:                "worker",
+		WorkerImageDigest:       "sha256:" + strings.Repeat("a", 64),
+		WorkerEnabled:           true,
+		SandboxEnabled:          true,
 		HarnessExecutionEnabled: true,
 		LiteSVMExecutionEnabled: true,
-		NetworkIsolated: true,
+		NetworkIsolated:         true,
 	}
 	cases := []struct {
 		name   string
@@ -203,34 +203,34 @@ func testLiteSVMSandboxPlan(t *testing.T) LiteSVMExecutionPlan {
 		}
 	}
 	environment := map[string]string{
-		"CARGO_HOME": "/tmp/koschei-scratch/cargo-home",
-		"CARGO_NET_OFFLINE": "true",
-		"CARGO_TARGET_DIR": "/tmp/koschei-scratch/target",
-		"CARGO_TERM_COLOR": "never",
-		"GIT_CONFIG_NOSYSTEM": "1",
-		"GIT_TERMINAL_PROMPT": "0",
-		"HOME": "/tmp/koschei-scratch/home",
+		"CARGO_HOME":               "/tmp/koschei-scratch/cargo-home",
+		"CARGO_NET_OFFLINE":        "true",
+		"CARGO_TARGET_DIR":         "/tmp/koschei-scratch/target",
+		"CARGO_TERM_COLOR":         "never",
+		"GIT_CONFIG_NOSYSTEM":      "1",
+		"GIT_TERMINAL_PROMPT":      "0",
+		"HOME":                     "/tmp/koschei-scratch/home",
 		"KOSCHEI_DEFENSE_ISOLATED": "1",
-		"LANG": "C.UTF-8",
-		"LC_ALL": "C.UTF-8",
-		"PATH": toolDir,
-		"RUST_BACKTRACE": "0",
-		"RUSTC": rustc,
-		"RUSTUP_HOME": "/tmp/koschei-scratch/rustup-home",
-		"SOURCE_DATE_EPOCH": "0",
-		"TERM": "dumb",
-		"TMPDIR": "/tmp/koschei-scratch/tmp",
-		"TZ": "UTC",
+		"LANG":                     "C.UTF-8",
+		"LC_ALL":                   "C.UTF-8",
+		"PATH":                     toolDir,
+		"RUST_BACKTRACE":           "0",
+		"RUSTC":                    rustc,
+		"RUSTUP_HOME":              "/tmp/koschei-scratch/rustup-home",
+		"SOURCE_DATE_EPOCH":        "0",
+		"TERM":                     "dumb",
+		"TMPDIR":                   "/tmp/koschei-scratch/tmp",
+		"TZ":                       "UTC",
 	}
 	policy := liteSVMBubblewrapPolicy(environment, cargo, bwrap)
 	return LiteSVMExecutionPlan{
-		CargoExecutablePath: cargo,
-		CargoExecutableHash: "sha256:" + strings.Repeat("a", 64),
+		CargoExecutablePath:   cargo,
+		CargoExecutableHash:   "sha256:" + strings.Repeat("a", 64),
 		SandboxExecutablePath: bwrap,
 		SandboxExecutableHash: "sha256:" + strings.Repeat("b", 64),
-		EnvironmentTemplate: environment,
-		EnvironmentHash: hashValue(environment),
-		SandboxPolicy: policy,
-		SandboxPolicyHash: hashValue(policy),
+		EnvironmentTemplate:   environment,
+		EnvironmentHash:       hashValue(environment),
+		SandboxPolicy:         policy,
+		SandboxPolicyHash:     hashValue(policy),
 	}
 }

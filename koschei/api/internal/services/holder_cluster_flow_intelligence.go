@@ -45,28 +45,28 @@ type HolderClusterFlowObservation struct {
 // HolderClusterFlowAnalysis summarizes direct holder transfers and repeated
 // token exit destinations observed inside the bounded transaction window.
 type HolderClusterFlowAnalysis struct {
-	Available                   bool                           `json:"available"`
-	Status                      string                         `json:"status"`
-	Confidence                  string                         `json:"confidence"`
-	TransactionsWithOutflow     int                            `json:"transactions_with_outflow"`
-	WalletsWithOutflow          int                            `json:"wallets_with_outflow"`
-	DEXExitObservationCount     int                            `json:"dex_exit_observation_count"`
-	CEXInflowObservationCount   int                            `json:"cex_inflow_observation_count"`
-	CEXOutflowObservationCount  int                            `json:"cex_outflow_observation_count"`
-	RiskFlagObservationCount    int                            `json:"risk_flag_observation_count"`
-	CommonExitGroupCount        int                            `json:"common_exit_group_count"`
-	LargestCommonExitGroup      int                            `json:"largest_common_exit_group"`
-	InternalTransferCount       int                            `json:"internal_transfer_count"`
-	CircularWalletCount         int                            `json:"circular_wallet_count"`
-	LinkedHolderPercentage      float64                        `json:"linked_holder_percentage"`
-	RiskContribution            int                            `json:"risk_contribution"`
-	LinkedWallets               []string                       `json:"linked_wallets"`
-	CircularWallets             []string                       `json:"circular_wallets"`
-	CommonExitGroups            []HolderClusterGroup           `json:"common_exit_groups"`
-	InternalTransfers           []HolderClusterFlowObservation `json:"internal_transfers"`
-	Observations                []HolderClusterFlowObservation `json:"observations"`
-	Findings                    []string                       `json:"findings"`
-	Limitations                 []string                       `json:"limitations"`
+	Available                  bool                           `json:"available"`
+	Status                     string                         `json:"status"`
+	Confidence                 string                         `json:"confidence"`
+	TransactionsWithOutflow    int                            `json:"transactions_with_outflow"`
+	WalletsWithOutflow         int                            `json:"wallets_with_outflow"`
+	DEXExitObservationCount    int                            `json:"dex_exit_observation_count"`
+	CEXInflowObservationCount  int                            `json:"cex_inflow_observation_count"`
+	CEXOutflowObservationCount int                            `json:"cex_outflow_observation_count"`
+	RiskFlagObservationCount   int                            `json:"risk_flag_observation_count"`
+	CommonExitGroupCount       int                            `json:"common_exit_group_count"`
+	LargestCommonExitGroup     int                            `json:"largest_common_exit_group"`
+	InternalTransferCount      int                            `json:"internal_transfer_count"`
+	CircularWalletCount        int                            `json:"circular_wallet_count"`
+	LinkedHolderPercentage     float64                        `json:"linked_holder_percentage"`
+	RiskContribution           int                            `json:"risk_contribution"`
+	LinkedWallets              []string                       `json:"linked_wallets"`
+	CircularWallets            []string                       `json:"circular_wallets"`
+	CommonExitGroups           []HolderClusterGroup           `json:"common_exit_groups"`
+	InternalTransfers          []HolderClusterFlowObservation `json:"internal_transfers"`
+	Observations               []HolderClusterFlowObservation `json:"observations"`
+	Findings                   []string                       `json:"findings"`
+	Limitations                []string                       `json:"limitations"`
 }
 
 func observeHolderClusterWalletFlow(tx map[string]any, signature, mint, holderWallet string, holderWallets map[string]bool) []HolderClusterFlowObservation {

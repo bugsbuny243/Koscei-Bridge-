@@ -26,10 +26,10 @@ func (h *Handler) OwnerDefenseHarness(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"ok": true,
-				"toolchains": items,
+				"ok":                              true,
+				"toolchains":                      items,
 				"execution_requires_pinned_tools": true,
-				"verdict_authority": false,
+				"verdict_authority":               false,
 			})
 			return
 		}
@@ -59,7 +59,7 @@ func (h *Handler) OwnerDefenseHarness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	plan, err := defense.GenerateHarnessPlan(r.Context(), h.DB, defense.HarnessPlanInput{
-		IDLArtifactRef: input.IDLArtifactRef,
+		IDLArtifactRef:    input.IDLArtifactRef,
 		SourceArtifactRef: input.SourceArtifactRef,
 	})
 	if err != nil {
@@ -67,11 +67,11 @@ func (h *Handler) OwnerDefenseHarness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok": true,
-		"harness_plan": plan,
-		"execution_ready": false,
+		"ok":                       true,
+		"harness_plan":             plan,
+		"execution_ready":          false,
 		"manual_guidance_required": true,
-		"web_executed": false,
-		"verdict_authority": false,
+		"web_executed":             false,
+		"verdict_authority":        false,
 	})
 }

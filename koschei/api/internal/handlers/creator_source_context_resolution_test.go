@@ -39,9 +39,9 @@ func TestResolveCanonicalCreatorSourceContextFromSolscan(t *testing.T) {
 func TestResolveCanonicalCreatorSourceContextKeepsExistingCreator(t *testing.T) {
 	const creator = "ExistingCreator11111111111111111111111111111"
 	out := (&Handler{}).resolveCanonicalCreatorSourceContext(context.Background(), "mint", "solana-mainnet", "owner_full_scan", map[string]any{
-		"available": true,
-		"source": "pumpportal",
-		"creator_wallet": creator,
+		"available":                 true,
+		"source":                    "pumpportal",
+		"creator_wallet":            creator,
 		"creator_relation_verified": true,
 	})
 	if got := creatorIntelCleanString(out["creator_wallet"]); got != creator {

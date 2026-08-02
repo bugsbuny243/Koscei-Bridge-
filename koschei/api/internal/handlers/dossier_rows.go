@@ -65,16 +65,24 @@ func dossierRefsForRow(report map[string]any, id string) DossierRefs {
 
 func dossierObservedState(value any, fallback string) string {
 	m := dossierMap(value)
-	if len(m) == 0 { return fallback }
+	if len(m) == 0 {
+		return fallback
+	}
 	status := strings.ToLower(dossierString(m["status"]))
-	if status == "not_applicable" { return "not_applicable" }
-	if status == "source_unavailable" { return "arm_pending" }
+	if status == "not_applicable" {
+		return "not_applicable"
+	}
+	if status == "source_unavailable" {
+		return "arm_pending"
+	}
 	return "observed"
 }
 
 func dossierEvidenceState(value any, fallback string) string {
 	m := dossierMap(value)
-	if len(m) == 0 { return fallback }
+	if len(m) == 0 {
+		return fallback
+	}
 	status := strings.ToLower(firstNonEmptyString(
 		dossierString(m["evidence_status"]), dossierString(m["verification_status"]),
 		dossierString(m["execution_status"]), dossierString(m["status"]),
@@ -89,7 +97,9 @@ func dossierEvidenceState(value any, fallback string) string {
 	case "source_unavailable", "evidence_pending", "insufficient_evidence", "unverified":
 		return "arm_pending"
 	}
-	if dossierBool(m["signed"]) || dossierBool(m["verified"]) { return "verified" }
+	if dossierBool(m["signed"]) || dossierBool(m["verified"]) {
+		return "verified"
+	}
 	return "observed"
 }
 
@@ -109,13 +119,17 @@ func dossierLiquidityState(lp, market any) string {
 }
 
 func dossierConcentrationState(signal, holder any) string {
-	if state := dossierEvidenceState(signal, ""); state == "verified" || state == "observed" { return state }
+	if state := dossierEvidenceState(signal, ""); state == "verified" || state == "observed" {
+		return state
+	}
 	return dossierObservedState(holder, "arm_pending")
 }
 
 func dossierSignedState(value any) string {
 	m := dossierMap(value)
-	if dossierBool(m["signed"]) && strings.TrimSpace(dossierString(m["signature"])) != "" { return "verified" }
+	if dossierBool(m["signed"]) && strings.TrimSpace(dossierString(m["signature"])) != "" {
+		return "verified"
+	}
 	return "arm_pending"
 }
 
@@ -137,7 +151,9 @@ func dossierFindModule(report map[string]any, needle string) map[string]any {
 	for _, item := range dossierSlice(dossierFirst(report["evidence_arms"], report["modules"])) {
 		module := dossierMap(item)
 		id := strings.ToLower(firstNonEmptyString(dossierString(module["module_id"]), dossierString(module["module"])))
-		if strings.Contains(id, needle) { return module }
+		if strings.Contains(id, needle) {
+			return module
+		}
 	}
 	return map[string]any{}
 }
@@ -146,7 +162,9 @@ func dossierFindBehavior(report map[string]any, ruleID string) map[string]any {
 	behavior := dossierMap(report["behavior_signals"])
 	for _, item := range dossierSlice(behavior["signals"]) {
 		signal := dossierMap(item)
-		if dossierString(signal["rule_id"]) == ruleID { return signal }
+		if dossierString(signal["rule_id"]) == ruleID {
+			return signal
+		}
 	}
 	return map[string]any{}
 }

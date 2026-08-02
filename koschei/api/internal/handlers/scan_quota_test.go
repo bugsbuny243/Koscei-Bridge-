@@ -37,7 +37,7 @@ func (f *fakeScanQuotaLedger) Status(context.Context, string, string, int, time.
 func requestWithTokenAccess(tier string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/radar/detail", nil)
 	ctx := withTokenAccessRequestContext(req.Context(), tokenAccessRequestContext{
-		Evaluation: tokenAccessEvaluation{GateEnabled: true, Configured: true, WalletVerified: true, Tier: tier},
+		Evaluation:  tokenAccessEvaluation{GateEnabled: true, Configured: true, WalletVerified: true, Tier: tier},
 		AuthSubject: "user-sub", Email: "user@example.com",
 	})
 	return req.WithContext(ctx)

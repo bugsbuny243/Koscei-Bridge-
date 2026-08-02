@@ -136,7 +136,7 @@ type transactionGuardDecodedTransaction struct {
 	DeclaredWalletSOLSpend       string                                   `json:"declared_wallet_sol_spend_lamports,omitempty"`
 	Limitations                  []string                                 `json:"limitations"`
 	AutomaticBalance             transactionGuardAutomaticBalanceAnalysis `json:"automatic_balance_changes"`
-	SignedIntent                 transactionGuardV3SignedIntentAssessment  `json:"signed_ui_intent"`
+	SignedIntent                 transactionGuardV3SignedIntentAssessment `json:"signed_ui_intent"`
 	staticAddresses              []string
 	parsedInstructions           []guardV3ParsedInstruction
 	loadedWritableAddresses      []string
