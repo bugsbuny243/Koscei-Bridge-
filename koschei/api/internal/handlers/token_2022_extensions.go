@@ -182,6 +182,28 @@ func token2022Findings(extensions []tokenExtensionAssessment) []string {
 	return out
 }
 
+func token2022ExtensionResolution(isToken2022 bool, accountSpace int, extensions []tokenExtensionAssessment) (string, bool) {
+	if !isToken2022 {
+		return "not_applicable", true
+	}
+	if len(extensions) > 0 {
+		return "resolved", true
+	}
+	// A classic mint is 82 bytes. Extra Token-2022 account space with no parsed
+	// extension list means the parser did not expose the active TLV state.
+	if accountSpace > 82 {
+		return "token_2022_extensions_unresolved", false
+	}
+	return "resolved_empty", true
+}
+
+func token2022FinalPolicy(score int, extensions []tokenExtensionAssessment, visibility []string, evidenceComplete bool) string {
+	if !evidenceComplete {
+		return "withhold"
+	}
+	return tokenFinalPolicy(score, extensions, visibility)
+}
+
 func tokenFinalPolicy(score int, extensions []tokenExtensionAssessment, visibility []string) string {
 	for _, extension := range extensions {
 		if extension.Severity == "critical" {

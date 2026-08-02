@@ -25,6 +25,7 @@ type HolderClusterWallet struct {
 	HolderPercentage      float64                        `json:"holder_percentage"`
 	Status                string                         `json:"status"`
 	Tier                  string                         `json:"tier"`
+	Collector             string                         `json:"collector,omitempty"`
 	SignaturesFetched     int                            `json:"signatures_fetched"`
 	TxsParsed             int                            `json:"txs_parsed"`
 	WindowExhausted       bool                           `json:"window_exhausted"`
@@ -136,10 +137,16 @@ func AnalyzeSolanaHolderCluster(ctx context.Context, rpcURL, mint string, roles 
 		}
 		plan := plans[i]
 		row, enhancedOK := analyzeHolderClusterWalletEnhanced(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)
+		collector := "helius_enhanced"
 		if !enhancedOK {
 			row = analyzeHolderClusterWalletTiered(ctx, rpcURL, mint, account, launchBlockTime, candidateWallets, plan, budget)
+			collector = "solana_rpc"
 		}
-		if row.Tier == "deep" {
+		// Tier describes investigation depth. Collector describes the transport.
+		// Never overwrite deep/shallow with a provider name.
+		row.Tier = plan.Tier
+		row.Collector = collector
+		if plan.Tier == "deep" {
 			out.DeepOwnersScanned++
 		} else {
 			out.ShallowOwnersScanned++
@@ -308,6 +315,11 @@ func summarizeHolderCluster(out HolderClusterAnalysis) HolderClusterAnalysis {
 			suspicious[wallet] = true
 		}
 	}
+	if len(out.SameAmountGroups) > 0 {
+		for _, wallet := range out.SameAmountGroups[0].Wallets {
+			suspicious[wallet] = true
+		}
+	}
 	for _, wallet := range out.SynchronizedWallets {
 		suspicious[wallet] = true
 	}
@@ -384,7 +396,7 @@ func summarizeHolderCluster(out HolderClusterAnalysis) HolderClusterAnalysis {
 	out.Findings = holderClusterFindings(out)
 	out.Limitations = append(out.Limitations, out.Flow.Limitations...)
 	out.Limitations = append(out.Limitations,
-		fmt.Sprintf("Tiered holder history: first %d risk-bearing owners use up to %d signatures / %d parsed transactions; remaining owners use up to %d / %d. RPC calls used: %d of %d.", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowSignatureLimit, out.ShallowTransactionLimit, out.RPCCallsUsed, out.RPCBudget),
+		fmt.Sprintf("Tiered holder history: first %d risk-bearing owners use up to %d signatures / %d parsed transactions; remaining owners use up to %d / %d. Provider budget units used: %d of %d.", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowSignatureLimit, out.ShallowTransactionLimit, out.RPCCallsUsed, out.RPCBudget),
 		"A shallow window with no observed activity contributes zero safety weight; it is not evidence that activity does not exist.",
 		"A shared funding source can be an exchange or service wallet; common control is not claimed without combined timing and graph evidence.",
 		"Wash trading requires circular swap/transfer evidence and is not claimed from holder freshness alone.",
@@ -395,16 +407,18 @@ func summarizeHolderCluster(out HolderClusterAnalysis) HolderClusterAnalysis {
 func holderClusterFindings(out HolderClusterAnalysis) []string {
 	findings := []string{
 		fmt.Sprintf("Verified bounded observations were produced for %d of %d requested holder wallets.", out.WalletsAnalyzed, out.WalletsRequested),
-		fmt.Sprintf("İlk %d owner derin pencereyle (%d imza / %d tx), kalan %d owner standart pencereyle (%d imza / %d tx) tarandı.", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowOwnersScanned, out.ShallowSignatureLimit, out.ShallowTransactionLimit),
+		fmt.Sprintf("First %d owners were investigated with the deep window (%d history entries / %d parsed transactions); the remaining %d owners used the standard window (%d / %d).", out.DeepOwnersScanned, out.DeepSignatureLimit, out.DeepTransactionLimit, out.ShallowOwnersScanned, out.ShallowSignatureLimit, out.ShallowTransactionLimit),
 	}
 	if out.FreshWalletCount > 0 {
 		findings = append(findings, fmt.Sprintf("%d holder wallets have exhausted bounded histories whose oldest activity falls within 24 hours of the launch estimate.", out.FreshWalletCount))
 	}
-	if out.LargestSharedFundingGroup >= 2 {
-		findings = append(findings, fmt.Sprintf("The largest shared-funding group contains %d holder wallets.", out.LargestSharedFundingGroup))
+	if len(out.SharedFundingGroups) > 0 {
+		group := out.SharedFundingGroups[0]
+		findings = append(findings, fmt.Sprintf("Largest shared-funding group: source %s, %d wallets, %.4f%% linked supply; members: %s.", group.Key, group.MemberCount, group.HolderPercentage, strings.Join(group.Wallets, ", ")))
 	}
-	if out.LargestSameAmountGroup >= 2 {
-		findings = append(findings, fmt.Sprintf("The largest same-funding-amount group contains %d holder wallets.", out.LargestSameAmountGroup))
+	if len(out.SameAmountGroups) > 0 {
+		group := out.SameAmountGroups[0]
+		findings = append(findings, fmt.Sprintf("Largest same-funding-amount group: %s, %d wallets, %.4f%% linked supply; members: %s. Equal amount is not proof of a shared source.", group.Key, group.MemberCount, group.HolderPercentage, strings.Join(group.Wallets, ", ")))
 	}
 	if out.SynchronizedWalletCount >= 2 {
 		findings = append(findings, fmt.Sprintf("%d holder wallets acquired the token within a %d-slot window.", out.SynchronizedWalletCount, out.SynchronizationSlotSpread))

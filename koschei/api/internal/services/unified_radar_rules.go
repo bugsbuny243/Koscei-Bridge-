@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -224,11 +225,22 @@ func EvaluateUnifiedRadarVerdict(target string, actor ActorDefenseRuleVerdict, b
 				compoundCount++
 			}
 		}
+		for _, hit := range triggered {
+			decision = append(decision, fmt.Sprintf("Rule %s [%s/%s]: %s", hit.RuleID, hit.Tier, hit.EvidenceStatus, hit.Summary))
+		}
+		holderPressure, holderPressureOK := unifiedRadarSignalByRule(behavior, UnifiedRuleHolderLiquidityPressure)
+		dominantExit, dominantExitOK := unifiedRadarSignalByRule(behavior, UnifiedRuleDominantHolderFirstExit)
+		pressureRatio := unifiedRadarMetricFloat(holderPressure.Metrics["position_liquidity_ratio"])
+		severeCompounding := compoundCount >= 2 && holderPressureOK && dominantExitOK && holderPressure.Triggered && dominantExit.Triggered && pressureRatio >= 10
 		switch {
+		case severeCompounding:
+			grade = "C"
+			verdict = "severe_compounding_rule"
+			decision = append(decision, fmt.Sprintf("Dominant-holder reference position is %.2fx reported liquidity and a transaction-backed dominant-holder exit is present; severity-aware compounding caps the grade at C.", pressureRatio))
 		case compoundCount >= 2:
 			grade = "B"
 			verdict = "compounding_rule"
-			decision = append(decision, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B.", compoundCount))
+			decision = append(decision, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rules lowered the baseline by one grade to B; rule IDs and facts are listed above.", compoundCount))
 		case compoundCount == 1:
 			verdict = "single_observation"
 			decision = append(decision, "One compounding rule is visible but cannot issue a letter grade alone.")
@@ -250,6 +262,36 @@ func EvaluateUnifiedRadarVerdict(target string, actor ActorDefenseRuleVerdict, b
 		out.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), out)
 	}
 	return out
+}
+
+func unifiedRadarSignalByRule(report UnifiedRadarBehaviorReport, ruleID string) (UnifiedRadarSignal, bool) {
+	for _, signal := range report.Signals {
+		if signal.RuleID == ruleID {
+			return signal, true
+		}
+	}
+	return UnifiedRadarSignal{}, false
+}
+
+func unifiedRadarMetricFloat(value any) float64 {
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case json.Number:
+		number, _ := typed.Float64()
+		return number
+	case string:
+		number, _ := strconv.ParseFloat(strings.TrimSpace(typed), 64)
+		return number
+	default:
+		return 0
+	}
 }
 
 func unifiedVolumeLiquiditySignal(mint string, market TokenMarketSnapshot, now time.Time) UnifiedRadarSignal {

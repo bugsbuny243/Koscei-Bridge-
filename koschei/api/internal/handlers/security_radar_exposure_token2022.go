@@ -52,19 +52,25 @@ func (h *Handler) exposureToken2022Section(ctx context.Context, target, network 
 	visibility := []string{}
 	compatibility := []string{}
 	findings := []string{}
+	extensionResolutionStatus, extensionEvidenceComplete := token2022ExtensionResolution(isToken2022, account.Value.Data.Space, extensions)
 	if isToken2022 {
 		extensions = parseToken2022Extensions(info)
+		extensionResolutionStatus, extensionEvidenceComplete = token2022ExtensionResolution(true, account.Value.Data.Space, extensions)
 		penalty, behavior, visibility, compatibility = summarizeToken2022Extensions(extensions)
 		findings = token2022Findings(extensions)
-		if len(extensions) == 0 {
-			findings = append(findings, "Token is owned by the Token-2022 program and no active mint extensions were reported by the RPC parser.")
+		if !extensionEvidenceComplete {
+			visibility = append(visibility, "Token-2022 account space indicates extension state, but the RPC parser did not expose the extension list.")
+			compatibility = append(compatibility, "Transfer hook, permanent delegate, default frozen state, transfer fees, or pause controls cannot be ruled out.")
+			findings = append(findings, "Token-2022 extensions are unresolved; final policy is withheld.")
+		} else if len(extensions) == 0 {
+			findings = append(findings, "Token is owned by the Token-2022 program and the resolved mint state reported no active extensions.")
 		}
 	} else {
 		findings = append(findings, "Token is owned by the classic SPL Token program; Token-2022 mint extensions are not active.")
 	}
 
 	riskIndex := exposureToken2022RiskIndex(isToken2022, penalty, extensions, visibility)
-	return map[string]any{"module_id": "token_2022_extensions", "module": "Token-2022 Extension Deep Scanner", "verified": true, "status": exposureToken2022Status(isToken2022, extensions), "risk_index": riskIndex, "risk_level": exposureRiskLevelFromScore(riskIndex), "is_token_2022": isToken2022, "token_program": tokenProgram, "account_owner": account.Value.Owner, "extension_count": len(extensions), "extension_risk_penalty": penalty, "final_policy": tokenFinalPolicy(100-riskIndex, extensions, visibility), "extensions": extensions, "transfer_behavior": behavior, "visibility_limitations": visibility, "compatibility_warnings": compatibility, "evidence": findings}
+	return map[string]any{"module_id": "token_2022_extensions", "module": "Token-2022 Extension Deep Scanner", "verified": extensionEvidenceComplete, "status": extensionResolutionStatus, "risk_index": riskIndex, "risk_level": exposureRiskLevelFromScore(riskIndex), "is_token_2022": isToken2022, "token_program": tokenProgram, "account_owner": account.Value.Owner, "extension_count": len(extensions), "extension_risk_penalty": penalty, "extension_resolution_status": extensionResolutionStatus, "extension_evidence_complete": extensionEvidenceComplete, "final_policy": token2022FinalPolicy(100-riskIndex, extensions, visibility, extensionEvidenceComplete), "extensions": extensions, "transfer_behavior": behavior, "visibility_limitations": visibility, "compatibility_warnings": compatibility, "evidence": findings}
 }
 
 func exposureToken2022Status(isToken2022 bool, extensions []tokenExtensionAssessment) string {
