@@ -1,0 +1,203 @@
+name: Release Gates Task 3 Core
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Patch funding-origin collector
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('internal/services/actor_funding_origin.go')
+          s = p.read_text()
+
+          old = '''\tTransactionsParsed int       `json:"transactions_parsed"`
+          \tLimitations        []string  `json:"limitations"`
+          }'''
+          new = '''\tTransactionsParsed int                  `json:"transactions_parsed"`
+          \tResultState       string               `json:"result_state"`
+          \tBoundary          ActorFundingBoundary `json:"boundary"`
+          \tLimitations       []string             `json:"limitations"`
+          }'''
+          if old not in s:
+              raise SystemExit('struct anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tif wallet == "" {
+          \t\treturn result, fmt.Errorf("actor wallet is required")
+          \t}
+          \tif rpcURL == "" {'''
+          new = '''\tif wallet == "" {
+          \t\treturn result, fmt.Errorf("actor wallet is required")
+          \t}
+          \tpageSize, maxPages, parseLimit := normalizeActorFundingOptions(options)
+          \tinitializeActorFundingBoundary(&result, pageSize, maxPages, parseLimit)
+          \tif rpcURL == "" {
+          \t\tresult.Boundary.Kind = "rpc_unavailable"
+          \t\tresult.Boundary.Reason = "Solana RPC is unavailable; the collector did not walk chain history."
+          '''
+          if old not in s:
+              raise SystemExit('option initialization anchor not found')
+          s = s.replace(old, new, 1)
+          old = '''\tpageSize, maxPages, parseLimit := normalizeActorFundingOptions(options)
+
+          \tsignatures :='''
+          if old not in s:
+              raise SystemExit('duplicate options anchor not found')
+          s = s.replace(old, '\tsignatures :=', 1)
+
+          old = '''\t\t\tseen[sig] = true
+          \t\t\tsignatures = append(signatures, row)
+          \t\t}'''
+          new = '''\t\t\tseen[sig] = true
+          \t\t\tsignatures = append(signatures, row)
+          \t\t\tobserveActorFundingSignature(&result, row)
+          \t\t}'''
+          if old not in s:
+              raise SystemExit('signature observation anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tresult.SignaturesScanned = len(signatures)
+          \tif len(signatures) == 0 {
+          \t\tresult.Status = "no_signatures"'''
+          new = '''\tresult.SignaturesScanned = len(signatures)
+          \tsyncActorFundingBoundaryCounts(&result)
+          \tpageBoundaryReached := result.PagesScanned >= maxPages && !result.HistoryComplete && ctx.Err() == nil
+          \tif len(signatures) == 0 {
+          \t\tif pageBoundaryReached {
+          \t\t\tmarkActorFundingPageBoundary(&result, pageSize, maxPages)
+          \t\t} else if result.HistoryComplete {
+          \t\t\tmarkActorFundingComplete(&result, "history_complete_no_signatures")
+          \t\t}
+          \t\tresult.Status = "no_signatures"'''
+          if old not in s:
+              raise SystemExit('signature boundary anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tcandidates := make([]actorFundingCandidate, 0, 4)
+          \tfor _, signature := range signatures {
+          \t\tif result.TransactionsParsed >= parseLimit || ctx.Err() != nil {
+          \t\t\tbreak
+          \t\t}'''
+          new = '''\tcandidates := make([]actorFundingCandidate, 0, 4)
+          \tparseBoundaryReached := false
+          \tfor index, signature := range signatures {
+          \t\tif result.TransactionsParsed >= parseLimit {
+          \t\t\tparseBoundaryReached = index < len(signatures)
+          \t\t\tbreak
+          \t\t}
+          \t\tif ctx.Err() != nil {
+          \t\t\tbreak
+          \t\t}'''
+          if old not in s:
+              raise SystemExit('parse loop anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tif len(candidates) == 0 {
+          \t\tresult.Status = "funding_not_observed"'''
+          new = '''\tsyncActorFundingBoundaryCounts(&result)
+          \tif len(candidates) == 0 {
+          \t\tswitch {
+          \t\tcase parseBoundaryReached:
+          \t\t\tmarkActorFundingParseBoundary(&result, parseLimit)
+          \t\tcase pageBoundaryReached:
+          \t\t\tmarkActorFundingPageBoundary(&result, pageSize, maxPages)
+          \t\tcase result.HistoryComplete:
+          \t\t\tmarkActorFundingComplete(&result, "history_complete_no_direct_funding")
+          \t\tcase ctx.Err() != nil:
+          \t\t\tresult.Boundary.Kind = "context_deadline"
+          \t\t\tresult.Boundary.Reason = "The collector stopped before reaching a chain or configured boundary."
+          \t\t}
+          \t\tresult.Status = "funding_not_observed"'''
+          if old not in s:
+              raise SystemExit('no candidate boundary anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tresult.TrailStatus = "source_wallet_observed"
+          \tif chosen.SourceSigned'''
+          new = '''\tresult.TrailStatus = "source_wallet_observed"
+          \tresult.ResultState = ActorFundingResultVerified
+          \tswitch {
+          \tcase parseBoundaryReached:
+          \t\tmarkActorFundingParseBoundary(&result, parseLimit)
+          \t\tresult.ResultState = ActorFundingResultVerified
+          \t\tresult.Boundary.Reason = "A funding transfer was verified, but the parse boundary means a deeper walk could change whether it is the initial funding."
+          \tcase pageBoundaryReached:
+          \t\tmarkActorFundingPageBoundary(&result, pageSize, maxPages)
+          \t\tresult.ResultState = ActorFundingResultVerified
+          \t\tresult.Boundary.Reason = "A funding transfer was verified, but the signature boundary means a deeper walk could change whether it is the initial funding."
+          \tdefault:
+          \t\tmarkActorFundingComplete(&result, "funding_transfer_verified")
+          \t}
+          \tif chosen.SourceSigned'''
+          if old not in s:
+              raise SystemExit('verified candidate anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\tpageSize = options.PageSize
+          \tif pageSize <= 0 || pageSize > 1000 {
+          \t\tpageSize = 250
+          \t}
+          \tmaxPages = options.MaxPages
+          \tif maxPages <= 0 || maxPages > 20 {
+          \t\tmaxPages = 8
+          \t}
+          \tparseLimit = options.OldestTransactionsToParse
+          \tif parseLimit <= 0 || parseLimit > 250 {
+          \t\tparseLimit = 60
+          \t}'''
+          new = '''\tpageSize = options.PageSize
+          \tif pageSize <= 0 {
+          \t\tpageSize = 250
+          \t} else if pageSize > actorFundingMaxPageSize {
+          \t\tpageSize = actorFundingMaxPageSize
+          \t}
+          \tmaxPages = options.MaxPages
+          \tif maxPages <= 0 {
+          \t\tmaxPages = 8
+          \t} else if maxPages > actorFundingMaxPages {
+          \t\tmaxPages = actorFundingMaxPages
+          \t}
+          \tparseLimit = options.OldestTransactionsToParse
+          \tif parseLimit <= 0 {
+          \t\tparseLimit = 60
+          \t} else if parseLimit > actorFundingMaxParseLimit {
+          \t\tparseLimit = actorFundingMaxParseLimit
+          \t}'''
+          if old not in s:
+              raise SystemExit('normalization anchor not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          gofmt -w internal/services/actor_funding_origin.go internal/services/actor_funding_boundary.go
+          go test ./internal/services -run 'ActorFunding' -count=1
+      - name: Commit funding-origin core
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Funding-origin core already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/services/actor_funding_origin.go koschei/api/internal/services/actor_funding_boundary.go
+          git commit -m "actor: publish funding-origin boundary contract"
+          git push origin HEAD:agent/release-gates-2026-08-02
