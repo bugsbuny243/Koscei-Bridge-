@@ -1,0 +1,53 @@
+(()=>{
+'use strict';
+const api=window.KoscheiARVISPremium;
+if(!api||window.KoscheiARVISSocialV2)return;
+const S={api};
+S.clamp=(v,min=0,max=1)=>Math.max(min,Math.min(max,Number(v)||0));
+S.ease=v=>1-Math.pow(1-S.clamp(v),3);
+S.num=v=>Number.isFinite(Number(v))?Number(v):0;
+S.arr=v=>Array.isArray(v)?v:[];
+S.fmt=(v,d=2)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:d}).format(S.num(v));
+S.pct=(v,d=2)=>`${S.fmt(v,d)}%`;
+S.usd=v=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:Math.abs(S.num(v))>=100000?'compact':'standard',maximumFractionDigits:2}).format(S.num(v));
+S.short=(v,h=10,t=8)=>{const s=String(v||'');return s.length>h+t+3?`${s.slice(0,h)}…${s.slice(-t)}`:s||'—';};
+S.grade=m=>m.withheld?'HOLD':String(m.grade||'—').toUpperCase();
+S.verdict=m=>m.withheld?'VERDICT WITHHELD':m.grade&&m.grade!=='—'?`GRADE ${String(m.grade).toUpperCase()}`:'EVIDENCE PENDING';
+S.accent=m=>m.withheld?'#ffc857':m.tone==='critical'?'#ff4f76':m.tone==='medium'||String(m.grade).toUpperCase()==='B'?'#ffbd4a':'#20f4ae';
+S.riskTone=m=>m.withheld?'EVIDENCE INCOMPLETE':m.topOwner>=50?'CRITICAL CONCENTRATION':m.topOwner>=20?'HIGH CONCENTRATION':m.marketCapLiquidityRatio>=20?'THIN EXIT LIQUIDITY':m.sameAmount?.length?'LINKAGE SIGNAL':'BOUNDED RISK REVIEW';
+S.primary=m=>{
+ if(m.withheld)return'Material evidence is unresolved. No safe verdict was issued.';
+ if(m.topOwner>=50)return`${S.pct(m.topOwner,2)} of role-adjusted supply is controlled by the largest owner.`;
+ if(m.topTen>=85)return`The top 10 owners control ${S.pct(m.topTen,2)} of role-adjusted supply.`;
+ if(m.marketCapLiquidityRatio>=20)return`Market value is ${S.fmt(m.marketCapLiquidityRatio,2)}x visible liquidity.`;
+ const g=S.arr(m.sameAmount)[0],n=S.num(g?.member_count)||S.arr(g?.wallets).length;
+ if(n>=3)return`${n} wallets share the largest repeated funding-amount pattern.`;
+ return m.signed?`ARVIS issued a signed ${S.verdict(m).toLowerCase()} from bounded on-chain evidence.`:'The scan is evidence-bounded and not yet signed.';
+};
+S.secondary=m=>m.topOwner>=50&&m.topTen>m.topOwner?`Top 10 concentration reaches ${S.pct(m.topTen,2)}.`:m.liquidityCoveragePct>0?`Visible liquidity covers ${S.pct(m.liquidityCoveragePct,2)} of reference market cap.`:'Open the full report for rule trace, evidence limits, and transaction references.';
+S.facts=m=>{
+ const g=S.arr(m.sameAmount)[0],n=S.num(g?.member_count)||S.arr(g?.wallets).length,f=[];
+ if(m.isToken2022)f.push({label:'TOKEN-2022',value:m.extensionUnresolved?'UNRESOLVED':`${S.arr(m.extensionRows).length} EXTENSIONS PARSED`,note:m.extensionUnresolved?'SAFE VERDICT BLOCKED':'EXTENSION STATE RESOLVED',tone:m.extensionUnresolved?'bad':'good'});
+ else f.push({label:'TOKEN PROGRAM',value:'CLASSIC SPL',note:'TOKEN-2022 NOT APPLICABLE',tone:'neutral'});
+ if(n>1){const supply=S.num(g?.holder_percentage);f.push({label:'FUNDING PATTERN',value:`${n} WALLETS`,note:supply>0?`${S.pct(supply,2)} LINKED SUPPLY`:'REPEATED SAME-AMOUNT GROUP',tone:'warn'});}
+ else f.push({label:'FUNDING PATTERN',value:'NO GROUP VERIFIED',note:'IN EXAMINED WINDOW',tone:'neutral'});
+ if(S.num(m.exits?.length)>0)f.push({label:'HOLDER OUTFLOWS',value:`${m.exits.length} RESOLVED`,note:'DESTINATIONS MAPPED',tone:'warn'});
+ else f.push({label:'HOLDER OUTFLOWS',value:'NOT OBSERVED',note:'BOUNDED WINDOW ONLY',tone:'neutral'});
+ if(S.num(m.createdTokens)>0)f.push({label:'CREATOR HISTORY',value:`${S.fmt(m.createdTokens,0)} LAUNCHES`,note:`${S.fmt(m.deadCreated,0)} INACTIVE / DEAD`,tone:m.deadCreated>0?'warn':'neutral'});
+ else f.push({label:'CREATOR HISTORY',value:'NOT ATTACHED',note:'NO CLAIM FROM MISSING DATA',tone:'neutral'});
+ return f;
+};
+S.size=f=>f==='instagram'?[1080,1080]:f==='story'||f==='tiktok'?[1080,1920]:[1600,900];
+S.round=(c,x,y,w,h,r)=>{const q=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+q,y);c.arcTo(x+w,y,x+w,y+h,q);c.arcTo(x+w,y+h,x,y+h,q);c.arcTo(x,y+h,x,y,q);c.arcTo(x,y,x+w,y,q);c.closePath();};
+S.panel=(c,x,y,w,h,o={})=>{c.save();S.round(c,x,y,w,h,o.radius||28);c.fillStyle=o.fill||'rgba(7,19,29,.82)';c.fill();c.strokeStyle=o.stroke||'rgba(255,255,255,.12)';c.lineWidth=o.lineWidth||2;c.stroke();if(o.glow){c.shadowColor=o.glow;c.shadowBlur=35;c.stroke();}c.restore();};
+S.text=(c,v,x,y,z,weight='700',color='#f4fbff',family='Arial',align='left')=>{c.fillStyle=color;c.font=`${weight} ${z}px ${family}`;c.textAlign=align;c.textBaseline='alphabetic';c.fillText(String(v),x,y);};
+S.wrap=(c,v,x,y,max,line,maxLines=4,o={})=>{c.fillStyle=o.color||'#f4fbff';c.font=`${o.weight||'700'} ${o.size||36}px ${o.family||'Arial'}`;c.textAlign=o.align||'left';const words=String(v||'').trim().split(/\s+/).filter(Boolean),lines=[];let current='';for(const word of words){const next=current?`${current} ${word}`:word;if(c.measureText(next).width>max&&current){lines.push(current);current=word;}else current=next;}if(current)lines.push(current);const out=lines.slice(0,maxLines);if(lines.length>maxLines&&out.length){while(c.measureText(`${out.at(-1)}…`).width>max&&out.at(-1).length>2)out[out.length-1]=out.at(-1).slice(0,-1);out[out.length-1]+='…';}out.forEach((lineValue,i)=>c.fillText(lineValue,x,y+i*line));return out.length;};
+S.background=(c,w,h,a)=>{const bg=c.createLinearGradient(0,0,w,h);bg.addColorStop(0,'#02070c');bg.addColorStop(.55,'#061722');bg.addColorStop(1,'#01050a');c.fillStyle=bg;c.fillRect(0,0,w,h);const g=c.createRadialGradient(w*.82,h*.08,0,w*.82,h*.08,Math.max(w,h)*.75);g.addColorStop(0,a+'42');g.addColorStop(.42,a+'12');g.addColorStop(1,a+'00');c.fillStyle=g;c.fillRect(0,0,w,h);c.save();c.globalAlpha=.055;c.strokeStyle='#64ddff';c.lineWidth=1;for(let x=0;x<w;x+=54){c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();}for(let y=0;y<h;y+=54){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}c.restore();};
+S.header=(c,w,a,sub='SIGNED ON-CHAIN EVIDENCE')=>{S.text(c,'KOSCHEI ARVIS',72,98,26,'900',a);S.text(c,sub,72,134,17,'800','#8299a8');c.fillStyle=a;c.fillRect(w-230,82,158,4);};
+S.footer=(c,w,h,m,a,p=1)=>{const y=h-122;S.text(c,`RULESET  ${S.short(m.ruleset,26,8)}`,72,y,15,'700','#7892a1','monospace');S.text(c,`SIGNATURE  ${S.short(m.signature||'pending',14,10)}`,72,y+34,15,'700','#a9bec8','monospace');c.fillStyle='rgba(255,255,255,.12)';S.round(c,72,h-55,w-144,8,4);c.fill();c.fillStyle=a;S.round(c,72,h-55,(w-144)*S.clamp(p),8,4);c.fill();};
+S.badge=(c,x,y,label,a,width)=>{const w=width||Math.max(150,c.measureText(label).width+36);S.round(c,x,y,w,42,21);c.fillStyle=a+'24';c.fill();c.strokeStyle=a+'80';c.lineWidth=1.5;c.stroke();S.text(c,label,x+w/2,y+29,15,'900',a,'Arial','center');return w;};
+S.metric=(c,x,y,w,h,label,value,note,tone='#20f4ae')=>{S.panel(c,x,y,w,h,{fill:'rgba(2,10,16,.72)',stroke:tone+'55',radius:24});S.text(c,label,x+24,y+36,15,'900','#7892a1');S.text(c,value,x+24,y+86,35,'900');S.wrap(c,note,x+24,y+118,w-48,22,2,{size:16,weight:'700',color:'#9cb3bf'});};
+S.status=(c,x,y,w,f)=>{const colors={bad:'#ff4f76',warn:'#ffbd4a',good:'#20f4ae',neutral:'#7fa4b5'},tone=colors[f.tone]||colors.neutral;S.panel(c,x,y,w,110,{fill:'rgba(3,12,18,.78)',stroke:tone+'45',radius:22});c.fillStyle=tone;S.round(c,x+20,y+20,8,70,4);c.fill();S.text(c,f.label,x+48,y+36,14,'900','#7f98a7');S.text(c,f.value,x+48,y+70,25,'900');S.text(c,f.note,x+w-24,y+70,14,'800',tone,'Arial','right');};
+S.orb=(c,cx,cy,r,m,a,scale=1)=>{c.save();c.shadowColor=a;c.shadowBlur=42*scale;c.fillStyle=a+'18';c.strokeStyle=a;c.lineWidth=5*scale;c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.fill();c.stroke();c.restore();S.text(c,S.grade(m),cx,cy+30*scale,120*scale,'900',a,'Arial','center');S.text(c,m.signed?'SIGNED':'PENDING',cx,cy+78*scale,17*scale,'900','#9bb1bd','Arial','center');};
+window.KoscheiARVISSocialV2=S;
+})();
