@@ -59,6 +59,17 @@ func applyActorTokenMarketSnapshot(candidate *services.ActorCreatedMintCandidate
 	return out
 }
 
+func actorCreatedMintVerificationCandidates(candidates []services.ActorCreatedMintCandidate) []services.ActorCreatedMintCandidate {
+	out := make([]services.ActorCreatedMintCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if strings.EqualFold(strings.TrimSpace(candidate.Source), "koschei_observation_store") {
+			continue
+		}
+		out = append(out, candidate)
+	}
+	return out
+}
+
 type actorTokenMarketSnapshotFetcher func(context.Context, string) services.TokenMarketSnapshot
 
 func (h *Handler) appendObservedCreatorLaunchCandidates(ctx context.Context, out *actorCreatedMintIntegrationRun, wallet, network string) {

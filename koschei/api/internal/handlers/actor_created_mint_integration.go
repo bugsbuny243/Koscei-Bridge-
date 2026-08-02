@@ -63,6 +63,9 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 	out.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)
 	out.Status = out.Discovery.Status
 	out.Limitations = append(out.Limitations, out.Discovery.Limitations...)
+	// Observation-store launches are merged before any Helius/RPC early return.
+	// They remain OBSERVED and never enter the canonical verification queue.
+	h.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)
 	observedEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, out.Discovery.Candidates)
 	out.ObservedEvidenceProduced = len(observedEvidence)
 	if store != nil {
@@ -76,18 +79,21 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 	} else if len(observedEvidence) > 0 {
 		out.Limitations = append(out.Limitations, "Created-mint adayları bulundu ancak actor evidence store kullanılamıyor.")
 	}
-	if !out.Discovery.Available || len(out.Discovery.Candidates) == 0 {
+	if len(out.Discovery.Candidates) == 0 {
 		return out
 	}
 
 	rpcURL := strings.TrimSpace(creatorIntelRPCURL())
 	if rpcURL == "" {
 		out.Status = "rpc_verification_unavailable"
+		if out.ObservedStoreCandidatesMerged > 0 {
+			out.Status = "observed_only_rpc_verification_unavailable"
+		}
 		out.Limitations = append(out.Limitations, "Created-mint adayları keşif sağlayıcısından bulundu ancak doğrulama RPC'si yapılandırılmamış.")
 		return out
 	}
 	verifyLimit := actorDefenseEnvInt("ACTOR_CREATED_MINT_VERIFY_LIMIT", 40, 1, 200)
-	candidates := out.Discovery.Candidates
+	candidates := actorCreatedMintVerificationCandidates(out.Discovery.Candidates)
 	if len(candidates) > verifyLimit {
 		candidates = candidates[:verifyLimit]
 		out.Limitations = append(out.Limitations, "Created-mint doğrulaması bu çalışmada ilk "+creatorIntelCleanString(verifyLimit)+" adayla sınırlandı; kalan adaylar OBSERVED olarak korundu.")
@@ -200,14 +206,25 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 	}
 
 	switch {
-	case out.CandidatesVerified == out.CandidatesRequested && out.PersistenceFailures == 0:
-		out.Status = "verified"
+	case out.CandidatesVerified == out.CandidatesRequested && out.CandidatesRequested > 0 && out.PersistenceFailures == 0:
+		if out.ObservedStoreCandidatesMerged > 0 {
+			out.Status = "verified_plus_observed"
+		} else {
+			out.Status = "verified"
+		}
 	case out.CandidatesVerified > 0:
-		out.Status = "partially_verified"
+		if out.ObservedStoreCandidatesMerged > 0 {
+			out.Status = "partially_verified_plus_observed"
+		} else {
+			out.Status = "partially_verified"
+		}
 	case out.CandidatesRequested > 0:
-		out.Status = "verification_failed"
+		if out.ObservedStoreCandidatesMerged > 0 {
+			out.Status = "observed_plus_verification_failed"
+		} else {
+			out.Status = "verification_failed"
+		}
 	}
 
-	h.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)
 	return out
 }

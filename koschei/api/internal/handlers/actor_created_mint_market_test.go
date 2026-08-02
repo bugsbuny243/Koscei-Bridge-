@@ -66,3 +66,14 @@ func TestObservedLaunchesRemainObservedAndDeduplicateVerifiedMints(t *testing.T)
 		t.Fatalf("unavailable fate was not published honestly: %+v", candidate)
 	}
 }
+
+func TestActorCreatedMintVerificationCandidatesExcludeObservationStore(t *testing.T) {
+	candidates := []services.ActorCreatedMintCandidate{
+		{Mint: "helius", Source: "helius_enhanced_transactions", Signature: "sig-1"},
+		{Mint: "stored", Source: "koschei_observation_store", Signature: "sig-2"},
+	}
+	got := actorCreatedMintVerificationCandidates(candidates)
+	if len(got) != 1 || got[0].Mint != "helius" {
+		t.Fatalf("verification queue=%+v", got)
+	}
+}
