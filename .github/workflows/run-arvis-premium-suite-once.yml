@@ -18,7 +18,16 @@ jobs:
         with:
           ref: agent/arvis-premium-evidence-center
           fetch-depth: 0
+      - name: Check whether patch is needed
+        id: needed
+        run: |
+          if grep -q 'Collector.*json:"collector' koschei/api/internal/services/holder_cluster_intelligence.go; then
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Execute the branch-owned patch
+        if: steps.needed.outputs.apply == 'true'
         run: |
           python3 - <<'RUNNER'
           from pathlib import Path
@@ -38,6 +47,7 @@ jobs:
             koschei/api/internal/handlers/token_scanner.go \
             koschei/api/internal/handlers/security_radar_exposure_token2022.go
       - name: Validate and build
+        if: steps.needed.outputs.apply == 'true'
         run: |
           node --check koschei/api/public/js/arvis-premium-contract.js
           node --check koschei/api/public/js/owner-arvis-premium-suite.js
@@ -49,6 +59,7 @@ jobs:
           go test ./internal/services ./internal/handlers
           go build ./...
       - name: Commit to feature branch
+        if: steps.needed.outputs.apply == 'true'
         run: |
           git config user.name koschei-ci
           git config user.email actions@users.noreply.github.com
