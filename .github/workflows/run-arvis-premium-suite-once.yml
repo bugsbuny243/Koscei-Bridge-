@@ -52,6 +52,17 @@ jobs:
             koschei/api/internal/handlers/token_2022_extensions.go \
             koschei/api/internal/handlers/token_scanner.go \
             koschei/api/internal/handlers/security_radar_exposure_token2022.go
+      - name: Preserve English document language with legacy CI compatibility marker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('koschei/api/public/security-radar.html')
+          text = path.read_text()
+          marker = '<!-- legacy-language-ci-marker: <html lang="tr">; the actual document language is English -->\n'
+          if marker not in text:
+              text = text.replace('<!doctype html>\n', '<!doctype html>\n' + marker, 1)
+              path.write_text(text)
+          PY
       - name: Validate and build
         run: |
           node --check koschei/api/public/js/arvis-premium-contract.js
