@@ -1,0 +1,312 @@
+name: Release Gates OpenAPI Inventory
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Reconcile route inventory and boot-chain routes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('internal/openapi/generator.go')
+          s = p.read_text()
+          old = '''type Route struct {
+          \tPattern  string
+          \tPath     string
+          \tMethods  []string
+          \tAuthTier string
+          \tSource   string
+          }'''
+          new = '''type Route struct {
+          \tPattern         string
+          \tPath            string
+          \tMethods         []string
+          \tAuthTier        string
+          \tInventoryAuth   string
+          \tInventoryGroup  string
+          \tInventorySource string
+          \tSource          string
+          }
+
+          type InventoryRoute struct {
+          \tPath    string
+          \tMethods []string
+          \tGroup   string
+          \tAuth    string
+          }'''
+          if old not in s:
+              raise SystemExit('route struct anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''func RegisteredAPIRoutes(sourceDir string) ([]Route, error) {
+          \tentries, err := os.ReadDir(sourceDir)
+          \tif err != nil {
+          \t\treturn nil, err
+          \t}
+          \tbyPath := map[string]*Route{}'''
+          new = '''func RegisteredAPIRoutes(sourceDir string) ([]Route, error) {
+          \tinventoryRoutes, err := RouteInventory(sourceDir)
+          \tif err != nil {
+          \t\treturn nil, err
+          \t}
+          \tinventoryByPath := map[string]InventoryRoute{}
+          \tfor _, item := range inventoryRoutes {
+          \t\texisting := inventoryByPath[item.Path]
+          \t\tif existing.Path == "" {
+          \t\t\tinventoryByPath[item.Path] = item
+          \t\t\tcontinue
+          \t\t}
+          \t\texisting.Methods = uniqueSorted(append(existing.Methods, item.Methods...))
+          \t\tinventoryByPath[item.Path] = existing
+          \t}
+          \tentries, err := os.ReadDir(sourceDir)
+          \tif err != nil {
+          \t\treturn nil, err
+          \t}
+          \tbyPath := map[string]*Route{}'''
+          if old not in s:
+              raise SystemExit('registered route anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = '''\t\t\troute := byPath[path]
+          \t\t\tif route == nil {
+          \t\t\t\troute = &Route{Pattern: pattern, Path: path, AuthTier: authTier(path, filename), Source: filepath.Base(filename)}
+          \t\t\t\tbyPath[path] = route
+          \t\t\t}'''
+          new = '''\t\t\troute := byPath[path]
+          \t\t\tif route == nil {
+          \t\t\t\troute = &Route{
+          \t\t\t\t\tPattern: pattern, Path: path, AuthTier: authTier(path, filename),
+          \t\t\t\t\tInventoryGroup: routeTag(path), InventorySource: "boot_chain_fallback",
+          \t\t\t\t\tSource: filepath.Base(filename),
+          \t\t\t\t}
+          \t\t\t\tif inventory, ok := inventoryByPath[path]; ok {
+          \t\t\t\t\troute.InventoryAuth = inventory.Auth
+          \t\t\t\t\troute.InventoryGroup = inventory.Group
+          \t\t\t\t\troute.InventorySource = "route_inventory.go"
+          \t\t\t\t\troute.AuthTier = normalizedInventoryAuth(inventory.Auth, path, filename)
+          \t\t\t\t}
+          \t\t\t\tbyPath[path] = route
+          \t\t\t}'''
+          if old not in s:
+              raise SystemExit('route construction anchor not found')
+          s = s.replace(old, new, 1)
+
+          insert_before = 'func isHandleFunc(expression ast.Expr) bool {'
+          if insert_before not in s:
+              raise SystemExit('inventory insertion anchor not found')
+          inventory_code = r'''func RouteInventory(sourceDir string) ([]InventoryRoute, error) {
+          	filename := filepath.Join(sourceDir, "route_inventory.go")
+          	parsed, err := parser.ParseFile(token.NewFileSet(), filename, nil, 0)
+          	if err != nil {
+          		return nil, fmt.Errorf("parse %s: %w", filename, err)
+          	}
+          	result := []InventoryRoute{}
+          	found := false
+          	for _, declaration := range parsed.Decls {
+          		function, ok := declaration.(*ast.FuncDecl)
+          		if !ok || function.Name.Name != "productionRouteInventory" || function.Body == nil {
+          			continue
+          		}
+          		ast.Inspect(function.Body, func(node ast.Node) bool {
+          			statement, ok := node.(*ast.ReturnStmt)
+          			if !ok || len(statement.Results) != 1 {
+          				return true
+          			}
+          			outer, ok := statement.Results[0].(*ast.CompositeLit)
+          			if !ok {
+          				return true
+          			}
+          			found = true
+          			for _, element := range outer.Elts {
+          				groupLiteral, ok := element.(*ast.CompositeLit)
+          				if !ok {
+          					continue
+          				}
+          				groupName, auth := "", ""
+          				routes := []string{}
+          				for _, field := range groupLiteral.Elts {
+          					pair, ok := field.(*ast.KeyValueExpr)
+          					if !ok {
+          						continue
+          					}
+          					key, ok := pair.Key.(*ast.Ident)
+          					if !ok {
+          						continue
+          					}
+          					switch key.Name {
+          					case "Name":
+          						groupName, _ = stringLiteral(pair.Value)
+          					case "Auth":
+          						auth, _ = stringLiteral(pair.Value)
+          					case "Routes":
+          						list, ok := pair.Value.(*ast.CompositeLit)
+          						if !ok {
+          							continue
+          						}
+          						for _, raw := range list.Elts {
+          							if value, ok := stringLiteral(raw); ok {
+          								routes = append(routes, value)
+          							}
+          						}
+          					}
+          				}
+          				for _, raw := range routes {
+          					item, ok := parseInventoryRoute(raw, groupName, auth)
+          					if ok && strings.HasPrefix(item.Path, "/api/") {
+          						result = append(result, item)
+          					}
+          				}
+          			}
+          			return false
+          		})
+          	}
+          	if !found {
+          		return nil, fmt.Errorf("productionRouteInventory not found in %s", filename)
+          	}
+          	sort.Slice(result, func(i, j int) bool {
+          		if result[i].Path != result[j].Path {
+          			return result[i].Path < result[j].Path
+          		}
+          		return strings.Join(result[i].Methods, ",") < strings.Join(result[j].Methods, ",")
+          	})
+          	return result, nil
+          }
+
+          func parseInventoryRoute(raw, group, auth string) (InventoryRoute, bool) {
+          	fields := strings.Fields(strings.TrimSpace(raw))
+          	if len(fields) == 0 {
+          		return InventoryRoute{}, false
+          	}
+          	pathValue := fields[len(fields)-1]
+          	if !strings.HasPrefix(pathValue, "/") {
+          		return InventoryRoute{}, false
+          	}
+          	methods := []string{}
+          	if len(fields) > 1 {
+          		for _, method := range strings.Split(fields[0], "|") {
+          			method = strings.ToLower(strings.TrimSpace(method))
+          			if method != "" {
+          				methods = append(methods, method)
+          			}
+          		}
+          	}
+          	return InventoryRoute{
+          		Path: normalizePattern(pathValue), Methods: uniqueSorted(methods),
+          		Group: strings.TrimSpace(group), Auth: strings.TrimSpace(auth),
+          	}, true
+          }
+
+          func normalizedInventoryAuth(inventoryAuth, path, filename string) string {
+          	switch strings.TrimSpace(inventoryAuth) {
+          	case "public_rate_limited":
+          		return "public"
+          	case "owner_session":
+          		return "owner_session"
+          	case "customer_session_plus_kosch", "customer_session_plus_kosch_for_api_keys":
+          		return authTier(path, filename)
+          	case "api_key_plus_live_kosch_holder":
+          		return "api_key_plus_live_kosch_holder"
+          	default:
+          		return authTier(path, filename)
+          	}
+          }
+
+          '''
+          s = s.replace(insert_before, inventory_code + insert_before, 1)
+
+          old = '''\toperation := map[string]any{
+          \t\t"operationId":       operationID(method, route.Path),
+          \t\t"summary":           strings.ToUpper(method) + " " + route.Path,
+          \t\t"description":       "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+          \t\t"tags":              []string{routeTag(route.Path)},
+          \t\t"x-koschei-auth-tier": route.AuthTier,
+          \t\t"parameters":        pathParameters(route.Path),'''
+          new = '''\toperation := map[string]any{
+          \t\t"operationId":              operationID(method, route.Path),
+          \t\t"summary":                  strings.ToUpper(method) + " " + route.Path,
+          \t\t"description":              "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+          \t\t"tags":                     []string{route.InventoryGroup},
+          \t\t"x-koschei-auth-tier":      route.AuthTier,
+          \t\t"x-koschei-inventory-auth": route.InventoryAuth,
+          \t\t"x-koschei-route-source":   route.InventorySource,
+          \t\t"parameters":               pathParameters(route.Path),'''
+          if old not in s:
+              raise SystemExit('operation metadata anchor not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('internal/openapi/generator_test.go')
+          s = p.read_text()
+          marker = 'func TestRouteInventoryReconcilesWithRegisteredBootChain'
+          if marker not in s:
+              s += r'''
+
+          func TestRouteInventoryReconcilesWithRegisteredBootChain(t *testing.T) {
+          	_, sourceDir, _ := testPaths(t)
+          	registered, err := RegisteredAPIRoutes(sourceDir)
+          	if err != nil {
+          		t.Fatal(err)
+          	}
+          	inventory, err := RouteInventory(sourceDir)
+          	if err != nil {
+          		t.Fatal(err)
+          	}
+          	registeredByPath := map[string]map[string]bool{}
+          	for _, route := range registered {
+          		methods := map[string]bool{}
+          		for _, method := range route.Methods {
+          			methods[method] = true
+          		}
+          		registeredByPath[route.Path] = methods
+          	}
+          	for _, item := range inventory {
+          		methods, ok := registeredByPath[item.Path]
+          		if !ok {
+          			t.Fatalf("route_inventory.go documents unregistered API path %s", item.Path)
+          		}
+          		for _, method := range item.Methods {
+          			if !methods[method] {
+          				t.Fatalf("route_inventory.go documents unregistered operation %s %s", method, item.Path)
+          			}
+          		}
+          	}
+          }
+          '''
+              p.write_text(s)
+          PY
+          gofmt -w internal/openapi cmd/openapi-gen
+          go run ./cmd/openapi-gen
+          go test ./internal/openapi -count=1
+          go run ./cmd/openapi-gen -check
+      - name: Commit reconciled OpenAPI contract
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "OpenAPI inventory reconciliation already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/openapi.yaml koschei/api/internal/openapi koschei/api/cmd/openapi-gen
+          git commit -m "openapi: reconcile route inventory with boot chain"
+          git push origin HEAD:agent/release-gates-2026-08-02
