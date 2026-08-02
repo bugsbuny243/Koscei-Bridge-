@@ -36,6 +36,7 @@ func attachFinalProductIntegrationDiagnostics(report map[string]any) {
 		delete(coverage.Capabilities, "solscan_actor_discovery")
 	}
 
+	markDisabledDefenseRuntimeOptional(report, &coverage)
 	recountFinalProductCoverage(&coverage)
 	report["capability_integration"] = coverage
 }
@@ -53,6 +54,26 @@ func attachFinalWalletIntegrationDiagnostics(report map[string]any) {
 	}
 	recountFinalProductCoverage(&coverage)
 	report["capability_integration"] = coverage
+}
+
+func markDisabledDefenseRuntimeOptional(report map[string]any, coverage *canonicalIntegrationCoverage) {
+	if coverage == nil {
+		return
+	}
+	if _, runtimeAttached := report["defense_agent_runtime"]; runtimeAttached {
+		return
+	}
+	coverage.Capabilities["defense_agent_runtime"] = canonicalCapabilityStatus{
+		Capability:            "Solana Defense shadow runtime",
+		Status:                canonicalCapabilityNotRequested,
+		WiredToCanonicalRadar: true,
+		RequiredForFullScan:   false,
+		EvidenceBacked:        false,
+		Source:                "defense_agent_runtime",
+		Limitations: []string{
+			"Optional Defense OS runtime is disabled by configuration and does not block the core product scan.",
+		},
+	}
 }
 
 func recountFinalProductCoverage(coverage *canonicalIntegrationCoverage) {
