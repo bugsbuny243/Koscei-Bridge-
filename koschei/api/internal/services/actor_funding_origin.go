@@ -18,24 +18,26 @@ type ActorFundingOriginOptions struct {
 }
 
 type ActorFundingOrigin struct {
-	Wallet             string    `json:"wallet"`
-	Status             string    `json:"status"`
-	HistoryComplete    bool      `json:"history_complete"`
-	SourceWallet       string    `json:"source_wallet,omitempty"`
-	DestinationWallet  string    `json:"destination_wallet,omitempty"`
-	AmountSOL          float64   `json:"amount_sol,omitempty"`
-	Signature          string    `json:"signature,omitempty"`
-	Slot               int64     `json:"slot,omitempty"`
-	ObservedAt         time.Time `json:"observed_at,omitempty"`
-	Program            string    `json:"program,omitempty"`
-	InstructionType    string    `json:"instruction_type,omitempty"`
-	VerificationStatus string    `json:"verification_status"`
-	TrailStatus        string    `json:"trail_status"`
-	IdentityScope      string    `json:"identity_scope"`
-	PagesScanned       int       `json:"pages_scanned"`
-	SignaturesScanned  int       `json:"signatures_scanned"`
-	TransactionsParsed int       `json:"transactions_parsed"`
-	Limitations        []string  `json:"limitations"`
+	Wallet             string               `json:"wallet"`
+	Status             string               `json:"status"`
+	HistoryComplete    bool                 `json:"history_complete"`
+	SourceWallet       string               `json:"source_wallet,omitempty"`
+	DestinationWallet  string               `json:"destination_wallet,omitempty"`
+	AmountSOL          float64              `json:"amount_sol,omitempty"`
+	Signature          string               `json:"signature,omitempty"`
+	Slot               int64                `json:"slot,omitempty"`
+	ObservedAt         time.Time            `json:"observed_at,omitempty"`
+	Program            string               `json:"program,omitempty"`
+	InstructionType    string               `json:"instruction_type,omitempty"`
+	VerificationStatus string               `json:"verification_status"`
+	TrailStatus        string               `json:"trail_status"`
+	IdentityScope      string               `json:"identity_scope"`
+	PagesScanned       int                  `json:"pages_scanned"`
+	SignaturesScanned  int                  `json:"signatures_scanned"`
+	TransactionsParsed int                  `json:"transactions_parsed"`
+	ResultState        string               `json:"result_state"`
+	Boundary           ActorFundingBoundary `json:"boundary"`
+	Limitations        []string             `json:"limitations"`
 }
 
 type actorFundingCandidate struct {
@@ -63,14 +65,17 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 	if wallet == "" {
 		return result, fmt.Errorf("actor wallet is required")
 	}
+	pageSize, maxPages, parseLimit := normalizeActorFundingOptions(options)
+	initializeActorFundingBoundary(&result, pageSize, maxPages, parseLimit)
 	if rpcURL == "" {
+		result.Boundary.Kind = "rpc_unavailable"
+		result.Boundary.Reason = "Solana RPC is unavailable; the collector did not walk chain history."
+
 		result.Status = "rpc_unavailable"
 		result.TrailStatus = "not_investigated"
 		result.Limitations = append(result.Limitations, "Solana RPC yapılandırılmadığı için funding origin araştırılmadı.")
 		return result, nil
 	}
-	pageSize, maxPages, parseLimit := normalizeActorFundingOptions(options)
-
 	signatures := make([]SolanaSignatureInfo, 0, pageSize*maxPages)
 	seen := map[string]bool{}
 	before := ""
@@ -94,6 +99,7 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 			}
 			seen[sig] = true
 			signatures = append(signatures, row)
+			observeActorFundingSignature(&result, row)
 		}
 		if len(rows) < pageSize {
 			result.HistoryComplete = true
@@ -110,7 +116,14 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 		result.Limitations = append(result.Limitations, "Funding-origin süresi doldu; taranan pencere kısmi kaldı.")
 	}
 	result.SignaturesScanned = len(signatures)
+	syncActorFundingBoundaryCounts(&result)
+	pageBoundaryReached := result.PagesScanned >= maxPages && !result.HistoryComplete && ctx.Err() == nil
 	if len(signatures) == 0 {
+		if pageBoundaryReached {
+			markActorFundingPageBoundary(&result, pageSize, maxPages)
+		} else if result.HistoryComplete {
+			markActorFundingComplete(&result, "history_complete_no_signatures")
+		}
 		result.Status = "no_signatures"
 		result.TrailStatus = "no_onchain_history_observed"
 		result.VerificationStatus = "unverified"
@@ -135,8 +148,13 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 	})
 
 	candidates := make([]actorFundingCandidate, 0, 4)
-	for _, signature := range signatures {
-		if result.TransactionsParsed >= parseLimit || ctx.Err() != nil {
+	parseBoundaryReached := false
+	for index, signature := range signatures {
+		if result.TransactionsParsed >= parseLimit {
+			parseBoundaryReached = index < len(signatures)
+			break
+		}
+		if ctx.Err() != nil {
 			break
 		}
 		if signature.Err != nil || strings.TrimSpace(signature.Signature) == "" {
@@ -163,7 +181,19 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 		}
 	}
 
+	syncActorFundingBoundaryCounts(&result)
 	if len(candidates) == 0 {
+		switch {
+		case parseBoundaryReached:
+			markActorFundingParseBoundary(&result, parseLimit)
+		case pageBoundaryReached:
+			markActorFundingPageBoundary(&result, pageSize, maxPages)
+		case result.HistoryComplete:
+			markActorFundingComplete(&result, "history_complete_no_direct_funding")
+		case ctx.Err() != nil:
+			result.Boundary.Kind = "context_deadline"
+			result.Boundary.Reason = "The collector stopped before reaching a chain or configured boundary."
+		}
 		result.Status = "funding_not_observed"
 		result.TrailStatus = "no_direct_system_funding_observed"
 		result.VerificationStatus = "unverified"
@@ -200,6 +230,19 @@ func FindActorFundingOrigin(ctx context.Context, rpcURL, wallet string, options 
 	result.Program = "system"
 	result.InstructionType = chosen.InstructionType
 	result.TrailStatus = "source_wallet_observed"
+	result.ResultState = ActorFundingResultVerified
+	switch {
+	case parseBoundaryReached:
+		markActorFundingParseBoundary(&result, parseLimit)
+		result.ResultState = ActorFundingResultVerified
+		result.Boundary.Reason = "A funding transfer was verified, but the parse boundary means a deeper walk could change whether it is the initial funding."
+	case pageBoundaryReached:
+		markActorFundingPageBoundary(&result, pageSize, maxPages)
+		result.ResultState = ActorFundingResultVerified
+		result.Boundary.Reason = "A funding transfer was verified, but the signature boundary means a deeper walk could change whether it is the initial funding."
+	default:
+		markActorFundingComplete(&result, "funding_transfer_verified")
+	}
 	if chosen.SourceSigned && chosen.Signature != "" && chosen.Slot > 0 && !chosen.ObservedAt.IsZero() {
 		result.VerificationStatus = "verified"
 	} else {
@@ -259,16 +302,22 @@ func ActorFundingOriginEvidence(origin ActorFundingOrigin, network string) (Acto
 
 func normalizeActorFundingOptions(options ActorFundingOriginOptions) (pageSize, maxPages, parseLimit int) {
 	pageSize = options.PageSize
-	if pageSize <= 0 || pageSize > 1000 {
+	if pageSize <= 0 {
 		pageSize = 250
+	} else if pageSize > actorFundingMaxPageSize {
+		pageSize = actorFundingMaxPageSize
 	}
 	maxPages = options.MaxPages
-	if maxPages <= 0 || maxPages > 20 {
+	if maxPages <= 0 {
 		maxPages = 8
+	} else if maxPages > actorFundingMaxPages {
+		maxPages = actorFundingMaxPages
 	}
 	parseLimit = options.OldestTransactionsToParse
-	if parseLimit <= 0 || parseLimit > 250 {
+	if parseLimit <= 0 {
 		parseLimit = 60
+	} else if parseLimit > actorFundingMaxParseLimit {
+		parseLimit = actorFundingMaxParseLimit
 	}
 	return
 }
