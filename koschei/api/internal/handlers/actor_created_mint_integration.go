@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -207,6 +208,43 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		out.Status = "partially_verified"
 	case out.CandidatesRequested > 0:
 		out.Status = "verification_failed"
+	}
+
+	// Koschei observation store'daki (PumpPortal) launch'ları birleştir.
+	// Helius yalnız son ~3000 işlemi görür; store daha eski launch'ları taşır.
+	if observed, _ := h.creatorIntelObservedLaunches(ctx, "", network, wallet); len(observed) > 0 {
+		seen := map[string]bool{}
+		for _, v := range out.VerifiedCandidates {
+			seen[strings.TrimSpace(v.Mint)] = true
+		}
+		for _, item := range observed {
+			mint := strings.TrimSpace(fmt.Sprint(item["target"]))
+			if mint == "" || seen[mint] {
+				continue
+			}
+			seen[mint] = true
+
+			cand := services.ActorCreatedMintCandidate{
+				Mint:               mint,
+				VerificationStatus: "koschei_observed",
+				Source:             "koschei_observation_store",
+			}
+			market := services.FetchSolanaTokenMarketSnapshot(ctx, mint)
+			if market.LiquidityUSD > 0 {
+				cand.CurrentLiquidityUSD = market.LiquidityUSD
+			}
+			if market.PriceUSD > 0 {
+				cand.CurrentPriceUSD = market.PriceUSD
+			}
+			if cand.CurrentLiquidityUSD > 0 {
+				cand.FateStatus = services.ActorTokenFateActive
+				out.LiquidCandidates++
+			} else {
+				cand.FateStatus = services.ActorTokenFateInactiveOrDead
+				out.InactiveOrDeadCandidates++
+			}
+			out.VerifiedCandidates = append(out.VerifiedCandidates, cand)
+		}
 	}
 	return out
 }
