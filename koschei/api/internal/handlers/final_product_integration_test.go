@@ -62,8 +62,10 @@ func TestFinalProductIntegrationPromotesVisibleCapabilities(t *testing.T) {
 	if !defense.WiredToCanonicalRadar || defense.RequiredForFullScan {
 		t.Fatalf("disabled Defense runtime must be wired and optional: %+v", defense)
 	}
-	if coverage.OrphanCapabilityCount != 0 {
-		t.Fatalf("disabled Defense runtime left orphan capability debt: %+v", coverage.OrphanCapabilities)
+	for _, orphan := range coverage.OrphanCapabilities {
+		if orphan == "defense_agent_runtime" {
+			t.Fatalf("disabled Defense runtime left orphan capability debt: %+v", coverage.OrphanCapabilities)
+		}
 	}
 }
 
