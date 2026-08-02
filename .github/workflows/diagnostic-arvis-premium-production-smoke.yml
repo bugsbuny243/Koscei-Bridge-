@@ -1,0 +1,45 @@
+name: Diagnostic ARVIS premium production smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/diagnostic-arvis-premium-production-smoke.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production health and premium assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://koschei-web3-hub-production.up.railway.app'
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/health" -o "$work/health.json"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/security-radar" -o "$work/security-radar.html"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/owner-production.html" -o "$work/owner-production.html"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/arvis-premium-contract.js" -o "$work/arvis-premium-contract.js"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/owner-social-studio.js" -o "$work/owner-social-studio.js"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/customer-arvis-premium-suite.js" -o "$work/customer-arvis-premium-suite.js"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/koschei-english-runtime.js" -o "$work/koschei-english-runtime.js"
+
+          grep -q '"status"' "$work/health.json"
+          grep -q '<html lang="en">' "$work/security-radar.html"
+          grep -q '/js/arvis-premium-contract.js' "$work/security-radar.html"
+          grep -q '/js/customer-arvis-premium-suite.js' "$work/security-radar.html"
+          grep -q '/css/arvis-premium-suite.css' "$work/security-radar.html"
+          grep -q '/js/owner-social-studio.js' "$work/owner-production.html"
+          grep -q '/js/owner-arvis-premium-suite.js' "$work/owner-production.html"
+          grep -q 'recordVerticalVideo' "$work/arvis-premium-contract.js"
+          grep -q 'Instagram' "$work/owner-social-studio.js"
+          grep -q 'customer result' "$work/customer-arvis-premium-suite.js"
+          grep -q 'MutationObserver' "$work/koschei-english-runtime.js"
+
+          echo 'PRODUCTION_SMOKE_OK'
+          wc -c "$work"/*
+          sha256sum "$work"/*
