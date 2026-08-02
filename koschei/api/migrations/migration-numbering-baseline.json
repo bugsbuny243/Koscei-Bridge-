@@ -1,0 +1,62 @@
+{
+  "known_duplicate_prefixes": {
+    "029": [
+      "029_unified_reports.sql",
+      "029_zero_free_entitlements.sql"
+    ],
+    "033": [
+      "033_entity_access_policy.sql",
+      "033_security_radar_live_feed.sql"
+    ],
+    "034": [
+      "034_security_radar_seen_signatures_nullable_target.sql",
+      "034_wallet_ownership.sql"
+    ],
+    "035": [
+      "035_arvis_stream_processing.sql",
+      "035_token_access_snapshots.sql"
+    ],
+    "040": [
+      "040_arvis_exhausted_job_state.sql",
+      "040_customer_feedback.sql"
+    ],
+    "041": [
+      "041_arvis_processing_reconciliation.sql",
+      "041_raydium_live_program_source.sql"
+    ],
+    "042": [
+      "042_owner_ai_chat.sql",
+      "042_paddle_webhook_events.sql"
+    ],
+    "043": [
+      "043_billing_cleanup.sql",
+      "043_radar_queue_capacity_and_pump_source.sql"
+    ],
+    "060": [
+      "060_api_key_tier_caps.sql",
+      "060_kosch_daily_quota_ledger_index.sql"
+    ],
+    "078": [
+      "078_defense_harness_execution_gate.sql",
+      "078_defense_safe_execution_policies.sql"
+    ],
+    "081": [
+      "081_actor_transaction_evidence_idempotency.sql",
+      "081_defense_litesvm_execution_attempts.sql"
+    ]
+  },
+  "known_missing_prefixes": [
+    "026",
+    "027",
+    "032",
+    "048",
+    "049",
+    "050",
+    "051",
+    "052",
+    "061",
+    "082",
+    "085"
+  ],
+  "schema_version": 1
+}
