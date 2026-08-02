@@ -1,0 +1,250 @@
+name: Release Gates Task 3 Final
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Finalize bounded funding contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('internal/services/actor_funding_origin.go')
+          s = p.read_text()
+          old = '''\tresult.TrailStatus = "source_wallet_observed"
+          \tresult.ResultState = ActorFundingResultVerified
+          \tswitch {
+          \tcase parseBoundaryReached:
+          \t\tmarkActorFundingParseBoundary(&result, parseLimit)
+          \t\tresult.ResultState = ActorFundingResultVerified
+          \t\tresult.Boundary.Reason = "A funding transfer was verified, but the parse boundary means a deeper walk could change whether it is the initial funding."
+          \tcase pageBoundaryReached:
+          \t\tmarkActorFundingPageBoundary(&result, pageSize, maxPages)
+          \t\tresult.ResultState = ActorFundingResultVerified
+          \t\tresult.Boundary.Reason = "A funding transfer was verified, but the signature boundary means a deeper walk could change whether it is the initial funding."
+          \tdefault:
+          \t\tmarkActorFundingComplete(&result, "funding_transfer_verified")
+          \t}'''
+          new = '''\tresult.TrailStatus = "source_wallet_observed"
+          \tswitch {
+          \tcase parseBoundaryReached:
+          \t\tmarkActorFundingParseBoundary(&result, parseLimit)
+          \t\tresult.Boundary.Reason = "A funding transfer was observed inside the scanned window, but the parse boundary prevents it from being published as the initial funding origin."
+          \tcase pageBoundaryReached:
+          \t\tmarkActorFundingPageBoundary(&result, pageSize, maxPages)
+          \t\tresult.Boundary.Reason = "A funding transfer was observed inside the scanned window, but the signature boundary prevents it from being published as the initial funding origin."
+          \tdefault:
+          \t\tmarkActorFundingComplete(&result, "funding_transfer_verified")
+          \t}'''
+          if old not in s:
+              raise SystemExit('bounded candidate state anchor not found')
+          s = s.replace(old, new, 1)
+          old = '''func ActorFundingOriginEvidence(origin ActorFundingOrigin, network string) (ActorDefenseEvidenceRecord, bool) {
+          \tif strings.TrimSpace(origin.SourceWallet) == ""'''
+          new = '''func ActorFundingOriginEvidence(origin ActorFundingOrigin, network string) (ActorDefenseEvidenceRecord, bool) {
+          \tif origin.ResultState == ActorFundingResultBounded {
+          \t\treturn ActorDefenseEvidenceRecord{}, false
+          \t}
+          \tif strings.TrimSpace(origin.SourceWallet) == ""'''
+          if old not in s:
+              raise SystemExit('funding evidence gate anchor not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('internal/services/actor_acceptance.go')
+          s = p.read_text()
+          start = s.index('func actorAcceptanceFunding(')
+          end = s.index('\nfunc actorAcceptanceRecipients', start)
+          funding = r'''func actorAcceptanceFunding(origin ActorFundingOrigin, network string) ActorAcceptanceItem {
+          	if origin.ResultState == ActorFundingResultBounded {
+          		boundary := origin.Boundary
+          		summary := fmt.Sprintf(
+          			"Funding-origin investigation completed at a published boundary: %d page(s), %d signature(s), %d parsed transaction(s); no initial-funding claim was emitted.",
+          			boundary.PagesScanned, boundary.SignaturesWalked, boundary.TransactionsParsed,
+          		)
+          		limitation := boundary.Reason
+          		if limitation == "" {
+          			limitation = "The effective chain boundary was reached without a complete canonical initial-funding evidence line."
+          		}
+          		if boundary.Raisable {
+          			limitation += " The effective working boundary is raisable within the published hard ceiling."
+          		} else {
+          			limitation += " The run reached a non-raisable hard boundary for this code version."
+          		}
+          		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceBounded, "bounded_by_chain", summary, limitation)
+          	}
+          	row, ok := actorAcceptanceFundingLine(origin, network)
+          	if ok {
+          		summary := "Funding source observed; identity remains limited to an on-chain wallet."
+          		if strings.Contains(strings.ToLower(origin.TrailStatus), "cex") {
+          			summary = "Trail ends at CEX — identity opaque."
+          		}
+          		return actorAcceptanceItem("AC-04", "Initial funding origin is shown", ActorAcceptancePass, normalizeActorEvidenceStatus(origin.VerificationStatus), summary, []ActorAcceptanceEvidenceLine{row})
+          	}
+          	if origin.ResultState == ActorFundingResultVerified && origin.HistoryComplete {
+          		return actorAcceptanceItem(
+          			"AC-04",
+          			"Initial funding origin is shown",
+          			ActorAcceptancePass,
+          			"verified_not_observed",
+          			"The complete available signature history was investigated and no qualifying direct system funding transfer was observed.",
+          			[]ActorAcceptanceEvidenceLine{},
+          		)
+          	}
+          	if origin.ResultState == ActorFundingResultMissing || origin.Status == "not_investigated" || origin.Status == "stored_evidence_only" || origin.TrailStatus == "not_investigated" {
+          		return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceNotInvestigated, "missing_worker_debt", "Funding-origin collection has not completed; this remains worker debt.", actorAcceptanceFirstLimitation(origin.Limitations, "Funding-origin collection did not produce a completed or bounded result."))
+          	}
+          	return actorAcceptanceItemWithLimit("AC-04", "Initial funding origin is shown", ActorAcceptanceFail, "unavailable", "Funding-origin collection ran but did not produce a complete canonical evidence line or a valid published boundary.", actorAcceptanceFirstLimitation(origin.Limitations, "Missing or malformed funding evidence fails closed."))
+          }
+          '''
+          s = s[:start] + funding + s[end:]
+          p.write_text(s)
+
+          p = Path('internal/handlers/public_case_page.go')
+          s = p.read_text()
+          old = '''\tclaimAvailable := dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"'''
+          new = '''\tclaimAvailable := resultState == "verified" && dossierString(funding["source_wallet"]) != "" && dossierString(funding["destination_wallet"]) != "" && dossierString(funding["signature"]) != "" && verification != "" && verification != "unverified"'''
+          if old not in s:
+              raise SystemExit('public claim availability anchor not found')
+          s = s.replace(old, new, 1)
+          old = '''\tcase "verified":
+          \t\tview.Status = firstPublicDossierString(verification, "verified")
+          \t\tview.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+          \tcase "bounded":
+          \t\tview.Status = "zincir sınırı"
+          \t\tview.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik funding iddiası üretilemedi. Bu sonuç eksik worker işi değildir."'''
+          new = '''\tcase "verified":
+          \t\tif claimAvailable {
+          \t\t\tview.Status = firstPublicDossierString(verification, "verified")
+          \t\t\tview.Summary = "Funding transfer kanıtı imza, kaynak, hedef ve doğrulama durumuyla yayınlandı."
+          \t\t} else {
+          \t\t\tview.Status = "doğrulanmış sonuç"
+          \t\t\tview.Summary = "Mevcut imza geçmişi tamamlandı; kanonik doğrudan funding transferi gözlenmedi ve funding iddiası üretilmedi."
+          \t\t}
+          \tcase "bounded":
+          \t\tview.Status = "zincir sınırı"
+          \t\tview.Summary = "Collector çalışmasını tamamladı; etkin zincir penceresinde kanonik initial-funding iddiası üretilemedi. Bu sonuç açık worker borcu değildir."'''
+          if old not in s:
+              raise SystemExit('public funding state copy anchor not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('internal/handlers/actor_defense_investigation.go')
+          s = p.read_text()
+          old = '''\torigin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, services.ActorFundingOriginOptions{
+          \t\tPageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
+          \t\tMaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
+          \t\tOldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
+          \t})
+          \tif err != nil {
+          \t\treturn services.ActorFundingOrigin{
+          \t\t\tWallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
+          \t\t\tTrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
+          \t\t\tLimitations: []string{"Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)},
+          \t\t}, "not_persisted"
+          \t}'''
+          new = '''\toptions := services.ActorFundingOriginOptions{
+          \t\tPageSize:                  actorDefenseEnvInt("ACTOR_FUNDING_PAGE_SIZE", 250, 50, 1000),
+          \t\tMaxPages:                  actorDefenseEnvInt("ACTOR_FUNDING_MAX_PAGES", 8, 1, 20),
+          \t\tOldestTransactionsToParse: actorDefenseEnvInt("ACTOR_FUNDING_TRANSACTION_LIMIT", 60, 10, 250),
+          \t}
+          \torigin, err := services.FindActorFundingOrigin(fundingCtx, creatorIntelRPCURL(), wallet, options)
+          \tif err != nil {
+          \t\treason := "Funding-origin araştırması tamamlanamadı: " + creatorIntelCompactError(err)
+          \t\treturn services.ActorFundingOrigin{
+          \t\t\tWallet: wallet, Status: "investigation_failed", VerificationStatus: "unverified",
+          \t\t\tTrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only",
+          \t\t\tResultState: services.ActorFundingResultMissing,
+          \t\t\tBoundary: services.ActorFundingBoundary{
+          \t\t\t\tKind:                    "collector_error",
+          \t\t\t\tReason:                  reason,
+          \t\t\t\tEffectivePageSize:       options.PageSize,
+          \t\t\t\tEffectiveMaxPages:       options.MaxPages,
+          \t\t\t\tEffectiveSignatureLimit: options.PageSize * options.MaxPages,
+          \t\t\t\tEffectiveParseLimit:     options.OldestTransactionsToParse,
+          \t\t\t},
+          \t\t\tLimitations: []string{reason},
+          \t\t}, "not_persisted"
+          \t}'''
+          if old not in s:
+              raise SystemExit('handler boundary anchor not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('internal/services/actor_funding_boundary_test.go')
+          s = p.read_text()
+          marker = 'func TestBoundedFundingWithCanonicalTransferStillEmitsNoClaimEvidence'
+          if marker not in s:
+              s += r'''
+
+          func TestBoundedFundingWithCanonicalTransferStillEmitsNoClaimEvidence(t *testing.T) {
+          	origin := ActorFundingOrigin{
+          		ResultState: ActorFundingResultBounded,
+          		SourceWallet: "source", DestinationWallet: "destination", Signature: "signature",
+          		Slot: 42, VerificationStatus: "verified",
+          		Boundary: ActorFundingBoundary{Kind: "configured_signature_window", Raisable: true},
+          	}
+          	if _, ok := ActorFundingOriginEvidence(origin, "solana-mainnet"); ok {
+          		t.Fatal("bounded window emitted an initial-funding claim")
+          	}
+          	item := actorAcceptanceFunding(origin, "solana-mainnet")
+          	if item.Status != ActorAcceptanceBounded || len(item.Evidence) != 0 {
+          		t.Fatalf("bounded AC-04=%+v", item)
+          	}
+          }
+          '''
+              p.write_text(s)
+
+          p = Path('internal/handlers/public_case_funding_state_test.go')
+          s = p.read_text()
+          marker = 'func TestPublicCaseFundingVerifiedAbsenceDoesNotClaimTransfer'
+          if marker not in s:
+              s += r'''
+
+          func TestPublicCaseFundingVerifiedAbsenceDoesNotClaimTransfer(t *testing.T) {
+          	view := publicCaseFunding(map[string]any{
+          		"result_state": "verified",
+          		"verification_status": "unverified",
+          		"history_complete": true,
+          		"boundary": map[string]any{"kind": "history_complete_no_direct_funding"},
+          	})
+          	if view.State != "verified" || view.ClaimAvailable {
+          		t.Fatalf("view=%+v", view)
+          	}
+          	if strings.Contains(view.Summary, "Funding transfer kanıtı") || !strings.Contains(view.Summary, "iddiası üretilmedi") {
+          		t.Fatalf("verified absence copy=%q", view.Summary)
+          	}
+          }
+          '''
+              p.write_text(s)
+          PY
+          gofmt -w internal/services/actor_funding_origin.go internal/services/actor_acceptance.go internal/services/actor_funding_boundary_test.go internal/handlers/public_case_page.go internal/handlers/public_case_funding_state_test.go internal/handlers/actor_defense_investigation.go
+          go test ./internal/handlers ./internal/services -run 'Funding|ActorAcceptance|PublicCase' -count=1
+      - name: Commit final funding boundary contract
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Funding boundary contract already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/services/actor_funding_origin.go koschei/api/internal/services/actor_acceptance.go koschei/api/internal/services/actor_funding_boundary_test.go koschei/api/internal/handlers/public_case_page.go koschei/api/internal/handlers/public_case_funding_state_test.go koschei/api/internal/handlers/actor_defense_investigation.go
+          git commit -m "actor: finalize bounded funding evidence contract"
+          git push origin HEAD:agent/release-gates-2026-08-02
