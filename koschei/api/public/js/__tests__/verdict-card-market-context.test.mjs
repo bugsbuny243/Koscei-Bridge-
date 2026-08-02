@@ -37,3 +37,50 @@ test('Jupiter sell impact is labelled as routing simulation with slot',()=>{
   assert.match(row.value,/slot 889/);
   assert.match(row.detail,/Jupiter price/);
 });
+
+test('fixed-notional exit quotes are visible on the liquidity row',()=>{
+  const payload={...base};
+  payload.exit_liquidity={
+    available:true,
+    status:'complete',
+    quote_only:true,
+    tiers:[
+      {requested_notional_usd:1000,available:true,status:'quoted',estimated_proceeds_usd:970,execution_shortfall_pct:3,quote_context_slot:901},
+      {requested_notional_usd:10000,available:true,status:'quoted',estimated_proceeds_usd:8200,execution_shortfall_pct:18,quote_context_slot:902}
+    ]
+  };
+  const vm=mapVerdictCard(payload);
+  const row=vm.checklist.find(item=>item.id==='liquidity');
+  assert.equal(row.state,'observed');
+  assert.match(row.value,/Jupiter read-only exit simulation/);
+  assert.match(row.value,/\$1,000\.00 sell → \$970\.00/);
+  assert.match(row.value,/\$10,000\.00 sell → \$8,200\.00/);
+  assert.match(row.detail,/18% execution shortfall/);
+});
+
+test('program row shows upgrade authority and deployment age without inferring intent',()=>{
+  const payload={...base};
+  payload.program_security={
+    available:true,
+    status:'complete',
+    authority_coverage_complete:true,
+    age_coverage_complete:true,
+    programs:[{
+      available:true,
+      status:'upgrade_authority_open',
+      role:'launch_program',
+      program_id:'Program11111111111111111111111111111111111',
+      upgrade_authority:'Authority111111111111111111111111111111111',
+      upgrade_authority_open:true,
+      immutable:false,
+      age_available:true,
+      last_deployment_or_upgrade_age_days:12.5
+    }]
+  };
+  const vm=mapVerdictCard(payload);
+  const row=vm.checklist.find(item=>item.id==='program');
+  assert.equal(row.state,'verified');
+  assert.match(row.value,/upgrade authority open/);
+  assert.match(row.value,/12\.5 days ago/);
+  assert.match(row.detail,/not proof of malicious intent/);
+});
