@@ -20,25 +20,44 @@ jobs:
           work="$(mktemp -d)"
           trap 'rm -rf "$work"' EXIT
 
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/health" -o "$work/health.json"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/security-radar" -o "$work/security-radar.html"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/owner-production.html" -o "$work/owner-production.html"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/arvis-premium-contract.js" -o "$work/arvis-premium-contract.js"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/owner-social-studio.js" -o "$work/owner-social-studio.js"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/customer-arvis-premium-suite.js" -o "$work/customer-arvis-premium-suite.js"
-          curl --fail --silent --show-error --connect-timeout 15 --max-time 45 "$base/js/koschei-english-runtime.js" -o "$work/koschei-english-runtime.js"
+          fetch() {
+            local path="$1" file="$2" code
+            code="$(curl --silent --show-error --connect-timeout 15 --max-time 45 -w '%{http_code}' "$base$path" -o "$work/$file")"
+            echo "HTTP $code $path -> $file"
+            test "$code" = '200'
+            test -s "$work/$file"
+          }
+          check() {
+            local file="$1" pattern="$2" label="$3"
+            if grep -Eiq "$pattern" "$work/$file"; then
+              echo "PASS $label"
+            else
+              echo "FAIL $label pattern=$pattern file=$file"
+              head -c 500 "$work/$file" || true
+              echo
+              exit 1
+            fi
+          }
 
-          grep -q '"status"' "$work/health.json"
-          grep -q '<html lang="en">' "$work/security-radar.html"
-          grep -q '/js/arvis-premium-contract.js' "$work/security-radar.html"
-          grep -q '/js/customer-arvis-premium-suite.js' "$work/security-radar.html"
-          grep -q '/css/arvis-premium-suite.css' "$work/security-radar.html"
-          grep -q '/js/owner-social-studio.js' "$work/owner-production.html"
-          grep -q '/js/owner-arvis-premium-suite.js' "$work/owner-production.html"
-          grep -q 'recordVerticalVideo' "$work/arvis-premium-contract.js"
-          grep -q 'Instagram' "$work/owner-social-studio.js"
-          grep -q 'customer result' "$work/customer-arvis-premium-suite.js"
-          grep -q 'MutationObserver' "$work/koschei-english-runtime.js"
+          fetch /health health.json
+          fetch /security-radar security-radar.html
+          fetch /owner-production.html owner-production.html
+          fetch /js/arvis-premium-contract.js arvis-premium-contract.js
+          fetch /js/owner-social-studio.js owner-social-studio.js
+          fetch /js/customer-arvis-premium-suite.js customer-arvis-premium-suite.js
+          fetch /js/koschei-english-runtime.js koschei-english-runtime.js
+
+          check health.json '"status"|"ok"|healthy' 'health payload'
+          check security-radar.html '<html lang="en">' 'English customer HTML'
+          check security-radar.html '/js/arvis-premium-contract.js' 'canonical premium contract link'
+          check security-radar.html '/js/customer-arvis-premium-suite.js' 'customer premium suite link'
+          check security-radar.html '/css/arvis-premium-suite.css' 'premium stylesheet link'
+          check owner-production.html '/js/owner-social-studio.js' 'owner social studio link'
+          check owner-production.html '/js/owner-arvis-premium-suite.js' 'owner premium card link'
+          check arvis-premium-contract.js 'recordVerticalVideo' 'TikTok vertical video renderer'
+          check owner-social-studio.js 'Instagram|instagram' 'Instagram publishing center'
+          check customer-arvis-premium-suite.js 'CUSTOMER RESULT EXPORT|customer result' 'customer result export center'
+          check koschei-english-runtime.js 'MutationObserver' 'global English runtime'
 
           echo 'PRODUCTION_SMOKE_OK'
           wc -c "$work"/*
