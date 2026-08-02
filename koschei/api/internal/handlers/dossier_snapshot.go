@@ -33,9 +33,9 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 	// never fabricate token-only ARVIS coverage; token targets keep the complete
 	// token + actor reachability contract.
 	if isActorDossierReport(report) {
-		attachCanonicalWalletIntegrationCoverage(report)
+		attachFinalWalletIntegrationDiagnostics(report)
 	} else {
-		attachCanonicalInvestigationDiagnostics(report)
+		attachFinalProductIntegrationDiagnostics(report)
 	}
 
 	if h.DB == nil {
