@@ -2,11 +2,20 @@ package http
 
 import (
 	"net/http"
+	"os"
+	"strings"
 
 	"koschei/api/internal/handlers"
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
+	// Defense OS is intentionally dormant by default while Koschei is in its
+	// revenue-first product phase. Keeping registration opt-in prevents its lab,
+	// reproduction, harness and worker surfaces from becoming accidental
+	// production dependencies or operational cost drivers.
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_OS_ENABLED")), "true") {
+		return
+	}
 	mux.HandleFunc("/api/owner/defense/artifacts", requiresDB(h, ownerOnly(h, h.OwnerDefenseArtifacts)))
 	mux.HandleFunc("/api/owner/defense/knowledge", requiresDB(h, ownerOnly(h, h.OwnerDefenseKnowledge)))
 	mux.HandleFunc("/api/owner/defense/lab", requiresDB(h, ownerOnly(h, h.OwnerDefenseLab)))
