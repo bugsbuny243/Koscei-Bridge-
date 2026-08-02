@@ -1,15 +1,17 @@
 name: Run ARVIS premium branch patch once
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths: [.github/workflows/run-arvis-premium-suite-once.yml]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.head_ref == 'agent/arvis-premium-evidence-center'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
