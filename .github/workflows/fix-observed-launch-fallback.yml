@@ -1,0 +1,105 @@
+name: Fix Observed Launch Fallback
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.head_ref == 'agent/address-intelligence-completeness'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply observation-store fallback fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('koschei/api')
+
+          def replace_once(path, old, new):
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected block not found in {path}: {old[:100]!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          actor = root / 'internal/handlers/actor_created_mint_integration.go'
+          old = '''\tout.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)\n\tout.Status = out.Discovery.Status\n\tout.Limitations = append(out.Limitations, out.Discovery.Limitations...)\n\tobservedEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, out.Discovery.Candidates)\n'''
+          new = '''\tout.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)\n\tout.Status = out.Discovery.Status\n\tout.Limitations = append(out.Limitations, out.Discovery.Limitations...)\n\t// Observation-store launches are merged before any Helius/RPC early return.\n\t// They remain OBSERVED and never enter the canonical verification queue.\n\th.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)\n\tobservedEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, out.Discovery.Candidates)\n'''
+          replace_once(actor, old, new)
+
+          replace_once(actor,
+              '''\tif !out.Discovery.Available || len(out.Discovery.Candidates) == 0 {\n\t\treturn out\n\t}\n''',
+              '''\tif len(out.Discovery.Candidates) == 0 {\n\t\treturn out\n\t}\n''')
+
+          replace_once(actor,
+              '''\tif rpcURL == "" {\n\t\tout.Status = "rpc_verification_unavailable"\n\t\tout.Limitations = append(out.Limitations, "Created-mint adayları keşif sağlayıcısından bulundu ancak doğrulama RPC'si yapılandırılmamış.")\n\t\treturn out\n\t}\n''',
+              '''\tif rpcURL == "" {\n\t\tout.Status = "rpc_verification_unavailable"\n\t\tif out.ObservedStoreCandidatesMerged > 0 {\n\t\t\tout.Status = "observed_only_rpc_verification_unavailable"\n\t\t}\n\t\tout.Limitations = append(out.Limitations, "Created-mint adayları keşif sağlayıcısından bulundu ancak doğrulama RPC'si yapılandırılmamış.")\n\t\treturn out\n\t}\n''')
+
+          replace_once(actor,
+              '''\tcandidates := out.Discovery.Candidates\n''',
+              '''\tcandidates := actorCreatedMintVerificationCandidates(out.Discovery.Candidates)\n''')
+
+          old = '''\tswitch {\n\tcase out.CandidatesVerified == out.CandidatesRequested && out.PersistenceFailures == 0:\n\t\tout.Status = "verified"\n\tcase out.CandidatesVerified > 0:\n\t\tout.Status = "partially_verified"\n\tcase out.CandidatesRequested > 0:\n\t\tout.Status = "verification_failed"\n\t}\n\n\th.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)\n\treturn out\n'''
+          new = '''\tswitch {\n\tcase out.CandidatesVerified == out.CandidatesRequested && out.CandidatesRequested > 0 && out.PersistenceFailures == 0:\n\t\tif out.ObservedStoreCandidatesMerged > 0 {\n\t\t\tout.Status = "verified_plus_observed"\n\t\t} else {\n\t\t\tout.Status = "verified"\n\t\t}\n\tcase out.CandidatesVerified > 0:\n\t\tif out.ObservedStoreCandidatesMerged > 0 {\n\t\t\tout.Status = "partially_verified_plus_observed"\n\t\t} else {\n\t\t\tout.Status = "partially_verified"\n\t\t}\n\tcase out.CandidatesRequested > 0:\n\t\tif out.ObservedStoreCandidatesMerged > 0 {\n\t\t\tout.Status = "observed_plus_verification_failed"\n\t\t} else {\n\t\t\tout.Status = "verification_failed"\n\t\t}\n\t}\n\n\treturn out\n'''
+          replace_once(actor, old, new)
+
+          market = root / 'internal/handlers/actor_created_mint_market.go'
+          marker = '''type actorTokenMarketSnapshotFetcher func(context.Context, string) services.TokenMarketSnapshot\n'''
+          helper = '''func actorCreatedMintVerificationCandidates(candidates []services.ActorCreatedMintCandidate) []services.ActorCreatedMintCandidate {\n\tout := make([]services.ActorCreatedMintCandidate, 0, len(candidates))\n\tfor _, candidate := range candidates {\n\t\tif strings.EqualFold(strings.TrimSpace(candidate.Source), "koschei_observation_store") {\n\t\t\tcontinue\n\t\t}\n\t\tout = append(out, candidate)\n\t}\n\treturn out\n}\n\n'''
+          replace_once(market, marker, helper + marker)
+
+          test = root / 'internal/handlers/actor_created_mint_market_test.go'
+          text = test.read_text()
+          insert = r'''
+func TestActorCreatedMintVerificationCandidatesExcludeObservationStore(t *testing.T) {
+	candidates := []services.ActorCreatedMintCandidate{
+		{Mint: "helius", Source: "helius_enhanced_transactions", Signature: "sig-1"},
+		{Mint: "stored", Source: "koschei_observation_store", Signature: "sig-2"},
+	}
+	got := actorCreatedMintVerificationCandidates(candidates)
+	if len(got) != 1 || got[0].Mint != "helius" {
+		t.Fatalf("verification queue=%+v", got)
+	}
+}
+'''
+          if 'TestActorCreatedMintVerificationCandidatesExcludeObservationStore' not in text:
+              test.write_text(text + insert)
+          PY
+      - name: Format
+        run: |
+          cd koschei/api
+          gofmt -w internal/handlers/actor_created_mint_integration.go internal/handlers/actor_created_mint_market.go internal/handlers/actor_created_mint_market_test.go
+          test -z "$(gofmt -l .)"
+      - name: Test, vet and build
+        run: |
+          cd koschei/api
+          go test ./...
+          go vet ./...
+          CGO_ENABLED=0 GOOS=linux go build ./...
+      - name: Commit verified fix
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add koschei/api/internal/handlers/actor_created_mint_integration.go \
+            koschei/api/internal/handlers/actor_created_mint_market.go \
+            koschei/api/internal/handlers/actor_created_mint_market_test.go
+          if git diff --cached --quiet; then
+            echo 'No code changes to commit.'
+            exit 0
+          fi
+          git commit -m 'run observation-store fallback before Helius early returns'
+          git push origin HEAD:${{ github.head_ref }}
