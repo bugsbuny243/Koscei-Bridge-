@@ -1,0 +1,43 @@
+name: Release Gates OpenAPI Final Generate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: ${{ github.head_ref == 'agent/release-gates-2026-08-02' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release-gates-2026-08-02
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Generate and verify final OpenAPI contract
+        run: |
+          gofmt -w internal/openapi cmd/openapi-gen
+          go run ./cmd/openapi-gen
+          go test ./internal/openapi -count=1
+          go run ./cmd/openapi-gen -check
+      - name: Commit generated contract
+        working-directory: .
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain -- koschei/api/openapi.yaml koschei/api/internal/openapi koschei/api/cmd/openapi-gen)" ]; then
+            echo "OpenAPI contract already current"
+            exit 0
+          fi
+          git add koschei/api/openapi.yaml koschei/api/internal/openapi koschei/api/cmd/openapi-gen
+          git commit -m "openapi: generate inventory-constrained API contract"
+          git push origin HEAD:agent/release-gates-2026-08-02
