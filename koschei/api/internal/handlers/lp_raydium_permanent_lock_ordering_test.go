@@ -8,19 +8,19 @@ import (
 
 func TestFinalizeRaydiumPermanentLPLockUsesHolderSpecificProgramEvidence(t *testing.T) {
 	lp := services.LPControlEvidence{
-		Available: true,
-		Status: services.LPControlUnverified,
-		PoolProgram: raydiumCPMMProgram,
-		ControlModel: "lp_token",
-		LPSupply: 1000,
+		Available:     true,
+		Status:        services.LPControlUnverified,
+		PoolProgram:   raydiumCPMMProgram,
+		ControlModel:  "lp_token",
+		LPSupply:      1000,
 		LockerProgram: streamflowProgram,
 		LockerAccount: "UnrelatedStreamflowPDA",
 		LargestLPHolders: []services.LPHolderEvidence{{
-			TokenAccount: "LockedToken",
-			OwnerWallet: "RaydiumBurnAndEarnPDA",
-			Amount: 400,
-			SharePct: 40,
-			AccountOwner: raydiumLPLockProgram,
+			TokenAccount:   "LockedToken",
+			OwnerWallet:    "RaydiumBurnAndEarnPDA",
+			Amount:         400,
+			SharePct:       40,
+			AccountOwner:   raydiumLPLockProgram,
 			Classification: "raydium_burn_and_earn",
 		}},
 	}
@@ -35,18 +35,18 @@ func TestFinalizeRaydiumPermanentLPLockUsesHolderSpecificProgramEvidence(t *test
 
 func TestFinalizeRaydiumPermanentLPLockWithholdsCombinedShareOverSupply(t *testing.T) {
 	lp := services.LPControlEvidence{
-		Available: true,
-		Status: services.LPControlVerifiedBurned,
-		PoolProgram: raydiumCPMMProgram,
-		ControlModel: "lp_token",
-		LPSupply: 1000,
+		Available:      true,
+		Status:         services.LPControlVerifiedBurned,
+		PoolProgram:    raydiumCPMMProgram,
+		ControlModel:   "lp_token",
+		LPSupply:       1000,
 		BurnedSharePct: 20,
 		LargestLPHolders: []services.LPHolderEvidence{{
-			TokenAccount: "LockedToken",
-			OwnerWallet: "RaydiumBurnAndEarnPDA",
-			Amount: 810,
-			SharePct: 81,
-			AccountOwner: raydiumLPLockProgram,
+			TokenAccount:   "LockedToken",
+			OwnerWallet:    "RaydiumBurnAndEarnPDA",
+			Amount:         810,
+			SharePct:       81,
+			AccountOwner:   raydiumLPLockProgram,
 			Classification: "raydium_burn_and_earn",
 		}},
 	}

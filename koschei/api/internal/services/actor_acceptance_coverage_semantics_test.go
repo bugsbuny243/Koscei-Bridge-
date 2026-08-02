@@ -18,16 +18,16 @@ func TestOperationalAcceptanceTreatsCompletedNegativeCollectorsAsPass(t *testing
 				"mints_completed": 2, "recipients_resolved": 0, "holder_comparisons": 0,
 			},
 			"acceptance_liquidity": map[string]any{
-				"status": "complete_no_explicit_liquidity_observed",
+				"status":              "complete_no_explicit_liquidity_observed",
 				"transactions_parsed": 25, "instructions_matched": 0,
 			},
 		},
 	}
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "ActorWallet", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: dossier,
+		Dossier:       dossier,
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
-		Verdict: verdict,
+		Verdict:       verdict,
 	})
 	for _, index := range []int{4, 5, 6, 7, 9} {
 		if result.Items[index].Status != ActorAcceptancePass {
@@ -80,9 +80,9 @@ func TestOperationalAcceptanceFailsPartialCollectorsWithReason(t *testing.T) {
 	}
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "ActorWallet", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: dossier,
+		Dossier:       dossier,
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
-		Verdict: verdict,
+		Verdict:       verdict,
 	})
 	for _, index := range []int{4, 6, 7} {
 		if result.Items[index].Status != ActorAcceptanceFail {

@@ -72,39 +72,39 @@ func buildSecurityRadarExposureReport(target, network string, final services.Sec
 		maxModule = "token_2022_extensions"
 	}
 	sections := map[string]any{
-		"authority": exposureSectionFromArm(arms, services.ModuleTokenAuthorityScanner, []string{"mint_authority_present", "freeze_authority_present", "account_owner"}),
-		"holder_concentration": exposureSectionFromArm(arms, services.ModuleHolderConcentration, []string{"largest_holder_percentage", "top_10_holder_percentage", "largest_accounts", "token_supply"}),
-		"intelligence_graph": exposureSectionFromArm(arms, services.ModuleIntelligenceGraph, []string{"account_owner", "latest_signature", "largest_accounts"}),
-		"wallet_cluster": exposureClusterAssessment(arms),
+		"authority":             exposureSectionFromArm(arms, services.ModuleTokenAuthorityScanner, []string{"mint_authority_present", "freeze_authority_present", "account_owner"}),
+		"holder_concentration":  exposureSectionFromArm(arms, services.ModuleHolderConcentration, []string{"largest_holder_percentage", "top_10_holder_percentage", "largest_accounts", "token_supply"}),
+		"intelligence_graph":    exposureSectionFromArm(arms, services.ModuleIntelligenceGraph, []string{"account_owner", "latest_signature", "largest_accounts"}),
+		"wallet_cluster":        exposureClusterAssessment(arms),
 		"token_2022_extensions": token2022Section,
-		"sniper_timing": exposureSectionFromArm(arms, services.ModuleSniperTimingDetector, []string{"recent_signature_count", "signature_window_seconds", "failed_signature_count", "scope_note"}),
-		"program_relation": exposureSectionFromArm(arms, services.ModuleProgramRelationScan, []string{"account_owner", "program_id", "account_executable"}),
-		"liquidity": exposureSectionFromArm(arms, services.ModuleLiquidityMovement, []string{"pool", "reserve", "liquidity"}),
+		"sniper_timing":         exposureSectionFromArm(arms, services.ModuleSniperTimingDetector, []string{"recent_signature_count", "signature_window_seconds", "failed_signature_count", "scope_note"}),
+		"program_relation":      exposureSectionFromArm(arms, services.ModuleProgramRelationScan, []string{"account_owner", "program_id", "account_executable"}),
+		"liquidity":             exposureSectionFromArm(arms, services.ModuleLiquidityMovement, []string{"pool", "reserve", "liquidity"}),
 	}
 	return map[string]any{
 		"schema_version": "koschei-exposure-report-v1",
-		"generated_at": time.Now().UTC().Format(time.RFC3339),
-		"target": target,
-		"network": network,
-		"verdict": final,
+		"generated_at":   time.Now().UTC().Format(time.RFC3339),
+		"target":         target,
+		"network":        network,
+		"verdict":        final,
 		"summary": map[string]any{
-			"verified_arm_count": verified,
-			"unavailable_arm_count": unavailable,
-			"max_risk_index": maxRisk,
-			"max_risk_module": maxModule,
+			"verified_arm_count":         verified,
+			"unavailable_arm_count":      unavailable,
+			"max_risk_index":             maxRisk,
+			"max_risk_module":            maxModule,
 			"token_2022_extension_count": exposureIntFromMap(token2022Section, "extension_count"),
-			"token_2022_status": token2022Section["status"],
-			"rule_version": final.RuleVersion,
-			"signed": final.Signed,
+			"token_2022_status":          token2022Section["status"],
+			"rule_version":               final.RuleVersion,
+			"signed":                     final.Signed,
 		},
-		"risk_taxonomy": exposureRiskTaxonomy(arms, token2022Section),
-		"sections": sections,
-		"evidence": firstExposureEvidence(evidence, 10),
-		"metadata": metadata,
+		"risk_taxonomy":     exposureRiskTaxonomy(arms, token2022Section),
+		"sections":          sections,
+		"evidence":          firstExposureEvidence(evidence, 10),
+		"metadata":          metadata,
 		"shareable_summary": exposureShareableSummary(target, final, arms, token2022Section),
-		"evidence_policy": exposureEvidencePolicy(),
-		"disclaimer": "This is evidence-backed on-chain risk analysis, not an accusation or financial advice.",
-		"signature": final.Signature,
+		"evidence_policy":   exposureEvidencePolicy(),
+		"disclaimer":        "This is evidence-backed on-chain risk analysis, not an accusation or financial advice.",
+		"signature":         final.Signature,
 	}
 }
 
@@ -136,13 +136,13 @@ func exposureClusterAssessment(arms []services.SecurityRadarVerdict) map[string]
 		status = "relationship_inputs_partial"
 	}
 	return map[string]any{
-		"status": status,
+		"status":                        status,
 		"confirmed_same_wallet_cluster": confirmed,
-		"safe_public_language": "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
-		"required_evidence": []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
-		"funding_cluster": exposureCompactArm(funding),
-		"creator_link": exposureCompactArm(creator),
-		"graph_context": exposureCompactArm(graph),
+		"safe_public_language":          "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
+		"required_evidence":             []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
+		"funding_cluster":               exposureCompactArm(funding),
+		"creator_link":                  exposureCompactArm(creator),
+		"graph_context":                 exposureCompactArm(graph),
 	}
 }
 
@@ -192,10 +192,10 @@ func exposureShareableSummary(target string, final services.SecurityRadarFinalVe
 
 func exposureEvidencePolicy() map[string]any {
 	return map[string]any{
-		"no_evidence_no_claim": true,
+		"no_evidence_no_claim":               true,
 		"same_wallet_cluster_claim_requires": []string{"owner mapping", "funding relation", "creator relation or parsed coordinated transaction evidence"},
-		"safe_terms": []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
-		"blocked_terms_without_proof": []string{"scam", "rug", "fraud", "same owner controls all wallets"},
+		"safe_terms":                         []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
+		"blocked_terms_without_proof":        []string{"scam", "rug", "fraud", "same owner controls all wallets"},
 	}
 }
 

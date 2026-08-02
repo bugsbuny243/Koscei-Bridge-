@@ -11,8 +11,8 @@ import (
 )
 
 type sourceImportRoundTripper struct {
-	status int
-	body   []byte
+	status  int
+	body    []byte
 	seenURL string
 }
 
@@ -20,9 +20,9 @@ func (c *sourceImportRoundTripper) Do(req *http.Request) (*http.Response, error)
 	c.seenURL = req.URL.String()
 	return &http.Response{
 		StatusCode: c.status,
-		Body: io.NopCloser(bytes.NewReader(c.body)),
-		Header: make(http.Header),
-		Request: req,
+		Body:       io.NopCloser(bytes.NewReader(c.body)),
+		Header:     make(http.Header),
+		Request:    req,
 	}, nil
 }
 
@@ -71,22 +71,22 @@ func TestParsePublicGitHubRepositoryURL(t *testing.T) {
 func TestFetchSourceRepositoryUsesExactCommitAndFiltersFiles(t *testing.T) {
 	commit := strings.Repeat("a", 40)
 	archive := makeSourceArchive(t, map[string][]byte{
-		"repo-" + commit + "/Cargo.toml": []byte("[workspace]\nmembers=[\"programs/demo\"]\n"),
-		"repo-" + commit + "/Anchor.toml": []byte("[provider]\ncluster=\"mainnet\"\n"),
-		"repo-" + commit + "/programs/demo/src/lib.rs": []byte("use anchor_lang::prelude::*;\n#[program]\npub mod demo {}\n"),
-		"repo-" + commit + "/tests/demo.ts": []byte("describe('demo',()=>{});\n"),
-		"repo-" + commit + "/target/deploy/demo.so": []byte{0, 1, 2, 3},
-		"repo-" + commit + "/node_modules/pkg/index.js": []byte("ignored"),
-		"repo-" + commit + "/assets/logo.png": []byte{0, 1, 2},
+		"repo-" + commit + "/Cargo.toml":                  []byte("[workspace]\nmembers=[\"programs/demo\"]\n"),
+		"repo-" + commit + "/Anchor.toml":                 []byte("[provider]\ncluster=\"mainnet\"\n"),
+		"repo-" + commit + "/programs/demo/src/lib.rs":    []byte("use anchor_lang::prelude::*;\n#[program]\npub mod demo {}\n"),
+		"repo-" + commit + "/tests/demo.ts":               []byte("describe('demo',()=>{});\n"),
+		"repo-" + commit + "/target/deploy/demo.so":       []byte{0, 1, 2, 3},
+		"repo-" + commit + "/node_modules/pkg/index.js":   []byte("ignored"),
+		"repo-" + commit + "/assets/logo.png":             []byte{0, 1, 2},
 		"repo-" + commit + "/programs/demo/src/binary.rs": []byte{'a', 0, 'b'},
-		"repo-" + commit + "/../escape.rs": []byte("pub fn escape() {}"),
+		"repo-" + commit + "/../escape.rs":                []byte("pub fn escape() {}"),
 	})
 	client := &sourceImportRoundTripper{status: http.StatusOK, body: archive}
 	result, err := FetchSourceRepository(context.Background(), client, SourceImportInput{
-		ProgramID: "Program111111111111111111111111111111111",
-		Network: "mainnet",
+		ProgramID:     "Program111111111111111111111111111111111",
+		Network:       "mainnet",
 		RepositoryURL: "https://github.com/owner/repo",
-		CommitSHA: commit,
+		CommitSHA:     commit,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -116,9 +116,9 @@ func TestFetchSourceRepositoryUsesExactCommitAndFiltersFiles(t *testing.T) {
 func TestFetchSourceRepositoryRejectsNonExactCommit(t *testing.T) {
 	client := &sourceImportRoundTripper{status: http.StatusOK, body: []byte("unused")}
 	_, err := FetchSourceRepository(context.Background(), client, SourceImportInput{
-		ProgramID: "Program111111111111111111111111111111111",
+		ProgramID:     "Program111111111111111111111111111111111",
 		RepositoryURL: "https://github.com/owner/repo",
-		CommitSHA: "main",
+		CommitSHA:     "main",
 	})
 	if err == nil {
 		t.Fatal("branch name was accepted instead of exact commit")
@@ -131,9 +131,9 @@ func TestFetchSourceRepositoryRejectsNonExactCommit(t *testing.T) {
 func TestFetchSourceRepositoryRejectsHTTPFailure(t *testing.T) {
 	client := &sourceImportRoundTripper{status: http.StatusNotFound, body: []byte("missing")}
 	_, err := FetchSourceRepository(context.Background(), client, SourceImportInput{
-		ProgramID: "Program111111111111111111111111111111111",
+		ProgramID:     "Program111111111111111111111111111111111",
 		RepositoryURL: "https://github.com/owner/repo",
-		CommitSHA: strings.Repeat("b", 40),
+		CommitSHA:     strings.Repeat("b", 40),
 	})
 	if err == nil || !strings.Contains(err.Error(), "HTTP 404") {
 		t.Fatalf("unexpected error: %v", err)
@@ -143,7 +143,7 @@ func TestFetchSourceRepositoryRejectsHTTPFailure(t *testing.T) {
 func TestExtractSourceBundleRejectsEmptyRelevantCorpus(t *testing.T) {
 	archive := makeSourceArchive(t, map[string][]byte{
 		"repo/assets/logo.png": []byte{1, 2, 3},
-		"repo/target/demo.so": []byte{4, 5, 6},
+		"repo/target/demo.so":  []byte{4, 5, 6},
 	})
 	if _, _, _, _, _, err := extractSourceBundleFromZip(archive); err == nil {
 		t.Fatal("archive without supported source was accepted")

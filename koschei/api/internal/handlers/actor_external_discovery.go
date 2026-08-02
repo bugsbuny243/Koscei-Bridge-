@@ -8,13 +8,13 @@ import (
 )
 
 type actorExternalDiscoveryRun struct {
-	Status               string                          `json:"status"`
+	Status               string                         `json:"status"`
 	Discovery            services.SolscanActorDiscovery `json:"discovery"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
-	EvidenceProduced     int                             `json:"evidence_produced"`
-	EvidencePersisted    int                             `json:"evidence_persisted"`
-	PersistenceFailures  int                             `json:"persistence_failures"`
-	Limitations          []string                        `json:"limitations"`
+	EvidenceProduced     int                            `json:"evidence_produced"`
+	EvidencePersisted    int                            `json:"evidence_persisted"`
+	PersistenceFailures  int                            `json:"persistence_failures"`
+	Limitations          []string                       `json:"limitations"`
 }
 
 func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
@@ -24,8 +24,8 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		Discovery: services.SolscanActorDiscovery{
 			Status: "rpc_only", Provider: "helius_solana_rpc", Wallet: wallet,
 			TransactionCandidates: []services.SolscanAccountTransaction{},
-			TokenAccounts: []services.SolscanTokenAccountObservation{},
-			EndpointStatus: map[string]string{}, Limitations: []string{},
+			TokenAccounts:         []services.SolscanTokenAccountObservation{},
+			EndpointStatus:        map[string]string{}, Limitations: []string{},
 		},
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},

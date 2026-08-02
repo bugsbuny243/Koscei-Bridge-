@@ -193,7 +193,7 @@ func LoadHolderConcentrationContext(ctx context.Context, db *sql.DB, holder Hold
 	out := HolderConcentrationContext{
 		Status: "corpus_unavailable", StatsKey: HolderConcentrationStatsKey,
 		BucketWidth: HolderConcentrationBucketWidth,
-		Method: "distinct_mint_latest_owner_resolved_top_share_histogram",
+		Method:      "distinct_mint_latest_owner_resolved_top_share_histogram",
 		Limitations: []string{},
 	}
 	_, share, eligible := HolderConcentrationObservation(holder)

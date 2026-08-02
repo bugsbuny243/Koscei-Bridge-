@@ -9,15 +9,15 @@ import (
 )
 
 type defenseHarnessExecutionRequest struct {
-	Action             string                              `json:"action"`
-	PlanRef            string                              `json:"plan_ref"`
-	HarnessArtifactRef string                              `json:"harness_artifact_ref"`
-	Engine             string                              `json:"engine"`
-	WorkerID           string                              `json:"worker_id"`
-	WorkerImageDigest  string                              `json:"worker_image_digest"`
+	Action              string                              `json:"action"`
+	PlanRef             string                              `json:"plan_ref"`
+	HarnessArtifactRef  string                              `json:"harness_artifact_ref"`
+	Engine              string                              `json:"engine"`
+	WorkerID            string                              `json:"worker_id"`
+	WorkerImageDigest   string                              `json:"worker_image_digest"`
 	ConfirmedInvariants []defense.ConfirmedHarnessInvariant `json:"confirmed_invariants"`
-	MaxDurationSeconds int                                 `json:"max_duration_seconds"`
-	MaxOutputBytes     int                                 `json:"max_output_bytes"`
+	MaxDurationSeconds  int                                 `json:"max_duration_seconds"`
+	MaxOutputBytes      int                                 `json:"max_output_bytes"`
 }
 
 // OwnerDefenseHarnessExecution creates and reads immutable Phase 12 execution
@@ -31,11 +31,11 @@ func (h *Handler) OwnerDefenseHarnessExecution(w http.ResponseWriter, r *http.Re
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"profiles": items,
-			"harness_executed": false,
+			"ok":                       true,
+			"profiles":                 items,
+			"harness_executed":         false,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 		return
 	}
@@ -57,24 +57,24 @@ func (h *Handler) OwnerDefenseHarnessExecution(w http.ResponseWriter, r *http.Re
 		return
 	}
 	profile, err := defense.CreateHarnessExecutionProfile(r.Context(), h.DB, defense.HarnessExecutionProfileInput{
-		PlanRef: input.PlanRef,
-		HarnessArtifactRef: input.HarnessArtifactRef,
-		Engine: input.Engine,
-		WorkerID: input.WorkerID,
-		WorkerImageDigest: input.WorkerImageDigest,
+		PlanRef:             input.PlanRef,
+		HarnessArtifactRef:  input.HarnessArtifactRef,
+		Engine:              input.Engine,
+		WorkerID:            input.WorkerID,
+		WorkerImageDigest:   input.WorkerImageDigest,
 		ConfirmedInvariants: input.ConfirmedInvariants,
-		MaxDurationSeconds: input.MaxDurationSeconds,
-		MaxOutputBytes: input.MaxOutputBytes,
+		MaxDurationSeconds:  input.MaxDurationSeconds,
+		MaxOutputBytes:      input.MaxOutputBytes,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "harness_execution_profile_rejected", "details": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok": true,
-		"execution_profile": profile,
-		"harness_executed": false,
+		"ok":                       true,
+		"execution_profile":        profile,
+		"harness_executed":         false,
 		"mainnet_transaction_sent": false,
-		"verdict_authority": false,
+		"verdict_authority":        false,
 	})
 }

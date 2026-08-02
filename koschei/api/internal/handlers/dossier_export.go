@@ -20,7 +20,7 @@ func (h *Handler) DossierExport(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, errDossierSourceIncomplete), errors.Is(err, context.Canceled):
 			writeJSON(w, http.StatusConflict, map[string]string{
-				"error": "dossier_source_incomplete",
+				"error":   "dossier_source_incomplete",
 				"message": "An immutable signed investigation snapshot is required; export never rescans or refreshes missing evidence.",
 			})
 		case errors.Is(err, errDossierSourceHash):
@@ -85,11 +85,11 @@ func assembleDossierBundle(snapshot dossierSnapshot) (dossierBundle, []byte, err
 
 	caseRef := dossierCaseRef(snapshot.Mint, snapshot.VerdictSignature)
 	body := dossierBody{
-		DossierVersion:      dossierVersion,
-		CaseRef:             caseRef,
-		ProducedAt:          snapshot.ProducedAt.UTC(),
+		DossierVersion:     dossierVersion,
+		CaseRef:            caseRef,
+		ProducedAt:         snapshot.ProducedAt.UTC(),
 		SourceSnapshotHash: snapshot.SourceHash,
-		Verdict:             snapshot.Report["final_verdict"],
+		Verdict:            snapshot.Report["final_verdict"],
 		VerdictCard: map[string]any{
 			"mapper_id":      "koschei-verdict-card",
 			"mapper_version": dossierMapperVersion,
@@ -100,10 +100,10 @@ func assembleDossierBundle(snapshot dossierSnapshot) (dossierBundle, []byte, err
 			"verifier_repo_url": dossierVerifierRepo,
 			"verdict_signature": verdictSignature,
 			"snapshot_identity": snapshot.VerdictSignature,
-			"hash_algorithm": "SHA-256",
+			"hash_algorithm":    "SHA-256",
 			"bundle_hash_scope": "UTF-8 JSON encoding of the dossier body with bundle_hash excluded; Go struct field order is fixed and map keys are lexicographically sorted by encoding/json.",
-			"case_ref_rule": "KD1- + lower-case base32(no padding) of the first 20 SHA-256 bytes of target_id + newline + snapshot_identity.",
-			"command": "node oss/verifier/typescript/verify-dossier.mjs ./dossier.json",
+			"case_ref_rule":     "KD1- + lower-case base32(no padding) of the first 20 SHA-256 bytes of target_id + newline + snapshot_identity.",
+			"command":           "node oss/verifier/typescript/verify-dossier.mjs ./dossier.json",
 		},
 		Limitations: append([]string{}, dossierLimitations...),
 	}

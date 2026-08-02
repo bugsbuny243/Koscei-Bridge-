@@ -29,10 +29,10 @@ func accountInfo(slot uint64, owner string, executable bool, data []byte) rpcAcc
 		Owner      string   `json:"owner"`
 		Space      uint64   `json:"space"`
 	}{
-		Data: []string{base64.StdEncoding.EncodeToString(data), "base64"},
+		Data:       []string{base64.StdEncoding.EncodeToString(data), "base64"},
 		Executable: executable,
-		Owner: owner,
-		Space: uint64(len(data)),
+		Owner:      owner,
+		Space:      uint64(len(data)),
 	}
 	return result
 }
@@ -61,7 +61,7 @@ func TestInspectUpgradeableProgramDeployment(t *testing.T) {
 	copy(programDataState[45:], executable)
 
 	rpc := fakeDeploymentRPC{accounts: map[string]rpcAccountInfo{
-		programID: accountInfo(1234, UpgradeableLoaderID, true, programState),
+		programID:          accountInfo(1234, UpgradeableLoaderID, true, programState),
 		programDataAddress: accountInfo(1234, UpgradeableLoaderID, false, programDataState),
 	}}
 	result, err := InspectProgramDeployment(context.Background(), rpc, DeploymentResolveInput{ProgramID: programID, Network: "mainnet"})

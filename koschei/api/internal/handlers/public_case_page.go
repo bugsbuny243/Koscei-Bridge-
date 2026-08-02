@@ -69,50 +69,50 @@ type publicCaseSignalView struct {
 }
 
 type publicCaseRuleView struct {
-	ID       string
-	Title    string
-	State    string
-	Class    string
-	Summary  string
-	Count    int
-	Effect   string
+	ID      string
+	Title   string
+	State   string
+	Class   string
+	Summary string
+	Count   int
+	Effect  string
 }
 
 type publicCaseFundingView struct {
-	Available    bool
-	Status       string
-	Class        string
-	Source       string
-	Destination  string
-	Amount       string
-	ObservedAt   string
-	Signature    string
-	Slot         string
-	Program      string
-	Limitations  []string
+	Available   bool
+	Status      string
+	Class       string
+	Source      string
+	Destination string
+	Amount      string
+	ObservedAt  string
+	Signature   string
+	Slot        string
+	Program     string
+	Limitations []string
 }
 
 type publicCaseTokenView struct {
-	Mint         string
-	Display      string
-	Status       string
-	Class        string
-	FirstSeen    string
-	LastSeen     string
-	Roles        string
-	Signature    string
+	Mint      string
+	Display   string
+	Status    string
+	Class     string
+	FirstSeen string
+	LastSeen  string
+	Roles     string
+	Signature string
 }
 
 type publicCaseActorView struct {
-	Wallet        string
-	Display       string
-	Status        string
-	Class         string
-	SharedTokens  string
-	MaxHolder     string
-	FirstSeen     string
-	LastSeen      string
-	Limitation    string
+	Wallet       string
+	Display      string
+	Status       string
+	Class        string
+	SharedTokens string
+	MaxHolder    string
+	FirstSeen    string
+	LastSeen     string
+	Limitation   string
 }
 
 type publicCaseEvidenceView struct {

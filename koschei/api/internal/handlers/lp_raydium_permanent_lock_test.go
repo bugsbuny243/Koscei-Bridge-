@@ -12,16 +12,16 @@ import (
 
 func TestFinalizeRaydiumPermanentLPLockAggregatesOnlyPinnedCPMMCustody(t *testing.T) {
 	lp := services.LPControlEvidence{
-		Available: true,
-		Status: services.LPControlVerifiedBurned,
-		ReasonCode: "burn_address_lp_observed",
-		PoolProgram: raydiumCPMMProgram,
-		ControlModel: "lp_token",
-		LPSupply: 1000,
+		Available:      true,
+		Status:         services.LPControlVerifiedBurned,
+		ReasonCode:     "burn_address_lp_observed",
+		PoolProgram:    raydiumCPMMProgram,
+		ControlModel:   "lp_token",
+		LPSupply:       1000,
 		BurnedSharePct: 10,
-		LockerProgram: raydiumLPLockProgram,
-		LockerAccount: "LockerPDAOne",
-		ReadSlot: 12345,
+		LockerProgram:  raydiumLPLockProgram,
+		LockerAccount:  "LockerPDAOne",
+		ReadSlot:       12345,
 		LargestLPHolders: []services.LPHolderEvidence{
 			{TokenAccount: "LockedTokenA", OwnerWallet: "LockerPDAOne", Amount: 300, SharePct: 30, AccountOwner: raydiumLPLockProgram, Classification: "raydium_burn_and_earn"},
 			{TokenAccount: "LockedTokenB", OwnerWallet: "LockerPDATwo", Amount: 200, SharePct: 20, AccountOwner: raydiumLPLockProgram, Classification: "raydium_burn_and_earn"},
@@ -58,12 +58,12 @@ func TestFinalizeRaydiumPermanentLPLockAggregatesOnlyPinnedCPMMCustody(t *testin
 
 func TestFinalizeRaydiumPermanentLPLockRejectsUnsupportedPoolModels(t *testing.T) {
 	base := services.LPControlEvidence{
-		Available: true,
-		Status: services.LPControlUnverified,
-		ReasonCode: "locker_program_observed_unlock_unresolved",
-		PoolProgram: raydiumCPMMProgram,
-		ControlModel: "lp_token",
-		LPSupply: 1000,
+		Available:     true,
+		Status:        services.LPControlUnverified,
+		ReasonCode:    "locker_program_observed_unlock_unresolved",
+		PoolProgram:   raydiumCPMMProgram,
+		ControlModel:  "lp_token",
+		LPSupply:      1000,
 		LockerProgram: "UnpinnedProgram",
 		LargestLPHolders: []services.LPHolderEvidence{{
 			TokenAccount: "TokenA", OwnerWallet: "WalletA", Amount: 900, SharePct: 90,
@@ -137,7 +137,9 @@ func TestPopulateDecodedLPControlResolvesBurnAndEarnAuthorityProgram(t *testing.
 			if !ok {
 				return errors.New("getMultipleAccounts addresses malformed")
 			}
-			response := out.(*struct{ Value []json.RawMessage `json:"value"` })
+			response := out.(*struct {
+				Value []json.RawMessage `json:"value"`
+			})
 			response.Value = make([]json.RawMessage, 0, len(addresses))
 			for _, address := range addresses {
 				switch address {

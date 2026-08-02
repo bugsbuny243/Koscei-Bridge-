@@ -10,9 +10,9 @@ func TestDossierHTMLIsStableAndContainsNoInlineExecutionSurface(t *testing.T) {
 	data := dossierPageData{
 		Bundle: dossierBundle{
 			dossierBody: dossierBody{CaseRef: "KD1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-			BundleHash: "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+			BundleHash:  "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
 		},
-		Actor: true,
+		Actor:    true,
 		Sections: []dossierPageSection{{Title: "Evidence", Content: `{"ok":true}`}},
 	}
 	var output bytes.Buffer

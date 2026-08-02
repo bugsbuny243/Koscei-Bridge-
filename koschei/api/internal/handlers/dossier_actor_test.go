@@ -27,24 +27,24 @@ func actorDossierTestSnapshot(t *testing.T) dossierSnapshot {
 		Dossier: services.ActorDefenseDossier{
 			Wallet: wallet, Network: "solana-mainnet", Evidence: evidence,
 			Tokens: []services.ActorDefenseTokenObservation{{Mint: "Mint111", Roles: []string{"creator_deployer"}}},
-			Track: services.ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: wallet, CreatedTokenCount: 1},
+			Track:  services.ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: wallet, CreatedTokenCount: 1},
 		},
 		FundingOrigin: services.ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 		Verdict: services.ActorDefenseRuleVerdict{
 			Grade: "D", Verdict: "hard_trigger", RulesetVersion: services.ActorDefenseRulesetVersion,
 			TriggeredRules: []services.ActorDefenseRuleHit{{RuleID: "ARD-H001", EvidenceStatus: "verified", EvidenceKeys: []string{"create:1"}}},
-			Signed: true, Signature: "ActorVerdict111", DecisionPath: []string{"verified rule"},
+			Signed:         true, Signature: "ActorVerdict111", DecisionPath: []string{"verified rule"},
 		},
 	})
 	// The real case may legitimately contain failures/not-investigated states. The
 	// export contract requires all ten states to remain visible, not all ten to pass.
 	report := map[string]any{
-		"ok": true,
+		"ok":             true,
 		"schema_version": "koschei-unified-wallet-investigation-v1",
-		"target": wallet,
-		"wallet": wallet,
-		"network": "solana-mainnet",
-		"generated_at": observed.Format(time.RFC3339),
+		"target":         wallet,
+		"wallet":         wallet,
+		"network":        "solana-mainnet",
+		"generated_at":   observed.Format(time.RFC3339),
 		"analysis_scope": "wallet_actor_investigation",
 		"final_verdict": map[string]any{
 			"grade": "D", "verdict": "hard_trigger", "signed": true,
@@ -56,13 +56,13 @@ func actorDossierTestSnapshot(t *testing.T) dossierSnapshot {
 			"wallet": wallet,
 			"dossier": services.ActorDefenseDossier{
 				Wallet: wallet, Network: "solana-mainnet", Evidence: evidence,
-				Tokens: []services.ActorDefenseTokenObservation{{Mint: "Mint111", Roles: []string{"creator_deployer"}}},
+				Tokens:        []services.ActorDefenseTokenObservation{{Mint: "Mint111", Roles: []string{"creator_deployer"}}},
 				RelatedActors: []services.ActorDefenseRelatedActor{},
-				Track: services.ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: wallet, CreatedTokenCount: 1},
+				Track:         services.ActorDefenseTrack{Network: "solana-mainnet", TargetKind: "wallet", TargetID: wallet, CreatedTokenCount: 1},
 			},
-			"funding_origin": map[string]any{"status": "not_investigated", "verification_status": "unverified", "limitations": []string{"funding not investigated"}},
+			"funding_origin":      map[string]any{"status": "not_investigated", "verification_status": "unverified", "limitations": []string{"funding not investigated"}},
 			"actor_live_evidence": map[string]any{"status": "partial", "limitations": []string{"bounded live window"}},
-			"evidence_graph": map[string]any{"nodes": []any{}, "edges": []any{}},
+			"evidence_graph":      map[string]any{"nodes": []any{}, "edges": []any{}},
 		},
 	}
 	raw, err := json.Marshal(report)
@@ -70,7 +70,7 @@ func actorDossierTestSnapshot(t *testing.T) dossierSnapshot {
 		t.Fatal(err)
 	}
 	return dossierSnapshot{
-		ID: "22222222-2222-4222-8222-222222222222",
+		ID:   "22222222-2222-4222-8222-222222222222",
 		Mint: wallet, Network: "solana-mainnet", VerdictSignature: dossierSnapshotIdentity(report, "UnifiedVerdict111"),
 		RulesetVersion: "koschei-unified-radar-rules-v1.0.0", ProducedAt: observed,
 		SourceHash: dossierSHA256(raw), Report: report,

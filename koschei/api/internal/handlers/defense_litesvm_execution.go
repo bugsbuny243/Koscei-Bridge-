@@ -31,11 +31,11 @@ func (h *Handler) OwnerDefenseLiteSVMExecution(w http.ResponseWriter, r *http.Re
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"ok": true,
-				"attempt": attempt,
-				"web_executed": false,
+				"ok":                       true,
+				"attempt":                  attempt,
+				"web_executed":             false,
 				"mainnet_transaction_sent": false,
-				"verdict_authority": false,
+				"verdict_authority":        false,
 			})
 			return
 		}
@@ -47,21 +47,21 @@ func (h *Handler) OwnerDefenseLiteSVMExecution(w http.ResponseWriter, r *http.Re
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"attempts": items,
-			"web_executed": false,
+			"ok":                       true,
+			"attempts":                 items,
+			"web_executed":             false,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 	case http.MethodPost:
 		if !envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false) ||
 			!envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false) ||
 			!envBool("KOSCHEI_DEFENSE_WORKER_QUEUE_ENABLED", false) {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-				"error": "defense_litesvm_execution_gate_disabled",
-				"web_executed": false,
+				"error":                    "defense_litesvm_execution_gate_disabled",
+				"web_executed":             false,
 				"mainnet_transaction_sent": false,
-				"verdict_authority": false,
+				"verdict_authority":        false,
 			})
 			return
 		}
@@ -75,8 +75,8 @@ func (h *Handler) OwnerDefenseLiteSVMExecution(w http.ResponseWriter, r *http.Re
 			return
 		}
 		job, err := defense.EnqueueWorkerJob(r.Context(), h.DB, defense.WorkerJobRequest{
-			Action: defense.WorkerActionRunLiteSVMHarness,
-			ProfileRef: input.ProfileRef,
+			Action:             defense.WorkerActionRunLiteSVMHarness,
+			ProfileRef:         input.ProfileRef,
 			MaterializationRef: input.MaterializationRef,
 		})
 		if err != nil {
@@ -84,16 +84,16 @@ func (h *Handler) OwnerDefenseLiteSVMExecution(w http.ResponseWriter, r *http.Re
 			return
 		}
 		writeJSON(w, http.StatusAccepted, map[string]any{
-			"ok": true,
-			"job": job,
-			"execution_service": "railway-defense-worker",
-			"web_executed": false,
-			"network_access": false,
-			"dependency_resolution": false,
+			"ok":                       true,
+			"job":                      job,
+			"execution_service":        "railway-defense-worker",
+			"web_executed":             false,
+			"network_access":           false,
+			"dependency_resolution":    false,
 			"wallet_material_accessed": false,
-			"mainnet_rpc_accessed": false,
+			"mainnet_rpc_accessed":     false,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

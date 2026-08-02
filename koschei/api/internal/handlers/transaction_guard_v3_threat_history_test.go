@@ -11,7 +11,7 @@ func TestTransactionGuardV3ThreatCandidatesExtractsRecipientsDelegatesAndProgram
 	recipient := "44444444444444444444444444444444"
 	delegate := "55555555555555555555555555555555"
 	decoded := transactionGuardDecodedTransaction{
-		ProgramIDs: []string{guardV3SystemProgramID, program},
+		ProgramIDs:   []string{guardV3SystemProgramID, program},
 		SOLTransfers: []transactionGuardDecodedSOLTransfer{{Source: wallet, Recipient: recipient, Lamports: "10"}},
 		TokenOperations: []transactionGuardDecodedTokenOperation{
 			{Kind: "approve", Delegate: delegate, Source: "66666666666666666666666666666666", Authority: wallet, AmountRaw: "50"},

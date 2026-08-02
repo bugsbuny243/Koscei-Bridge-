@@ -9,18 +9,18 @@ import (
 )
 
 type defenseReproductionRequest struct {
-	Action          string `json:"action"`
-	InvariantRef    string `json:"invariant_ref"`
-	InvariantVersion string `json:"invariant_version"`
-	FindingRef      string `json:"finding_ref"`
+	Action            string `json:"action"`
+	InvariantRef      string `json:"invariant_ref"`
+	InvariantVersion  string `json:"invariant_version"`
+	FindingRef        string `json:"finding_ref"`
 	SourceArtifactRef string `json:"source_artifact_ref"`
-	PatchRef        string `json:"patch_ref"`
-	Command         string `json:"command"`
-	BaselineMarker  string `json:"baseline_marker"`
-	PatchedMarker   string `json:"patched_marker"`
-	Rationale       string `json:"rationale"`
-	BaselineJobRef  string `json:"baseline_job_ref"`
-	PatchedJobRef   string `json:"patched_job_ref"`
+	PatchRef          string `json:"patch_ref"`
+	Command           string `json:"command"`
+	BaselineMarker    string `json:"baseline_marker"`
+	PatchedMarker     string `json:"patched_marker"`
+	Rationale         string `json:"rationale"`
+	BaselineJobRef    string `json:"baseline_job_ref"`
+	PatchedJobRef     string `json:"patched_job_ref"`
 }
 
 // OwnerDefenseReproduction manages versioned worker-run invariants and paired
@@ -52,13 +52,13 @@ func (h *Handler) OwnerDefenseReproduction(w http.ResponseWriter, r *http.Reques
 	switch strings.ToLower(strings.TrimSpace(input.Action)) {
 	case "create_invariant":
 		invariant, err := defense.CreateReproductionInvariant(r.Context(), h.DB, defense.ReproductionInvariantInput{
-			FindingRef: input.FindingRef,
+			FindingRef:        input.FindingRef,
 			SourceArtifactRef: input.SourceArtifactRef,
-			InvariantVersion: input.InvariantVersion,
-			Command: input.Command,
-			BaselineMarker: input.BaselineMarker,
-			PatchedMarker: input.PatchedMarker,
-			Rationale: input.Rationale,
+			InvariantVersion:  input.InvariantVersion,
+			Command:           input.Command,
+			BaselineMarker:    input.BaselineMarker,
+			PatchedMarker:     input.PatchedMarker,
+			Rationale:         input.Rationale,
 		})
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "reproduction_invariant_rejected", "details": err.Error()})
@@ -83,9 +83,9 @@ func (h *Handler) OwnerDefenseReproduction(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{
-			"ok": true,
-			"reproduction_run": run,
-			"proof_verified": run.Status == "verified" && run.ProofRef != "",
+			"ok":                true,
+			"reproduction_run":  run,
+			"proof_verified":    run.Status == "verified" && run.ProofRef != "",
 			"verdict_authority": false,
 		})
 	default:

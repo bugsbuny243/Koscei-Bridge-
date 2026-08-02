@@ -33,60 +33,60 @@ type HarnessMaterializedFile struct {
 }
 
 type HarnessMaterialization struct {
-	MaterializationRef    string                    `json:"materialization_ref"`
-	MaterializationVersion string                   `json:"materialization_version"`
-	ProfileRef            string                    `json:"profile_ref"`
-	SourceHarnessArtifactRef string                  `json:"source_harness_artifact_ref"`
-	MaterializedArtifactRef string                   `json:"materialized_artifact_ref"`
-	ProgramID             string                    `json:"program_id"`
-	Network               string                    `json:"network"`
-	Engine                string                    `json:"engine"`
-	Status                string                    `json:"status"`
-	FileManifest          []HarnessMaterializedFile `json:"file_manifest"`
-	FileCount             int                       `json:"file_count"`
-	TotalBytes            int                       `json:"total_bytes"`
-	CargoManifestHash     string                    `json:"cargo_manifest_hash"`
-	CargoLockHash         string                    `json:"cargo_lock_hash"`
-	MaterializedBundleHash string                   `json:"materialized_bundle_hash"`
-	EvidenceRefs          []string                  `json:"evidence_refs"`
-	Limitations           []string                  `json:"limitations"`
-	NetworkAccess         bool                      `json:"network_access"`
-	DependencyResolution  bool                      `json:"dependency_resolution"`
-	SourceExecuted        bool                      `json:"source_executed"`
-	HarnessExecuted       bool                      `json:"harness_executed"`
-	MainnetTransactionSent bool                     `json:"mainnet_transaction_sent"`
-	MaterializationHash   string                    `json:"materialization_hash"`
-	VerdictAuthority      bool                      `json:"verdict_authority"`
-	CreatedAt             time.Time                 `json:"created_at"`
+	MaterializationRef       string                    `json:"materialization_ref"`
+	MaterializationVersion   string                    `json:"materialization_version"`
+	ProfileRef               string                    `json:"profile_ref"`
+	SourceHarnessArtifactRef string                    `json:"source_harness_artifact_ref"`
+	MaterializedArtifactRef  string                    `json:"materialized_artifact_ref"`
+	ProgramID                string                    `json:"program_id"`
+	Network                  string                    `json:"network"`
+	Engine                   string                    `json:"engine"`
+	Status                   string                    `json:"status"`
+	FileManifest             []HarnessMaterializedFile `json:"file_manifest"`
+	FileCount                int                       `json:"file_count"`
+	TotalBytes               int                       `json:"total_bytes"`
+	CargoManifestHash        string                    `json:"cargo_manifest_hash"`
+	CargoLockHash            string                    `json:"cargo_lock_hash"`
+	MaterializedBundleHash   string                    `json:"materialized_bundle_hash"`
+	EvidenceRefs             []string                  `json:"evidence_refs"`
+	Limitations              []string                  `json:"limitations"`
+	NetworkAccess            bool                      `json:"network_access"`
+	DependencyResolution     bool                      `json:"dependency_resolution"`
+	SourceExecuted           bool                      `json:"source_executed"`
+	HarnessExecuted          bool                      `json:"harness_executed"`
+	MainnetTransactionSent   bool                      `json:"mainnet_transaction_sent"`
+	MaterializationHash      string                    `json:"materialization_hash"`
+	VerdictAuthority         bool                      `json:"verdict_authority"`
+	CreatedAt                time.Time                 `json:"created_at"`
 }
 
 type harnessMaterializationManifest struct {
-	SchemaVersion           string                    `json:"schema_version"`
-	MaterializationVersion  string                    `json:"materialization_version"`
-	ProfileRef              string                    `json:"profile_ref"`
-	ProfileHash             string                    `json:"profile_hash"`
-	SourceHarnessArtifactRef string                   `json:"source_harness_artifact_ref"`
-	SourceHarnessArtifactHash string                  `json:"source_harness_artifact_hash"`
-	ProgramID               string                    `json:"program_id"`
-	Network                 string                    `json:"network"`
-	Engine                  string                    `json:"engine"`
-	SourceFiles             []HarnessMaterializedFile `json:"source_files"`
-	CargoManifestHash       string                    `json:"cargo_manifest_hash"`
-	CargoLockHash           string                    `json:"cargo_lock_hash"`
-	CommandPolicy           map[string]any            `json:"command_policy"`
-	NetworkAccess           bool                      `json:"network_access"`
-	DependencyResolution    bool                      `json:"dependency_resolution"`
-	SourceExecuted          bool                      `json:"source_executed"`
-	HarnessExecuted         bool                      `json:"harness_executed"`
-	MainnetTransactionSent  bool                      `json:"mainnet_transaction_sent"`
-	VerdictAuthority        bool                      `json:"verdict_authority"`
+	SchemaVersion             string                    `json:"schema_version"`
+	MaterializationVersion    string                    `json:"materialization_version"`
+	ProfileRef                string                    `json:"profile_ref"`
+	ProfileHash               string                    `json:"profile_hash"`
+	SourceHarnessArtifactRef  string                    `json:"source_harness_artifact_ref"`
+	SourceHarnessArtifactHash string                    `json:"source_harness_artifact_hash"`
+	ProgramID                 string                    `json:"program_id"`
+	Network                   string                    `json:"network"`
+	Engine                    string                    `json:"engine"`
+	SourceFiles               []HarnessMaterializedFile `json:"source_files"`
+	CargoManifestHash         string                    `json:"cargo_manifest_hash"`
+	CargoLockHash             string                    `json:"cargo_lock_hash"`
+	CommandPolicy             map[string]any            `json:"command_policy"`
+	NetworkAccess             bool                      `json:"network_access"`
+	DependencyResolution      bool                      `json:"dependency_resolution"`
+	SourceExecuted            bool                      `json:"source_executed"`
+	HarnessExecuted           bool                      `json:"harness_executed"`
+	MainnetTransactionSent    bool                      `json:"mainnet_transaction_sent"`
+	VerdictAuthority          bool                      `json:"verdict_authority"`
 }
 
 var (
-	cargoLockVersionPattern = regexp.MustCompile(`(?m)^version\s*=\s*[34]\s*$`)
-	cargoLockPackagePattern = regexp.MustCompile(`(?m)^\[\[package\]\]\s*$`)
-	liteSVMDependencyPattern = regexp.MustCompile(`(?mi)^\s*litesvm\s*=\s*`)
-	liteSVMLockPattern       = regexp.MustCompile(`(?m)^name\s*=\s*"litesvm"\s*$`)
+	cargoLockVersionPattern    = regexp.MustCompile(`(?m)^version\s*=\s*[34]\s*$`)
+	cargoLockPackagePattern    = regexp.MustCompile(`(?m)^\[\[package\]\]\s*$`)
+	liteSVMDependencyPattern   = regexp.MustCompile(`(?mi)^\s*litesvm\s*=\s*`)
+	liteSVMLockPattern         = regexp.MustCompile(`(?m)^name\s*=\s*"litesvm"\s*$`)
 	cargoPathDependencyPattern = regexp.MustCompile(`(?mi)\bpath\s*=\s*["']([^"']+)["']`)
 	cargoGitDependencyPattern  = regexp.MustCompile(`(?mi)\bgit\s*=\s*["']`)
 )
@@ -139,31 +139,31 @@ func CreateHarnessMaterialization(ctx context.Context, db *sql.DB, input Harness
 		return HarnessMaterialization{}, errors.New("materialized harness bundle could not be encoded")
 	}
 	materializedArtifact, err := StoreArtifact(ctx, db, ArtifactInput{
-		ProgramID: profile.ProgramID,
-		Network: profile.Network,
-		ArtifactType: "source_bundle",
-		Framework: "anchor",
+		ProgramID:        profile.ProgramID,
+		Network:          profile.Network,
+		ArtifactType:     "source_bundle",
+		Framework:        "anchor",
 		FrameworkVersion: sourceArtifact.FrameworkVersion,
-		RuntimeVersion: sourceArtifact.RuntimeVersion,
-		ContentEncoding: "json",
-		Content: string(encodedBundle),
+		RuntimeVersion:   sourceArtifact.RuntimeVersion,
+		ContentEncoding:  "json",
+		Content:          string(encodedBundle),
 		Metadata: map[string]any{
-			"artifact_role": "materialized_harness",
-			"materialization_schema": HarnessMaterializationSchema,
-			"harness_profile_ref": profile.ProfileRef,
-			"harness_plan_ref": profile.PlanRef,
+			"artifact_role":               "materialized_harness",
+			"materialization_schema":      HarnessMaterializationSchema,
+			"harness_profile_ref":         profile.ProfileRef,
+			"harness_plan_ref":            profile.PlanRef,
 			"source_harness_artifact_ref": sourceArtifact.ArtifactRef,
-			"engine": profile.Engine,
-			"network_access": false,
-			"dependency_resolution": false,
-			"source_executed": false,
-			"harness_executed": false,
-			"mainnet_transaction_sent": false,
-			"production_eligible": false,
+			"engine":                      profile.Engine,
+			"network_access":              false,
+			"dependency_resolution":       false,
+			"source_executed":             false,
+			"harness_executed":            false,
+			"mainnet_transaction_sent":    false,
+			"production_eligible":         false,
 		},
 		TrustLevel: "observed",
-		Verified: false,
-		CreatedBy: "owner",
+		Verified:   false,
+		CreatedBy:  "owner",
 	})
 	if err != nil {
 		return HarnessMaterialization{}, err
@@ -184,31 +184,31 @@ func CreateHarnessMaterialization(ctx context.Context, db *sql.DB, input Harness
 		"artifact:" + materializedArtifact.ArtifactRef,
 	})
 	payload := map[string]any{
-		"schema_version": HarnessMaterializationSchema,
-		"materialization_version": HarnessMaterializationVersion,
-		"profile_ref": profile.ProfileRef,
-		"profile_hash": profile.ProfileHash,
-		"source_harness_artifact_ref": sourceArtifact.ArtifactRef,
+		"schema_version":               HarnessMaterializationSchema,
+		"materialization_version":      HarnessMaterializationVersion,
+		"profile_ref":                  profile.ProfileRef,
+		"profile_hash":                 profile.ProfileHash,
+		"source_harness_artifact_ref":  sourceArtifact.ArtifactRef,
 		"source_harness_artifact_hash": sourceArtifact.ContentHash,
-		"materialized_artifact_ref": materializedArtifact.ArtifactRef,
-		"materialized_bundle_hash": materializedArtifact.ContentHash,
-		"program_id": profile.ProgramID,
-		"network": profile.Network,
-		"engine": profile.Engine,
-		"status": "ready",
-		"file_manifest": fileManifest,
-		"file_count": len(fileManifest),
-		"total_bytes": totalBytes,
-		"cargo_manifest_hash": cargoManifestHash,
-		"cargo_lock_hash": cargoLockHash,
-		"evidence_refs": evidenceRefs,
-		"limitations": limitations,
-		"network_access": false,
-		"dependency_resolution": false,
-		"source_executed": false,
-		"harness_executed": false,
-		"mainnet_transaction_sent": false,
-		"verdict_authority": false,
+		"materialized_artifact_ref":    materializedArtifact.ArtifactRef,
+		"materialized_bundle_hash":     materializedArtifact.ContentHash,
+		"program_id":                   profile.ProgramID,
+		"network":                      profile.Network,
+		"engine":                       profile.Engine,
+		"status":                       "ready",
+		"file_manifest":                fileManifest,
+		"file_count":                   len(fileManifest),
+		"total_bytes":                  totalBytes,
+		"cargo_manifest_hash":          cargoManifestHash,
+		"cargo_lock_hash":              cargoLockHash,
+		"evidence_refs":                evidenceRefs,
+		"limitations":                  limitations,
+		"network_access":               false,
+		"dependency_resolution":        false,
+		"source_executed":              false,
+		"harness_executed":             false,
+		"mainnet_transaction_sent":     false,
+		"verdict_authority":            false,
 	}
 	materializationHash := hashJSON(payload)
 	materializationRef := prefixedID("KHM1-", payload)
@@ -295,25 +295,25 @@ func normalizeHarnessBundle(bundle map[string]string, profile HarnessExecutionPr
 	cargoManifestHash := hashMaterializationBytes([]byte(cargoManifest))
 	cargoLockHash := hashMaterializationBytes([]byte(cargoLock))
 	manifest := harnessMaterializationManifest{
-		SchemaVersion: HarnessMaterializationSchema,
-		MaterializationVersion: HarnessMaterializationVersion,
-		ProfileRef: profile.ProfileRef,
-		ProfileHash: profile.ProfileHash,
-		SourceHarnessArtifactRef: source.ArtifactRef,
+		SchemaVersion:             HarnessMaterializationSchema,
+		MaterializationVersion:    HarnessMaterializationVersion,
+		ProfileRef:                profile.ProfileRef,
+		ProfileHash:               profile.ProfileHash,
+		SourceHarnessArtifactRef:  source.ArtifactRef,
 		SourceHarnessArtifactHash: source.ContentHash,
-		ProgramID: profile.ProgramID,
-		Network: profile.Network,
-		Engine: profile.Engine,
-		SourceFiles: sourceManifest,
-		CargoManifestHash: cargoManifestHash,
-		CargoLockHash: cargoLockHash,
-		CommandPolicy: profile.CommandPolicy,
-		NetworkAccess: false,
-		DependencyResolution: false,
-		SourceExecuted: false,
-		HarnessExecuted: false,
-		MainnetTransactionSent: false,
-		VerdictAuthority: false,
+		ProgramID:                 profile.ProgramID,
+		Network:                   profile.Network,
+		Engine:                    profile.Engine,
+		SourceFiles:               sourceManifest,
+		CargoManifestHash:         cargoManifestHash,
+		CargoLockHash:             cargoLockHash,
+		CommandPolicy:             profile.CommandPolicy,
+		NetworkAccess:             false,
+		DependencyResolution:      false,
+		SourceExecuted:            false,
+		HarnessExecuted:           false,
+		MainnetTransactionSent:    false,
+		VerdictAuthority:          false,
 	}
 	manifestRaw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -331,10 +331,10 @@ func normalizeHarnessBundle(bundle map[string]string, profile HarnessExecutionPr
 	for _, path := range outputPaths {
 		content := normalized[path]
 		outputManifest = append(outputManifest, HarnessMaterializedFile{
-			Path: path,
-			SizeBytes: len(content),
+			Path:        path,
+			SizeBytes:   len(content),
 			ContentHash: hashMaterializationBytes([]byte(content)),
-			Generated: path == materializationManifestPath,
+			Generated:   path == materializationManifestPath,
 		})
 	}
 	return normalized, outputManifest, cargoManifestHash, cargoLockHash, nil

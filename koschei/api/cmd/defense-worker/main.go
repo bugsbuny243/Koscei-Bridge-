@@ -44,13 +44,13 @@ func main() {
 	}
 	workerImageDigest := strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_WORKER_IMAGE_DIGEST"))
 	runtime := defense.LiteSVMWorkerRuntime{
-		WorkerID: workerID,
-		WorkerImageDigest: workerImageDigest,
-		WorkerEnabled: workerEnabled,
-		SandboxEnabled: sandboxEnabled,
+		WorkerID:                workerID,
+		WorkerImageDigest:       workerImageDigest,
+		WorkerEnabled:           workerEnabled,
+		SandboxEnabled:          sandboxEnabled,
 		HarnessExecutionEnabled: envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false),
 		LiteSVMExecutionEnabled: envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false),
-		NetworkIsolated: envBool("KOSCHEI_DEFENSE_NETWORK_ISOLATED", false),
+		NetworkIsolated:         envBool("KOSCHEI_DEFENSE_NETWORK_ISOLATED", false),
 	}
 	if runtime.HarnessExecutionEnabled || runtime.LiteSVMExecutionEnabled {
 		if !runtime.HarnessExecutionEnabled || !runtime.LiteSVMExecutionEnabled {

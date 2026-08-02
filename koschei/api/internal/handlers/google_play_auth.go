@@ -97,11 +97,11 @@ func googlePlayAccessToken(ctx context.Context, credentials googlePlayCredential
 		header["kid"] = credentials.PrivateKeyID
 	}
 	claims := map[string]any{
-		"iss": credentials.ClientEmail,
+		"iss":   credentials.ClientEmail,
 		"scope": googleAndroidPublisherScope,
-		"aud": credentials.TokenURI,
-		"iat": now.Unix(),
-		"exp": now.Add(55 * time.Minute).Unix(),
+		"aud":   credentials.TokenURI,
+		"iat":   now.Unix(),
+		"exp":   now.Add(55 * time.Minute).Unix(),
 	}
 	assertion, err := signGoogleJWT(header, claims, privateKey)
 	if err != nil {

@@ -16,12 +16,12 @@ type RepeatDominantHolderMatch struct {
 }
 
 type RepeatDominantHolderEvidence struct {
-	OwnerWallet       string                      `json:"owner_wallet"`
-	CurrentMint       string                      `json:"current_mint"`
-	CurrentPercentage float64                     `json:"current_percentage"`
-	TokenCount        int                         `json:"token_count"`
-	ObservationDays   int                         `json:"observation_days"`
-	ObservationWindow string                      `json:"observation_window"`
+	OwnerWallet       string  `json:"owner_wallet"`
+	CurrentMint       string  `json:"current_mint"`
+	CurrentPercentage float64 `json:"current_percentage"`
+	TokenCount        int     `json:"token_count"`
+	ObservationDays   int     `json:"observation_days"`
+	ObservationWindow string  `json:"observation_window"`
 	// Deprecated compatibility diagnostic. It is not consumed by an ARVIS arm
 	// or the unified final verdict.
 	RiskWeight   int                         `json:"risk_weight,omitempty"`
@@ -115,23 +115,23 @@ func ApplyRepeatDominantHolderEvidenceToAnalysis(analysis ArvisAnalysis, req Sec
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
 	findingObserved := len(evidence) > 0
 	signals := map[string]any{
-		"module_id": ModuleRepeatActorScan,
-		"real_onchain_evidence": true,
-		"stored_scan_evidence": true,
-		"evidence_status": "observed",
-		"execution_status": ArvisExecutionCompleted,
-		"collector_attempted": true,
-		"applicable": true,
-		"finding_observed": findingObserved,
-		"repeat_dominant_holder": findingObserved,
-		"repeat_dominant_holders": evidence,
-		"repeat_dominant_owner_wallets": owners,
+		"module_id":                        ModuleRepeatActorScan,
+		"real_onchain_evidence":            true,
+		"stored_scan_evidence":             true,
+		"evidence_status":                  "observed",
+		"execution_status":                 ArvisExecutionCompleted,
+		"collector_attempted":              true,
+		"applicable":                       true,
+		"finding_observed":                 findingObserved,
+		"repeat_dominant_holder":           findingObserved,
+		"repeat_dominant_holders":          evidence,
+		"repeat_dominant_owner_wallets":    owners,
 		"repeat_dominant_observation_days": RepeatDominantObservationDays,
-		"max_repeat_token_count": maxTokenCount,
-		"persistent_actor_index": true,
-		"identity_or_intent_claim": false,
-		"numeric_score_disabled": true,
-		"grade_effect": "none_at_arm_layer",
+		"max_repeat_token_count":           maxTokenCount,
+		"persistent_actor_index":           true,
+		"identity_or_intent_claim":         false,
+		"numeric_score_disabled":           true,
+		"grade_effect":                     "none_at_arm_layer",
 	}
 	if !findingObserved {
 		lines = append(lines, fmt.Sprintf("Koschei persistent holder memory was queried for the bounded %d-day observation window; no repeat-dominant holder match was observed. This bounded negative finding is not a safety claim.", RepeatDominantObservationDays))

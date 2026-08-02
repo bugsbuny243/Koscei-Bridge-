@@ -14,10 +14,10 @@ type SolanaSimulationResult struct {
 }
 
 type SolanaInnerInstruction struct {
-	ProgramIDIndex int   `json:"programIdIndex"`
-	Accounts       []int `json:"accounts"`
+	ProgramIDIndex int    `json:"programIdIndex"`
+	Accounts       []int  `json:"accounts"`
 	Data           string `json:"data"`
-	StackHeight    *int  `json:"stackHeight,omitempty"`
+	StackHeight    *int   `json:"stackHeight,omitempty"`
 }
 
 type SolanaInnerInstructionGroup struct {

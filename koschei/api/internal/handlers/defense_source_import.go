@@ -22,8 +22,8 @@ func (h *Handler) OwnerDefenseSourceImport(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true,
-			"imports": items,
+			"ok":                true,
+			"imports":           items,
 			"verdict_authority": false,
 		})
 	case http.MethodPost:
@@ -49,17 +49,17 @@ func (h *Handler) OwnerDefenseSourceImport(w http.ResponseWriter, r *http.Reques
 		record, err := defense.ImportSourceRepository(ctx, h.DB, defense.NewSourceImportHTTPClient(), input)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{
-				"error": "source_import_failed",
+				"error":   "source_import_failed",
 				"details": err.Error(),
 			})
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{
-			"ok": true,
-			"source_import": record,
-			"source_executed": false,
+			"ok":                 true,
+			"source_import":      record,
+			"source_executed":    false,
 			"production_changed": false,
-			"verdict_authority": false,
+			"verdict_authority":  false,
 		})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

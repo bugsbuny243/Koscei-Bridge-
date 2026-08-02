@@ -10,7 +10,7 @@ func TestTransactionGuardAccountDeltaLabelsDeclaredDecimals(t *testing.T) {
 	decimals := 6
 	encoded, err := json.Marshal(transactionGuardAccountDelta{
 		Address: "33333333333333333333333333333333",
-		Role: "observe", Decimals: &decimals,
+		Role:    "observe", Decimals: &decimals,
 		PolicyStatus: "pass", EvidenceStatus: "verified_rpc_simulation",
 	})
 	if err != nil {

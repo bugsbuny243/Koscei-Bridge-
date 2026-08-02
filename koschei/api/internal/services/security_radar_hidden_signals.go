@@ -31,9 +31,9 @@ func shouldApplySBX1HiddenSignals(verdict SecurityRadarVerdictRecord) bool {
 func buildSBX1HiddenSignalPack(ctx context.Context, verdict SecurityRadarVerdictRecord) sbx1HiddenSignalPack {
 	out := sbx1HiddenSignalPack{Signals: map[string]any{
 		"customer_surface": false,
-		"visibility": "internal_only",
-		"rule_version": sbx1HiddenSignalRuleVersion,
-		"purpose": "legacy risk-score modules embedded as hidden SBX-1 backend signals",
+		"visibility":       "internal_only",
+		"rule_version":     sbx1HiddenSignalRuleVersion,
+		"purpose":          "legacy risk-score modules embedded as hidden SBX-1 backend signals",
 	}}
 	if !shouldApplySBX1HiddenSignals(verdict) {
 		out.Signals["status"] = "skipped"
@@ -57,10 +57,10 @@ func buildSBX1HiddenSignalPack(ctx context.Context, verdict SecurityRadarVerdict
 	okCount := 0
 	for name, module := range result.ModuleResults {
 		entry := map[string]any{
-			"status": module.Status,
-			"score": module.Score,
-			"risk_level": module.RiskLevel,
-			"summary": module.Summary,
+			"status":      module.Status,
+			"score":       module.Score,
+			"risk_level":  module.RiskLevel,
+			"summary":     module.Summary,
 			"duration_ms": module.DurationMS,
 		}
 		if len(module.Findings) > 0 {

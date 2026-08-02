@@ -28,9 +28,9 @@ func TestBuildPublicCasePageDataCreatesReadableEvidenceView(t *testing.T) {
 				map[string]any{"id": "AC-01", "label": "Wallet classified", "state": "verified", "acceptance_status": "pass", "value": map[string]any{"summary": "Wallet target was resolved."}, "refs": map[string]any{"wallets": []any{"wallet"}}},
 				map[string]any{"id": "AC-02", "label": "Actor recurrence", "state": "observed", "acceptance_status": "pass", "value": map[string]any{"summary": "One related actor observed."}},
 			}},
-			ActorAcceptance: map[string]any{"status": "pass", "pass_count": 8.0, "fail_count": 0.0, "not_investigated_count": 2.0, "acceptance_hash": "sha256:acceptance"},
-			FundingOrigin: map[string]any{"verification_status": "verified", "source_wallet": "SourceWallet", "destination_wallet": "DestinationWallet", "amount_sol": 1.25, "observed_at": produced.Add(-time.Hour).Format(time.RFC3339), "signature": "FundingSignature", "slot": 42.0, "program": "system"},
-			CreatedTokenHistory: []any{map[string]any{"mint": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump", "verification_status": "observed", "roles": []any{"creator_deployer"}, "first_observed_at": produced.Add(-48 * time.Hour).Format(time.RFC3339)}},
+			ActorAcceptance:       map[string]any{"status": "pass", "pass_count": 8.0, "fail_count": 0.0, "not_investigated_count": 2.0, "acceptance_hash": "sha256:acceptance"},
+			FundingOrigin:         map[string]any{"verification_status": "verified", "source_wallet": "SourceWallet", "destination_wallet": "DestinationWallet", "amount_sol": 1.25, "observed_at": produced.Add(-time.Hour).Format(time.RFC3339), "signature": "FundingSignature", "slot": 42.0, "program": "system"},
+			CreatedTokenHistory:   []any{map[string]any{"mint": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump", "verification_status": "observed", "roles": []any{"creator_deployer"}, "first_observed_at": produced.Add(-48 * time.Hour).Format(time.RFC3339)}},
 			CrossTokenConnections: map[string]any{"counts": map[string]any{"created_tokens": 1.0, "related_actors": 1.0}, "related_actor_observations": []any{map[string]any{"wallet": "GV6UUmNxz2RpKxmNAPadYKb7uQpszwqQAu3qLJxVdC52", "verification_status": "observed", "shared_token_count": 1.0, "max_holder_percentage": 58.7}}},
 			EvidenceLog: []any{
 				map[string]any{"relation": "direct_sol_transfer_in", "verification_status": "verified", "source_wallet": "A", "destination_wallet": "B", "observed_at": produced.Add(-time.Hour).Format(time.RFC3339), "signature": "OlderSignature", "slot": 1.0, "amount": map[string]any{"native_sol": 0.25}},
@@ -67,7 +67,7 @@ func TestPublicCaseTemplateIsHumanReadableAndKeepsRawDossierSeparate(t *testing.
 		CaseRef: "KD1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Title: "Actor Evidence Case", Summary: "Evidence summary",
 		BundleHash: "sha256:bundle", TargetKind: "wallet", TargetID: "wallet", TargetDisplay: "wallet", Network: "solana-mainnet",
 		VerdictGrade: "B", VerdictStatus: "compounding_rule", VerdictText: "Compounding Rule", RulesetVersion: "rules-v1",
-		Acceptance: publicCaseAcceptanceView{Status: "pass", Class: "verified", Pass: 8, NotInvestigated: 2},
+		Acceptance:   publicCaseAcceptanceView{Status: "pass", Class: "verified", Pass: 8, NotInvestigated: 2},
 		TechnicalURL: "/dossier/KD1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 	var output bytes.Buffer

@@ -34,28 +34,28 @@ func TestClassifyRadarAccountObservationSeparatesSolanaTargetKinds(t *testing.T)
 			wantType: radarTargetTokenAccount, wantTokenOwner: "Holder111",
 		},
 		{
-			name: "executable program",
-			account: &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Executable: true},
+			name:     "executable program",
+			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Executable: true},
 			wantType: radarTargetProgram,
 		},
 		{
-			name: "program data",
-			account: &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(3)},
+			name:     "program data",
+			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(3)},
 			wantType: radarTargetProgramData, wantLoaderState: "program_data",
 		},
 		{
-			name: "program buffer",
-			account: &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(1)},
+			name:     "program buffer",
+			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(1)},
 			wantType: radarTargetProgramBuffer, wantLoaderState: "buffer",
 		},
 		{
-			name: "unresolved loader account fails closed",
-			account: &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: []any{"not-base64", "base64"}},
+			name:     "unresolved loader account fails closed",
+			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: []any{"not-base64", "base64"}},
 			wantType: radarTargetProgramLoaderAccount,
 		},
 		{
-			name: "wallet",
-			account: &services.SolanaAccountInfo{Owner: "11111111111111111111111111111111", Executable: false},
+			name:     "wallet",
+			account:  &services.SolanaAccountInfo{Owner: "11111111111111111111111111111111", Executable: false},
 			wantType: radarTargetWallet,
 		},
 	}

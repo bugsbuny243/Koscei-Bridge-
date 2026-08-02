@@ -11,10 +11,10 @@ import (
 )
 
 type actorFundingRPCFixture struct {
-	mu             sync.Mutex
-	pageRequests   []map[string]any
-	pages          map[string][]SolanaSignatureInfo
-	transactions   map[string]map[string]any
+	mu           sync.Mutex
+	pageRequests []map[string]any
+	pages        map[string][]SolanaSignatureInfo
+	transactions map[string]map[string]any
 }
 
 func (fixture *actorFundingRPCFixture) server(t *testing.T) *httptest.Server {
@@ -70,7 +70,7 @@ func TestFindActorFundingOriginCompleteHistory(t *testing.T) {
 		},
 		transactions: map[string]map[string]any{
 			"funding-signature": fundingTransaction(wallet, funder, 1_500_000_000, oldTime, true, "transfer"),
-			"newer-signature": outgoingTransaction(wallet, "Other1111111111111111111111111111111111111", newTime),
+			"newer-signature":   outgoingTransaction(wallet, "Other1111111111111111111111111111111111111", newTime),
 		},
 	}
 	server := fixture.server(t)
@@ -153,7 +153,7 @@ func TestFindActorFundingOriginRequiresSourceSignerForVerified(t *testing.T) {
 	blockTime := int64(1700000000)
 	fixture := &actorFundingRPCFixture{
 		pages: map[string][]SolanaSignatureInfo{
-			"": {{Signature: "unsigned-source", Slot: 400, BlockTime: &blockTime}},
+			"":                {{Signature: "unsigned-source", Slot: 400, BlockTime: &blockTime}},
 			"unsigned-source": {},
 		},
 		transactions: map[string]map[string]any{
@@ -176,20 +176,20 @@ func TestFindActorFundingOriginRequiresSourceSignerForVerified(t *testing.T) {
 
 func TestActorFundingOriginEvidence(t *testing.T) {
 	origin := ActorFundingOrigin{
-		Wallet: "Wallet444444444444444444444444444444444444",
-		Status: "initial_funding_observed",
-		HistoryComplete: true,
-		SourceWallet: "Funder444444444444444444444444444444444444",
-		DestinationWallet: "Wallet444444444444444444444444444444444444",
-		AmountSOL: 2.25,
-		Signature: "funding-evidence-signature",
-		Slot: 500,
-		ObservedAt: time.Unix(1700000000, 0).UTC(),
-		Program: "system",
-		InstructionType: "transfer",
+		Wallet:             "Wallet444444444444444444444444444444444444",
+		Status:             "initial_funding_observed",
+		HistoryComplete:    true,
+		SourceWallet:       "Funder444444444444444444444444444444444444",
+		DestinationWallet:  "Wallet444444444444444444444444444444444444",
+		AmountSOL:          2.25,
+		Signature:          "funding-evidence-signature",
+		Slot:               500,
+		ObservedAt:         time.Unix(1700000000, 0).UTC(),
+		Program:            "system",
+		InstructionType:    "transfer",
 		VerificationStatus: "verified",
-		TrailStatus: "source_wallet_observed",
-		IdentityScope: "onchain_wallet_only",
+		TrailStatus:        "source_wallet_observed",
+		IdentityScope:      "onchain_wallet_only",
 	}
 	evidence, ok := ActorFundingOriginEvidence(origin, "solana-mainnet")
 	if !ok {
@@ -212,7 +212,7 @@ func fundingTransaction(wallet, funder string, lamports, blockTime int64, source
 	}
 	return map[string]any{
 		"blockTime": blockTime,
-		"meta": map[string]any{"err": nil, "innerInstructions": []any{}},
+		"meta":      map[string]any{"err": nil, "innerInstructions": []any{}},
 		"transaction": map[string]any{"message": map[string]any{
 			"accountKeys": []any{
 				map[string]any{"pubkey": funder, "signer": sourceSigner},
@@ -220,7 +220,7 @@ func fundingTransaction(wallet, funder string, lamports, blockTime int64, source
 			},
 			"instructions": []any{map[string]any{
 				"program": "system",
-				"parsed": map[string]any{"type": kind, "info": info},
+				"parsed":  map[string]any{"type": kind, "info": info},
 			}},
 		}},
 	}
@@ -229,7 +229,7 @@ func fundingTransaction(wallet, funder string, lamports, blockTime int64, source
 func outgoingTransaction(wallet, destination string, blockTime int64) map[string]any {
 	return map[string]any{
 		"blockTime": blockTime,
-		"meta": map[string]any{"err": nil, "innerInstructions": []any{}},
+		"meta":      map[string]any{"err": nil, "innerInstructions": []any{}},
 		"transaction": map[string]any{"message": map[string]any{
 			"accountKeys": []any{
 				map[string]any{"pubkey": wallet, "signer": true},

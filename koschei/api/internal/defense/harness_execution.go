@@ -48,28 +48,28 @@ type HarnessExecutionProfileInput struct {
 }
 
 type HarnessExecutionProfile struct {
-	ProfileRef           string                      `json:"profile_ref"`
-	ProfileVersion       string                      `json:"profile_version"`
-	PlanRef              string                      `json:"plan_ref"`
-	HarnessArtifactRef   string                      `json:"harness_artifact_ref"`
-	ProgramID            string                      `json:"program_id"`
-	Network              string                      `json:"network"`
-	Engine               string                      `json:"engine"`
-	WorkerID             string                      `json:"worker_id"`
-	WorkerImageDigest    string                      `json:"worker_image_digest"`
-	RequiredTools        []string                    `json:"required_tools"`
-	ToolPins             []HarnessToolPin            `json:"tool_pins"`
-	ConfirmedInvariants  []ConfirmedHarnessInvariant `json:"confirmed_invariants"`
-	CommandPolicy        map[string]any              `json:"command_policy"`
-	MaxDurationSeconds   int                         `json:"max_duration_seconds"`
-	MaxOutputBytes       int                         `json:"max_output_bytes"`
-	ReadinessStatus      string                      `json:"readiness_status"`
-	ExecutionAllowed     bool                        `json:"execution_allowed"`
-	EvidenceRefs         []string                    `json:"evidence_refs"`
-	Limitations          []string                    `json:"limitations"`
-	ProfileHash          string                      `json:"profile_hash"`
-	VerdictAuthority     bool                        `json:"verdict_authority"`
-	CreatedAt            time.Time                   `json:"created_at"`
+	ProfileRef          string                      `json:"profile_ref"`
+	ProfileVersion      string                      `json:"profile_version"`
+	PlanRef             string                      `json:"plan_ref"`
+	HarnessArtifactRef  string                      `json:"harness_artifact_ref"`
+	ProgramID           string                      `json:"program_id"`
+	Network             string                      `json:"network"`
+	Engine              string                      `json:"engine"`
+	WorkerID            string                      `json:"worker_id"`
+	WorkerImageDigest   string                      `json:"worker_image_digest"`
+	RequiredTools       []string                    `json:"required_tools"`
+	ToolPins            []HarnessToolPin            `json:"tool_pins"`
+	ConfirmedInvariants []ConfirmedHarnessInvariant `json:"confirmed_invariants"`
+	CommandPolicy       map[string]any              `json:"command_policy"`
+	MaxDurationSeconds  int                         `json:"max_duration_seconds"`
+	MaxOutputBytes      int                         `json:"max_output_bytes"`
+	ReadinessStatus     string                      `json:"readiness_status"`
+	ExecutionAllowed    bool                        `json:"execution_allowed"`
+	EvidenceRefs        []string                    `json:"evidence_refs"`
+	Limitations         []string                    `json:"limitations"`
+	ProfileHash         string                      `json:"profile_hash"`
+	VerdictAuthority    bool                        `json:"verdict_authority"`
+	CreatedAt           time.Time                   `json:"created_at"`
 }
 
 type harnessPlanExecutionSource struct {
@@ -156,7 +156,7 @@ func CreateHarnessExecutionProfile(ctx context.Context, db *sql.DB, input Harnes
 			return HarnessExecutionProfile{}, loadErr
 		}
 		toolPins = append(toolPins, HarnessToolPin{
-			AttestationRef: attestation.AttestationRef,
+			AttestationRef:    attestation.AttestationRef,
 			ToolName:          attestation.ToolName,
 			VersionOutput:     attestation.VersionOutput,
 			VersionHash:       attestation.VersionHash,

@@ -31,24 +31,24 @@ func TestActorWalletPersistentClassificationRejectsUnknownOrUnverifiedTarget(t *
 		state          string
 	}{
 		{
-			name: "account not found is not an RPC outage",
+			name:           "account not found is not an RPC outage",
 			classification: radarTargetClassification{Type: radarTargetUnknown, Status: "account_not_found"},
-			target: "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "verified",
+			target:         "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "verified",
 		},
 		{
-			name: "invalid Base58 target",
+			name:           "invalid Base58 target",
 			classification: radarTargetClassification{Type: radarTargetUnknown, Status: "lookup_failed"},
-			target: "not-a-solana-wallet", state: "verified",
+			target:         "not-a-solana-wallet", state: "verified",
 		},
 		{
-			name: "unknown persistent state",
+			name:           "unknown persistent state",
 			classification: radarTargetClassification{Type: radarTargetUnknown, Status: "lookup_failed"},
-			target: "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "",
+			target:         "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "",
 		},
 		{
-			name: "program classification cannot be overwritten",
+			name:           "program classification cannot be overwritten",
 			classification: radarTargetClassification{Type: radarTargetProgram, Status: "verified_rpc_observation", Executable: true},
-			target: "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "verified",
+			target:         "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdcsvHcx6PRe", state: "verified",
 		},
 	}
 	for _, test := range tests {

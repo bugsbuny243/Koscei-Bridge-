@@ -99,7 +99,7 @@ func TestObserveHolderClusterWalletFlowPreservesTokenAccountsAndDecimals(t *test
 				map[string]any{"pubkey": "WalletA"},
 			},
 			"instructions": []any{map[string]any{
-				"program": "spl-token",
+				"program":   "spl-token",
 				"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 				"parsed": map[string]any{"type": "transferChecked", "info": map[string]any{
 					"source": "SourceATA", "destination": "DestinationATA", "authority": "WalletA", "mint": "Mint",

@@ -13,7 +13,7 @@ func TestOperationalAcceptanceRejectsFalseMatchWithoutCompletedHolderSource(t *t
 
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "creator", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
+		Dossier:       ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 	})
 
@@ -34,7 +34,7 @@ func TestOperationalAcceptanceAcceptsCompletedZeroTopHolderMatch(t *testing.T) {
 
 	result := EvaluateOperationalActorAcceptance(ActorAcceptanceInput{
 		Wallet: "creator", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
+		Dossier:       ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 	})
 
@@ -53,7 +53,7 @@ func TestOperationalAcceptanceHashChangesWhenHolderSourceCompletes(t *testing.T)
 	row.Metadata["matches_top_holder"] = false
 	input := ActorAcceptanceInput{
 		Wallet: "creator", Network: "solana-mainnet", TargetKind: "wallet",
-		Dossier: ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
+		Dossier:       ActorDefenseDossier{Wallet: "creator", Network: "solana-mainnet", Evidence: []ActorDefenseEvidenceRecord{row}},
 		FundingOrigin: ActorFundingOrigin{Status: "not_investigated", TrailStatus: "not_investigated"},
 	}
 	before := EvaluateOperationalActorAcceptance(input)

@@ -37,7 +37,7 @@ func TestVerifyCreatorSellTransactionsRequiresSignerBalanceDecreaseAndSellMarker
 					"uiTokenAmount": map[string]any{"amount": "400"},
 				}},
 				"innerInstructions": []any{},
-				"logMessages": []any{"Program log: Instruction: Sell"},
+				"logMessages":       []any{"Program log: Instruction: Sell"},
 			},
 			"transaction": map[string]any{"message": map[string]any{
 				"accountKeys": []any{map[string]any{"pubkey": creator, "signer": true}},

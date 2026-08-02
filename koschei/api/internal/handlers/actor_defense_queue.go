@@ -43,10 +43,10 @@ func (h *Handler) OwnerActorDefenseQueue(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
-		"schema_version": "koschei-actor-defense-queue-v2",
+		"ok":              true,
+		"schema_version":  "koschei-actor-defense-queue-v2",
 		"ruleset_version": services.ActorDefenseRulesetVersion,
-		"queue": queue,
+		"queue":           queue,
 	})
 }
 

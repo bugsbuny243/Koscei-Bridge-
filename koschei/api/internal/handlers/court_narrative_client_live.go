@@ -100,21 +100,21 @@ func NewCourtNarrativeClientFromEnv() CourtNarrativeClient {
 		return nil
 	}
 	return &liveCourtClient{
-		httpClient: &http.Client{Timeout: courtEnvDuration("KOSCHEI_COURT_HTTP_TIMEOUT", 75*time.Second)},
-		togetherKey: togetherKey,
-		openAIKey: strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
-		anthropicKey: strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")),
-		togetherBaseURL: firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_BASE_URL")), "https://api.together.xyz/v1"),
-		openAIBaseURL: firstNonEmptyString(strings.TrimSpace(os.Getenv("OPENAI_BASE_URL")), "https://api.openai.com/v1"),
-		anthropicBaseURL: firstNonEmptyString(strings.TrimSpace(os.Getenv("ANTHROPIC_BASE_URL")), "https://api.anthropic.com/v1"),
-		prosecutorLeadModel: firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_PROSECUTOR_LEAD")), "moonshotai/Kimi-K2.6"),
+		httpClient:              &http.Client{Timeout: courtEnvDuration("KOSCHEI_COURT_HTTP_TIMEOUT", 75*time.Second)},
+		togetherKey:             togetherKey,
+		openAIKey:               strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
+		anthropicKey:            strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")),
+		togetherBaseURL:         firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_BASE_URL")), "https://api.together.xyz/v1"),
+		openAIBaseURL:           firstNonEmptyString(strings.TrimSpace(os.Getenv("OPENAI_BASE_URL")), "https://api.openai.com/v1"),
+		anthropicBaseURL:        firstNonEmptyString(strings.TrimSpace(os.Getenv("ANTHROPIC_BASE_URL")), "https://api.anthropic.com/v1"),
+		prosecutorLeadModel:     firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_PROSECUTOR_LEAD")), "moonshotai/Kimi-K2.6"),
 		prosecutorEvidenceModel: firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_PROSECUTOR_EVIDENCE")), "MiniMaxAI/MiniMax-M3"),
-		panelQwenModel: firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_TRIBUNAL_QWEN")), strings.TrimSpace(os.Getenv("TOGETHER_MODEL")), "Qwen/Qwen3-235B-A22B-2507"),
-		panelGLMModel: firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_TRIBUNAL_GLM")), "zai-org/GLM-5.2"),
-		openAIModel: strings.TrimSpace(os.Getenv("OPENAI_MODEL_TRIBUNAL")),
-		anthropicModel: strings.TrimSpace(os.Getenv("ANTHROPIC_OWNER_MODEL")),
-		timeout: courtEnvDuration("KOSCHEI_COURT_MODEL_TIMEOUT", 60*time.Second),
-		retries: courtEnvInt("KOSCHEI_COURT_PROVIDER_RETRIES", 1, 0, 2),
+		panelQwenModel:          firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_TRIBUNAL_QWEN")), strings.TrimSpace(os.Getenv("TOGETHER_MODEL")), "Qwen/Qwen3-235B-A22B-2507"),
+		panelGLMModel:           firstNonEmptyString(strings.TrimSpace(os.Getenv("TOGETHER_MODEL_TRIBUNAL_GLM")), "zai-org/GLM-5.2"),
+		openAIModel:             strings.TrimSpace(os.Getenv("OPENAI_MODEL_TRIBUNAL")),
+		anthropicModel:          strings.TrimSpace(os.Getenv("ANTHROPIC_OWNER_MODEL")),
+		timeout:                 courtEnvDuration("KOSCHEI_COURT_MODEL_TIMEOUT", 60*time.Second),
+		retries:                 courtEnvInt("KOSCHEI_COURT_PROVIDER_RETRIES", 1, 0, 2),
 	}
 }
 
@@ -150,10 +150,10 @@ func (c *liveCourtClient) PanelOpinion(ctx context.Context, in CourtReadOnlyInpu
 		return CourtPanel{}, errors.New("first-instance panel unavailable: " + strings.Join(providerErrors, "; "))
 	}
 	return CourtPanel{
-		Models: courtOpinionModels(opinions),
-		Stance: presidingCourtStance(in.SignedVerdict.Grade, len(in.SignedVerdict.TriggeredRules) > 0, opinions),
-		Text: courtPanelText("İlk Derece Heyeti", opinions, providerErrors, in),
-		Opinions: opinions,
+		Models:      courtOpinionModels(opinions),
+		Stance:      presidingCourtStance(in.SignedVerdict.Grade, len(in.SignedVerdict.TriggeredRules) > 0, opinions),
+		Text:        courtPanelText("İlk Derece Heyeti", opinions, providerErrors, in),
+		Opinions:    opinions,
 		Limitations: providerErrors,
 	}, nil
 }
@@ -213,10 +213,10 @@ func (c *liveCourtClient) SeniorOpinion(ctx context.Context, in CourtReadOnlyInp
 		return CourtPanel{}, errors.New("senior panel unavailable: " + strings.Join(providerErrors, "; "))
 	}
 	return CourtPanel{
-		Models: courtOpinionModels(opinions),
-		Stance: presidingCourtStance(in.SignedVerdict.Grade, len(in.SignedVerdict.TriggeredRules) > 0, opinions),
-		Text: courtPanelText("Üst Heyet", opinions, providerErrors, in),
-		Opinions: opinions,
+		Models:      courtOpinionModels(opinions),
+		Stance:      presidingCourtStance(in.SignedVerdict.Grade, len(in.SignedVerdict.TriggeredRules) > 0, opinions),
+		Text:        courtPanelText("Üst Heyet", opinions, providerErrors, in),
+		Opinions:    opinions,
 		Limitations: providerErrors,
 	}, nil
 }
@@ -263,14 +263,16 @@ func (c *liveCourtClient) callTogether(ctx context.Context, model, system, promp
 	}
 	data, err := c.doJSON(ctx, courtEndpoint(c.togetherBaseURL, "chat/completions"), body, map[string]string{
 		"Authorization": "Bearer " + c.togetherKey,
-		"Content-Type": "application/json",
+		"Content-Type":  "application/json",
 	})
 	if err != nil {
 		return courtModelOutput{}, err
 	}
 	var decoded struct {
 		Choices []struct {
-			Message struct{ Content string `json:"content"` } `json:"message"`
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
 			Text string `json:"text"`
 		} `json:"choices"`
 	}
@@ -307,7 +309,9 @@ func (c *liveCourtClient) callOpenAI(ctx context.Context, model, system, prompt 
 	}
 	var decoded struct {
 		Choices []struct {
-			Message struct{ Content string `json:"content"` } `json:"message"`
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(data, &decoded); err != nil {
@@ -321,20 +325,20 @@ func (c *liveCourtClient) callOpenAI(ctx context.Context, model, system, prompt 
 
 func (c *liveCourtClient) callAnthropic(ctx context.Context, model, system, prompt string, maxTokens int) (courtModelOutput, error) {
 	payload := anthropicMessagesPayload{
-		Model: model,
-		MaxTokens: maxTokens,
+		Model:       model,
+		MaxTokens:   maxTokens,
 		Temperature: 0.1,
-		System: system,
-		Messages: []anthropicUserMessage{{Role: "user", Content: prompt}},
+		System:      system,
+		Messages:    []anthropicUserMessage{{Role: "user", Content: prompt}},
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return courtModelOutput{}, err
 	}
 	data, err := c.doJSON(ctx, courtEndpoint(c.anthropicBaseURL, "messages"), body, map[string]string{
-		"x-api-key": c.anthropicKey,
+		"x-api-key":         c.anthropicKey,
 		"anthropic-version": courtAnthropicVersion,
-		"Content-Type": "application/json",
+		"Content-Type":      "application/json",
 	})
 	if err != nil {
 		return courtModelOutput{}, err
@@ -410,10 +414,10 @@ func courtPrompt(in CourtReadOnlyInput, instruction string, prosecutors []CourtO
 	}
 	if len(packet) > courtMaxEvidenceBytes {
 		compact := CourtReadOnlyInput{
-			Target: in.Target,
-			Network: in.Network,
-			SignedVerdict: in.SignedVerdict,
-			VerdictCard: in.VerdictCard,
+			Target:         in.Target,
+			Network:        in.Network,
+			SignedVerdict:  in.SignedVerdict,
+			VerdictCard:    in.VerdictCard,
 			EvidencePacket: map[string]any{"truncated": true, "reason": "evidence packet exceeded court transport limit"},
 		}
 		packet, err = json.Marshal(compact)

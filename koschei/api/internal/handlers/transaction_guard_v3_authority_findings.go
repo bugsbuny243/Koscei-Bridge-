@@ -8,7 +8,7 @@ import (
 
 func guardV3AuthorityTypeSemantics(authorityType int) (name, scope string, mintWide, canTransfer, canBurn bool) {
 	types := []struct {
-		name, scope string
+		name, scope                    string
 		mintWide, canTransfer, canBurn bool
 	}{
 		{"mint_tokens", "mint_supply", true, false, false},

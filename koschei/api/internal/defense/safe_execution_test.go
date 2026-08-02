@@ -9,10 +9,10 @@ import (
 func TestNormalizeToolchainPolicyToolsRequiresExactPinnedSet(t *testing.T) {
 	hash := "sha256:" + strings.Repeat("a", 64)
 	input := map[string]string{
-		"rustc": hash,
-		"cargo": hash,
-		"solana": hash,
-		"anchor": hash,
+		"rustc":   hash,
+		"cargo":   hash,
+		"solana":  hash,
+		"anchor":  hash,
 		"litesvm": hash,
 	}
 	got, err := normalizeToolchainPolicyTools(input)
@@ -33,10 +33,10 @@ func TestNormalizeToolchainPolicyToolsRequiresExactPinnedSet(t *testing.T) {
 func TestNormalizeToolchainPolicyToolsRejectsUnpinnedHash(t *testing.T) {
 	valid := "sha256:" + strings.Repeat("b", 64)
 	input := map[string]string{
-		"rustc": valid,
-		"cargo": valid,
-		"solana": valid,
-		"anchor": valid,
+		"rustc":   valid,
+		"cargo":   valid,
+		"solana":  valid,
+		"anchor":  valid,
 		"litesvm": "1.2.3",
 	}
 	if _, err := normalizeToolchainPolicyTools(input); err == nil {
@@ -51,11 +51,11 @@ func TestEvaluateToolchainPolicyAuthorizesOnlyExactWorkerAndLatestAttestations(t
 		PolicyRef:         "KTP1-0123456789abcdef0123456789abcdef",
 		WorkerImageDigest: image,
 		RequiredTools: map[string]string{
-			"anchor": "sha256:" + strings.Repeat("1", 64),
-			"cargo": "sha256:" + strings.Repeat("2", 64),
+			"anchor":  "sha256:" + strings.Repeat("1", 64),
+			"cargo":   "sha256:" + strings.Repeat("2", 64),
 			"litesvm": "sha256:" + strings.Repeat("3", 64),
-			"rustc": "sha256:" + strings.Repeat("4", 64),
-			"solana": "sha256:" + strings.Repeat("5", 64),
+			"rustc":   "sha256:" + strings.Repeat("4", 64),
+			"solana":  "sha256:" + strings.Repeat("5", 64),
 		},
 	}
 	attestations := []ToolchainAttestation{
@@ -87,11 +87,11 @@ func TestEvaluateToolchainPolicyFailsClosedOnImageMissingOrMismatch(t *testing.T
 		PolicyRef:         "KTP1-fedcba9876543210fedcba9876543210",
 		WorkerImageDigest: image,
 		RequiredTools: map[string]string{
-			"anchor": hash,
-			"cargo": hash,
+			"anchor":  hash,
+			"cargo":   hash,
 			"litesvm": hash,
-			"rustc": hash,
-			"solana": hash,
+			"rustc":   hash,
+			"solana":  hash,
 		},
 	}
 	attestations := []ToolchainAttestation{
@@ -117,11 +117,11 @@ func TestEvaluateToolchainPolicyUsesLatestAttestation(t *testing.T) {
 	policy := ToolchainPolicy{
 		WorkerImageDigest: image,
 		RequiredTools: map[string]string{
-			"anchor": hash,
-			"cargo": hash,
+			"anchor":  hash,
+			"cargo":   hash,
 			"litesvm": hash,
-			"rustc": hash,
-			"solana": hash,
+			"rustc":   hash,
+			"solana":  hash,
 		},
 	}
 	attestations := []ToolchainAttestation{}

@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	canonicalPumpFunProgramID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
-	canonicalSPLTokenProgramID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	canonicalPumpFunProgramID   = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+	canonicalSPLTokenProgramID  = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 	canonicalToken2022ProgramID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 )
 
@@ -62,7 +62,7 @@ func (c *SolscanClient) DiscoverCreatedMints(ctx context.Context, wallet string)
 	wallet = strings.TrimSpace(wallet)
 	out := SolscanCreatedMintDiscovery{
 		Configured: c != nil && strings.TrimSpace(c.APIKey) != "",
-		Status: "not_configured", Provider: "solscan_enhanced_transactions",
+		Status:     "not_configured", Provider: "solscan_enhanced_transactions",
 		Wallet: wallet, Candidates: []ActorCreatedMintCandidate{}, ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
 	if wallet == "" {
@@ -303,13 +303,13 @@ func ActorCreatedMintCandidateEvidence(wallet, network string, candidates []Acto
 			CounterpartKind: "token", CounterpartID: candidate.Mint,
 			Relation: "created_token", VerificationStatus: status,
 			EvidenceKey: "created_mint:" + key + ":" + candidate.Mint,
-			Source: source, Signature: candidate.Signature, Slot: candidate.Slot,
+			Source:      source, Signature: candidate.Signature, Slot: candidate.Slot,
 			ObservedAt: observedAt, TokenMint: candidate.Mint, OccurrenceCount: 1,
 			Metadata: map[string]any{
 				"actor_role": "creator_deployer", "source_wallet": wallet,
 				"destination_wallet": candidate.Mint, "program": candidate.Program,
 				"instruction_type": candidate.InstructionType, "actor_signed": candidate.ActorSigned,
-				"external_discovery": status != "verified",
+				"external_discovery":           status != "verified",
 				"identity_or_wrongdoing_claim": false, "persistent_actor_index": true,
 			},
 		})

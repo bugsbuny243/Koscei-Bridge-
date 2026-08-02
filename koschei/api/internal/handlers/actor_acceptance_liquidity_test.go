@@ -4,10 +4,10 @@ import "testing"
 
 func TestActorAcceptanceLiquidityActionRecognizesExplicitAddAndRemove(t *testing.T) {
 	cases := map[string]string{
-		"addLiquidity": "add",
+		"addLiquidity":          "add",
 		"increase_liquidity_v2": "add",
-		"depositAllTokenTypes": "add",
-		"removeLiquidity": "remove",
+		"depositAllTokenTypes":  "add",
+		"removeLiquidity":       "remove",
 		"decrease_liquidity_v2": "remove",
 		"withdrawAllTokenTypes": "remove",
 	}
@@ -41,7 +41,7 @@ func TestActorAcceptanceParsedLiquidityLineRequiresPoolAndProgram(t *testing.T) 
 
 	withoutPool := map[string]any{
 		"programId": "raydium-program",
-		"parsed": map[string]any{"type": "increaseLiquidityV2", "info": map[string]any{"authority": "creator-wallet"}},
+		"parsed":    map[string]any{"type": "increaseLiquidityV2", "info": map[string]any{"authority": "creator-wallet"}},
 	}
 	if _, ok := actorAcceptanceParsedLiquidityLine(withoutPool, "creator-wallet"); ok {
 		t.Fatal("instruction without explicit pool must fail closed")
@@ -61,7 +61,7 @@ func TestActorAcceptanceParsedLiquidityLineRejectsDifferentAuthority(t *testing.
 		"parsed": map[string]any{
 			"type": "decreaseLiquidity",
 			"info": map[string]any{
-				"pool": "pool-wallet",
+				"pool":          "pool-wallet",
 				"positionOwner": "other-wallet",
 			},
 		},

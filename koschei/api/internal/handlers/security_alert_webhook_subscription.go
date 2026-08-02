@@ -18,8 +18,8 @@ type securityAlertWebhookSubscriptionRequest struct {
 }
 
 var supportedSecurityAlertEvents = map[string]bool{
-	alerts.EventSecurityAlertCreated:      true,
-	alerts.EventARVISVerdictCreated:       true,
+	alerts.EventSecurityAlertCreated:     true,
+	alerts.EventARVISVerdictCreated:      true,
 	alerts.EventTransactionGuardDecision: true,
 }
 

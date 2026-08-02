@@ -45,9 +45,9 @@ func TestHardenUnifiedDominantExitRequiresCompleteEvidenceLine(t *testing.T) {
 			RuleID: UnifiedRuleDominantHolderFirstExit, Title: "Dominant holder exit",
 			EvidenceStatus: "verified", Triggered: true, GradeEffect: "compounding_input",
 			Scope: "earliest_verified_exit_in_bounded_window", Summary: "exit",
-			Metrics: map[string]any{"slot": int64(99), "amount": 1000.0},
+			Metrics:      map[string]any{"slot": int64(99), "amount": 1000.0},
 			EvidenceKeys: []string{"dominant-holder-exit:sig-one"},
-			Signatures: []string{"sig-one"}, ObservedAt: now,
+			Signatures:   []string{"sig-one"}, ObservedAt: now,
 		}},
 	}
 	cluster := HolderClusterAnalysis{Wallets: []HolderClusterWallet{{

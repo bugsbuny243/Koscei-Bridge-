@@ -20,13 +20,13 @@ import (
 )
 
 const (
-	maxSourceArchiveBytes      = 8 * 1024 * 1024
-	maxSourceArchiveExpanded   = 20 * 1024 * 1024
-	maxSourceFileBytes         = 256 * 1024
-	maxSourceBundleBytes       = 700 * 1024
-	maxSourceBundleJSONBytes   = 850 * 1024
-	maxSourceArchiveFileCount  = 1200
-	maxSourceBundleFileCount   = 350
+	maxSourceArchiveBytes     = 8 * 1024 * 1024
+	maxSourceArchiveExpanded  = 20 * 1024 * 1024
+	maxSourceFileBytes        = 256 * 1024
+	maxSourceBundleBytes      = 700 * 1024
+	maxSourceBundleJSONBytes  = 850 * 1024
+	maxSourceArchiveFileCount = 1200
+	maxSourceBundleFileCount  = 350
 )
 
 var githubCommitPattern = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
@@ -44,24 +44,24 @@ type SourceImportInput struct {
 }
 
 type SourceImportRecord struct {
-	ImportRef        string    `json:"import_ref"`
-	ProgramID        string    `json:"program_id"`
-	Network          string    `json:"network"`
-	RepositoryURL    string    `json:"repository_url"`
-	RepositoryOwner  string    `json:"repository_owner"`
-	RepositoryName   string    `json:"repository_name"`
-	CommitSHA        string    `json:"commit_sha"`
-	ArchiveHash      string    `json:"archive_hash"`
-	SourceArtifactRef string   `json:"source_artifact_ref"`
-	FileCount        int       `json:"file_count"`
-	SourceBytes      int       `json:"source_bytes"`
-	SkippedFiles     int       `json:"skipped_files"`
-	Status           string    `json:"status"`
-	EvidenceRefs     []string  `json:"evidence_refs"`
-	Limitations      []string  `json:"limitations"`
-	ImportHash       string    `json:"import_hash"`
-	VerdictAuthority bool      `json:"verdict_authority"`
-	CreatedAt        time.Time `json:"created_at"`
+	ImportRef         string    `json:"import_ref"`
+	ProgramID         string    `json:"program_id"`
+	Network           string    `json:"network"`
+	RepositoryURL     string    `json:"repository_url"`
+	RepositoryOwner   string    `json:"repository_owner"`
+	RepositoryName    string    `json:"repository_name"`
+	CommitSHA         string    `json:"commit_sha"`
+	ArchiveHash       string    `json:"archive_hash"`
+	SourceArtifactRef string    `json:"source_artifact_ref"`
+	FileCount         int       `json:"file_count"`
+	SourceBytes       int       `json:"source_bytes"`
+	SkippedFiles      int       `json:"skipped_files"`
+	Status            string    `json:"status"`
+	EvidenceRefs      []string  `json:"evidence_refs"`
+	Limitations       []string  `json:"limitations"`
+	ImportHash        string    `json:"import_hash"`
+	VerdictAuthority  bool      `json:"verdict_authority"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type fetchedSourceArchive struct {
@@ -110,25 +110,25 @@ func ImportSourceRepository(ctx context.Context, db *sql.DB, client SourceImport
 		return SourceImportRecord{}, err
 	}
 	artifact, err := StoreArtifact(ctx, db, ArtifactInput{
-		ProgramID: input.ProgramID,
-		Network: input.Network,
-		ArtifactType: "source_bundle",
-		SourceURI: fetched.RepositoryURL,
-		SourceCommit: fetched.CommitSHA,
+		ProgramID:       input.ProgramID,
+		Network:         input.Network,
+		ArtifactType:    "source_bundle",
+		SourceURI:       fetched.RepositoryURL,
+		SourceCommit:    fetched.CommitSHA,
 		ContentEncoding: "json",
-		Content: string(fetched.BundleJSON),
+		Content:         string(fetched.BundleJSON),
 		Metadata: map[string]any{
-			"import_source": "public_github_commit_archive",
+			"import_source":    "public_github_commit_archive",
 			"repository_owner": fetched.RepositoryOwner,
-			"repository_name": fetched.RepositoryName,
-			"archive_sha256": fetched.ArchiveHash,
-			"file_count": fetched.FileCount,
-			"source_bytes": fetched.SourceBytes,
-			"skipped_files": fetched.SkippedFiles,
+			"repository_name":  fetched.RepositoryName,
+			"archive_sha256":   fetched.ArchiveHash,
+			"file_count":       fetched.FileCount,
+			"source_bytes":     fetched.SourceBytes,
+			"skipped_files":    fetched.SkippedFiles,
 		},
 		TrustLevel: "observed",
-		Verified: false,
-		CreatedBy: "owner",
+		Verified:   false,
+		CreatedBy:  "owner",
 	})
 	if err != nil {
 		return SourceImportRecord{}, err
@@ -144,14 +144,14 @@ func ImportSourceRepository(ctx context.Context, db *sql.DB, client SourceImport
 	evidence = uniqueStrings(evidence)
 	limitations = uniqueStrings(limitations)
 	payload := map[string]any{
-		"program_id": strings.TrimSpace(input.ProgramID),
-		"network": normalizedNetwork(input.Network),
-		"repository_url": fetched.RepositoryURL,
-		"commit_sha": fetched.CommitSHA,
-		"archive_hash": fetched.ArchiveHash,
+		"program_id":          strings.TrimSpace(input.ProgramID),
+		"network":             normalizedNetwork(input.Network),
+		"repository_url":      fetched.RepositoryURL,
+		"commit_sha":          fetched.CommitSHA,
+		"archive_hash":        fetched.ArchiveHash,
 		"source_artifact_ref": artifact.ArtifactRef,
-		"file_count": fetched.FileCount,
-		"source_bytes": fetched.SourceBytes,
+		"file_count":          fetched.FileCount,
+		"source_bytes":        fetched.SourceBytes,
 	}
 	importHash := hashJSON(payload)
 	importRef := prefixedID("KSI1-", payload)

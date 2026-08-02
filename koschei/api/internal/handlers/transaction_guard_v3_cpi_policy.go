@@ -32,7 +32,7 @@ func resolveTransactionGuardV3CPIFlow(
 			flow.Limitations = append(flow.Limitations, "Token-vault controller accounts could not be resolved; no protocol intermediary was treated as verified.")
 			findings = append(findings, transactionFirewallFinding{
 				Code: "cpi_controller_evidence_unavailable", Severity: "high",
-				Title: "CPI token-vault controller evidence is unavailable",
+				Title:    "CPI token-vault controller evidence is unavailable",
 				Evidence: compactGuardV3Evidence(err.Error()), Score: 0,
 			})
 		} else {
@@ -166,7 +166,7 @@ func refineTransactionGuardV3CPIProgramPolicy(
 			"A declared program moved wallet tokens to "+destination+", but the destination controller could not be verified as that program's PDA/vault.")
 		out = append(out, transactionFirewallFinding{
 			Code: "cpi_protocol_intermediary_unverified_" + guardV3CompactAddressHash(destination), Severity: "high",
-			Title: "Declared program intermediary could not be verified",
+			Title:    "Declared program intermediary could not be verified",
 			Evidence: compactGuardV3Evidence(fmt.Sprintf("destination=%s; safe decision withheld until controller ownership is verified", destination)), Score: 0,
 		})
 	}

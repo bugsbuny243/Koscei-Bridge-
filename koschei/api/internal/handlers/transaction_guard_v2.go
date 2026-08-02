@@ -237,7 +237,7 @@ func assessmentFromAccountSimulation(simulation services.SolanaSimulationAccount
 func unavailableGuardAssessment(err error) transactionFirewallAssessment {
 	return transactionFirewallAssessment{
 		Action: "withhold", RiskLevel: "unknown", RiskIndex: 0,
-		Summary: "Simulation provider is unavailable; Transaction Guard withheld a decision.",
+		Summary:  "Simulation provider is unavailable; Transaction Guard withheld a decision.",
 		Findings: []transactionFirewallFinding{}, ProgramIDs: []string{}, Logs: []string{}, SimulationOK: false,
 		SimulationErr: map[string]any{"code": "rpc_unavailable", "message": publicFirewallError(err.Error())},
 	}

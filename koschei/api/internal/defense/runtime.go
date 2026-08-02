@@ -60,10 +60,10 @@ func RunShadow(target, network string, source map[string]any, now time.Time) Run
 		"allowed_scope":          "existing_unified_investigation_only",
 	}
 	toolOutput := map[string]any{
-		"program_ids":             programIDs,
-		"program_count":           len(programIDs),
-		"source_artifact_status":  "not_attached",
-		"idl_artifact_status":     "not_attached",
+		"program_ids":              programIDs,
+		"program_count":            len(programIDs),
+		"source_artifact_status":   "not_attached",
+		"idl_artifact_status":      "not_attached",
 		"bytecode_artifact_status": "not_attached",
 	}
 	toolStatus := ToolObserved
@@ -101,22 +101,22 @@ func RunShadow(target, network string, source map[string]any, now time.Time) Run
 	agents := []AgentRun{
 		{
 			Role: RoleProgramArchaeologist, Status: programStatus,
-			Objective: "Resolve the program surface behind the target and establish which source, IDL or bytecode artifacts are missing.",
+			Objective:  "Resolve the program surface behind the target and establish which source, IDL or bytecode artifacts are missing.",
 			ToolRunIDs: []string{toolRunID}, EvidenceIDs: append([]string{}, evidenceIDs...),
 			Limitations: append([]string{}, programLimitations...), VerdictAuthority: false,
 		},
 		{
 			Role: RoleStaticAnalyzer, Status: RuntimeEvidencePending,
-			Objective: "Analyze Solana and Anchor account validation, PDA, CPI, authority and arithmetic surfaces.",
+			Objective:  "Analyze Solana and Anchor account validation, PDA, CPI, authority and arithmetic surfaces.",
 			ToolRunIDs: []string{}, EvidenceIDs: []string{},
-			Limitations: []string{"Static detectors are blocked until a verified source, IDL or bytecode artifact is attached."},
+			Limitations:      []string{"Static detectors are blocked until a verified source, IDL or bytecode artifact is attached."},
 			VerdictAuthority: false,
 		},
 		{
 			Role: RoleReproductionAgent, Status: RuntimeBlocked,
-			Objective: "Prepare a local-SVM reproduction plan for a verified and reachable program-security finding.",
+			Objective:  "Prepare a local-SVM reproduction plan for a verified and reachable program-security finding.",
 			ToolRunIDs: []string{}, EvidenceIDs: []string{},
-			Limitations: []string{"No verified program-security finding exists yet; reproduction cannot start.", "Mainnet execution is prohibited."},
+			Limitations:      []string{"No verified program-security finding exists yet; reproduction cannot start.", "Mainnet execution is prohibited."},
 			VerdictAuthority: false,
 		},
 	}

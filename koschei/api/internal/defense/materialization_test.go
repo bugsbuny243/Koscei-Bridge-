@@ -68,7 +68,7 @@ func TestNormalizeHarnessBundleRejectsMissingLockAndMutableDependencies(t *testi
 	profile := HarnessExecutionProfile{ProfileRef: "KHEP1-0123456789abcdef0123456789abcdef", ProfileHash: "sha256:" + strings.Repeat("a", 64), ProgramID: "Demo1111111111111111111111111111111111111", Network: "solana-mainnet", Engine: HarnessEngineLiteSVM, CommandPolicy: harnessCommandPolicy(HarnessEngineLiteSVM)}
 	source := Artifact{ArtifactRef: "KDA1-0123456789abcdef0123456789abcdef", ContentHash: "sha256:" + strings.Repeat("b", 64)}
 	withoutLock := map[string]string{
-		"Cargo.toml": validLiteSVMCargoManifest(),
+		"Cargo.toml":         validLiteSVMCargoManifest(),
 		"tests/invariant.rs": "#[test]\nfn invariant() {}\n",
 	}
 	if _, _, _, _, err := normalizeHarnessBundle(withoutLock, profile, source); err == nil || !strings.Contains(err.Error(), "Cargo.lock") {
@@ -121,9 +121,9 @@ func createMaterializationProfileFixture(t *testing.T, ctx context.Context, db *
 	}
 	idlRaw, _ := json.Marshal(map[string]any{
 		"instructions": []any{map[string]any{
-			"name": "withdraw",
+			"name":     "withdraw",
 			"accounts": []any{map[string]any{"name": "authority", "signer": true}},
-			"args": []any{},
+			"args":     []any{},
 		}},
 	})
 	idl, err := StoreArtifact(ctx, db, ArtifactInput{
@@ -138,8 +138,8 @@ func createMaterializationProfileFixture(t *testing.T, ctx context.Context, db *
 		t.Fatal(err)
 	}
 	harnessRaw, _ := json.Marshal(map[string]string{
-		"Cargo.toml": cargoManifest,
-		"Cargo.lock": cargoLock,
+		"Cargo.toml":         cargoManifest,
+		"Cargo.lock":         cargoLock,
 		"tests/invariant.rs": testSource,
 	})
 	harnessArtifact, err := StoreArtifact(ctx, db, ArtifactInput{
@@ -158,11 +158,11 @@ func createMaterializationProfileFixture(t *testing.T, ctx context.Context, db *
 		}
 	}
 	profile, err := CreateHarnessExecutionProfile(ctx, db, HarnessExecutionProfileInput{
-		PlanRef: plan.PlanRef,
-		HarnessArtifactRef: harnessArtifact.ArtifactRef,
-		Engine: HarnessEngineLiteSVM,
-		WorkerID: workerID,
-		WorkerImageDigest: imageDigest,
+		PlanRef:             plan.PlanRef,
+		HarnessArtifactRef:  harnessArtifact.ArtifactRef,
+		Engine:              HarnessEngineLiteSVM,
+		WorkerID:            workerID,
+		WorkerImageDigest:   imageDigest,
 		ConfirmedInvariants: []ConfirmedHarnessInvariant{{TemplateID: plan.InvariantTemplates[0].TemplateID, Statement: "Confirmed inputs must not panic."}},
 	})
 	if err != nil {

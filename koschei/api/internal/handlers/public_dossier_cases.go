@@ -82,14 +82,14 @@ func (h *Handler) PublicDossierCases(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=60")
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
+		"ok":           true,
 		"generated_at": time.Now().UTC(),
-		"count": len(cases),
+		"count":        len(cases),
 		"publication_policy": map[string]any{
-			"explicit_owner_publish_required": true,
+			"explicit_owner_publish_required":          true,
 			"private_customer_investigations_excluded": true,
-			"identity_or_wrongdoing_claim": false,
-			"immutable_source_bundle": true,
+			"identity_or_wrongdoing_claim":             false,
+			"immutable_source_bundle":                  true,
 		},
 		"cases": cases,
 	})
@@ -134,9 +134,9 @@ func (h *Handler) PublicSOCFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=10, stale-while-revalidate=30")
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
-		"status": "operational",
-		"generated_at": time.Now().UTC(),
+		"ok":              true,
+		"status":          "operational",
+		"generated_at":    time.Now().UTC(),
 		"refresh_seconds": 15,
 		"summary": map[string]any{
 			"published_cases": len(cases), "featured_cases": featured,
@@ -269,7 +269,7 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 	item := buildPublicDossierCase(bundle, input.PublicTitle, input.PublicSummary, input.Featured, publishedAt, input.RedactionProfile)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "status": input.Status, "action": action,
-		"case": item,
+		"case":                        item,
 		"immutable_dossier_unchanged": true,
 	})
 }
@@ -347,15 +347,15 @@ func buildPublicDossierCase(bundle dossierBundle, title, summary string, feature
 		ProducedAt: bundle.ProducedAt.UTC(), DossierVersion: bundle.DossierVersion,
 		BundleHash: bundle.BundleHash, TargetKind: targetKind, TargetID: targetID,
 		TargetDisplay: maskPublicDossierTarget(targetID), Network: network,
-		VerdictGrade: firstPublicDossierString(dossierString(verdict["grade"]), dossierString(verdict["letter_grade"]), dossierString(verdict["verdict_grade"])),
-		VerdictStatus: firstPublicDossierString(dossierString(verdict["status"]), dossierString(verdict["decision"]), dossierString(verdict["state"])),
+		VerdictGrade:   firstPublicDossierString(dossierString(verdict["grade"]), dossierString(verdict["letter_grade"]), dossierString(verdict["verdict_grade"])),
+		VerdictStatus:  firstPublicDossierString(dossierString(verdict["status"]), dossierString(verdict["decision"]), dossierString(verdict["state"])),
 		RulesetVersion: firstPublicDossierString(dossierString(verdict["ruleset_version"]), dossierString(technical["ruleset_version"])),
-		EvidenceRows: len(rows), VerifiedRows: verified, ObservedRows: observed, InferredRows: inferred, UnknownRows: unknown,
-		AcceptancePass: publicDossierInt(acceptance["pass_count"]),
-		AcceptanceFail: publicDossierInt(acceptance["fail_count"]),
-		AcceptanceNotInvestigated: publicDossierInt(acceptance["not_investigated_count"]),
-		CreatedTokenHistoryCount: len(dossierSlice(bundle.CreatedTokenHistory)),
-		RedactionProfile: profile,
+		EvidenceRows:   len(rows), VerifiedRows: verified, ObservedRows: observed, InferredRows: inferred, UnknownRows: unknown,
+		AcceptancePass:              publicDossierInt(acceptance["pass_count"]),
+		AcceptanceFail:              publicDossierInt(acceptance["fail_count"]),
+		AcceptanceNotInvestigated:   publicDossierInt(acceptance["not_investigated_count"]),
+		CreatedTokenHistoryCount:    len(dossierSlice(bundle.CreatedTokenHistory)),
+		RedactionProfile:            profile,
 		IndependentVerificationPath: "node oss/verifier/typescript/verify-dossier.mjs ./dossier.json",
 	}
 }

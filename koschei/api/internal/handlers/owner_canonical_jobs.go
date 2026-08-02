@@ -79,7 +79,7 @@ func (h *Handler) OwnerCreateCanonicalInvestigationJob(w http.ResponseWriter, r 
 		"ok": true, "created": created, "job": canonicalOwnerJobResponse(job),
 		"target": target, "resolved_target": resolvedTarget,
 		"target_classification": classification,
-		"poll_url": "/api/owner/radar/jobs/" + job.ID,
+		"poll_url":              "/api/owner/radar/jobs/" + job.ID,
 	})
 }
 
@@ -103,14 +103,14 @@ func (h *Handler) OwnerGetCanonicalInvestigationJob(w http.ResponseWriter, r *ht
 
 func canonicalOwnerJobResponse(job jobs.Job) map[string]any {
 	out := map[string]any{
-		"id": job.ID,
-		"job_type": job.Type,
-		"status": job.Status,
-		"network": job.Network,
-		"target": job.Target,
-		"progress": job.Progress,
-		"attempts": job.Attempts,
-		"queued_at": job.QueuedAt,
+		"id":         job.ID,
+		"job_type":   job.Type,
+		"status":     job.Status,
+		"network":    job.Network,
+		"target":     job.Target,
+		"progress":   job.Progress,
+		"attempts":   job.Attempts,
+		"queued_at":  job.QueuedAt,
 		"updated_at": job.UpdatedAt,
 	}
 	if len(job.ResultPayload) > 0 && string(job.ResultPayload) != "null" {

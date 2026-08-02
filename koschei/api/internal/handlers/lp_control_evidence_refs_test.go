@@ -31,11 +31,19 @@ func TestApplyLPControlEvidenceReferencesCarriesMovementSignatureAndSlot(t *test
 }
 
 func containsString(values []string, target string) bool {
-	for _, value := range values { if value == target { return true } }
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
 	return false
 }
 
 func containsInt64(values []int64, target int64) bool {
-	for _, value := range values { if value == target { return true } }
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
 	return false
 }

@@ -10,18 +10,18 @@ import (
 )
 
 type ownerUnifiedRadarOverlay struct {
-	Mode             string                              `json:"mode"`
-	ManualOnly       bool                                `json:"manual_only"`
-	AutomaticScanning bool                               `json:"automatic_scanning"`
-	LegacyArmCount   int                                 `json:"legacy_arm_count"`
-	CreatorWallet    string                              `json:"creator_wallet,omitempty"`
-	ActorStatus      string                              `json:"actor_status"`
-	ActorDossier     any                                 `json:"actor_dossier"`
-	Behavior         services.UnifiedRadarBehaviorReport `json:"behavior_signals"`
-	FinalVerdict     services.UnifiedRadarVerdict        `json:"final_verdict"`
-	Narrative        string                              `json:"narrative"`
-	Limitations      []string                            `json:"limitations"`
-	GeneratedAt      time.Time                           `json:"generated_at"`
+	Mode              string                              `json:"mode"`
+	ManualOnly        bool                                `json:"manual_only"`
+	AutomaticScanning bool                                `json:"automatic_scanning"`
+	LegacyArmCount    int                                 `json:"legacy_arm_count"`
+	CreatorWallet     string                              `json:"creator_wallet,omitempty"`
+	ActorStatus       string                              `json:"actor_status"`
+	ActorDossier      any                                 `json:"actor_dossier"`
+	Behavior          services.UnifiedRadarBehaviorReport `json:"behavior_signals"`
+	FinalVerdict      services.UnifiedRadarVerdict        `json:"final_verdict"`
+	Narrative         string                              `json:"narrative"`
+	Limitations       []string                            `json:"limitations"`
+	GeneratedAt       time.Time                           `json:"generated_at"`
 }
 
 func (h *Handler) buildOwnerUnifiedRadarOverlay(ctx context.Context, target, network string, core holderIntelligenceCoreResult) ownerUnifiedRadarOverlay {
@@ -41,8 +41,8 @@ func (h *Handler) buildOwnerUnifiedRadarOverlay(ctx context.Context, target, net
 	actorEvidence := []services.ActorDefenseEvidenceRecord{}
 	actorDossier := any(map[string]any{
 		"available": false,
-		"status": "creator_or_database_unavailable",
-		"wallet": creator,
+		"status":    "creator_or_database_unavailable",
+		"wallet":    creator,
 	})
 	actorStatus := "unavailable"
 	limitations := []string{}
@@ -58,8 +58,8 @@ func (h *Handler) buildOwnerUnifiedRadarOverlay(ctx context.Context, target, net
 			actorStatus = "load_failed"
 			actorDossier = map[string]any{
 				"available": false,
-				"status": "persistent_actor_dossier_load_failed",
-				"wallet": creator,
+				"status":    "persistent_actor_dossier_load_failed",
+				"wallet":    creator,
 			}
 			limitations = append(limitations, "Persistent actor dossier could not be loaded: "+compactUnifiedOverlayError(err))
 		} else {
@@ -78,18 +78,18 @@ func (h *Handler) buildOwnerUnifiedRadarOverlay(ctx context.Context, target, net
 	actorVerdict := services.EvaluateActorDefenseRules(track, actorEvidence)
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(target, actorVerdict, behavior)
 	return ownerUnifiedRadarOverlay{
-		Mode: "single_manual_radar",
-		ManualOnly: true,
+		Mode:              "single_manual_radar",
+		ManualOnly:        true,
 		AutomaticScanning: false,
-		LegacyArmCount: 14,
-		CreatorWallet: creator,
-		ActorStatus: actorStatus,
-		ActorDossier: actorDossier,
-		Behavior: behavior,
-		FinalVerdict: unifiedVerdict,
-		Narrative: ownerUnifiedRadarNarrative(unifiedVerdict),
-		Limitations: limitations,
-		GeneratedAt: now,
+		LegacyArmCount:    14,
+		CreatorWallet:     creator,
+		ActorStatus:       actorStatus,
+		ActorDossier:      actorDossier,
+		Behavior:          behavior,
+		FinalVerdict:      unifiedVerdict,
+		Narrative:         ownerUnifiedRadarNarrative(unifiedVerdict),
+		Limitations:       limitations,
+		GeneratedAt:       now,
 	}
 }
 

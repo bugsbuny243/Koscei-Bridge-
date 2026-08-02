@@ -50,25 +50,25 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 				"target": bundle.Target, "verdict": bundle.Verdict,
 			})},
 			{Title: "2 · Ten-item actor acceptance", Content: dossierPretty(map[string]any{
-				"acceptance": bundle.ActorAcceptance,
+				"acceptance":  bundle.ActorAcceptance,
 				"signal_rows": card["signal_rows"],
 				"limitations": sectionLimits["acceptance_items"],
 			})},
 			{Title: "3 · Actor profile and created-token history", Content: dossierPretty(map[string]any{
-				"actor": bundle.ActorDossier,
+				"actor":          bundle.ActorDossier,
 				"created_tokens": bundle.CreatedTokenHistory,
-				"limitations": sectionLimits["created_token_history"],
+				"limitations":    sectionLimits["created_token_history"],
 			})},
 			{Title: "4 · Funding origin", Content: dossierPretty(map[string]any{
 				"funding_origin": bundle.FundingOrigin,
-				"limitations": sectionLimits["funding_origin"],
+				"limitations":    sectionLimits["funding_origin"],
 			})},
 			{Title: "5 · Cross-token connections", Content: dossierPretty(map[string]any{
 				"connections": bundle.CrossTokenConnections,
 				"limitations": sectionLimits["cross_token_connections"],
 			})},
 			{Title: "6 · Full evidence log", Content: dossierPretty(map[string]any{
-				"evidence": bundle.EvidenceLog,
+				"evidence":    bundle.EvidenceLog,
 				"limitations": sectionLimits["evidence_log"],
 			})},
 			{Title: "7 · Independent verification", Content: dossierPretty(bundle.Verification)},

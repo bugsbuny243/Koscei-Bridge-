@@ -62,9 +62,9 @@ func TestVerifiedFinalArmCannotPromoteOffchainEvidenceToGrade(t *testing.T) {
 	req := SecurityRadarRequest{Target: "https://example.com/claim", Network: "solana-mainnet"}
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
 	claim := verifiedEvidenceArm("Claim Surface Risk", ModuleClaimSurfaceRisk, req, 44, map[string]any{
-		"verified_evidence": true,
+		"verified_evidence":      true,
 		"real_offchain_evidence": true,
-		"real_onchain_evidence": false,
+		"real_onchain_evidence":  false,
 	}, []string{"parsed URL"}, generatedAt)
 	final := buildVerifiedFinalArm(req, []SecurityRadarVerdict{claim}, generatedAt)
 	if final.Signed || final.RiskIndex != 0 || final.Grade != "-" {

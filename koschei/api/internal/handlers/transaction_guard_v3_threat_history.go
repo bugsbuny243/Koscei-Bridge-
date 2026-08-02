@@ -21,16 +21,16 @@ type transactionGuardThreatCandidate struct {
 }
 
 type transactionGuardThreatMatch struct {
-	ModuleID      string   `json:"module_id"`
-	TargetType    string   `json:"target_type,omitempty"`
-	RiskLevel     string   `json:"risk_level"`
-	RiskIndex     int      `json:"risk_index"`
-	Grade         string   `json:"grade,omitempty"`
-	Verdict       string   `json:"verdict,omitempty"`
-	Recommendation string  `json:"recommendation,omitempty"`
-	Source        string   `json:"source,omitempty"`
-	ObservedAt    string   `json:"observed_at"`
-	Evidence      []string `json:"evidence"`
+	ModuleID       string   `json:"module_id"`
+	TargetType     string   `json:"target_type,omitempty"`
+	RiskLevel      string   `json:"risk_level"`
+	RiskIndex      int      `json:"risk_index"`
+	Grade          string   `json:"grade,omitempty"`
+	Verdict        string   `json:"verdict,omitempty"`
+	Recommendation string   `json:"recommendation,omitempty"`
+	Source         string   `json:"source,omitempty"`
+	ObservedAt     string   `json:"observed_at"`
+	Evidence       []string `json:"evidence"`
 }
 
 type transactionGuardThreatSubject struct {
@@ -334,9 +334,9 @@ func transactionGuardThreatFinding(subject transactionGuardThreatSubject) (trans
 	}
 	return transactionFirewallFinding{
 		Code: "historical_risk_match_" + strings.ToLower(subject.Address), Severity: severity,
-		Title: "Signed historical risk verdict matched a transaction subject",
+		Title:    "Signed historical risk verdict matched a transaction subject",
 		Evidence: compactGuardV3Evidence(fmt.Sprintf("address=%s roles=%s risk=%s/%d verdicts=%d %s", subject.Address, strings.Join(subject.Roles, ","), level, subject.HighestRiskIndex, subject.SignedVerdictCount, detail)),
-		Score: score,
+		Score:    score,
 	}, true
 }
 
@@ -347,7 +347,7 @@ func transactionGuardThreatUnavailableFindings(required bool, evidence string) [
 	}
 	return []transactionFirewallFinding{{
 		Code: "transaction_threat_history_unavailable", Severity: severity,
-		Title: "Transaction subject threat history is unavailable",
+		Title:    "Transaction subject threat history is unavailable",
 		Evidence: compactGuardV3Evidence(evidence), Score: 0,
 	}}
 }

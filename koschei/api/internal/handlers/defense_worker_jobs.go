@@ -43,10 +43,10 @@ func (h *Handler) OwnerDefenseWorkerJobs(w http.ResponseWriter, r *http.Request)
 		if strings.EqualFold(strings.TrimSpace(request.Action), defense.WorkerActionRunLiteSVMHarness) &&
 			(!envBool("KOSCHEI_DEFENSE_HARNESS_EXECUTION_ENABLED", false) || !envBool("KOSCHEI_DEFENSE_LITESVM_EXECUTION_ENABLED", false)) {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-				"error": "defense_litesvm_execution_gate_disabled",
-				"web_executed": false,
+				"error":                    "defense_litesvm_execution_gate_disabled",
+				"web_executed":             false,
 				"mainnet_transaction_sent": false,
-				"verdict_authority": false,
+				"verdict_authority":        false,
 			})
 			return
 		}
@@ -56,16 +56,16 @@ func (h *Handler) OwnerDefenseWorkerJobs(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		writeJSON(w, http.StatusAccepted, map[string]any{
-			"ok": true,
-			"job": job,
-			"execution_service": "railway-defense-worker",
-			"web_executed": false,
-			"network_access": false,
-			"dependency_resolution": false,
+			"ok":                       true,
+			"job":                      job,
+			"execution_service":        "railway-defense-worker",
+			"web_executed":             false,
+			"network_access":           false,
+			"dependency_resolution":    false,
 			"wallet_material_accessed": false,
-			"mainnet_rpc_accessed": false,
+			"mainnet_rpc_accessed":     false,
 			"mainnet_transaction_sent": false,
-			"verdict_authority": false,
+			"verdict_authority":        false,
 		})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

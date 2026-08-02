@@ -7,14 +7,14 @@ import (
 
 func unavailableTransactionGuardV3AuthoritySurface() transactionGuardAuthoritySurfaceAnalysis {
 	return transactionGuardAuthoritySurfaceAnalysis{
-		Requested: true,
-		Required:  envBool("TRANSACTION_GUARD_REQUIRE_AUTHORITY_SURFACE", true),
-		Available: false,
-		Complete:  false,
-		Status:    "simulation_unavailable",
-		Events:    []transactionGuardAuthorityEvent{},
+		Requested:              true,
+		Required:               envBool("TRANSACTION_GUARD_REQUIRE_AUTHORITY_SURFACE", true),
+		Available:              false,
+		Complete:               false,
+		Status:                 "simulation_unavailable",
+		Events:                 []transactionGuardAuthorityEvent{},
 		TransferHookProgramIDs: []string{},
-		Limitations: []string{"Authority persistence evidence requires a decoded transaction and successful Solana simulation."},
+		Limitations:            []string{"Authority persistence evidence requires a decoded transaction and successful Solana simulation."},
 	}
 }
 

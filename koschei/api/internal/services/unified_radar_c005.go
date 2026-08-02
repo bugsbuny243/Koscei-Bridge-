@@ -40,7 +40,7 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 		Metrics: map[string]any{
 			"owner_resolved_top_share_pct": holder.TopOwnerPercentage,
 			"owner_aggregation_applied":    holder.OwnerAggregationApplied,
-			"risk_bearing_owner_resolved": topOwner != "",
+			"risk_bearing_owner_resolved":  topOwner != "",
 			"top_owner_wallet":             topOwner,
 		},
 		Thresholds: map[string]any{

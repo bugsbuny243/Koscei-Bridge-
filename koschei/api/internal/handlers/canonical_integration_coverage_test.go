@@ -16,7 +16,7 @@ func TestAttachCanonicalInvestigationDiagnosticsBuildsActorGraphAndCompleteCover
 	}
 	dossier := services.ActorDefenseDossier{
 		Wallet: "Creator111", Network: "solana-mainnet",
-		Tokens: []services.ActorDefenseTokenObservation{{Mint: "Mint111", Roles: []string{"creator_deployer"}, CreatorSignature: "CreateSig111"}},
+		Tokens:        []services.ActorDefenseTokenObservation{{Mint: "Mint111", Roles: []string{"creator_deployer"}, CreatorSignature: "CreateSig111"}},
 		RelatedActors: []services.ActorDefenseRelatedActor{},
 		Evidence: []services.ActorDefenseEvidenceRecord{{
 			Network: "solana-mainnet", ActorWallet: "Creator111",
@@ -27,18 +27,18 @@ func TestAttachCanonicalInvestigationDiagnosticsBuildsActorGraphAndCompleteCover
 		Coverage: map[string]any{"persisted_evidence": 1}, Policy: map[string]any{}, GeneratedAt: now,
 	}
 	report := map[string]any{
-		"modules": modules,
-		"holder_intelligence": map[string]any{"status": "evidence_backed", "available": true},
-		"holder_cluster": map[string]any{"status": "complete", "available": true},
-		"launch_forensics": map[string]any{"status": "observed", "available": true},
-		"lp_control": map[string]any{"status": "verified", "available": true},
-		"jupiter_market_context": map[string]any{"status": "complete", "available": true},
-		"threat_anticipation": map[string]any{"status": "complete", "findings": []any{"path observed"}},
-		"final_verdict": map[string]any{"signed": true, "signature": "UnifiedSig111", "ruleset_version": "rules-v1"},
+		"modules":                 modules,
+		"holder_intelligence":     map[string]any{"status": "evidence_backed", "available": true},
+		"holder_cluster":          map[string]any{"status": "complete", "available": true},
+		"launch_forensics":        map[string]any{"status": "observed", "available": true},
+		"lp_control":              map[string]any{"status": "verified", "available": true},
+		"jupiter_market_context":  map[string]any{"status": "complete", "available": true},
+		"threat_anticipation":     map[string]any{"status": "complete", "findings": []any{"path observed"}},
+		"final_verdict":           map[string]any{"signed": true, "signature": "UnifiedSig111", "ruleset_version": "rules-v1"},
 		"full_scan_live_evidence": map[string]any{"status": "complete", "transactions": []any{"tx"}},
-		"defense_agent_runtime": map[string]any{"status": "complete"},
+		"defense_agent_runtime":   map[string]any{"status": "complete"},
 		"actor_investigation": map[string]any{
-			"dossier": dossier,
+			"dossier":                  dossier,
 			"current_creator_relation": map[string]any{"status": "verified", "evidence": []any{"creator relation"}},
 			"external_discovery": map[string]any{
 				"status": "complete_persisted", "evidence_persisted": 1,
@@ -46,10 +46,10 @@ func TestAttachCanonicalInvestigationDiagnosticsBuildsActorGraphAndCompleteCover
 					"status": "verified", "candidates_verified": 1, "verified_evidence_persisted": 1,
 				},
 			},
-			"funding_origin": map[string]any{"status": "verified", "verification_status": "verified"},
-			"actor_live_evidence": map[string]any{"status": "complete", "evidence_persisted": 1},
+			"funding_origin":             map[string]any{"status": "verified", "verification_status": "verified"},
+			"actor_live_evidence":        map[string]any{"status": "complete", "evidence_persisted": 1},
 			"current_token_distribution": map[string]any{"status": "verified", "recipients": []any{"Recipient111"}},
-			"rule_verdict": map[string]any{"signed": true, "signature": "ActorSig111", "ruleset_version": "actor-rules-v1"},
+			"rule_verdict":               map[string]any{"signed": true, "signature": "ActorSig111", "ruleset_version": "actor-rules-v1"},
 		},
 	}
 
@@ -77,23 +77,23 @@ func TestCanonicalIntegrationCoverageBlocksLiveReportWhenCapabilityFallsOutOfPip
 		modules[index] = map[string]any{"module_id": fmt.Sprintf("module_%02d", index+1)}
 	}
 	report := map[string]any{
-		"modules": modules,
-		"holder_intelligence": map[string]any{"status": "complete", "available": true},
-		"holder_cluster": map[string]any{"status": "complete", "available": true},
-		"launch_forensics": map[string]any{"status": "complete", "available": true},
-		"lp_control": map[string]any{"status": "complete", "available": true},
-		"threat_anticipation": map[string]any{"status": "complete", "available": true},
-		"final_verdict": map[string]any{"signed": true, "signature": "UnifiedSig111", "ruleset_version": "rules-v1"},
+		"modules":                 modules,
+		"holder_intelligence":     map[string]any{"status": "complete", "available": true},
+		"holder_cluster":          map[string]any{"status": "complete", "available": true},
+		"launch_forensics":        map[string]any{"status": "complete", "available": true},
+		"lp_control":              map[string]any{"status": "complete", "available": true},
+		"threat_anticipation":     map[string]any{"status": "complete", "available": true},
+		"final_verdict":           map[string]any{"signed": true, "signature": "UnifiedSig111", "ruleset_version": "rules-v1"},
 		"full_scan_live_evidence": map[string]any{"status": "complete"},
 		"actor_investigation": map[string]any{
-			"dossier": services.ActorDefenseDossier{Wallet: "Creator111"},
+			"dossier":                  services.ActorDefenseDossier{Wallet: "Creator111"},
 			"current_creator_relation": map[string]any{"status": "verified"},
-			"external_discovery": map[string]any{"status": "complete_persisted"},
+			"external_discovery":       map[string]any{"status": "complete_persisted"},
 			// created_mint_portfolio is intentionally absent: this must be visible as an orphan.
-			"funding_origin": map[string]any{"status": "verified"},
-			"actor_live_evidence": map[string]any{"status": "complete"},
+			"funding_origin":             map[string]any{"status": "verified"},
+			"actor_live_evidence":        map[string]any{"status": "complete"},
 			"current_token_distribution": map[string]any{"status": "complete"},
-			"rule_verdict": map[string]any{"signed": true, "signature": "ActorSig111", "ruleset_version": "actor-rules-v1"},
+			"rule_verdict":               map[string]any{"signed": true, "signature": "ActorSig111", "ruleset_version": "actor-rules-v1"},
 		},
 	}
 	attachCanonicalInvestigationDiagnostics(report)
@@ -108,9 +108,9 @@ func TestCanonicalIntegrationCoverageBlocksLiveReportWhenCapabilityFallsOutOfPip
 
 func TestCanonicalIntegrationCoverageAllowsStoredProjectionToSkipLiveCollectors(t *testing.T) {
 	report := map[string]any{
-		"modules": []map[string]any{},
+		"modules":                 []map[string]any{},
 		"full_scan_live_evidence": map[string]any{"status": "not_requested"},
-		"actor_investigation": map[string]any{"dossier": services.ActorDefenseDossier{Wallet: "Creator111"}},
+		"actor_investigation":     map[string]any{"dossier": services.ActorDefenseDossier{Wallet: "Creator111"}},
 	}
 	attachCanonicalInvestigationDiagnostics(report)
 	coverage := report["capability_integration"].(canonicalIntegrationCoverage)

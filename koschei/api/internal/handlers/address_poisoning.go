@@ -143,20 +143,20 @@ func evaluateAddressPoisoning(wallet, candidate string, contacts []string, rpcEv
 		verdict = "No recent contact graph was available; verify the full recipient address out-of-band."
 	}
 	return map[string]any{
-		"ok": true,
-		"module": "Address Poisoning Shield",
-		"module_id": "address_poisoning_shield",
-		"wallet": wallet,
-		"candidate": candidate,
-		"risk_index": risk,
-		"risk_level": exposureRiskLevelFromScore(risk),
-		"policy": policy,
-		"verdict": verdict,
-		"matches": matches,
+		"ok":                     true,
+		"module":                 "Address Poisoning Shield",
+		"module_id":              "address_poisoning_shield",
+		"wallet":                 wallet,
+		"candidate":              candidate,
+		"risk_index":             risk,
+		"risk_level":             exposureRiskLevelFromScore(risk),
+		"policy":                 policy,
+		"verdict":                verdict,
+		"matches":                matches,
 		"observed_contact_count": len(contacts),
-		"rpc_evidence": rpcEvidence,
-		"evidence_policy": map[string]any{"no_evidence_no_claim": true, "safe_terms": []string{"lookalike risk", "possible address poisoning", "recipient verification required"}, "blocked_terms_without_proof": []string{"the wallet is hacked", "confirmed thief", "fraud"}},
-		"disclaimer": "Read-only recipient-risk analysis. This is not an accusation or financial advice.",
+		"rpc_evidence":           rpcEvidence,
+		"evidence_policy":        map[string]any{"no_evidence_no_claim": true, "safe_terms": []string{"lookalike risk", "possible address poisoning", "recipient verification required"}, "blocked_terms_without_proof": []string{"the wallet is hacked", "confirmed thief", "fraud"}},
+		"disclaimer":             "Read-only recipient-risk analysis. This is not an accusation or financial advice.",
 	}
 }
 

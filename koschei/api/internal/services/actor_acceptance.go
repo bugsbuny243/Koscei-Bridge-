@@ -322,8 +322,8 @@ func actorAcceptanceVerdict(verdict ActorDefenseRuleVerdict) ActorAcceptanceVerd
 	out := ActorAcceptanceVerdict{
 		Grade: verdict.Grade, Verdict: verdict.Verdict, RulesetVersion: verdict.RulesetVersion,
 		TriggeredRules: append([]ActorDefenseRuleHit{}, verdict.TriggeredRules...),
-		WatchFlags: append([]ActorDefenseRuleHit{}, verdict.WatchFlags...),
-		DecisionPath: append([]string{}, verdict.DecisionPath...), Signed: verdict.Signed, Signature: verdict.Signature,
+		WatchFlags:     append([]ActorDefenseRuleHit{}, verdict.WatchFlags...),
+		DecisionPath:   append([]string{}, verdict.DecisionPath...), Signed: verdict.Signed, Signature: verdict.Signature,
 	}
 	actorRuleSortHits(out.TriggeredRules)
 	actorRuleSortHits(out.WatchFlags)

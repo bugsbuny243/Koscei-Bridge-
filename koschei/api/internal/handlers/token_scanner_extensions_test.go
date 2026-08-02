@@ -10,7 +10,7 @@ func TestParseToken2022Extensions(t *testing.T) {
 		"extensions": []any{
 			map[string]any{
 				"extension": "permanentDelegate",
-				"state": map[string]any{"delegate": "Delegate11111111111111111111111111111111"},
+				"state":     map[string]any{"delegate": "Delegate11111111111111111111111111111111"},
 			},
 			map[string]any{
 				"extension": "transferFeeConfig",

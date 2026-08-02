@@ -22,7 +22,7 @@ func TestActorDefenseLiquidityEvidenceRequiresExplicitPoolAndProgram(t *testing.
 	missingPool := actorDefenseLiquidityEvidence(map[string]any{
 		"instructions": []any{map[string]any{
 			"programId": "RaydiumProgram111111111111111111111111111",
-			"parsed": map[string]any{"type": "removeLiquidity", "info": map[string]any{}},
+			"parsed":    map[string]any{"type": "removeLiquidity", "info": map[string]any{}},
 		}},
 	}, map[string]any{})
 	if !missingPool.Found || !missingPool.Parsed {
@@ -49,8 +49,8 @@ func TestActorDefenseLiquidityEvidenceDoesNotGuessPoolFromAccounts(t *testing.T)
 	line := actorDefenseLiquidityEvidence(map[string]any{
 		"instructions": []any{map[string]any{
 			"programId": "RaydiumProgram111111111111111111111111111",
-			"accounts": []any{"Actor111", "MaybePoolButUnknown111"},
-			"parsed": map[string]any{"type": "removeLiquidity", "info": map[string]any{}},
+			"accounts":  []any{"Actor111", "MaybePoolButUnknown111"},
+			"parsed":    map[string]any{"type": "removeLiquidity", "info": map[string]any{}},
 		}},
 	}, map[string]any{})
 	if line.PoolWallet != "" || line.Complete() {

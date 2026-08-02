@@ -12,7 +12,7 @@ func TestBuildTransactionGuardV3ExplanationSummarizesMovementsAndAuthorities(t *
 	decimals := 2
 	decoded := transactionGuardDecodedTransaction{
 		Available: true, Complete: true,
-		ProgramIDs: []string{"88888888888888888888888888888888"},
+		ProgramIDs:   []string{"88888888888888888888888888888888"},
 		SOLTransfers: []transactionGuardDecodedSOLTransfer{{Kind: "transfer", Source: wallet, Recipient: recipient, Lamports: "250000000"}},
 		TokenOperations: []transactionGuardDecodedTokenOperation{
 			{Kind: "transfer_checked", Source: tokenSource, Destination: tokenDestination, Mint: mint, Authority: wallet, AmountRaw: "500", Decimals: &decimals},

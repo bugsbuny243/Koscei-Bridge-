@@ -16,7 +16,9 @@ func TestUnifiedLiveEvidenceDeadlineKeepsPartialLimitation(t *testing.T) {
 	report := (&Handler{}).collectUnifiedTokenLiveEvidence(ctx, holderIntelligenceCoreResult{
 		Request: services.SecurityRadarRequest{Target: "Mint111"}, SourceContext: map[string]any{"creator_wallet": "Creator111"},
 	})
-	if report.Status != "partial_timeout" { t.Fatalf("status = %q, want partial_timeout", report.Status) }
+	if report.Status != "partial_timeout" {
+		t.Fatalf("status = %q, want partial_timeout", report.Status)
+	}
 	if len(report.Limitations) == 0 || !strings.Contains(report.Limitations[0], "ended before every wallet target completed") {
 		t.Fatalf("limitations = %#v", report.Limitations)
 	}
@@ -32,14 +34,14 @@ func unifiedLiveTestTransaction(wallet, counterparty, mint string, walletPre, wa
 	return services.SolanaTransactionResult{
 		"blockTime": float64(1_752_739_200),
 		"meta": map[string]any{
-			"err": nil,
-			"preTokenBalances": balances(walletPre, counterpartyPre),
+			"err":               nil,
+			"preTokenBalances":  balances(walletPre, counterpartyPre),
 			"postTokenBalances": balances(walletPost, counterpartyPost),
-			"logMessages": []any{"Program log: Instruction: " + instructionType},
+			"logMessages":       []any{"Program log: Instruction: " + instructionType},
 			"innerInstructions": []any{},
 		},
 		"transaction": map[string]any{"message": map[string]any{
-			"accountKeys": []any{map[string]any{"pubkey": wallet, "signer": true}},
+			"accountKeys":  []any{map[string]any{"pubkey": wallet, "signer": true}},
 			"instructions": []any{map[string]any{"parsed": map[string]any{"type": instructionType, "info": map[string]any{"mint": mint}}}},
 		}},
 	}
@@ -54,7 +56,9 @@ func TestParseUnifiedLiveTransactionClassifiesSell(t *testing.T) {
 	row, ok := parseUnifiedLiveTransaction(mint, unifiedLiveWalletTarget{Wallet: wallet, Role: "risk_bearing_holder"}, services.SolanaSignatureInfo{
 		Signature: "SigSell111", Slot: 123, BlockTime: &blockTime,
 	}, tx)
-	if !ok { t.Fatal("sell transaction was not returned") }
+	if !ok {
+		t.Fatal("sell transaction was not returned")
+	}
 	if row.Direction != "sell" || row.TokenDelta != -40 || !row.SwapRelated {
 		t.Fatalf("row=%#v", row)
 	}
@@ -71,7 +75,9 @@ func TestParseUnifiedLiveTransactionSeparatesTransferFromSell(t *testing.T) {
 	wallet := "Creator111"
 	tx := unifiedLiveTestTransaction(wallet, "Recipient111", mint, 25, 10, 0, 15, "transferChecked")
 	row, ok := parseUnifiedLiveTransaction(mint, unifiedLiveWalletTarget{Wallet: wallet, Role: "creator_source_observed"}, services.SolanaSignatureInfo{Signature: "SigTransfer111", Slot: 124}, tx)
-	if !ok { t.Fatal("transfer transaction was not returned") }
+	if !ok {
+		t.Fatal("transfer transaction was not returned")
+	}
 	if row.Direction != "transfer_out" || row.SwapRelated || row.TokenDelta != -15 {
 		t.Fatalf("row=%#v", row)
 	}
@@ -94,7 +100,9 @@ func TestUnifiedLiveWalletTargetsAreResolvedAndBounded(t *testing.T) {
 		{OwnerWallet: "Owner666", OwnerResolved: true, RiskBearing: true},
 	}}
 	targets := unifiedLiveWalletTargets(holder, "Creator111", unifiedLaunchSignerObservation{})
-	if len(targets) != 4 { t.Fatalf("targets=%#v", targets) }
+	if len(targets) != 4 {
+		t.Fatalf("targets=%#v", targets)
+	}
 	if targets[0].Role != "creator_source_observed" || targets[1].Wallet != "Owner222" || targets[3].Wallet != "Owner555" {
 		t.Fatalf("targets=%#v", targets)
 	}
@@ -102,10 +110,14 @@ func TestUnifiedLiveWalletTargetsAreResolvedAndBounded(t *testing.T) {
 
 func TestUnifiedLiveEvidenceModeBoundary(t *testing.T) {
 	for _, mode := range []string{"customer_token_scan", "manual_detail", "owner_unified_manual_scan"} {
-		if !unifiedLiveEvidenceAllowed(mode) { t.Fatalf("full mode %q disabled", mode) }
+		if !unifiedLiveEvidenceAllowed(mode) {
+			t.Fatalf("full mode %q disabled", mode)
+		}
 	}
 	for _, mode := range []string{"", "safe_check", "arvis_preflight", "stored_only_projection"} {
-		if unifiedLiveEvidenceAllowed(mode) { t.Fatalf("bounded mode %q enabled live evidence", mode) }
+		if unifiedLiveEvidenceAllowed(mode) {
+			t.Fatalf("bounded mode %q enabled live evidence", mode)
+		}
 	}
 }
 

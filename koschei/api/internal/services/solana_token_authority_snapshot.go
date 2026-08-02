@@ -8,15 +8,15 @@ import (
 const minimumTokenMintSize = 82
 
 type SolanaTokenAuthoritySnapshot struct {
-	Mint               [32]byte
-	Owner              [32]byte
-	Amount             uint64
-	State              uint8
-	HasDelegate        bool
-	Delegate           [32]byte
-	DelegatedAmount    uint64
-	HasCloseAuthority  bool
-	CloseAuthority     [32]byte
+	Mint              [32]byte
+	Owner             [32]byte
+	Amount            uint64
+	State             uint8
+	HasDelegate       bool
+	Delegate          [32]byte
+	DelegatedAmount   uint64
+	HasCloseAuthority bool
+	CloseAuthority    [32]byte
 }
 
 type SolanaMintAuthoritySnapshot struct {

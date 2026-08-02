@@ -4,9 +4,9 @@ import "testing"
 
 func TestClassifyActorDefenseEvidenceLabelsUnsignedInboundMicroSOL(t *testing.T) {
 	item := ActorDefenseEvidenceRecord{
-		Relation: "direct_sol_transfer_in",
+		Relation:     "direct_sol_transfer_in",
 		AmountNative: 0.000001,
-		Metadata: map[string]any{"actor_signed": false},
+		Metadata:     map[string]any{"actor_signed": false},
 	}
 	classification := ClassifyActorDefenseEvidence(item)
 	if !classification.PossibleDust || !classification.AddressPoisoningCandidate || classification.GradeEligible {
@@ -19,9 +19,9 @@ func TestClassifyActorDefenseEvidenceLabelsUnsignedInboundMicroSOL(t *testing.T)
 
 func TestClassifyActorDefenseEvidenceKeepsNormalTransferGradeEligible(t *testing.T) {
 	item := ActorDefenseEvidenceRecord{
-		Relation: "direct_sol_transfer_in",
+		Relation:     "direct_sol_transfer_in",
 		AmountNative: 0.000010001,
-		Metadata: map[string]any{"actor_signed": false},
+		Metadata:     map[string]any{"actor_signed": false},
 	}
 	classification := ClassifyActorDefenseEvidence(item)
 	if classification.PossibleDust || classification.AddressPoisoningCandidate || !classification.GradeEligible {
@@ -31,14 +31,14 @@ func TestClassifyActorDefenseEvidenceKeepsNormalTransferGradeEligible(t *testing
 
 func TestBuildActorDefenseEvidenceLinePublishesDustLabels(t *testing.T) {
 	item := ActorDefenseEvidenceRecord{
-		ActorWallet: "ActorWallet",
-		CounterpartID: "DustWallet",
-		Relation: "direct_sol_transfer_in",
+		ActorWallet:        "ActorWallet",
+		CounterpartID:      "DustWallet",
+		Relation:           "direct_sol_transfer_in",
 		VerificationStatus: "observed",
-		Signature: "sig-dust",
-		Slot: 1,
-		AmountNative: 0.00001,
-		Metadata: map[string]any{"actor_signed": false},
+		Signature:          "sig-dust",
+		Slot:               1,
+		AmountNative:       0.00001,
+		Metadata:           map[string]any{"actor_signed": false},
 	}
 	line := BuildActorDefenseEvidenceLine(item)
 	if !line.PossibleDust || !line.AddressPoisoningCandidate || line.GradeEligible {

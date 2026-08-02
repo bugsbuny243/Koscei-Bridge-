@@ -9,14 +9,14 @@ import (
 
 func TestCompareDeploymentSnapshotsDetectsCriticalBinaryAndAuthorityChanges(t *testing.T) {
 	previous := DeploymentSnapshot{
-		SnapshotRef: "KDS1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		LoaderID: UpgradeableLoaderID,
-		LoaderKind: "bpf_upgradeable_loader",
-		ProgramDataAddress: "ProgramDataA",
-		CanonicalBinaryHash: "sha256:" + repeatHex("a", 64),
-		UpgradeAuthority: "AuthorityA",
+		SnapshotRef:          "KDS1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		LoaderID:             UpgradeableLoaderID,
+		LoaderKind:           "bpf_upgradeable_loader",
+		ProgramDataAddress:   "ProgramDataA",
+		CanonicalBinaryHash:  "sha256:" + repeatHex("a", 64),
+		UpgradeAuthority:     "AuthorityA",
 		UpgradeAuthorityOpen: true,
-		MatchStatus: "matched_full_binary",
+		MatchStatus:          "matched_full_binary",
 	}
 	current := previous
 	current.SnapshotRef = "KDS1-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -86,13 +86,17 @@ func TestProgramMonitorUpsertAndDisable(t *testing.T) {
 
 func repeatHex(value string, count int) string {
 	out := ""
-	for i := 0; i < count; i++ { out += value }
+	for i := 0; i < count; i++ {
+		out += value
+	}
 	return out
 }
 
 func containsString(values []string, target string) bool {
 	for _, value := range values {
-		if value == target { return true }
+		if value == target {
+			return true
+		}
 	}
 	return false
 }

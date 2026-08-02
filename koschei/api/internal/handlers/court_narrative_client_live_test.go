@@ -63,12 +63,12 @@ func TestLiveCourtTogetherOpinionUsesStructuredEvidenceOutput(t *testing.T) {
 	defer server.Close()
 
 	client := &liveCourtClient{
-		httpClient: server.Client(),
-		togetherKey: "test-key",
-		togetherBaseURL: server.URL,
-		prosecutorLeadModel: "lead-model",
+		httpClient:              server.Client(),
+		togetherKey:             "test-key",
+		togetherBaseURL:         server.URL,
+		prosecutorLeadModel:     "lead-model",
 		prosecutorEvidenceModel: "evidence-model",
-		timeout: 2 * time.Second,
+		timeout:                 2 * time.Second,
 	}
 	opinion, err := client.ProsecutorOpinion(context.Background(), testLiveCourtInput(), "kimi-k2.6")
 	if err != nil {
@@ -110,19 +110,19 @@ func TestCourtPromptLocksVerdictAndNumericScorePolicy(t *testing.T) {
 
 func testLiveCourtInput() CourtReadOnlyInput {
 	verdict := services.UnifiedRadarVerdict{
-		Grade: "D",
-		Verdict: "verified_rule_triggered",
+		Grade:          "D",
+		Verdict:        "verified_rule_triggered",
 		RulesetVersion: services.UnifiedRadarRulesetVersion,
-		ActorRuleset: services.ActorDefenseRulesetVersion,
-		Signature: "signed-case-123456789",
-		Signed: true,
+		ActorRuleset:   services.ActorDefenseRulesetVersion,
+		Signature:      "signed-case-123456789",
+		Signed:         true,
 		TriggeredRules: []services.ActorDefenseRuleHit{{RuleID: "RULE-1", EvidenceStatus: "verified"}},
 	}
 	return CourtReadOnlyInput{
-		Target: "mint",
-		Network: "solana-mainnet",
-		SignedVerdict: verdict,
-		VerdictCard: map[string]any{"grade": verdict.Grade, "signature": verdict.Signature},
+		Target:         "mint",
+		Network:        "solana-mainnet",
+		SignedVerdict:  verdict,
+		VerdictCard:    map[string]any{"grade": verdict.Grade, "signature": verdict.Signature},
 		EvidencePacket: map[string]any{"evidence_ids": []string{"RULE-1"}},
 	}
 }

@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	raydiumCLMMProgram          = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"
-	raydiumCLMMLockAuthority    = "kN1kEznaF5Xbd8LYuqtEFcxzWSBk5Fv6ygX6SqEGJVy"
-	raydiumCLMMLockAccountSize  = 241
-	raydiumCLMMPositionSize     = 281
-	raydiumCLMMLockResultLimit  = 200
-	clmmSPLTokenProgram         = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-	clmmSPLToken2022Program     = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+	raydiumCLMMProgram         = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"
+	raydiumCLMMLockAuthority   = "kN1kEznaF5Xbd8LYuqtEFcxzWSBk5Fv6ygX6SqEGJVy"
+	raydiumCLMMLockAccountSize = 241
+	raydiumCLMMPositionSize    = 281
+	raydiumCLMMLockResultLimit = 200
+	clmmSPLTokenProgram        = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	clmmSPLToken2022Program    = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 )
 
 type raydiumCLMMLockCandidate struct {
@@ -108,10 +108,10 @@ func collectRaydiumCLMMLockedPositions(ctx context.Context, rpc solanaRPCCall, n
 	}
 	var response rpcProgramAccountsContextResponse
 	config := map[string]any{
-		"encoding":   "base64",
-		"commitment": "confirmed",
+		"encoding":    "base64",
+		"commitment":  "confirmed",
 		"withContext": true,
-		"dataSlice": map[string]any{"offset": 0, "length": 177},
+		"dataSlice":   map[string]any{"offset": 0, "length": 177},
 		"filters": []any{
 			map[string]any{"dataSize": raydiumCLMMLockAccountSize},
 			map[string]any{"memcmp": map[string]any{"offset": 41, "bytes": out.PoolAddress}},
@@ -157,14 +157,14 @@ func collectRaydiumCLMMLockedPositions(ctx context.Context, rpc solanaRPCCall, n
 			continue
 		}
 		candidate := raydiumCLMMLockCandidate{
-			LockAccount: strings.TrimSpace(entry.Pubkey),
-			PositionOwner: base58Encode(data[9:41]),
-			PoolID: base58Encode(data[41:73]),
-			PositionID: base58Encode(data[73:105]),
+			LockAccount:      strings.TrimSpace(entry.Pubkey),
+			PositionOwner:    base58Encode(data[9:41]),
+			PoolID:           base58Encode(data[41:73]),
+			PositionID:       base58Encode(data[73:105]),
 			LockedNFTAccount: base58Encode(data[105:137]),
-			FeeNFTMint: base58Encode(data[137:169]),
-			RecentEpoch: binary.LittleEndian.Uint64(data[169:177]),
-			ReadSlot: response.Context.Slot,
+			FeeNFTMint:       base58Encode(data[137:169]),
+			RecentEpoch:      binary.LittleEndian.Uint64(data[169:177]),
+			ReadSlot:         response.Context.Slot,
 		}
 		if candidate.LockAccount == "" || candidate.PoolID != out.PoolAddress || isDefaultSolanaAddress(candidate.PositionOwner) || isDefaultSolanaAddress(candidate.PositionID) || isDefaultSolanaAddress(candidate.LockedNFTAccount) || isDefaultSolanaAddress(candidate.FeeNFTMint) {
 			invalidLockRecords++
@@ -245,19 +245,19 @@ func collectRaydiumCLMMLockedPositions(ctx context.Context, rpc solanaRPCCall, n
 		}
 		out.LockedPositions = append(out.LockedPositions, services.CLMMLockedPositionEvidence{
 			LockedPositionAccount: candidate.LockAccount,
-			PositionOwner: candidate.PositionOwner,
-			PositionAccount: candidate.PositionID,
-			PositionNFTMint: positionNFTMint,
-			LockedNFTAccount: candidate.LockedNFTAccount,
-			CustodyAuthority: raydiumCLMMLockAuthority,
-			FeeNFTMint: candidate.FeeNFTMint,
-			TickLowerIndex: tickLower,
-			TickUpperIndex: tickUpper,
-			LiquidityRaw: liquidity.String(),
-			RecentEpoch: candidate.RecentEpoch,
-			ReadSlot: maxCLMMReadSlot(candidate.ReadSlot, positionAccount.ReadSlot, custodyAccount.ReadSlot),
-			VerificationStatus: "VERIFIED",
-			EvidenceKeys: evidenceKeys,
+			PositionOwner:         candidate.PositionOwner,
+			PositionAccount:       candidate.PositionID,
+			PositionNFTMint:       positionNFTMint,
+			LockedNFTAccount:      candidate.LockedNFTAccount,
+			CustodyAuthority:      raydiumCLMMLockAuthority,
+			FeeNFTMint:            candidate.FeeNFTMint,
+			TickLowerIndex:        tickLower,
+			TickUpperIndex:        tickUpper,
+			LiquidityRaw:          liquidity.String(),
+			RecentEpoch:           candidate.RecentEpoch,
+			ReadSlot:              maxCLMMReadSlot(candidate.ReadSlot, positionAccount.ReadSlot, custodyAccount.ReadSlot),
+			VerificationStatus:    "VERIFIED",
+			EvidenceKeys:          evidenceKeys,
 		})
 		out.EvidenceKeys = append(out.EvidenceKeys, evidenceKeys...)
 	}
@@ -332,8 +332,8 @@ func fetchCLMMAccountsInBatches(ctx context.Context, rpc solanaRPCCall, network 
 				continue
 			}
 			out[batch[index]] = clmmFetchedAccount{
-				Owner: strings.TrimSpace(account.Owner),
-				Data: account.Data,
+				Owner:    strings.TrimSpace(account.Owner),
+				Data:     account.Data,
 				ReadSlot: response.Context.Slot,
 			}
 		}

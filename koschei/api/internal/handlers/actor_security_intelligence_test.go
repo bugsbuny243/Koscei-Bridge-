@@ -13,21 +13,21 @@ func TestBuildActorSecurityIntelligenceBuildsVerifiedLinks(t *testing.T) {
 	funder := "Funder11111111111111111111111111111111"
 
 	source := map[string]any{
-		"creator_wallet": creator,
+		"creator_wallet":            creator,
 		"creator_relation_verified": true,
-		"source": "pumpportal",
-		"signature": "LaunchSig111",
+		"source":                    "pumpportal",
+		"signature":                 "LaunchSig111",
 	}
 	creatorIntel := map[string]any{
-		"creator_wallet": creator,
-		"recent_signatures_seen": 40,
+		"creator_wallet":              creator,
+		"recent_signatures_seen":      40,
 		"recent_transactions_checked": 8,
-		"previous_launch_count": 2,
-		"creator_is_top_holder": true,
-		"creator_holder_percentage": 4.2,
-		"observed_launches": []map[string]any{{"target": target, "signature": "LaunchSig111", "source": "pumpportal"}},
-		"funding_wallets": []map[string]any{{"wallet": funder, "amount": 12.5, "transactions": 1}},
-		"recipient_wallets": []map[string]any{{"wallet": holderWallet, "amount": 1000.0, "transactions": 1, "matches_top_holder": true, "holder_rank": 2, "holder_percentage": 4.2}},
+		"previous_launch_count":       2,
+		"creator_is_top_holder":       true,
+		"creator_holder_percentage":   4.2,
+		"observed_launches":           []map[string]any{{"target": target, "signature": "LaunchSig111", "source": "pumpportal"}},
+		"funding_wallets":             []map[string]any{{"wallet": funder, "amount": 12.5, "transactions": 1}},
+		"recipient_wallets":           []map[string]any{{"wallet": holderWallet, "amount": 1000.0, "transactions": 1, "matches_top_holder": true, "holder_rank": 2, "holder_percentage": 4.2}},
 	}
 	holder := services.HolderIntelligence{Rows: []services.HolderIntelligenceRow{{
 		Rank: 2, OwnerWallet: holderWallet, OwnerResolved: true, Role: "externally_owned_wallet",

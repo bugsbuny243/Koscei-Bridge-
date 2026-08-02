@@ -27,10 +27,10 @@ const (
 )
 
 var (
-	cspNonceAttributePattern = regexp.MustCompile(`(?is)\s+nonce\s*=`)
-	cspScriptSourcePattern = regexp.MustCompile(`(?is)\s+src\s*=`)
+	cspNonceAttributePattern  = regexp.MustCompile(`(?is)\s+nonce\s*=`)
+	cspScriptSourcePattern    = regexp.MustCompile(`(?is)\s+src\s*=`)
 	cspInlineAttributePattern = regexp.MustCompile(`(?is)\s+(on[a-z0-9_-]+|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+))`)
-	cspJavaScriptURLPattern = regexp.MustCompile(`(?is)\b(?:href|src|action|formaction)\s*=\s*(?:"\s*javascript:|'\s*javascript:|javascript:)`)
+	cspJavaScriptURLPattern   = regexp.MustCompile(`(?is)\b(?:href|src|action|formaction)\s*=\s*(?:"\s*javascript:|'\s*javascript:|javascript:)`)
 )
 
 type cspHTMLResponseWriter struct {

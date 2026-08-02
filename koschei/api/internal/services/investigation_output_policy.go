@@ -3,12 +3,12 @@ package services
 const InvestigationOutputPolicyVersion = "koschei-evidence-parity-v1"
 
 type InvestigationOutputPolicy struct {
-	Version             string   `json:"version"`
-	SameEvidenceEngine  bool     `json:"same_evidence_engine"`
-	SameTechnicalResult bool     `json:"same_technical_result"`
-	CallerTypeAffects   []string `json:"caller_type_affects"`
+	Version                 string   `json:"version"`
+	SameEvidenceEngine      bool     `json:"same_evidence_engine"`
+	SameTechnicalResult     bool     `json:"same_technical_result"`
+	CallerTypeAffects       []string `json:"caller_type_affects"`
 	CallerTypeDoesNotAffect []string `json:"caller_type_does_not_affect"`
-	Statement           string   `json:"statement"`
+	Statement               string   `json:"statement"`
 }
 
 // SharedInvestigationOutputPolicy is a product and API contract: caller type,

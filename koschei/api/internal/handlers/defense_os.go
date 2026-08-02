@@ -247,12 +247,12 @@ func (h *Handler) ownerDefensePatchPropose(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok":                       true,
-		"patch_ref":                ref,
-		"proposal":                 proposal,
+		"ok":                      true,
+		"patch_ref":               ref,
+		"proposal":                proposal,
 		"human_approval_required": true,
-		"verified":                 false,
-		"applied_to_production":    false,
+		"verified":                false,
+		"applied_to_production":   false,
 	})
 }
 
@@ -347,13 +347,13 @@ func (h *Handler) persistProofOfFix(r *http.Request, patchRef, findingRef string
 		evidence = append(evidence, "baseline_verification:"+before.String, "baseline_status:"+beforeStatus.String)
 	}
 	payload := map[string]any{
-		"program_id": verification.ProgramID,
+		"program_id":  verification.ProgramID,
 		"finding_ref": findingRef,
-		"patch_ref": patchRef,
-		"before": before.String,
-		"after": verification.VerificationRef,
-		"status": status,
-		"evidence": evidence,
+		"patch_ref":   patchRef,
+		"before":      before.String,
+		"after":       verification.VerificationRef,
+		"status":      status,
+		"evidence":    evidence,
 		"limitations": limitations,
 	}
 	hash := handlerHash(payload)
@@ -368,9 +368,9 @@ func (h *Handler) persistProofOfFix(r *http.Request, patchRef, findingRef string
 		return nil, err
 	}
 	return map[string]any{
-		"proof_ref": ref,
-		"status": status,
-		"proof_hash": hash,
+		"proof_ref":         ref,
+		"status":            status,
+		"proof_hash":        hash,
 		"verdict_authority": false,
 		"verified_eligible": false,
 	}, nil
@@ -411,11 +411,11 @@ func (h *Handler) ownerDefenseBenchmarkCreate(w http.ResponseWriter, r *http.Req
 		return
 	}
 	payload := map[string]any{
-		"name": input.BenchmarkName,
+		"name":     input.BenchmarkName,
 		"category": input.BenchmarkCategory,
 		"artifact": input.ArtifactRef,
 		"expected": input.ExpectedRules,
-		"absent": input.ExpectedAbsentRules,
+		"absent":   input.ExpectedAbsentRules,
 	}
 	ref := "KBC1-" + strings.TrimPrefix(handlerHash(payload), "sha256:")[:32]
 	expected, _ := json.Marshal(input.ExpectedRules)
@@ -461,10 +461,10 @@ func (h *Handler) ownerDefenseEvaluate(w http.ResponseWriter, r *http.Request, i
 		status = "passed"
 	}
 	resultPayload := map[string]any{
-		"case": input.BenchmarkCaseRef,
+		"case":     input.BenchmarkCaseRef,
 		"detector": defense.DetectorVersion,
 		"observed": observed,
-		"metrics": metrics,
+		"metrics":  metrics,
 	}
 	hash := handlerHash(resultPayload)
 	ref := "KEV1-" + strings.TrimPrefix(hash, "sha256:")[:32]
@@ -495,11 +495,11 @@ func (h *Handler) ownerDefenseEvaluate(w http.ResponseWriter, r *http.Request, i
 func (h *Handler) persistTrainingExample(r *http.Request, kind, programID string, input, output map[string]any, provenance []string, quality string) error {
 	payload := map[string]any{
 		"source_kind": kind,
-		"program_id": programID,
-		"input": input,
-		"output": output,
-		"provenance": provenance,
-		"quality": quality,
+		"program_id":  programID,
+		"input":       input,
+		"output":      output,
+		"provenance":  provenance,
+		"quality":     quality,
 	}
 	hash := handlerHash(payload)
 	ref := "KTE1-" + strings.TrimPrefix(hash, "sha256:")[:32]
@@ -535,22 +535,22 @@ func (h *Handler) ownerDefenseDatasetExport(w http.ResponseWriter, r *http.Reque
 		_ = json.Unmarshal(outputRaw, &output)
 		_ = json.Unmarshal(provenanceRaw, &provenance)
 		items = append(items, map[string]any{
-			"example_ref": ref,
-			"source_kind": kind,
-			"program_id": program,
-			"input": input,
-			"output": output,
+			"example_ref":     ref,
+			"source_kind":     kind,
+			"program_id":      program,
+			"input":           input,
+			"output":          output,
 			"provenance_refs": provenance,
-			"quality_status": quality,
-			"example_hash": hash,
-			"created_at": created,
+			"quality_status":  quality,
+			"example_hash":    hash,
+			"created_at":      created,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
+		"ok":             true,
 		"schema_version": "koschei-defense-training-export-v1",
-		"examples": items,
-		"count": len(items),
+		"examples":       items,
+		"count":          len(items),
 	})
 }
 

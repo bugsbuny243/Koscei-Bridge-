@@ -10,9 +10,9 @@ import (
 
 const (
 	maxTransactionGuardAccounts = 32
-	splTokenProgramID            = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-	token2022ProgramID           = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-	minimumTokenAccountSize      = 165
+	splTokenProgramID           = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	token2022ProgramID          = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+	minimumTokenAccountSize     = 165
 )
 
 type SolanaSimulationAccountsResult struct {

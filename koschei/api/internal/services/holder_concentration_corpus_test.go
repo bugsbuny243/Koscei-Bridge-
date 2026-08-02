@@ -7,10 +7,18 @@ import (
 
 func TestHolderConcentrationCorpusFiftyThousandFixture(t *testing.T) {
 	shares := make([]float64, 0, 50_000)
-	for i := 0; i < 45_000; i++ { shares = append(shares, 10) }
-	for i := 0; i < 2_500; i++ { shares = append(shares, 50) }
-	for i := 0; i < 1_500; i++ { shares = append(shares, 70) }
-	for i := 0; i < 1_000; i++ { shares = append(shares, 90) }
+	for i := 0; i < 45_000; i++ {
+		shares = append(shares, 10)
+	}
+	for i := 0; i < 2_500; i++ {
+		shares = append(shares, 50)
+	}
+	for i := 0; i < 1_500; i++ {
+		shares = append(shares, 70)
+	}
+	for i := 0; i < 1_000; i++ {
+		shares = append(shares, 90)
+	}
 
 	counts := BuildHolderConcentrationHistogram(shares, 1)
 	percentile, sampleCount, ok := HolderConcentrationTopPercentile(70, 1, counts)

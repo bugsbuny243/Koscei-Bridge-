@@ -13,25 +13,25 @@ import (
 // remains OBSERVED until the create transaction is re-read from the configured
 // Solana RPC provider and the creator is confirmed as a signer.
 type SolscanTokenMetadata struct {
-	Configured          bool            `json:"configured"`
-	Available           bool            `json:"available"`
-	Status              string          `json:"status"`
-	Provider            string          `json:"provider"`
-	Address             string          `json:"address"`
-	Name                string          `json:"name,omitempty"`
-	Symbol              string          `json:"symbol,omitempty"`
-	Creator             string          `json:"creator,omitempty"`
-	CreateTransaction   string          `json:"create_transaction,omitempty"`
-	CreatedTime         int64           `json:"created_time,omitempty"`
-	CreatedAt           time.Time       `json:"created_at,omitempty"`
-	FirstMintTransaction string         `json:"first_mint_transaction,omitempty"`
-	FirstMintTime       int64           `json:"first_mint_time,omitempty"`
-	FirstMintAt         time.Time       `json:"first_mint_at,omitempty"`
-	MintAuthority       string          `json:"mint_authority,omitempty"`
-	FreezeAuthority     string          `json:"freeze_authority,omitempty"`
-	OnchainExtensions   json.RawMessage `json:"onchain_extensions,omitempty"`
-	ObservedAt          time.Time       `json:"observed_at"`
-	Limitations         []string        `json:"limitations"`
+	Configured           bool            `json:"configured"`
+	Available            bool            `json:"available"`
+	Status               string          `json:"status"`
+	Provider             string          `json:"provider"`
+	Address              string          `json:"address"`
+	Name                 string          `json:"name,omitempty"`
+	Symbol               string          `json:"symbol,omitempty"`
+	Creator              string          `json:"creator,omitempty"`
+	CreateTransaction    string          `json:"create_transaction,omitempty"`
+	CreatedTime          int64           `json:"created_time,omitempty"`
+	CreatedAt            time.Time       `json:"created_at,omitempty"`
+	FirstMintTransaction string          `json:"first_mint_transaction,omitempty"`
+	FirstMintTime        int64           `json:"first_mint_time,omitempty"`
+	FirstMintAt          time.Time       `json:"first_mint_at,omitempty"`
+	MintAuthority        string          `json:"mint_authority,omitempty"`
+	FreezeAuthority      string          `json:"freeze_authority,omitempty"`
+	OnchainExtensions    json.RawMessage `json:"onchain_extensions,omitempty"`
+	ObservedAt           time.Time       `json:"observed_at"`
+	Limitations          []string        `json:"limitations"`
 }
 
 type solscanTokenMetaPayload struct {
@@ -56,7 +56,7 @@ func (c *SolscanClient) TokenMetadata(ctx context.Context, mint string) SolscanT
 	mint = strings.TrimSpace(mint)
 	out := SolscanTokenMetadata{
 		Configured: strings.TrimSpace(c.APIKey) != "",
-		Status: "not_configured", Provider: "solscan_pro_api_v2", Address: mint,
+		Status:     "not_configured", Provider: "solscan_pro_api_v2", Address: mint,
 		ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
 	if mint == "" {

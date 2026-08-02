@@ -22,7 +22,7 @@ func TestExtractActorCreatedMintCandidatesRequiresActorSigner(t *testing.T) {
 					"instructions": []any{
 						map[string]any{
 							"programId": canonicalSPLTokenProgramID,
-							"parsed": map[string]any{"type": "initializeMint2", "info": map[string]any{"mint": "Mint111"}},
+							"parsed":    map[string]any{"type": "initializeMint2", "info": map[string]any{"mint": "Mint111"}},
 						},
 					},
 				},
@@ -60,7 +60,7 @@ func TestExtractActorCreatedMintCandidatesFindsPumpAndToken2022(t *testing.T) {
 					"instructions": []any{
 						map[string]any{
 							"programId": canonicalToken2022ProgramID,
-							"parsed": map[string]any{"type": "initializeMint2", "info": map[string]any{"mint": "Token2022Mint111"}},
+							"parsed":    map[string]any{"type": "initializeMint2", "info": map[string]any{"mint": "Token2022Mint111"}},
 						},
 					},
 				},
@@ -112,7 +112,7 @@ func TestSolscanCreatedMintDiscoveryUsesEnhancedFiltersAndCursor(t *testing.T) {
 									"accountKeys": []any{map[string]any{"pubkey": "Actor111", "signer": true}},
 									"instructions": []any{map[string]any{
 										"programId": canonicalSPLTokenProgramID,
-										"parsed": map[string]any{"type": "initializeMint", "info": map[string]any{"mint": "Mint111"}},
+										"parsed":    map[string]any{"type": "initializeMint", "info": map[string]any{"mint": "Mint111"}},
 									}},
 								},
 							},

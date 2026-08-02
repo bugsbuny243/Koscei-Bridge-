@@ -11,17 +11,17 @@ import (
 )
 
 type actorAcceptanceEnrichmentCoverage struct {
-	Status               string   `json:"status"`
-	MintsDiscovered      int      `json:"mints_discovered"`
-	MintsAttempted       int      `json:"mints_attempted"`
-	MintsCompleted       int      `json:"mints_completed"`
-	RecipientsResolved   int      `json:"recipients_resolved"`
-	HolderComparisons    int      `json:"holder_comparisons"`
-	EvidencePersisted    int      `json:"evidence_persisted"`
-	PersistenceFailures  int      `json:"persistence_failures"`
-	MintLimit            int      `json:"mint_limit"`
-	TimeoutSeconds       int      `json:"timeout_seconds"`
-	Limitations          []string `json:"limitations"`
+	Status              string   `json:"status"`
+	MintsDiscovered     int      `json:"mints_discovered"`
+	MintsAttempted      int      `json:"mints_attempted"`
+	MintsCompleted      int      `json:"mints_completed"`
+	RecipientsResolved  int      `json:"recipients_resolved"`
+	HolderComparisons   int      `json:"holder_comparisons"`
+	EvidencePersisted   int      `json:"evidence_persisted"`
+	PersistenceFailures int      `json:"persistence_failures"`
+	MintLimit           int      `json:"mint_limit"`
+	TimeoutSeconds      int      `json:"timeout_seconds"`
+	Limitations         []string `json:"limitations"`
 }
 
 // collectActorAcceptanceDistribution runs the already-existing mint-specific

@@ -108,18 +108,18 @@ func ResolveAndPersistDeployment(ctx context.Context, db *sql.DB, rpc Deployment
 	resolved.VerdictAuthority = false
 
 	payload := map[string]any{
-		"program_id": resolved.ProgramID,
-		"network": resolved.Network,
-		"loader_id": resolved.LoaderID,
-		"programdata_address": resolved.ProgramDataAddress,
-		"account_slot": resolved.AccountSlot,
-		"deployment_slot": resolved.DeploymentSlot,
-		"upgrade_authority": resolved.UpgradeAuthority,
-		"full_binary_hash": resolved.FullBinaryHash,
+		"program_id":            resolved.ProgramID,
+		"network":               resolved.Network,
+		"loader_id":             resolved.LoaderID,
+		"programdata_address":   resolved.ProgramDataAddress,
+		"account_slot":          resolved.AccountSlot,
+		"deployment_slot":       resolved.DeploymentSlot,
+		"upgrade_authority":     resolved.UpgradeAuthority,
+		"full_binary_hash":      resolved.FullBinaryHash,
 		"canonical_binary_hash": resolved.CanonicalBinaryHash,
-		"binary_artifact_ref": resolved.BinaryArtifactRef,
+		"binary_artifact_ref":   resolved.BinaryArtifactRef,
 		"manifest_artifact_ref": resolved.ManifestArtifactRef,
-		"match_status": resolved.MatchStatus,
+		"match_status":          resolved.MatchStatus,
 	}
 	resolved.SnapshotHash = hashJSON(payload)
 	resolved.SnapshotRef = prefixedID("KDS1-", payload)
@@ -169,7 +169,7 @@ func InspectProgramDeployment(ctx context.Context, rpc DeploymentRPC, input Depl
 		AccountSlot: programAccount.Context.Slot, Executable: programAccount.Value.Executable,
 		MatchStatus: "not_requested", MatchEvidenceStatus: "not_evaluated", VerdictAuthority: false,
 		EvidenceRefs: []string{"rpc:getAccountInfo:" + input.ProgramID},
-		Limitations: []string{"Source identity is not established unless an independently produced build manifest matches the deployed bytecode hash."},
+		Limitations:  []string{"Source identity is not established unless an independently produced build manifest matches the deployed bytecode hash."},
 	}}
 
 	switch programAccount.Value.Owner {
@@ -278,18 +278,18 @@ func trimTrailingZeroPadding(data []byte) ([]byte, int) {
 
 func storeResolvedBinaryArtifact(ctx context.Context, db *sql.DB, deployment resolvedDeployment) (Artifact, error) {
 	metadata := map[string]any{
-		"source": "solana_rpc",
-		"loader_id": deployment.LoaderID,
-		"loader_kind": deployment.LoaderKind,
-		"programdata_address": deployment.ProgramDataAddress,
-		"account_slot": deployment.AccountSlot,
-		"deployment_slot": deployment.DeploymentSlot,
-		"upgrade_authority": deployment.UpgradeAuthority,
-		"full_binary_sha256": deployment.FullBinaryHash,
+		"source":                  "solana_rpc",
+		"loader_id":               deployment.LoaderID,
+		"loader_kind":             deployment.LoaderKind,
+		"programdata_address":     deployment.ProgramDataAddress,
+		"account_slot":            deployment.AccountSlot,
+		"deployment_slot":         deployment.DeploymentSlot,
+		"upgrade_authority":       deployment.UpgradeAuthority,
+		"full_binary_sha256":      deployment.FullBinaryHash,
 		"canonical_binary_sha256": deployment.CanonicalBinaryHash,
-		"full_binary_size": deployment.FullBinarySize,
-		"canonical_binary_size": deployment.CanonicalBinarySize,
-		"trailing_zero_bytes": deployment.TrailingZeroBytes,
+		"full_binary_size":        deployment.FullBinarySize,
+		"canonical_binary_size":   deployment.CanonicalBinarySize,
+		"trailing_zero_bytes":     deployment.TrailingZeroBytes,
 	}
 	metadataRaw, _ := json.Marshal(metadata)
 	ref := prefixedID("KDA1-", map[string]any{"program": deployment.ProgramID, "network": deployment.Network, "type": "sbpf_bytecode", "hash": deployment.FullBinaryHash})

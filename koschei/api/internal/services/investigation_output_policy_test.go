@@ -11,11 +11,11 @@ func TestSharedInvestigationOutputPolicyKeepsTechnicalResultEqual(t *testing.T) 
 		t.Fatalf("policy=%#v", policy)
 	}
 	forbidden := map[string]bool{
-		"collector_execution": true,
-		"evidence_status": true,
+		"collector_execution":   true,
+		"evidence_status":       true,
 		"deterministic_verdict": true,
-		"ruleset": true,
-		"signature": true,
+		"ruleset":               true,
+		"signature":             true,
 	}
 	for _, item := range policy.CallerTypeAffects {
 		if forbidden[item] {

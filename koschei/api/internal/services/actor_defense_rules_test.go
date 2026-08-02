@@ -39,7 +39,7 @@ func TestActorRulesVerifiedCreatorHolderFundingCapsAtD(t *testing.T) {
 		Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
 		EvidenceKey: "sig-two:0", Signature: "sig-two", CounterpartKind: "wallet", CounterpartID: "HolderWallet",
 		AmountNative: 1,
-		Metadata: map[string]any{"actor_signed": true, "known_related_actor": true},
+		Metadata:     map[string]any{"actor_signed": true, "known_related_actor": true},
 	}}
 	verdict := EvaluateActorDefenseRules(track, evidence)
 	if verdict.Grade != "D" || !actorRulePresent(verdict.TriggeredRules, ActorRuleHardCreatorHolderFunding) {
@@ -56,7 +56,7 @@ func TestActorRulesPossibleDustCannotBecomeCreatorHolderFunding(t *testing.T) {
 		Relation: "direct_sol_transfer_out", VerificationStatus: "verified",
 		EvidenceKey: "dust-out:0", Signature: "dust-out", CounterpartKind: "wallet", CounterpartID: "HolderWallet",
 		AmountNative: ActorPossibleDustNativeSOLMax,
-		Metadata: map[string]any{"actor_signed": true, "known_related_actor": true},
+		Metadata:     map[string]any{"actor_signed": true, "known_related_actor": true},
 	}}
 	verdict := EvaluateActorDefenseRules(track, evidence)
 	if actorRulePresent(verdict.TriggeredRules, ActorRuleHardCreatorHolderFunding) {
