@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -11,23 +10,25 @@ import (
 )
 
 type actorCreatedMintIntegrationRun struct {
-	Status                         string                                    `json:"status"`
-	Discovery                      services.SolscanCreatedMintDiscovery      `json:"discovery"`
-	ObservedEvidenceProduced       int                                       `json:"observed_evidence_produced"`
-	ObservedEvidencePersisted      int                                       `json:"observed_evidence_persisted"`
-	CandidatesRequested            int                                       `json:"candidates_requested"`
-	CandidatesVerified             int                                       `json:"candidates_verified"`
-	LiquidCandidates               int                                       `json:"liquid_candidates"`
-	InactiveOrDeadCandidates       int                                       `json:"inactive_or_dead_candidates"`
-	LifecycleSummary               services.ActorTokenLifecycleSummary       `json:"lifecycle_summary"`
-	LifecycleObservations          []services.ActorTokenLifecycleObservation `json:"lifecycle_observations"`
-	LifecycleObservationsPersisted int                                       `json:"lifecycle_observations_persisted"`
-	LifecyclePersistenceFailures   int                                       `json:"lifecycle_persistence_failures"`
-	VerificationFailures           int                                       `json:"verification_failures"`
-	VerifiedEvidencePersisted      int                                       `json:"verified_evidence_persisted"`
-	PersistenceFailures            int                                       `json:"persistence_failures"`
-	VerifiedCandidates             []services.ActorCreatedMintCandidate      `json:"verified_candidates"`
-	Limitations                    []string                                  `json:"limitations"`
+	Status                          string                                    `json:"status"`
+	Discovery                       services.SolscanCreatedMintDiscovery      `json:"discovery"`
+	ObservedEvidenceProduced        int                                       `json:"observed_evidence_produced"`
+	ObservedEvidencePersisted       int                                       `json:"observed_evidence_persisted"`
+	CandidatesRequested             int                                       `json:"candidates_requested"`
+	CandidatesVerified              int                                       `json:"candidates_verified"`
+	LiquidCandidates                int                                       `json:"liquid_candidates"`
+	InactiveOrDeadCandidates        int                                       `json:"inactive_or_dead_candidates"`
+	MarketDataUnavailableCandidates int                                       `json:"market_data_unavailable_candidates"`
+	ObservedStoreCandidatesMerged   int                                       `json:"observed_store_candidates_merged"`
+	LifecycleSummary                services.ActorTokenLifecycleSummary       `json:"lifecycle_summary"`
+	LifecycleObservations           []services.ActorTokenLifecycleObservation `json:"lifecycle_observations"`
+	LifecycleObservationsPersisted  int                                       `json:"lifecycle_observations_persisted"`
+	LifecyclePersistenceFailures    int                                       `json:"lifecycle_persistence_failures"`
+	VerificationFailures            int                                       `json:"verification_failures"`
+	VerifiedEvidencePersisted       int                                       `json:"verified_evidence_persisted"`
+	PersistenceFailures             int                                       `json:"persistence_failures"`
+	VerifiedCandidates              []services.ActorCreatedMintCandidate      `json:"verified_candidates"`
+	Limitations                     []string                                  `json:"limitations"`
 }
 
 func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegrationRun {
@@ -128,58 +129,55 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		// DexScreener snapshot gerçek Solana pair likiditesini ve en likit
 		// pair'in referans fiyatını sağlar. Jupiter yalnızca fiyat fallback'idir.
 		market := services.FetchSolanaTokenMarketSnapshot(ctx, verified.Mint)
-		if market.LiquidityUSD > 0 {
-			verified.CurrentLiquidityUSD = market.LiquidityUSD
-		}
-		if market.PriceUSD > 0 {
-			verified.CurrentPriceUSD = market.PriceUSD
-		} else {
+		fate := applyActorTokenMarketSnapshot(&verified, market)
+		if verified.CurrentPriceUSD <= 0 {
 			mkt := collectJupiterMarketContext(ctx, nil, &http.Client{Timeout: 8 * time.Second}, network, verified.Mint, services.HolderIntelligence{}, market)
 			if mkt.PriceAvailable {
 				verified.CurrentPriceUSD = mkt.PriceUSD
 			}
 		}
-
-		// Akıbet iki sonuçludur: ölçülen pozitif likidite varsa aktif,
-		// aksi halde likiditesiz/ölü kabul edilir.
-		if verified.CurrentLiquidityUSD > 0 {
-			verified.FateStatus = services.ActorTokenFateActive
+		switch fate.Status {
+		case services.ActorTokenFateActive:
 			out.LiquidCandidates++
-		} else {
-			verified.FateStatus = services.ActorTokenFateInactiveOrDead
+		case services.ActorTokenFateInactiveOrDead:
 			out.InactiveOrDeadCandidates++
+		default:
+			out.MarketDataUnavailableCandidates++
+			out.Limitations = append(out.Limitations, "Verified mint "+verified.Mint+" için piyasa sağlayıcısı sonuç üretmedi; token ölü olarak sınıflandırılmadı ("+verified.MarketEvidenceStatus+").")
 		}
 
-		createdOnChainAt := verified.ObservedAt
-		if createdOnChainAt.IsZero() && verified.BlockTime > 0 {
-			createdOnChainAt = time.Unix(verified.BlockTime, 0).UTC()
-		}
-		observedAt := market.ObservedAt
-		if observedAt.IsZero() {
-			observedAt = time.Now().UTC()
-		}
-		lifecycleInput := services.ActorTokenLifecycleInput{
-			Network:             network,
-			ActorWallet:         wallet,
-			Mint:                verified.Mint,
-			CreationSignature:   verified.Signature,
-			CreationSlot:        verified.Slot,
-			CreatedOnChainAt:    createdOnChainAt,
-			ObservedAt:          observedAt,
-			CurrentLiquidityUSD: verified.CurrentLiquidityUSD,
-			CurrentPriceUSD:     verified.CurrentPriceUSD,
-		}
-		lifecycle := services.BuildActorTokenLifecycleSnapshot(lifecycleInput)
-		if store != nil {
-			persisted, persistErr := store.UpsertTokenLifecycleObservation(ctx, lifecycleInput)
-			if persistErr != nil {
-				out.LifecyclePersistenceFailures++
-			} else {
-				lifecycle = persisted
-				out.LifecycleObservationsPersisted++
+		if fate.LifecycleEligible {
+			createdOnChainAt := verified.ObservedAt
+			if createdOnChainAt.IsZero() && verified.BlockTime > 0 {
+				createdOnChainAt = time.Unix(verified.BlockTime, 0).UTC()
 			}
+			observedAt := market.ObservedAt
+			if observedAt.IsZero() {
+				observedAt = time.Now().UTC()
+			}
+			lifecycleInput := services.ActorTokenLifecycleInput{
+				Network:             network,
+				ActorWallet:         wallet,
+				Mint:                verified.Mint,
+				CreationSignature:   verified.Signature,
+				CreationSlot:        verified.Slot,
+				CreatedOnChainAt:    createdOnChainAt,
+				ObservedAt:          observedAt,
+				CurrentLiquidityUSD: verified.CurrentLiquidityUSD,
+				CurrentPriceUSD:     verified.CurrentPriceUSD,
+			}
+			lifecycle := services.BuildActorTokenLifecycleSnapshot(lifecycleInput)
+			if store != nil {
+				persisted, persistErr := store.UpsertTokenLifecycleObservation(ctx, lifecycleInput)
+				if persistErr != nil {
+					out.LifecyclePersistenceFailures++
+				} else {
+					lifecycle = persisted
+					out.LifecycleObservationsPersisted++
+				}
+			}
+			out.LifecycleObservations = append(out.LifecycleObservations, lifecycle)
 		}
-		out.LifecycleObservations = append(out.LifecycleObservations, lifecycle)
 
 		out.CandidatesVerified++
 		out.VerifiedCandidates = append(out.VerifiedCandidates, verified)
@@ -210,41 +208,6 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		out.Status = "verification_failed"
 	}
 
-	// Koschei observation store'daki (PumpPortal) launch'ları birleştir.
-	// Helius yalnız son ~3000 işlemi görür; store daha eski launch'ları taşır.
-	if observed, _ := h.creatorIntelObservedLaunches(ctx, "", network, wallet); len(observed) > 0 {
-		seen := map[string]bool{}
-		for _, v := range out.VerifiedCandidates {
-			seen[strings.TrimSpace(v.Mint)] = true
-		}
-		for _, item := range observed {
-			mint := strings.TrimSpace(fmt.Sprint(item["target"]))
-			if mint == "" || seen[mint] {
-				continue
-			}
-			seen[mint] = true
-
-			cand := services.ActorCreatedMintCandidate{
-				Mint:               mint,
-				VerificationStatus: "koschei_observed",
-				Source:             "koschei_observation_store",
-			}
-			market := services.FetchSolanaTokenMarketSnapshot(ctx, mint)
-			if market.LiquidityUSD > 0 {
-				cand.CurrentLiquidityUSD = market.LiquidityUSD
-			}
-			if market.PriceUSD > 0 {
-				cand.CurrentPriceUSD = market.PriceUSD
-			}
-			if cand.CurrentLiquidityUSD > 0 {
-				cand.FateStatus = services.ActorTokenFateActive
-				out.LiquidCandidates++
-			} else {
-				cand.FateStatus = services.ActorTokenFateInactiveOrDead
-				out.InactiveOrDeadCandidates++
-			}
-			out.VerifiedCandidates = append(out.VerifiedCandidates, cand)
-		}
-	}
+	h.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)
 	return out
 }
