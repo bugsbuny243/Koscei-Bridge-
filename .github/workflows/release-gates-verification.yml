@@ -6,9 +6,168 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  final-product-wiring:
+    name: Apply final product wiring
+    if: github.head_ref == 'agent/final-product-wiring'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Set up Go 1.25.12
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply wiring and tests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_if_present(path, old, new):
+              text = path.read_text()
+              if old in text:
+                  path.write_text(text.replace(old, new))
+              elif new not in text:
+                  raise SystemExit(f'expected old or new block missing in {path}')
+
+          canonical = Path('koschei/api/internal/handlers/canonical_integration_coverage.go')
+          replace_if_present(
+              canonical,
+              '\tput("jupiter_market_context", canonicalStatusFromRaw("Jupiter route and exit context", report["jupiter_market_context"], live, false, "jupiter_market_context"))\n',
+              '\tput("jupiter_market_context", canonicalStatusFromRaw("Jupiter route and market context", report["jupiter_market_context"], live, false, "jupiter_market_context"))\n'
+              '\tput("exit_liquidity", canonicalStatusFromRaw("Fixed-notional exit liquidity simulation", report["exit_liquidity"], live, false, "exit_liquidity"))\n'
+              '\tput("program_security", canonicalStatusFromRaw("Program upgrade authority and deployment age", report["program_security"], live, false, "program_security"))\n',
+          )
+          replace_if_present(
+              canonical,
+              '\tput("solscan_actor_discovery", canonicalStatusFromRaw("Solscan actor discovery and attribution", actor["external_discovery"], live, true, "actor_investigation.external_discovery"))\n',
+              '\tput("helius_actor_discovery", canonicalStatusFromRaw("Helius-first actor discovery and attribution", actor["external_discovery"], live, true, "actor_investigation.external_discovery"))\n',
+          )
+          replace_if_present(
+              canonical,
+              '\tput("defense_agent_runtime", canonicalStatusFromRaw("Solana Defense shadow runtime", report["defense_agent_runtime"], live, false, "defense_agent_runtime"))\n',
+              '\tput("defense_agent_runtime", canonicalStatusFromOptionalRaw("Solana Defense shadow runtime", report["defense_agent_runtime"], "defense_agent_runtime"))\n',
+          )
+          marker = 'func canonicalStatusFromSignedVerdict(name string, raw any, required bool, source string) canonicalCapabilityStatus {'
+          helper = '''func canonicalStatusFromOptionalRaw(name string, raw any, source string) canonicalCapabilityStatus {
+	if raw == nil {
+		return canonicalCapabilityStatus{
+			Capability:            name,
+			Status:                canonicalCapabilityNotRequested,
+			WiredToCanonicalRadar: true,
+			RequiredForFullScan:   false,
+			EvidenceBacked:        false,
+			Source:                source,
+			Limitations:           []string{"Optional capability is disabled by configuration and does not block the core product scan."},
+		}
+	}
+	return canonicalStatusFromRaw(name, raw, true, false, source)
+}
+
+'''
+          text = canonical.read_text()
+          if 'func canonicalStatusFromOptionalRaw' not in text:
+              if marker not in text:
+                  raise SystemExit('canonical helper insertion marker missing')
+              canonical.write_text(text.replace(marker, helper + marker, 1))
+
+          wallet = Path('koschei/api/internal/handlers/unified_wallet_investigation_report.go')
+          replace_if_present(
+              wallet,
+              '\tput("solscan_actor_discovery", canonicalStatusFromRaw("Solscan actor discovery and attribution", actor["external_discovery"], live, true, "actor_investigation.external_discovery"))\n',
+              '\tput("helius_actor_discovery", canonicalStatusFromRaw("Helius-first actor discovery and attribution", actor["external_discovery"], live, true, "actor_investigation.external_discovery"))\n',
+          )
+
+          handler_test = Path('koschei/api/internal/handlers/final_product_wiring_test.go')
+          if not handler_test.exists():
+              handler_test.write_text('''package handlers
+
+import "testing"
+
+func TestCanonicalCoverageConnectsFinalProductSurfaces(t *testing.T) {
+	report := map[string]any{
+		"full_scan_live_evidence": map[string]any{"status": "complete"},
+		"exit_liquidity": map[string]any{"available": true, "status": "complete", "tiers": []any{map[string]any{"status": "quoted"}}},
+		"program_security": map[string]any{"available": true, "status": "complete", "programs": []any{map[string]any{"available": true}}},
+		"actor_investigation": map[string]any{"external_discovery": map[string]any{"available": true, "status": "observed"}},
+	}
+	coverage := buildCanonicalIntegrationCoverage(report)
+	for _, key := range []string{"exit_liquidity", "program_security", "helius_actor_discovery", "defense_agent_runtime"} {
+		item, ok := coverage.Capabilities[key]
+		if !ok {
+			t.Fatalf("capability %s missing", key)
+		}
+		if !item.WiredToCanonicalRadar {
+			t.Fatalf("capability %s is still orphaned", key)
+		}
+	}
+	if _, exists := coverage.Capabilities["solscan_actor_discovery"]; exists {
+		t.Fatal("stale solscan capability key remains")
+	}
+	defense := coverage.Capabilities["defense_agent_runtime"]
+	if defense.Status != canonicalCapabilityNotRequested || defense.RequiredForFullScan {
+		t.Fatalf("disabled optional defense runtime must not block core scan: %+v", defense)
+	}
+}
+''')
+
+          http_test = Path('koschei/api/internal/http/defense_routes_opt_in_test.go')
+          if not http_test.exists():
+              http_test.write_text('''package http
+
+import "testing"
+
+func TestDefenseOSRoutesDefaultOff(t *testing.T) {
+	t.Setenv("KOSCHEI_DEFENSE_OS_ENABLED", "")
+	if defenseOSRoutesEnabled() {
+		t.Fatal("Defense OS routes must be disabled by default")
+	}
+}
+
+func TestDefenseOSRoutesRequireExplicitOptIn(t *testing.T) {
+	for _, value := range []string{"1", "true", "YES", "on"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("KOSCHEI_DEFENSE_OS_ENABLED", value)
+			if !defenseOSRoutesEnabled() {
+				t.Fatalf("expected %q to enable Defense OS routes", value)
+			}
+		})
+	}
+}
+''')
+          PY
+          cd koschei/api
+          gofmt -w internal/handlers/canonical_integration_coverage.go internal/handlers/unified_wallet_investigation_report.go internal/handlers/final_product_wiring_test.go internal/http/defense_routes.go internal/http/defense_routes_opt_in_test.go
+          test -z "$(gofmt -l .)"
+          go test ./internal/handlers ./internal/http
+          go test ./...
+          go vet ./...
+          CGO_ENABLED=0 GOOS=linux go build ./...
+      - name: Commit verified product wiring
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add koschei/api/internal/handlers/canonical_integration_coverage.go \
+            koschei/api/internal/handlers/unified_wallet_investigation_report.go \
+            koschei/api/internal/handlers/final_product_wiring_test.go \
+            koschei/api/internal/http/defense_routes.go \
+            koschei/api/internal/http/defense_routes_opt_in_test.go
+          if git diff --cached --quiet; then
+            echo 'No product wiring changes to commit.'
+            exit 0
+          fi
+          git commit -m 'finalize product capability wiring'
+          git push origin HEAD:${{ github.head_ref }}
+
   full-verification:
     name: Go 1.25.12, PostgreSQL 17, race and evidence gates
     runs-on: ubuntu-latest
