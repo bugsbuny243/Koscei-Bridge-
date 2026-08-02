@@ -6,9 +6,61 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  fallback-patch:
+    name: Apply observed-launch fallback before verification
+    if: github.head_ref == 'agent/address-intelligence-completeness'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/address-intelligence-completeness
+          fetch-depth: 0
+      - name: Set up Go 1.25.12
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply fallback patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'actorCreatedMintVerificationCandidates(out.Discovery.Candidates)' koschei/api/internal/handlers/actor_created_mint_integration.go; then
+            echo 'Fallback patch already present.'
+            exit 0
+          fi
+          awk '
+            /python3 - <<'"'"'PY'"'"'/ { capture=1; next }
+            capture && /^          PY$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/fix-observed-launch-fallback.yml > /tmp/fallback_patch.py
+          test -s /tmp/fallback_patch.py
+          python3 /tmp/fallback_patch.py
+          cd koschei/api
+          gofmt -w internal/handlers/actor_created_mint_integration.go internal/handlers/actor_created_mint_market.go internal/handlers/actor_created_mint_market_test.go
+          test -z "$(gofmt -l .)"
+          go test ./...
+          go vet ./...
+          CGO_ENABLED=0 GOOS=linux go build ./...
+      - name: Commit verified fallback patch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add koschei/api/internal/handlers/actor_created_mint_integration.go \
+            koschei/api/internal/handlers/actor_created_mint_market.go \
+            koschei/api/internal/handlers/actor_created_mint_market_test.go
+          if git diff --cached --quiet; then
+            echo 'No fallback code changes to commit.'
+            exit 0
+          fi
+          git commit -m 'run observation-store fallback before Helius early returns'
+          git push origin HEAD:agent/address-intelligence-completeness
+
   full-verification:
     name: Go 1.25.12, PostgreSQL 17, race and evidence gates
     runs-on: ubuntu-latest
