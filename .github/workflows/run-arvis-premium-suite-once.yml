@@ -18,7 +18,7 @@ jobs:
         with:
           ref: agent/arvis-premium-evidence-center
           fetch-depth: 0
-      - name: Check whether patch is needed
+      - name: Check whether backend patch is needed
         id: needed
         run: |
           if grep -q 'Collector.*json:"collector' koschei/api/internal/services/holder_cluster_intelligence.go; then
@@ -47,8 +47,16 @@ jobs:
             koschei/api/internal/handlers/token_2022_extensions.go \
             koschei/api/internal/handlers/token_scanner.go \
             koschei/api/internal/handlers/security_radar_exposure_token2022.go
+      - name: Align English product CI contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/api-required-ci.yml')
+          text = path.read_text()
+          text = text.replace("grep -q '<html lang=\"tr\">' public/security-radar.html", "grep -q '<html lang=\"en\">' public/security-radar.html")
+          path.write_text(text)
+          PY
       - name: Validate and build
-        if: steps.needed.outputs.apply == 'true'
         run: |
           node --check koschei/api/public/js/arvis-premium-contract.js
           node --check koschei/api/public/js/owner-arvis-premium-suite.js
@@ -60,10 +68,13 @@ jobs:
           go test ./internal/services ./internal/handlers
           go build ./...
       - name: Commit to feature branch
-        if: steps.needed.outputs.apply == 'true'
         run: |
           git config user.name koschei-ci
           git config user.email actions@users.noreply.github.com
-          git add koschei/api
+          git add koschei/api .github/workflows/api-required-ci.yml
+          if git diff --cached --quiet; then
+            echo "Feature branch already contains the complete suite."
+            exit 0
+          fi
           git commit -m "complete ARVIS premium evidence suite"
           git push origin HEAD:agent/arvis-premium-evidence-center
