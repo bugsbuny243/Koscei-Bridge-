@@ -51,6 +51,20 @@ func TestFinalProductIntegrationPromotesVisibleCapabilities(t *testing.T) {
 	if coverage.Capabilities["program_security"].RequiredForFullScan {
 		t.Fatal("program capability context must not independently block a verdict")
 	}
+
+	defense, ok := coverage.Capabilities["defense_agent_runtime"]
+	if !ok {
+		t.Fatal("disabled Defense runtime is absent from capability coverage")
+	}
+	if defense.Status != canonicalCapabilityNotRequested {
+		t.Fatalf("disabled Defense runtime status=%s, want %s", defense.Status, canonicalCapabilityNotRequested)
+	}
+	if !defense.WiredToCanonicalRadar || defense.RequiredForFullScan {
+		t.Fatalf("disabled Defense runtime must be wired and optional: %+v", defense)
+	}
+	if coverage.OrphanCapabilityCount != 0 {
+		t.Fatalf("disabled Defense runtime left orphan capability debt: %+v", coverage.OrphanCapabilities)
+	}
 }
 
 func TestFinalWalletIntegrationUsesHeliusFirstLabel(t *testing.T) {
