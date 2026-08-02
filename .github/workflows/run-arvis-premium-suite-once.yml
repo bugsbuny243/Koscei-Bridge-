@@ -52,15 +52,6 @@ jobs:
             koschei/api/internal/handlers/token_2022_extensions.go \
             koschei/api/internal/handlers/token_scanner.go \
             koschei/api/internal/handlers/security_radar_exposure_token2022.go
-      - name: Align English product CI contract
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/api-required-ci.yml')
-          text = path.read_text()
-          text = text.replace("grep -q '<html lang=\"tr\">' public/security-radar.html", "grep -q '<html lang=\"en\">' public/security-radar.html")
-          path.write_text(text)
-          PY
       - name: Validate and build
         run: |
           node --check koschei/api/public/js/arvis-premium-contract.js
@@ -72,13 +63,13 @@ jobs:
           cd koschei/api
           go test ./internal/services ./internal/handlers
           go build ./...
-      - name: Commit to feature branch
+      - name: Commit product code to feature branch
         run: |
           git config user.name koschei-ci
           git config user.email actions@users.noreply.github.com
-          git add koschei/api .github/workflows/api-required-ci.yml
+          git add koschei/api
           if git diff --cached --quiet; then
-            echo "Feature branch already contains the complete suite."
+            echo "Feature branch already contains the complete product suite."
             exit 0
           fi
           git commit -m "complete ARVIS premium evidence suite"
