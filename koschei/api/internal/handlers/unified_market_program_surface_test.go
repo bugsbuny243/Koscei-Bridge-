@@ -11,8 +11,8 @@ import (
 func TestApplyMarketProgramEvidenceReferences(t *testing.T) {
 	core := holderIntelligenceCoreResult{
 		ExitLiquidity: services.ExitLiquiditySimulation{
-			Available: true,
-			Mint:      "Mint111111111111111111111111111111111111111",
+			Available:  true,
+			Mint:       "Mint111111111111111111111111111111111111111",
 			OutputMint: "USDC111111111111111111111111111111111111111",
 			Tiers: []services.ExitLiquidityTier{
 				{RequestedNotionalUSD: 1000, Available: true, Status: "quoted", QuoteContextSlot: 101},
@@ -27,11 +27,11 @@ func TestApplyMarketProgramEvidenceReferences(t *testing.T) {
 				Programs: []services.ProgramSecurityEvidence{
 					{
 						Available: true, Role: "launch_program",
-						ProgramID: "Program11111111111111111111111111111111111",
+						ProgramID:          "Program11111111111111111111111111111111111",
 						ProgramDataAddress: "ProgramData1111111111111111111111111111111",
-						LoaderID: "Loader111111111111111111111111111111111111",
-						UpgradeAuthority: "Authority111111111111111111111111111111111",
-						AccountSlot: 303, DeploymentSlot: 404,
+						LoaderID:           "Loader111111111111111111111111111111111111",
+						UpgradeAuthority:   "Authority111111111111111111111111111111111",
+						AccountSlot:        303, DeploymentSlot: 404,
 						EvidenceRefs: []string{"rpc:getAccountInfo", "rpc:getBlockTime"},
 					},
 				},
@@ -76,10 +76,10 @@ func TestUnifiedReportPublishesExitAndProgramSecurityTopLevel(t *testing.T) {
 		ObservedAt: time.Now().UTC(),
 	}
 	core := holderIntelligenceCoreResult{
-		Request: services.SecurityRadarRequest{Target: exit.Mint, Network: "solana-mainnet", Mode: "stored_only_projection"},
+		Request:       services.SecurityRadarRequest{Target: exit.Mint, Network: "solana-mainnet", Mode: "stored_only_projection"},
 		ExitLiquidity: exit,
 		SourceContext: map[string]any{"program_security": program},
-		Cluster: services.HolderClusterAnalysis{Findings: []string{}},
+		Cluster:       services.HolderClusterAnalysis{Findings: []string{}},
 	}
 	assembly := (&Handler{}).assembleUnifiedInvestigationReport(context.Background(), core)
 	gotExit, ok := assembly.Report["exit_liquidity"].(services.ExitLiquiditySimulation)

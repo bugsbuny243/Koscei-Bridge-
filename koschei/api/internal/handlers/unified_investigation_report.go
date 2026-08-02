@@ -222,6 +222,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	evidenceReferences := buildUnifiedEvidenceReferences(core, creator, transactionEvidence, behavior, unifiedVerdict)
 	evidenceReferences = applyUnifiedLiveEvidenceReferences(evidenceReferences, liveEvidence)
 	evidenceReferences = applyLPControlEvidenceReferences(evidenceReferences, core.LPControl)
+	evidenceReferences = applyMarketProgramEvidenceReferences(evidenceReferences, core)
 
 	report := map[string]any{
 		"ok": true, "schema_version": unifiedInvestigationSchemaVersion,
@@ -233,6 +234,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"holder_concentration_context": holderConcentrationContext,
 		"launch_forensics":             core.LaunchForensics, "market": core.Market,
 		"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,
+		"exit_liquidity": core.ExitLiquidity, "program_security": unifiedProgramSecuritySurface(core.SourceContext),
 		"source_context": core.SourceContext, "structural_memory": structural,
 		"modules": modules, "evidence_arms": modules, "evidence": radarDetailEvidence(core.Arms),
 		"behavior_signals": behavior, "trade_ledger_aggregates": tradeLedger,
@@ -261,6 +263,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"recipient_full_wallet_history":         false,
 			"recipient_investigation_scope":         "mint_specific_token_accounts",
 			"jupiter_context_can_change_verdict":    false, "lp_control_arm_can_change_grade": false,
+			"exit_liquidity_quote_only": true, "program_authority_is_capability_not_intent": true,
 			"corpus_percentile_can_change_verdict":       false,
 			"live_transaction_rows_can_change_grade":     false,
 			"verified_actor_evidence_can_change_verdict": true,
