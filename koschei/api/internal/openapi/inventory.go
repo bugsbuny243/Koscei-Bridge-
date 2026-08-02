@@ -138,6 +138,9 @@ func enrichRoutesWithInventory(routes []Route, inventory []InventoryRoute) []Rou
 			routes[index].InventoryGroup = item.Group
 			routes[index].InventorySource = "route_inventory.go"
 			routes[index].AuthTier = normalizedInventoryAuth(item.Auth, routes[index].Path, routes[index].Source)
+			if len(item.Methods) > 0 {
+				routes[index].Methods = append([]string(nil), item.Methods...)
+			}
 		}
 	}
 	return routes
