@@ -1,0 +1,36 @@
+name: Diagnostic Live Token Scan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call production Koschei token scan
+        shell: bash
+        run: |
+          set -uo pipefail
+          body='{"mint":"9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump","network":"solana-mainnet"}'
+          started=$(date +%s%3N)
+          status=$(curl --silent --show-error --location \
+            --connect-timeout 15 --max-time 180 \
+            --output response.json \
+            --write-out '%{http_code}' \
+            --header 'Accept: application/json' \
+            --header 'Content-Type: application/json' \
+            --data "$body" \
+            'https://koschei-web3-hub-production.up.railway.app/api/token/scan')
+          ended=$(date +%s%3N)
+          echo "HTTP_STATUS=$status"
+          echo "ELAPSED_MS=$((ended-started))"
+          echo 'RESPONSE_BEGIN'
+          cat response.json
+          echo
+          echo 'RESPONSE_END'
+          test "$status" = "200"
