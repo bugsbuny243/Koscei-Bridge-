@@ -1,0 +1,161 @@
+name: Apply Visible Market Program Evidence
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.head_ref == 'agent/expose-exit-program-evidence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply first-class report and verdict-card surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('koschei/api')
+
+          def replace_once(path, old, new):
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected block not found in {path}: {old[:160]!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          report = root / 'internal/handlers/unified_investigation_report.go'
+          replace_once(
+              report,
+              '\tevidenceReferences = applyLPControlEvidenceReferences(evidenceReferences, core.LPControl)\n',
+              '\tevidenceReferences = applyLPControlEvidenceReferences(evidenceReferences, core.LPControl)\n\tevidenceReferences = applyMarketProgramEvidenceReferences(evidenceReferences, core)\n',
+          )
+          replace_once(
+              report,
+              '\t\t"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,\n\t\t"source_context": core.SourceContext, "structural_memory": structural,\n',
+              '\t\t"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,\n\t\t"exit_liquidity": core.ExitLiquidity, "program_security": unifiedProgramSecuritySurface(core.SourceContext),\n\t\t"source_context": core.SourceContext, "structural_memory": structural,\n',
+          )
+          replace_once(
+              report,
+              '\t\t\t"jupiter_context_can_change_verdict":    false, "lp_control_arm_can_change_grade": false,\n',
+              '\t\t\t"jupiter_context_can_change_verdict":    false, "lp_control_arm_can_change_grade": false,\n\t\t\t"exit_liquidity_quote_only":           true, "program_authority_is_capability_not_intent": true,\n',
+          )
+
+          js = root / 'public/js/verdict-card-market-context.js'
+          replace_once(
+              js,
+              "    const lp=obj(payload.lp_control),jupiter=obj(payload.jupiter_market_context),market=obj(payload.market);\n",
+              "    const lp=obj(payload.lp_control),jupiter=obj(payload.jupiter_market_context),market=obj(payload.market),exit=obj(payload.exit_liquidity||jupiter.exit_liquidity),source=obj(payload.source_context),program=obj(payload.program_security||source.program_security);\n",
+          )
+          marker = "    const concentration=vm.checklist.find(row=>row.id==='concentration');\n"
+          insertion = r'''    const exitTiers=Array.isArray(exit.tiers)?exit.tiers.filter(tier=>tier&&tier.available&&tier.status==='quoted'):[];
+    if(liquidity&&exitTiers.length){
+      const summaries=exitTiers.map(tier=>{
+        const requested=money(tier.requested_notional_usd,locale),proceeds=money(tier.estimated_proceeds_usd,locale),shortfall=pct(tier.execution_shortfall_pct,locale,2);
+        return tr?`${requested} satış → ${proceeds} tahmini gelir · %${shortfall} execution shortfall`:`${requested} sell → ${proceeds} estimated proceeds · ${shortfall}% execution shortfall`;
+      });
+      const detail=`${tr?'Jupiter read-only exit simülasyonu':'Jupiter read-only exit simulation'}: ${summaries.join(' · ')}`;
+      liquidity.detail=liquidity.detail?`${liquidity.detail} · ${detail}`:detail;
+      if(!['verified','not_applicable'].includes(liquidity.state)){
+        liquidity.state='observed';liquidity.status='yellow';liquidity.value=detail;
+      }else{
+        liquidity.value=liquidity.value?`${liquidity.value} · ${detail}`:detail;
+      }
+    }else if(liquidity&&exit.status&&!['not_requested_preflight','exit_liquidity_unavailable'].includes(exit.status)){
+      const detail=tr?`Exit simülasyonu tamamlanmadı: ${exit.status}`:`Exit simulation incomplete: ${exit.status}`;
+      liquidity.detail=liquidity.detail?`${liquidity.detail} · ${detail}`:detail;
+    }
+    const programRow=vm.checklist.find(row=>row.id==='program'),programs=Array.isArray(program.programs)?program.programs.filter(Boolean):[];
+    if(programRow&&programs.length){
+      const shortAddress=value=>{const text=String(value||'');return text.length>18?`${text.slice(0,8)}…${text.slice(-6)}`:text||'—'};
+      const summaries=programs.map(item=>{
+        const role=item.role||'program';
+        let control=item.status||'unverified';
+        if(item.immutable)control=tr?'immutable':'immutable';
+        else if(item.upgrade_authority_open)control=tr?`upgrade authority açık ${shortAddress(item.upgrade_authority)}`:`upgrade authority open ${shortAddress(item.upgrade_authority)}`;
+        else if(item.available)control=tr?'upgrade authority kapalı veya ayarlanmamış':'upgrade authority closed or unset';
+        const age=item.age_available?(tr?`son deploy/upgrade ${pct(item.last_deployment_or_upgrade_age_days,locale,2)} gün önce`:`latest deploy/upgrade ${pct(item.last_deployment_or_upgrade_age_days,locale,2)} days ago`):(tr?'deploy/upgrade yaşı alınamadı':'deploy/upgrade age unavailable');
+        return `${role} ${shortAddress(item.program_id)} · ${control} · ${age}`;
+      });
+      const complete=program.authority_coverage_complete===true&&program.age_coverage_complete===true&&programs.every(item=>item.available);
+      programRow.state=complete?'verified':'observed';programRow.status=complete?'green':'yellow';programRow.value=summaries.join(' · ');
+      const policy=tr?'Upgrade authority bir kabiliyet olgusudur; tek başına kötü niyet kanıtı değildir.':'Upgrade authority is a capability fact; it is not proof of malicious intent by itself.';
+      programRow.detail=`${summaries.join(' · ')} · ${policy}`;
+    }else if(programRow&&['inspection_failed','rpc_unavailable','partial'].includes(program.status)){
+      programRow.state='arm_pending';programRow.status='gray';programRow.value=tr?`Program security kanıtı tamamlanmadı: ${program.status}`:`Program security evidence incomplete: ${program.status}`;
+    }
+'''
+          replace_once(js, marker, insertion + marker)
+
+          test = root / 'public/js/__tests__/verdict-card-market-context.test.mjs'
+          extra = r'''
+
+test('fixed-notional exit quotes are visible on the liquidity row',()=>{
+  const vm=mapVerdictCard({...base,exit_liquidity:{available:true,status:'complete',quote_only:true,tiers:[
+    {requested_notional_usd:1000,available:true,status:'quoted',estimated_proceeds_usd:970,execution_shortfall_pct:3,quote_context_slot:901},
+    {requested_notional_usd:10000,available:true,status:'quoted',estimated_proceeds_usd:8200,execution_shortfall_pct:18,quote_context_slot:902}
+  ]}});
+  const row=vm.checklist.find(item=>item.id==='liquidity');
+  assert.equal(row.state,'observed');
+  assert.match(row.value,/Jupiter read-only exit simulation/);
+  assert.match(row.value,/\$1,000\.00 sell → \$970\.00/);
+  assert.match(row.value,/\$10,000\.00 sell → \$8,200\.00/);
+  assert.match(row.detail,/18% execution shortfall/);
+});
+
+test('program row shows upgrade authority and deployment age without inferring intent',()=>{
+  const vm=mapVerdictCard({...base,program_security:{available:true,status:'complete',authority_coverage_complete:true,age_coverage_complete:true,programs:[{
+    available:true,status:'upgrade_authority_open',role:'launch_program',program_id:'Program11111111111111111111111111111111111',
+    upgrade_authority:'Authority111111111111111111111111111111111',upgrade_authority_open:true,immutable:false,
+    age_available:true,last_deployment_or_upgrade_age_days:12.5
+  ]}});
+  const row=vm.checklist.find(item=>item.id==='program');
+  assert.equal(row.state,'verified');
+  assert.match(row.value,/upgrade authority open/);
+  assert.match(row.value,/12\.5 days ago/);
+  assert.match(row.detail,/not proof of malicious intent/);
+});
+'''
+          text = test.read_text()
+          if "fixed-notional exit quotes are visible" not in text:
+              test.write_text(text + extra)
+          PY
+      - name: Format and test
+        shell: bash
+        run: |
+          cd koschei/api
+          gofmt -w internal/handlers/unified_market_program_surface.go internal/handlers/unified_market_program_surface_test.go internal/handlers/unified_investigation_report.go
+          test -z "$(gofmt -l .)"
+          node --check public/js/verdict-card-market-context.js
+          node --test public/js/__tests__/verdict-card-market-context.test.mjs
+          go test ./internal/handlers -run 'TestApplyMarketProgramEvidenceReferences|TestUnifiedReportPublishesExitAndProgramSecurityTopLevel' -count=1
+          go test ./...
+          go vet ./...
+          CGO_ENABLED=0 GOOS=linux go build ./...
+      - name: Commit verified integration
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add koschei/api/internal/handlers/unified_investigation_report.go \
+            koschei/api/internal/handlers/unified_market_program_surface.go \
+            koschei/api/internal/handlers/unified_market_program_surface_test.go \
+            koschei/api/public/js/verdict-card-market-context.js \
+            koschei/api/public/js/__tests__/verdict-card-market-context.test.mjs
+          if git diff --cached --quiet; then
+            echo 'No code changes to commit.'
+            exit 0
+          fi
+          git commit -m 'expose exit liquidity and program authority evidence'
+          git push origin HEAD:${{ github.head_ref }}
