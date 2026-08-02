@@ -24,7 +24,7 @@
   }
   function mapVerdictCard(input,options={}){
     const payload=obj(input.investigation_report||input),vm=rawMap(input,options),tr=options.lang==='tr',locale=tr?'tr-TR':'en-US';
-    const lp=obj(payload.lp_control),jupiter=obj(payload.jupiter_market_context),market=obj(payload.market);
+    const lp=obj(payload.lp_control),jupiter=obj(payload.jupiter_market_context),market=obj(payload.market),exit=obj(payload.exit_liquidity||jupiter.exit_liquidity),source=obj(payload.source_context),program=obj(payload.program_security||source.program_security);
     const liquidity=vm.checklist.find(row=>row.id==='liquidity');
     if(liquidity&&lp.status){
       if(lp.status==='not_applicable'){
@@ -43,6 +43,42 @@
       }else if(lp.status==='source_unavailable'){
         liquidity.state='arm_pending';liquidity.status='gray';liquidity.value=tr?'LP kanıt kaynağı bu taramada tamamlanmadı':'LP evidence source did not complete in this scan';
       }
+    }
+    const exitTiers=Array.isArray(exit.tiers)?exit.tiers.filter(tier=>tier&&tier.available&&tier.status==='quoted'):[];
+    if(liquidity&&exitTiers.length){
+      const summaries=exitTiers.map(tier=>{
+        const requested=money(tier.requested_notional_usd,locale),proceeds=money(tier.estimated_proceeds_usd,locale),shortfall=pct(tier.execution_shortfall_pct,locale,2);
+        return tr?`${requested} satış → ${proceeds} tahmini gelir · %${shortfall} execution shortfall`:`${requested} sell → ${proceeds} estimated proceeds · ${shortfall}% execution shortfall`;
+      });
+      const detail=`${tr?'Jupiter read-only exit simülasyonu':'Jupiter read-only exit simulation'}: ${summaries.join(' · ')}`;
+      liquidity.detail=liquidity.detail?`${liquidity.detail} · ${detail}`:detail;
+      if(!['verified','not_applicable'].includes(liquidity.state)){
+        liquidity.state='observed';liquidity.status='yellow';liquidity.value=detail;
+      }else{
+        liquidity.value=liquidity.value?`${liquidity.value} · ${detail}`:detail;
+      }
+    }else if(liquidity&&exit.status&&!['not_requested_preflight','exit_liquidity_unavailable'].includes(exit.status)){
+      const detail=tr?`Exit simülasyonu tamamlanmadı: ${exit.status}`:`Exit simulation incomplete: ${exit.status}`;
+      liquidity.detail=liquidity.detail?`${liquidity.detail} · ${detail}`:detail;
+    }
+    const programRow=vm.checklist.find(row=>row.id==='program'),programs=Array.isArray(program.programs)?program.programs.filter(Boolean):[];
+    if(programRow&&programs.length){
+      const shortAddress=value=>{const text=String(value||'');return text.length>18?`${text.slice(0,8)}…${text.slice(-6)}`:text||'—'};
+      const summaries=programs.map(item=>{
+        const role=item.role||'program';
+        let control=item.status||'unverified';
+        if(item.immutable)control=tr?'immutable':'immutable';
+        else if(item.upgrade_authority_open)control=tr?`upgrade authority açık ${shortAddress(item.upgrade_authority)}`:`upgrade authority open ${shortAddress(item.upgrade_authority)}`;
+        else if(item.available)control=tr?'upgrade authority kapalı veya ayarlanmamış':'upgrade authority closed or unset';
+        const age=item.age_available?(tr?`son deploy/upgrade ${pct(item.last_deployment_or_upgrade_age_days,locale,2)} gün önce`:`latest deploy/upgrade ${pct(item.last_deployment_or_upgrade_age_days,locale,2)} days ago`):(tr?'deploy/upgrade yaşı alınamadı':'deploy/upgrade age unavailable');
+        return `${role} ${shortAddress(item.program_id)} · ${control} · ${age}`;
+      });
+      const complete=program.authority_coverage_complete===true&&program.age_coverage_complete===true&&programs.every(item=>item.available);
+      programRow.state=complete?'verified':'observed';programRow.status=complete?'green':'yellow';programRow.value=summaries.join(' · ');
+      const policy=tr?'Upgrade authority bir kabiliyet olgusudur; tek başına kötü niyet kanıtı değildir.':'Upgrade authority is a capability fact; it is not proof of malicious intent by itself.';
+      programRow.detail=`${summaries.join(' · ')} · ${policy}`;
+    }else if(programRow&&['inspection_failed','rpc_unavailable','partial'].includes(program.status)){
+      programRow.state='arm_pending';programRow.status='gray';programRow.value=tr?`Program security kanıtı tamamlanmadı: ${program.status}`:`Program security evidence incomplete: ${program.status}`;
     }
     const concentration=vm.checklist.find(row=>row.id==='concentration');
     if(concentration&&jupiter.sell_impact_available){
