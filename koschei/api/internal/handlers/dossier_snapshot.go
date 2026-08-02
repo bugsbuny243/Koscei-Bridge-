@@ -37,6 +37,7 @@ func (h *Handler) persistDossierSourceSnapshot(ctx context.Context, report map[s
 	} else {
 		attachCanonicalInvestigationDiagnostics(report)
 	}
+	normalizeFinalProductCapabilityCoverage(report)
 
 	if h.DB == nil {
 		return nil
