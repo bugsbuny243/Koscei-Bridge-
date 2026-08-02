@@ -2,11 +2,16 @@ package http
 
 import (
 	"net/http"
+	"os"
+	"strings"
 
 	"koschei/api/internal/handlers"
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
+	if !defenseOSRoutesEnabled() {
+		return
+	}
 	mux.HandleFunc("/api/owner/defense/artifacts", requiresDB(h, ownerOnly(h, h.OwnerDefenseArtifacts)))
 	mux.HandleFunc("/api/owner/defense/knowledge", requiresDB(h, ownerOnly(h, h.OwnerDefenseKnowledge)))
 	mux.HandleFunc("/api/owner/defense/lab", requiresDB(h, ownerOnly(h, h.OwnerDefenseLab)))
@@ -19,4 +24,13 @@ func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
 	mux.HandleFunc("/api/owner/defense/harness-execution", requiresDB(h, ownerOnly(h, h.OwnerDefenseHarnessExecution)))
 	mux.HandleFunc("/api/owner/defense/harness-materialization", requiresDB(h, ownerOnly(h, h.OwnerDefenseHarnessMaterialization)))
 	mux.HandleFunc("/api/owner/defense/litesvm-execution", requiresDB(h, ownerOnly(h, h.OwnerDefenseLiteSVMExecution)))
+}
+
+func defenseOSRoutesEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_OS_ENABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
