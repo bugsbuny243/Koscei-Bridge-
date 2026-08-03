@@ -85,7 +85,7 @@ func TestCustomerAnalysisSummaryExposesEvidenceDecisionAndActions(t *testing.T) 
 
 func TestCustomerAnalysisSummaryUnsignedIsExplicitlyLowConfidence(t *testing.T) {
 	assembly := unifiedInvestigationAssembly{
-		Core: holderIntelligenceCoreResult{Request: services.SecurityRadarRequest{Target: "Mint222", Network: "solana-mainnet"}},
+		Core:           holderIntelligenceCoreResult{Request: services.SecurityRadarRequest{Target: "Mint222", Network: "solana-mainnet"}},
 		UnifiedVerdict: services.UnifiedRadarVerdict{Grade: "-", Verdict: "watch_only", Signed: false},
 	}
 	summary := buildCustomerAnalysisSummary(assembly, false)
@@ -111,8 +111,8 @@ func TestCustomerAnalysisSummaryUnsignedIsExplicitlyLowConfidence(t *testing.T) 
 
 func TestCustomerInvestigationEnvelopeEmbedsAdvancedSummaryAtBothLevels(t *testing.T) {
 	assembly := unifiedInvestigationAssembly{
-		Report: map[string]any{"ok": true, "schema_version": unifiedInvestigationSchemaVersion},
-		Core: holderIntelligenceCoreResult{Request: services.SecurityRadarRequest{Target: "Mint333", Network: "solana-mainnet"}},
+		Report:         map[string]any{"ok": true, "schema_version": unifiedInvestigationSchemaVersion},
+		Core:           holderIntelligenceCoreResult{Request: services.SecurityRadarRequest{Target: "Mint333", Network: "solana-mainnet"}},
 		UnifiedVerdict: services.UnifiedRadarVerdict{Grade: "-", Verdict: "no_grade_trigger", Signed: false},
 	}
 	envelope := customerInvestigationEnvelope(assembly, false)
