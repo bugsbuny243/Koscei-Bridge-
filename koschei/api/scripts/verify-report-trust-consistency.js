@@ -8,5 +8,6 @@ need('public/js/public-solana-scan.js', 'HIZLI ÖN KONTROL');
 need('public/js/lp-control-evidence-card.js', 'Havuz hareket geçmişi bu taramada doğrulanamadı');
 need('public/index.html', 'signed_verdicts_total');
 need('public/index.html', 'KAPSAM SINIRI');
-need('public/safe-check.html', 'Holder ve likidite bu sonuçta değerlendirilmedi.');
+need('public/safe-check.html', 'Holder and liquidity evidence were not evaluated in this result.');
+need('public/safe-check.html', 'Missing evidence = no decision');
 console.log('report trust consistency contract verified');
