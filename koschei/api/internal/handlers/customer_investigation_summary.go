@@ -50,13 +50,13 @@ func buildCustomerAnalysisSummary(assembly unifiedInvestigationAssembly, hasLive
 		"unresolved_questions":       unresolved,
 		"recommended_actions":        actions,
 		"interpretation_policy": map[string]any{
-			"missing_evidence_is_not_safe":                 true,
-			"verified_or_observed_rules_may_change_grade":  true,
-			"inferred_evidence_is_watch_only":              true,
-			"unverified_evidence_cannot_change_grade":      true,
-			"numeric_final_score_disabled":                 true,
-			"numeric_rug_probability_disabled":             true,
-			"capability_is_not_proof_of_malicious_intent":  true,
+			"missing_evidence_is_not_safe":                   true,
+			"verified_or_observed_rules_may_change_grade":    true,
+			"inferred_evidence_is_watch_only":                true,
+			"unverified_evidence_cannot_change_grade":        true,
+			"numeric_final_score_disabled":                   true,
+			"numeric_rug_probability_disabled":               true,
+			"capability_is_not_proof_of_malicious_intent":    true,
 			"bounded_window_absence_is_not_historical_proof": true,
 		},
 	}
@@ -76,15 +76,15 @@ func customerEvidenceCoverage(arms []services.SecurityRadarVerdict) map[string]a
 		state := customerArmEvidenceState(arm)
 		counts[state]++
 		modules = append(modules, map[string]any{
-			"module_id":       arm.ModuleID,
-			"module":          arm.Module,
-			"state":           state,
-			"signed":          arm.Signed,
-			"recommendation":  arm.Recommendation,
-			"evidence_count":  len(arm.Evidence),
-			"evidence":        append([]string{}, arm.Evidence...),
-			"generated_at":    arm.GeneratedAt,
-			"rule_version":    arm.RuleVersion,
+			"module_id":      arm.ModuleID,
+			"module":         arm.Module,
+			"state":          state,
+			"signed":         arm.Signed,
+			"recommendation": arm.Recommendation,
+			"evidence_count": len(arm.Evidence),
+			"evidence":       append([]string{}, arm.Evidence...),
+			"generated_at":   arm.GeneratedAt,
+			"rule_version":   arm.RuleVersion,
 		})
 	}
 	if len(arms) < architectureArms {
@@ -209,12 +209,12 @@ func customerUnresolvedEvidence(arms []services.SecurityRadarVerdict, behavior s
 		moduleID := strings.TrimSpace(arm.ModuleID)
 		seenModules[moduleID] = true
 		out = append(out, map[string]any{
-			"type":           "evidence_arm",
-			"module_id":      moduleID,
-			"module":         arm.Module,
-			"status":         "pending",
-			"reason":         firstNonEmptyString(arm.Verdict, arm.Recommendation, "Evidence did not complete in this scan."),
-			"grade_effect":   "none_until_verified_or_observed",
+			"type":         "evidence_arm",
+			"module_id":    moduleID,
+			"module":       arm.Module,
+			"status":       "pending",
+			"reason":       firstNonEmptyString(arm.Verdict, arm.Recommendation, "Evidence did not complete in this scan."),
+			"grade_effect": "none_until_verified_or_observed",
 		})
 	}
 	for _, signal := range behavior.Signals {
@@ -234,11 +234,11 @@ func customerUnresolvedEvidence(arms []services.SecurityRadarVerdict, behavior s
 	}
 	if len(arms) < 14 {
 		out = append(out, map[string]any{
-			"type":               "architecture_coverage",
-			"status":             "pending",
-			"missing_arm_count":  14 - len(arms),
-			"reason":             "The response did not contain all fourteen evidence arms.",
-			"grade_effect":       "missing_evidence_is_not_safe",
+			"type":                "architecture_coverage",
+			"status":              "pending",
+			"missing_arm_count":   14 - len(arms),
+			"reason":              "The response did not contain all fourteen evidence arms.",
+			"grade_effect":        "missing_evidence_is_not_safe",
 			"observed_module_ids": customerSortedKeys(seenModules),
 		})
 	}
@@ -294,9 +294,9 @@ func customerRecommendedActions(final services.UnifiedRadarVerdict, coverage map
 	actions := []map[string]any{}
 	if len(triggered) > 0 {
 		actions = append(actions, map[string]any{
-			"priority":          1,
-			"action":            "Review every grade-changing rule against its evidence keys and transaction signatures before interacting with the target.",
-			"reason":            "The final grade is driven by explicit deterministic rule hits, not a weighted score.",
+			"priority":         1,
+			"action":           "Review every grade-changing rule against its evidence keys and transaction signatures before interacting with the target.",
+			"reason":           "The final grade is driven by explicit deterministic rule hits, not a weighted score.",
 			"related_rule_ids": customerFindingIDs(triggered),
 		})
 	}
@@ -310,9 +310,9 @@ func customerRecommendedActions(final services.UnifiedRadarVerdict, coverage map
 	}
 	if len(watch) > 0 {
 		actions = append(actions, map[string]any{
-			"priority":          3,
-			"action":            "Monitor watch-only signals and gather verification before treating them as confirmed behavior.",
-			"reason":            "Inferred evidence is intentionally excluded from letter-grade decisions.",
+			"priority":         3,
+			"action":           "Monitor watch-only signals and gather verification before treating them as confirmed behavior.",
+			"reason":           "Inferred evidence is intentionally excluded from letter-grade decisions.",
 			"related_rule_ids": customerFindingIDs(watch),
 		})
 	}
