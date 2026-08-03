@@ -11,13 +11,13 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	// There is one customer-facing investigation surface. Legacy scanner URLs
 	// preserve their intent through a mode query, but no longer render separate
 	// products with overlapping forms and verdict language.
-	for _, route := range []string{"/safe-check", "/safe-check.html"} {
+	for _, route := range []string{"/safe-check", "/safe-check/", "/safe-check.html"} {
 		registerScanModeRedirect(mux, route, "quick")
 	}
-	for _, route := range []string{"/transaction-shield", "/transaction-shield.html"} {
+	for _, route := range []string{"/transaction-shield", "/transaction-shield/", "/transaction-shield.html"} {
 		registerScanModeRedirect(mux, route, "transaction")
 	}
-	for _, route := range []string{"/security-radar", "/security-radar.html"} {
+	for _, route := range []string{"/security-radar", "/security-radar/", "/security-radar.html"} {
 		registerScanModeRedirect(mux, route, "deep")
 	}
 
