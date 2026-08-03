@@ -1,0 +1,78 @@
+name: Diagnostic core English wave 2
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "koschei/api/public/index.html"
+      - "koschei/api/public/login.html"
+      - "koschei/api/public/register.html"
+      - "koschei/api/public/account.html"
+      - "koschei/api/public/reports.html"
+      - "koschei/api/core_source_english_wave2_test.go"
+      - ".github/workflows/diagnostic-core-english-wave2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  visual-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm --prefix "${RUNNER_TEMP}/core-en" init -y
+          npm --prefix "${RUNNER_TEMP}/core-en" install playwright@1.55.0
+          "${RUNNER_TEMP}/core-en/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Render desktop and mobile proof
+        env:
+          NODE_PATH: ${{ runner.temp }}/core-en/node_modules
+        run: |
+          mkdir -p "${RUNNER_TEMP}/core-en-proof"
+          cat > "${RUNNER_TEMP}/render-core-en.cjs" <<'NODE'
+          const path = require('path');
+          const { chromium } = require('playwright');
+          const root = process.cwd();
+          const output = path.join(process.env.RUNNER_TEMP, 'core-en-proof');
+          const files = ['index.html','login.html','register.html'];
+          const forbidden = ['Giriş Yap','Hesap Oluştur','Token Tara','Ücretsiz kontrol et','KAPSAM SINIRI','Kontrol ediliyor'];
+          (async()=>{
+            const browser = await chromium.launch({headless:true});
+            for (const file of files) {
+              for (const view of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
+                const page = await browser.newPage({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
+                const url = 'file://' + path.join(root,'koschei/api/public',file);
+                await page.goto(url,{waitUntil:'domcontentloaded'});
+                const audit = await page.evaluate(()=>({
+                  lang: document.documentElement.lang,
+                  text: document.body.innerText,
+                  overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
+                  forms: document.querySelectorAll('form').length,
+                  buttons: document.querySelectorAll('button').length
+                }));
+                if(audit.lang!=='en')throw new Error(`${file}/${view.name}: lang=${audit.lang}`);
+                if(audit.overflow)throw new Error(`${file}/${view.name}: horizontal overflow`);
+                for(const phrase of forbidden)if(audit.text.includes(phrase))throw new Error(`${file}/${view.name}: Turkish copy ${phrase}`);
+                if((file==='login.html'||file==='register.html')&&(!audit.forms||!audit.buttons))throw new Error(`${file}/${view.name}: auth form missing`);
+                await page.screenshot({path:path.join(output,`${file.replace('.html','')}-${view.name}.png`),fullPage:true});
+                await page.close();
+              }
+            }
+            await browser.close();
+          })().catch(error=>{console.error(error);process.exit(1)});
+          NODE
+          node "${RUNNER_TEMP}/render-core-en.cjs"
+          test "$(find "${RUNNER_TEMP}/core-en-proof" -name '*.png' | wc -l)" -eq 6
+          sha256sum "${RUNNER_TEMP}/core-en-proof"/*.png
+      - name: Upload visual proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-English-wave2-proof
+          path: ${{ runner.temp }}/core-en-proof/*.png
+          if-no-files-found: error
+          retention-days: 7
