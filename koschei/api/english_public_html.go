@@ -9,7 +9,7 @@ import (
 )
 
 const englishRuntimeScript = `<script src="/js/koschei-english-runtime.js?v=1" data-koschei-english-runtime="1"></script>`
-const authEnglishOverlayScript = `<script src="/js/english-auth-presentation.js?v=1" data-koschei-auth-english-overlay="1"></script>`
+const authEnglishOverlayScript = `<script src="/js/english-auth-presentation.js?v=2" data-koschei-auth-english-overlay="1"></script>`
 
 const arvisSocialRendererScripts = `<script src="/js/arvis-social-render-v2-core.js?v=2" data-arvis-social-v2="core"></script>
 <script src="/js/arvis-social-render-v2-cards.js?v=2" data-arvis-social-v2="cards"></script>
