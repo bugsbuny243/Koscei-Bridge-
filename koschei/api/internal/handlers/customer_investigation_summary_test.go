@@ -14,13 +14,13 @@ func TestCustomerAnalysisSummaryExposesEvidenceDecisionAndActions(t *testing.T) 
 			Request: services.SecurityRadarRequest{Target: "Mint111", Network: "solana-mainnet"},
 			Arms: []services.SecurityRadarVerdict{
 				{
-					ModuleID: services.ModuleTokenAuthorityScanner,
-					Module:   "Token Authority Scanner",
-					Signed:   true,
+					ModuleID:  services.ModuleTokenAuthorityScanner,
+					Module:    "Token Authority Scanner",
+					Signed:    true,
 					Signature: "sig-arm",
 					Signals: map[string]any{
-						"evidence_status":      "verified",
-						"verified_evidence":    true,
+						"evidence_status":       "verified",
+						"verified_evidence":     true,
 						"real_onchain_evidence": true,
 					},
 					Evidence: []string{"account:one"},
