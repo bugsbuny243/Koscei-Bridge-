@@ -13,10 +13,40 @@ func TestCustomerAnalysisSummaryExposesEvidenceDecisionAndActions(t *testing.T) 
 		Core: holderIntelligenceCoreResult{
 			Request: services.SecurityRadarRequest{Target: "Mint111", Network: "solana-mainnet"},
 			Arms: []services.SecurityRadarVerdict{
-				{ModuleID: "verified_arm", Module: "Verified arm", Signed: true, Signature: "sig-arm", Signals: map[string]any{"evidence_status": "verified"}, Evidence: []string{"account:one"}},
-				{ModuleID: "observed_arm", Module: "Observed arm", Signed: true, Signals: map[string]any{"evidence_status": "observed"}, Evidence: []string{"observation:one"}},
-				{ModuleID: "pending_arm", Module: "Pending arm", Verdict: "Live source did not complete.", Signals: map[string]any{"execution_status": "evidence_pending"}},
-				{ModuleID: "not_applicable_arm", Module: "Not applicable arm", Recommendation: "not_applicable", Signals: map[string]any{"applicable": false}},
+				{
+					ModuleID: services.ModuleTokenAuthorityScanner,
+					Module:   "Token Authority Scanner",
+					Signed:   true,
+					Signature: "sig-arm",
+					Signals: map[string]any{
+						"evidence_status":      "verified",
+						"verified_evidence":    true,
+						"real_onchain_evidence": true,
+					},
+					Evidence: []string{"account:one"},
+				},
+				{
+					ModuleID: services.ModuleCreatorLinkAnalysis,
+					Module:   "Creator Link Analysis",
+					Signed:   true,
+					Signals: map[string]any{
+						"evidence_status":       "observed",
+						"real_onchain_evidence": true,
+					},
+					Evidence: []string{"observation:one"},
+				},
+				{
+					ModuleID: "walletless_claim_shield",
+					Module:   "Walletless Claim Shield",
+					Verdict:  "Live source did not complete.",
+					Signals:  map[string]any{"execution_status": "evidence_pending"},
+				},
+				{
+					ModuleID:       services.ModuleLiquidityMovement,
+					Module:         "Liquidity Movement",
+					Recommendation: "not_applicable",
+					Signals:        map[string]any{"applicable": false},
+				},
 			},
 		},
 		UnifiedVerdict: services.UnifiedRadarVerdict{
@@ -120,12 +150,12 @@ func TestCustomerInvestigationEnvelopeEmbedsAdvancedSummaryAtBothLevels(t *testi
 		t.Fatalf("response schema missing: %#v", envelope)
 	}
 	topSummary, ok := envelope["analysis_summary"].(map[string]any)
-	if !ok || topSummary["schema_version"] != customerAnalysisSummarySchemaVersion {
+	if !ok || topSummary["schema_version"] != customerAnalysisSummarySchemaVersionV3 {
 		t.Fatalf("top-level analysis summary missing: %#v", envelope["analysis_summary"])
 	}
 	report := envelope["investigation_report"].(map[string]any)
 	reportSummary, ok := report["analysis_summary"].(map[string]any)
-	if !ok || reportSummary["schema_version"] != customerAnalysisSummarySchemaVersion {
+	if !ok || reportSummary["schema_version"] != customerAnalysisSummarySchemaVersionV3 {
 		t.Fatalf("report analysis summary missing: %#v", report["analysis_summary"])
 	}
 }
