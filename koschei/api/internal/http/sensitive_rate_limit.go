@@ -88,7 +88,7 @@ func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {
 		return sensitiveLimitRule{Limit: 10, Window: 5 * time.Minute}, true
 	case "/api/arvis/preflight":
 		return sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
-	case "/api/token/scan":
+	case "/api/token/scan", "/api/public/transaction-simulate":
 		return sensitiveLimitRule{Limit: 10, Window: time.Minute}, true
 	case "/api/v1/radar/check", "/api/v1/unified/analyze":
 		return sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
