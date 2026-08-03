@@ -21,11 +21,10 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if !strings.Contains(body, `<html lang="en">`) {
 		t.Fatalf("document language was not rewritten: %s", body)
 	}
-	if !strings.Contains(body, "koschei-english-runtime.js") {
-		t.Fatalf("English runtime was not injected: %s", body)
-	}
-	if strings.Count(body, "koschei-english-runtime.js") != 1 {
-		t.Fatalf("English runtime was injected more than once: %s", body)
+	for _, script := range []string{"koschei-english-runtime.js", "unified-scan-navigation.js"} {
+		if strings.Count(body, script) != 1 {
+			t.Fatalf("expected exactly one %s reference: %s", script, body)
+		}
 	}
 	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "english-auth-presentation.js") {
 		t.Fatalf("specialized extensions were injected into a generic page: %s", body)
@@ -42,13 +41,12 @@ func TestEnglishPublicHTMLInjectsARVISResultExtensionsExactlyOnce(t *testing.T) 
 		"arvis-social-render-v2-cards.js",
 		"arvis-social-render-v2-publish.js",
 		"arvis-complete-evidence-v3.js",
+		"koschei-english-runtime.js",
+		"unified-scan-navigation.js",
 	} {
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("expected exactly one %s reference: %s", script, second)
 		}
-	}
-	if strings.Count(second, "koschei-english-runtime.js") != 1 {
-		t.Fatalf("English runtime was duplicated: %s", second)
 	}
 }
 
@@ -60,14 +58,10 @@ func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContr
 	if !strings.Contains(second, `<html lang="en">`) {
 		t.Fatalf("auth page language was not rewritten: %s", second)
 	}
-	if strings.Count(second, "koschei-auth.js?v=33") != 1 {
-		t.Fatalf("frozen auth script contract changed: %s", second)
-	}
-	if strings.Count(second, "english-auth-presentation.js") != 1 {
-		t.Fatalf("auth English presentation was not injected exactly once: %s", second)
-	}
-	if strings.Count(second, "koschei-english-runtime.js") != 1 {
-		t.Fatalf("global English runtime was not injected exactly once: %s", second)
+	for _, script := range []string{"koschei-auth.js?v=33", "english-auth-presentation.js", "koschei-english-runtime.js", "unified-scan-navigation.js"} {
+		if strings.Count(second, script) != 1 {
+			t.Fatalf("auth page expected exactly one %s reference: %s", script, second)
+		}
 	}
 	presentationIndex := strings.Index(second, "english-auth-presentation.js")
 	runtimeIndex := strings.Index(second, "koschei-english-runtime.js")
@@ -89,8 +83,8 @@ func TestEnglishPublicHTMLLeavesAPIJSONUntouched(t *testing.T) {
 	if got := response.Body.String(); got != `{"status":"ok"}` {
 		t.Fatalf("API response changed: %s", got)
 	}
-	if strings.Contains(response.Body.String(), "koschei-english-runtime.js") {
-		t.Fatal("English runtime was injected into JSON")
+	if strings.Contains(response.Body.String(), "koschei-english-runtime.js") || strings.Contains(response.Body.String(), "unified-scan-navigation.js") {
+		t.Fatal("public HTML scripts were injected into JSON")
 	}
 }
 
