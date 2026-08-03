@@ -7,7 +7,7 @@ const legacyModes=new Map([
   ['/transaction-shield','transaction'],['/transaction-shield.html','transaction'],
   ['/security-radar','deep'],['/security-radar.html','deep']
 ]);
-const navSelector='nav,.koschei-global-nav,.product-footer';
+const navSelector='nav,.koschei-global-nav,.product-footer,.koschei-footer';
 
 function normalizedPath(anchor){
   try{return new URL(anchor.getAttribute('href')||'',location.origin).pathname.replace(/\/$/,'')||'/'}catch{return''}
