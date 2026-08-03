@@ -14,6 +14,8 @@ const arvisSocialRendererScripts = `<script src="/js/arvis-social-render-v2-core
 <script src="/js/arvis-social-render-v2-cards.js?v=2" data-arvis-social-v2="cards"></script>
 <script src="/js/arvis-social-render-v2-publish.js?v=2" data-arvis-social-v2="publish"></script>`
 
+const arvisCompleteEvidenceScript = `<script src="/js/arvis-complete-evidence-v3.js?v=3" data-arvis-complete-evidence-v3="1"></script>`
+
 type bufferedHTMLResponse struct {
 	header http.Header
 	body   bytes.Buffer
@@ -89,9 +91,13 @@ func rewritePublicHTMLToEnglish(body []byte) []byte {
 	}
 
 	lower := strings.ToLower(text)
-	extras := make([]string, 0, 2)
-	if strings.Contains(lower, "arvis-premium-contract.js") && !strings.Contains(lower, "arvis-social-render-v2-core.js") {
+	extras := make([]string, 0, 3)
+	hasPremiumContract := strings.Contains(lower, "arvis-premium-contract.js")
+	if hasPremiumContract && !strings.Contains(lower, "arvis-social-render-v2-core.js") {
 		extras = append(extras, arvisSocialRendererScripts)
+	}
+	if hasPremiumContract && !strings.Contains(lower, "arvis-complete-evidence-v3.js") {
+		extras = append(extras, arvisCompleteEvidenceScript)
 	}
 	if !strings.Contains(lower, "koschei-english-runtime.js") {
 		extras = append(extras, englishRuntimeScript)

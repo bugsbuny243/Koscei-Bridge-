@@ -34,8 +34,8 @@ func TestCustomerScanAndRadarExposeInvestigationShare(t *testing.T) {
 	if shareIndex < 0 || scanIndex < 0 || shareIndex > scanIndex {
 		t.Fatal("scan page must load investigation-share.js before public-solana-scan.js")
 	}
-	if !strings.Contains(scanHTML, "X'te paylaş") {
-		t.Fatal("scan page is missing the X share action")
+	if !strings.Contains(scanHTML, "Share on X") || !strings.Contains(scanHTML, `id="shareResult"`) {
+		t.Fatal("scan page is missing the English X share action")
 	}
 
 	publicScan := mustReadShareFixture(t, "../../public/js/public-solana-scan.js")
