@@ -1,11 +1,11 @@
 {
-  "schema_version": "koschei-production-evidence-snapshot-v1",
+  "schema_version": "koschei-production-evidence-snapshot-v2",
   "target": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
   "network": "solana-mainnet",
   "endpoint": "/api/token/scan",
   "generated_at": "2026-08-03T16:01:19.518Z",
   "elapsed_ms": 191559,
-  "authoritative_decision": {
+  "source_decision": {
     "grade": "F",
     "verdict": "hard_trigger",
     "signed": true,
@@ -15,9 +15,21 @@
     "ruleset_version": "koschei-unified-radar-rules-v1.1.0",
     "actor_ruleset": "koschei-actor-defense-rules-v1.0.2",
     "has_live_evidence": true,
-    "narrative_source": "deterministic_rules_only_ai_explains_but_never_grades"
+    "narrative_source": "deterministic_rules_only_ai_explains_but_never_grades",
+    "source_semantics": "production_response_before_distinct-rule-count correction"
   },
-  "executive_summary": "A signed deterministic F verdict was produced from 5 grade-changing findings. 0 watch items remain non-grade-changing. 0 verified and 9 observed evidence arms completed; 3 arms remain pending.",
+  "authoritative_interpretation": {
+    "grade": "F",
+    "verdict": "hard_trigger",
+    "grade_determining_rule_count": 1,
+    "grade_determining_rule_ids": ["URD-C005"],
+    "supporting_evidence_group_count": 4,
+    "distinct_compounding_rule_count": 1,
+    "distinct_compounding_rule_ids": ["ARD-C004"],
+    "corrected_ruleset": "koschei-unified-radar-rules-v1.1.1",
+    "explanation": "URD-C005 alone fixed the maximum grade at F. Four ARD-C004 evidence groups remain verified supporting context but represent one distinct compounding rule ID and cannot issue a letter grade alone."
+  },
+  "executive_summary": "A signed deterministic F verdict was produced by verified rule URD-C005. Four verified ARD-C004 evidence groups remain supporting context and count as one distinct compounding rule ID, which cannot issue a letter grade alone. Nine observed evidence arms completed and three arms remain pending.",
   "evidence_coverage": {
     "architecture_arm_count": 14,
     "applicable_arm_count": 12,
@@ -28,112 +40,33 @@
     "not_applicable": 2,
     "completed": 9,
     "coverage_percent": 75,
-    "coverage_is_risk_score": false
+    "coverage_is_risk_score": false,
+    "module_states": {
+      "claim_surface_risk": "pending",
+      "creator_link_analysis": "observed",
+      "funding_cluster_detector": "observed",
+      "holder_concentration": "pending",
+      "launch_distribution": "observed",
+      "liquidity_movement": "not_applicable",
+      "mev_shield": "observed",
+      "program_relation_scan": "observed",
+      "pump_sybil_radar": "observed",
+      "raydium_pool_guardian": "not_applicable",
+      "repeat_actor_scan": "observed",
+      "sniper_timing_detector": "observed",
+      "token_authority_scanner": "observed",
+      "walletless_claim_shield": "pending"
+    }
   },
-  "evidence_modules": [
-    {"module_id": "claim_surface_risk", "state": "pending", "signed": false, "evidence_count": 1},
-    {"module_id": "creator_link_analysis", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "funding_cluster_detector", "state": "observed", "signed": true, "evidence_count": 13},
-    {"module_id": "holder_concentration", "state": "pending", "signed": false, "evidence_count": 1},
-    {"module_id": "launch_distribution", "state": "observed", "signed": true, "evidence_count": 4},
-    {"module_id": "liquidity_movement", "state": "not_applicable", "signed": false, "evidence_count": 1},
-    {"module_id": "mev_shield", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "program_relation_scan", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "pump_sybil_radar", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "raydium_pool_guardian", "state": "not_applicable", "signed": false, "evidence_count": 1},
-    {"module_id": "repeat_actor_scan", "state": "observed", "signed": true, "evidence_count": 1},
-    {"module_id": "sniper_timing_detector", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "token_authority_scanner", "state": "observed", "signed": true, "evidence_count": 3},
-    {"module_id": "walletless_claim_shield", "state": "pending", "signed": false, "evidence_count": 1}
-  ],
-  "grade_changing_findings": [
-    {
-      "rule_id": "ARD-C004",
-      "title": "Repeated direct transfer relation",
-      "evidence_status": "verified",
-      "grade_effect": "compounding_input",
-      "count": 4,
-      "summary": "The direct_sol_transfer_out relation with counterpart 5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh repeated across 4 distinct transaction signatures after signature deduplication.",
-      "signatures": [
-        "2uGmnYYozzZjDFjmZttMkJwH4tstGh3kugmSQbg9vzcPbSEJgiV1GSetdDXJ8ULDR2hcr9qKd6ANLbhrPXxDgzFX",
-        "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
-        "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
-        "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
-      ],
-      "facts": {
-        "counterpart_id": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
-        "counterpart_kind": "wallet",
-        "dedupe_key": "signature+relation+counterpart",
-        "distinct_signature_count": 4,
-        "relation": "direct_sol_transfer_out"
-      }
-    },
-    {
-      "rule_id": "ARD-C004",
-      "title": "Repeated direct transfer relation",
-      "evidence_status": "verified",
-      "grade_effect": "compounding_input",
-      "count": 2,
-      "summary": "The direct_sol_transfer_out relation with counterpart AHQKReTtp6XbxyJfuthSrH3W3bSiGDTN92C2rCNya9Cc repeated across 2 distinct transaction signatures after signature deduplication.",
-      "signatures": [
-        "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
-        "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
-      ],
-      "facts": {
-        "counterpart_id": "AHQKReTtp6XbxyJfuthSrH3W3bSiGDTN92C2rCNya9Cc",
-        "counterpart_kind": "wallet",
-        "dedupe_key": "signature+relation+counterpart",
-        "distinct_signature_count": 2,
-        "relation": "direct_sol_transfer_out"
-      }
-    },
-    {
-      "rule_id": "ARD-C004",
-      "title": "Repeated direct transfer relation",
-      "evidence_status": "verified",
-      "grade_effect": "compounding_input",
-      "count": 2,
-      "summary": "The direct_sol_transfer_out relation with counterpart EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL repeated across 2 distinct transaction signatures after signature deduplication.",
-      "signatures": [
-        "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
-        "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
-      ],
-      "facts": {
-        "counterpart_id": "EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL",
-        "counterpart_kind": "wallet",
-        "dedupe_key": "signature+relation+counterpart",
-        "distinct_signature_count": 2,
-        "relation": "direct_sol_transfer_out"
-      }
-    },
-    {
-      "rule_id": "ARD-C004",
-      "title": "Repeated direct transfer relation",
-      "evidence_status": "verified",
-      "grade_effect": "compounding_input",
-      "count": 3,
-      "summary": "The direct_token_transfer_in relation with counterpart 5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh repeated across 3 distinct transaction signatures after signature deduplication.",
-      "signatures": [
-        "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
-        "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
-        "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
-      ],
-      "facts": {
-        "counterpart_id": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
-        "counterpart_kind": "wallet",
-        "dedupe_key": "signature+relation+counterpart",
-        "distinct_signature_count": 3,
-        "relation": "direct_token_transfer_in"
-      }
-    },
+  "grade_determining_findings": [
     {
       "rule_id": "URD-C005",
       "title": "Owner-resolved dominant concentration",
+      "tier": "compounding",
       "evidence_status": "verified",
       "grade_effect": "hard_cap_F",
-      "count": 1,
       "summary": "Owner-resolved, infrastructure-excluded top ownership is 99.2987%, meeting the 70% F-cap threshold.",
-      "signatures": [],
+      "count": 1,
       "facts": {
         "metrics": {
           "owner_aggregation_applied": true,
@@ -143,81 +76,64 @@
         },
         "scope": "owner_resolved_infrastructure_excluded_circulating_supply",
         "thresholds": {"d_cap_pct": 50, "f_cap_pct": 70}
-      }
+      },
+      "evidence_keys": ["owner:5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh"],
+      "signatures": []
     }
   ],
-  "unresolved_questions": [
-    {"grade_effect": "none_until_verified_or_observed", "module": "Walletless Claim Shield", "module_id": "walletless_claim_shield", "reason": "Real data unavailable. Analysis could not be completed.", "status": "pending", "type": "evidence_arm"},
-    {"grade_effect": "none_until_verified_or_observed", "module": "Holder Concentration", "module_id": "holder_concentration", "reason": "Real data unavailable. Analysis could not be completed.", "status": "pending", "type": "evidence_arm"},
-    {"grade_effect": "none_until_verified_or_observed", "module": "Claim Surface Risk", "module_id": "claim_surface_risk", "reason": "Real data unavailable. Analysis could not be completed.", "status": "pending", "type": "evidence_arm"},
-    {"grade_effect": "none_until_evidence_available", "limitations": ["No Solana market pair was returned for this mint."], "reason": "Volume/liquidity ratio could not be evaluated because a positive liquidity snapshot is unavailable.", "rule_id": "URD-C001", "status": "unverified", "title": "24h volume / liquidity gap", "type": "behavior_rule"},
-    {"grade_effect": "none_until_evidence_available", "limitations": [], "reason": "Holder-position pressure could not be evaluated because owner-aggregated holder value or positive liquidity is unavailable.", "rule_id": "URD-C002", "status": "unverified", "title": "Dominant-holder position / liquidity depth", "type": "behavior_rule"},
-    {"grade_effect": "none_until_evidence_available", "limitations": [], "reason": "Dominant-holder exit was not evaluated because rank-one owner history is unavailable.", "rule_id": "URD-C004", "status": "unverified", "title": "Dominant-holder first observed exit", "type": "behavior_rule"}
+  "supporting_rule_groups": [
+    {
+      "rule_id": "ARD-C004",
+      "title": "Repeated direct transfer relation",
+      "evidence_status": "verified",
+      "grade_effect": "supporting_context",
+      "summary": "The direct_sol_transfer_out relation with counterpart 5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh repeated across 4 distinct transaction signatures after signature deduplication.",
+      "count": 4,
+      "facts": {"counterpart_id": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh", "counterpart_kind": "wallet", "dedupe_key": "signature+relation+counterpart", "distinct_signature_count": 4, "relation": "direct_sol_transfer_out"},
+      "evidence_keys": ["2uGmnYYozzZjDFjmZttMkJwH4tstGh3kugmSQbg9vzcPbSEJgiV1GSetdDXJ8ULDR2hcr9qKd6ANLbhrPXxDgzFX:4", "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9:20", "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt:16", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:29"],
+      "signatures": ["2uGmnYYozzZjDFjmZttMkJwH4tstGh3kugmSQbg9vzcPbSEJgiV1GSetdDXJ8ULDR2hcr9qKd6ANLbhrPXxDgzFX", "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9", "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"],
+      "evidence_file": "2026-08-03-kosch/ard-c004-sol-dominant.json"
+    },
+    {
+      "rule_id": "ARD-C004",
+      "title": "Repeated direct transfer relation",
+      "evidence_status": "verified",
+      "grade_effect": "supporting_context",
+      "summary": "The direct_sol_transfer_out relation with counterpart AHQKReTtp6XbxyJfuthSrH3W3bSiGDTN92C2rCNya9Cc repeated across 2 distinct transaction signatures after signature deduplication.",
+      "count": 2,
+      "facts": {"counterpart_id": "AHQKReTtp6XbxyJfuthSrH3W3bSiGDTN92C2rCNya9Cc", "counterpart_kind": "wallet", "dedupe_key": "signature+relation+counterpart", "distinct_signature_count": 2, "relation": "direct_sol_transfer_out"},
+      "evidence_keys": ["47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9:19", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:27", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:28"],
+      "signatures": ["47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"],
+      "evidence_file": "2026-08-03-kosch/ard-c004-sol-ahqk.json"
+    },
+    {
+      "rule_id": "ARD-C004",
+      "title": "Repeated direct transfer relation",
+      "evidence_status": "verified",
+      "grade_effect": "supporting_context",
+      "summary": "The direct_sol_transfer_out relation with counterpart EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL repeated across 2 distinct transaction signatures after signature deduplication.",
+      "count": 2,
+      "facts": {"counterpart_id": "EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL", "counterpart_kind": "wallet", "dedupe_key": "signature+relation+counterpart", "distinct_signature_count": 2, "relation": "direct_sol_transfer_out"},
+      "evidence_keys": ["5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt:18", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:31"],
+      "signatures": ["5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"],
+      "evidence_file": "2026-08-03-kosch/ard-c004-sol-ehaa.json"
+    },
+    {
+      "rule_id": "ARD-C004",
+      "title": "Repeated direct transfer relation",
+      "evidence_status": "verified",
+      "grade_effect": "supporting_context",
+      "summary": "The direct_token_transfer_in relation with counterpart 5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh repeated across 3 distinct transaction signatures after signature deduplication.",
+      "count": 3,
+      "facts": {"counterpart_id": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh", "counterpart_kind": "wallet", "dedupe_key": "signature+relation+counterpart", "distinct_signature_count": 3, "relation": "direct_token_transfer_in"},
+      "evidence_keys": ["47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9:18", "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt:14", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:26"],
+      "signatures": ["47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9", "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt", "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"],
+      "evidence_file": "2026-08-03-kosch/ard-c004-token-dominant.json"
+    }
   ],
-  "recommended_actions": [
-    {"action": "Review every grade-changing rule against its evidence keys and transaction signatures before interacting with the target.", "priority": 1, "reason": "The final grade is driven by explicit deterministic rule hits, not a weighted score.", "related_rule_ids": ["ARD-C004", "ARD-C004", "ARD-C004", "ARD-C004", "URD-C005"]},
-    {"action": "Complete the pending evidence arms, especially creator, liquidity-control, launch-distribution and transaction-history coverage when applicable.", "priority": 2, "reason": "3 evidence arms remain pending; their absence cannot be interpreted as safety."}
-  ],
-  "live_evidence": {
-    "status": "complete",
-    "rpc_configured": true,
-    "wallets_requested": 4,
-    "wallets_completed": 4,
-    "signatures_seen": 97,
-    "transactions_parsed": 43,
-    "relevant_transactions": 16,
-    "rpc_failures": 0,
-    "limitations": [
-      "Live transaction inspection is bounded to recent wallet signatures and successful JSON-parsed transactions.",
-      "A missing row means no relevant mint delta was observed in the bounded window; it is not proof that no older activity exists."
-    ]
-  },
-  "actor_investigation": {
-    "wallet": "7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ",
-    "store_status": "live_distribution_refreshed",
-    "run_status": "partial",
-    "live_requested": true,
-    "funding_origin_persistence": "persisted",
-    "rule_verdict_persistence": "failed",
-    "limitations": [
-      "Güncel token akıbeti hesaplandı ancak bazı lifecycle gözlemleri kalıcı geçmişe yazılamadı; ortalama ömür yalnız eldeki kanıtlanmış geçiş örneklerini kullanır.",
-      "Creator → mint ilişkisi OBSERVED kaldı; eksik doğrulama alanları: verified_source_flag, slot.",
-      "creator mint relation not found in persistent actor index",
-      "Deterministik actor rule verdict kalıcı actor index'e yazılamadı."
-    ]
-  },
-  "legacy_token_surface": {
-    "score": 43,
-    "risk_level": "medium",
-    "final_policy": "withhold",
-    "verdict_withheld": true,
-    "supply": "1000000000000000",
-    "decimals": 6,
-    "largest_holder_percent": 99.3,
-    "top_ten_percent": 100,
-    "token_program": "token-2022",
-    "token_2022": true,
-    "extension_resolution_status": "resolved",
-    "extension_evidence_complete": true
-  },
-  "interpretation_policy": {
-    "bounded_window_absence_is_not_historical_proof": true,
-    "capability_is_not_proof_of_malicious_intent": true,
-    "inferred_evidence_is_watch_only": true,
-    "missing_evidence_is_not_safe": true,
-    "numeric_final_score_disabled": true,
-    "numeric_rug_probability_disabled": true,
-    "unverified_evidence_cannot_change_grade": true,
-    "verified_or_observed_rules_may_change_grade": true
-  },
-  "provenance": {
-    "production_commit": "bac03e410ee366617cfcc5a7c421f733f5450a9d",
-    "workflow_run_id": 30829763755,
-    "artifact_id": 8862583284,
-    "artifact_digest": "sha256:9e782b98cb8167b9f6d3094926a63bc4a36bbbf307753eeea0c953e8c307b33f",
-    "source_full_scan_response_sha256": "4869aaac86df20252eaf97349eda1a594f000bf67ef28df6b1bf39edd858f7e4",
-    "source_full_scan_result_sha256": "8e606fe5660390ee23c869738cb98992281f3f5b2dbea61186e0b4018d7543e4",
-    "authoritative_decision_path": "analysis_summary.decision",
-    "sanitization": "No credentials, deployment variables, cookies, authorization headers, or raw page bodies are included."
-  }
+  "unresolved_questions": {"count": 6, "pending_arm_ids": ["walletless_claim_shield", "holder_concentration", "claim_surface_risk"], "unverified_rule_ids": ["URD-C001", "URD-C002", "URD-C004"]},
+  "live_evidence": {"status": "complete", "rpc_configured": true, "wallets_requested": 4, "wallets_completed": 4, "signatures_seen": 97, "transactions_parsed": 43, "relevant_transactions": 16, "rpc_failures": 0},
+  "actor_investigation": {"wallet": "7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ", "store_status": "live_distribution_refreshed", "run_status": "partial", "live_requested": true, "funding_origin_persistence": "persisted", "rule_verdict_persistence": "failed"},
+  "interpretation_policy": {"missing_evidence_is_not_safe": true, "inferred_evidence_is_watch_only": true, "unverified_evidence_cannot_change_grade": true, "numeric_final_score_disabled": true, "numeric_rug_probability_disabled": true, "bounded_window_absence_is_not_historical_proof": true, "capability_is_not_proof_of_malicious_intent": true, "distinct_rule_ids_control_compounding": true, "evidence_group_count_does_not_equal_rule_count": true},
+  "provenance": {"production_commit": "bac03e410ee366617cfcc5a7c421f733f5450a9d", "workflow_run_id": 30829763755, "artifact_id": 8862583284, "artifact_digest": "sha256:9e782b98cb8167b9f6d3094926a63bc4a36bbbf307753eeea0c953e8c307b33f", "source_full_scan_response_sha256": "4869aaac86df20252eaf97349eda1a594f000bf67ef28df6b1bf39edd858f7e4", "source_full_scan_result_sha256": "8e606fe5660390ee23c869738cb98992281f3f5b2dbea61186e0b4018d7543e4", "source_decision_path": "analysis_summary.decision", "authoritative_interpretation_path": "authoritative_interpretation", "correction_reason": "Evidence groups from the same rule ID must not be counted as distinct compounding rules.", "sanitization": "No credentials, deployment variables, cookies, authorization headers, or raw page bodies are included."}
 }
