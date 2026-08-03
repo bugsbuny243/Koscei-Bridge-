@@ -3,8 +3,8 @@
   const link=document.createElement('a');
   link.id='koscheiFeedbackButton';
   link.href='/feedback';
-  link.setAttribute('aria-label','Geri bildirim gönder');
-  link.textContent='✦ Geri Bildirim';
+  link.setAttribute('aria-label','Send feedback');
+  link.textContent='✦ Feedback';
   Object.assign(link.style,{
     position:'fixed',right:'16px',bottom:'16px',zIndex:'9999',
     display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'8px',

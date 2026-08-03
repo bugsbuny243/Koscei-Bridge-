@@ -32,12 +32,12 @@
       indicators.forEach(node=>{
         node.classList.toggle('is-live',isLive);
         node.dataset.koscheiDependencyState=isLive?'ready':'degraded';
-        node.textContent=isLive?'ARVIS üretim hattı hazır':'DEGRADED · üretim hattı doğrulanamadı';
+        node.textContent=isLive?'ARVIS production pipeline ready':'DEGRADED · production pipeline could not be verified';
       });
     }catch(error){
       indicators.forEach(node=>{
-        node.textContent='DEGRADED · kanıt servisi erişilemiyor';
-        node.title=error?.name==='AbortError'?`Sağlık kontrolü ${HEALTH_TIMEOUT_MS/1000} saniyede yanıt vermedi`:String(error?.message||'bağımlılık hatası');
+        node.textContent='DEGRADED · evidence service unavailable';
+        node.title=error?.name==='AbortError'?`Health check did not respond within ${HEALTH_TIMEOUT_MS/1000} seconds`:String(error?.message||'dependency error');
         node.dataset.koscheiDependencyState='degraded';
         node.classList.remove('is-live');
       });

@@ -9,6 +9,7 @@ import (
 )
 
 const englishRuntimeScript = `<script src="/js/koschei-english-runtime.js?v=1" data-koschei-english-runtime="1"></script>`
+const authEnglishOverlayScript = `<script src="/js/english-auth-presentation.js?v=1" data-koschei-auth-english-overlay="1"></script>`
 
 const arvisSocialRendererScripts = `<script src="/js/arvis-social-render-v2-core.js?v=2" data-arvis-social-v2="core"></script>
 <script src="/js/arvis-social-render-v2-cards.js?v=2" data-arvis-social-v2="cards"></script>
@@ -91,13 +92,19 @@ func rewritePublicHTMLToEnglish(body []byte) []byte {
 	}
 
 	lower := strings.ToLower(text)
-	extras := make([]string, 0, 3)
+	extras := make([]string, 0, 4)
 	hasPremiumContract := strings.Contains(lower, "arvis-premium-contract.js")
+	hasAuthContract := strings.Contains(lower, "koschei-auth.js")
 	if hasPremiumContract && !strings.Contains(lower, "arvis-social-render-v2-core.js") {
 		extras = append(extras, arvisSocialRendererScripts)
 	}
 	if hasPremiumContract && !strings.Contains(lower, "arvis-complete-evidence-v3.js") {
 		extras = append(extras, arvisCompleteEvidenceScript)
+	}
+	// Translate the frozen login/register DOM before the generic runtime makes
+	// token-level substitutions. This preserves complete English sentences.
+	if hasAuthContract && !strings.Contains(lower, "english-auth-presentation.js") {
+		extras = append(extras, authEnglishOverlayScript)
 	}
 	if !strings.Contains(lower, "koschei-english-runtime.js") {
 		extras = append(extras, englishRuntimeScript)

@@ -27,8 +27,8 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if strings.Count(body, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("English runtime was injected more than once: %s", body)
 	}
-	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") {
-		t.Fatalf("ARVIS result extensions were injected into a non-ARVIS page: %s", body)
+	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "english-auth-presentation.js") {
+		t.Fatalf("specialized extensions were injected into a generic page: %s", body)
 	}
 }
 
@@ -49,6 +49,30 @@ func TestEnglishPublicHTMLInjectsARVISResultExtensionsExactlyOnce(t *testing.T) 
 	}
 	if strings.Count(second, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("English runtime was duplicated: %s", second)
+	}
+}
+
+func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContract(t *testing.T) {
+	html := `<!doctype html><html lang="tr"><body><form id="loginForm"></form><script src="/js/koschei-auth.js?v=33"></script></body></html>`
+	first := string(rewritePublicHTMLToEnglish([]byte(html)))
+	second := string(rewritePublicHTMLToEnglish([]byte(first)))
+
+	if !strings.Contains(second, `<html lang="en">`) {
+		t.Fatalf("auth page language was not rewritten: %s", second)
+	}
+	if strings.Count(second, "koschei-auth.js?v=33") != 1 {
+		t.Fatalf("frozen auth script contract changed: %s", second)
+	}
+	if strings.Count(second, "english-auth-presentation.js") != 1 {
+		t.Fatalf("auth English presentation was not injected exactly once: %s", second)
+	}
+	if strings.Count(second, "koschei-english-runtime.js") != 1 {
+		t.Fatalf("global English runtime was not injected exactly once: %s", second)
+	}
+	presentationIndex := strings.Index(second, "english-auth-presentation.js")
+	runtimeIndex := strings.Index(second, "koschei-english-runtime.js")
+	if presentationIndex < 0 || runtimeIndex < 0 || presentationIndex > runtimeIndex {
+		t.Fatalf("auth presentation must run before the generic runtime: %s", second)
 	}
 }
 
