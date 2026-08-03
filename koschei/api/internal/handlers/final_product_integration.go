@@ -7,6 +7,10 @@ import "sort"
 // into that same contract. A collector is not considered product-complete merely
 // because its JSON happens to be present somewhere in the report.
 func attachFinalProductIntegrationDiagnostics(report map[string]any) {
+	// The immutable dossier hash must see the same deterministic decision that
+	// customer responses expose. Upgrade stale projections before diagnostics and
+	// snapshot persistence; no collectors or external calls run here.
+	synchronizeCanonicalUnifiedVerdict(report)
 	attachCanonicalInvestigationDiagnostics(report)
 	coverage := buildCanonicalIntegrationCoverage(report)
 
