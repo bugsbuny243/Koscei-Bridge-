@@ -20,11 +20,17 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	if assembly == nil {
 		return map[string]any{}
 	}
-	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
-	analysisSummary := buildCustomerAnalysisSummary(*assembly, hasLiveEvidence)
 	if assembly.Report == nil {
 		assembly.Report = map[string]any{}
 	}
+
+	// UnifiedVerdict is the authoritative deterministic decision used by the
+	// customer summary. Re-attach it here so presentation or integration
+	// diagnostics cannot leave report.final_verdict on an older projection.
+	assembly.Report["final_verdict"] = assembly.UnifiedVerdict
+
+	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
+	analysisSummary := buildCustomerAnalysisSummary(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
 	return analysisSummary
 }
