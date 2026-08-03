@@ -14,16 +14,6 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 			"EVIDENCE BOUNDARY",
 			"signed_verdicts_total",
 		},
-		"public/login.html": {
-			"Sign In",
-			"Create an account",
-			"Sign-in successful.",
-		},
-		"public/register.html": {
-			"Create Account",
-			"Confirm password",
-			"Account created.",
-		},
 		"public/account.html": {
 			"KOSCH Holder Access",
 			"Verify with Phantom",
@@ -63,6 +53,36 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 			if strings.Contains(text, forbidden) {
 				t.Errorf("%s still contains Turkish product copy %q", path, forbidden)
 			}
+		}
+	}
+}
+
+func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
+	overlay, err := os.ReadFile("public/js/koschei-auth-english-overlay.js")
+	if err != nil {
+		t.Fatalf("read auth English overlay: %v", err)
+	}
+	text := string(overlay)
+	for _, required := range []string{
+		"'Giriş Yap':'Sign In'",
+		"'Hesap Oluştur':'Create Account'",
+		"'E-posta':'Email'",
+		"'Şifre':'Password'",
+		"'Giriş başarılı.':'Sign-in successful.'",
+		"'Hesap oluşturuldu.':'Account created.'",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("auth English overlay missing %q", required)
+		}
+	}
+
+	for _, path := range []string{"public/login.html", "public/register.html"} {
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("read frozen auth surface %s: %v", path, readErr)
+		}
+		if !strings.Contains(string(body), "/js/koschei-auth.js?v=33") {
+			t.Errorf("%s lost the frozen Neon-auth client contract", path)
 		}
 	}
 }
