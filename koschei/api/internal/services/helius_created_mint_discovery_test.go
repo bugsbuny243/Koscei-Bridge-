@@ -74,7 +74,7 @@ func TestFetchHeliusCreatedMintDiscoveryUsesCurrentHistoryRPC(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"jsonrpc": "2.0",
-			"result": map[string]any{"paginationToken": "", "data": []any{}},
+			"result":  map[string]any{"paginationToken": "", "data": []any{}},
 		})
 	}))
 	defer server.Close()
