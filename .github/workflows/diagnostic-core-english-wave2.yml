@@ -9,7 +9,7 @@ on:
       - "koschei/api/public/register.html"
       - "koschei/api/public/account.html"
       - "koschei/api/public/reports.html"
-      - "koschei/api/public/js/koschei-auth-english-overlay.js"
+      - "koschei/api/public/js/english-auth-presentation.js"
       - "koschei/api/english_public_html.go"
       - "koschei/api/core_source_english_wave2_test.go"
       - ".github/workflows/diagnostic-core-english-wave2.yml"
@@ -59,7 +59,7 @@ jobs:
                 const page = await browser.newPage({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
                 await page.goto(`http://127.0.0.1:4173/${file}`,{waitUntil:'domcontentloaded'});
                 if(file==='login.html'||file==='register.html'){
-                  await page.addScriptTag({path:path.join(root,'koschei/api/public/js/koschei-auth-english-overlay.js')});
+                  await page.addScriptTag({path:path.join(root,'koschei/api/public/js/english-auth-presentation.js')});
                   await page.waitForTimeout(100);
                 }
                 const audit = await page.evaluate(()=>({
