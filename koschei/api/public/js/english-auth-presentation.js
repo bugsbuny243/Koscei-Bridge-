@@ -4,6 +4,130 @@ if(window.__koscheiAuthEnglishOverlayInstalled)return;
 window.__koscheiAuthEnglishOverlayInstalled=true;
 document.documentElement.lang='en';
 
+const TOKEN_KEY='koschei_jwt';
+const LEGACY_TOKEN_KEY='koschei_token';
+const nativeFetch=window.fetch.bind(window);
+
+function isJWT(value){
+  if(!value||typeof value!=='string')return false;
+  const parts=value.split('.');
+  return parts.length===3&&parts.every(Boolean);
+}
+
+function findJWT(value){
+  if(!value||typeof value!=='object')return '';
+  const candidates=[
+    value.token,
+    value.jwt,
+    value.access_token,
+    value.id_token,
+    value.auth_token,
+    value.data&&value.data.token,
+    value.data&&value.data.jwt,
+    value.data&&value.data.access_token,
+    value.data&&value.data.id_token,
+    value.session&&value.session.token,
+    value.session&&value.session.jwt,
+    value.session&&value.session.access_token,
+    value.session&&value.session.id_token
+  ];
+  return candidates.find(isJWT)||'';
+}
+
+async function readJSON(response){
+  const text=await response.text().catch(()=> '');
+  if(!text)return {};
+  try{return JSON.parse(text);}catch{return {message:text};}
+}
+
+function saveJWT(token){
+  if(!isJWT(token))return;
+  try{
+    localStorage.setItem(TOKEN_KEY,token);
+    localStorage.setItem(LEGACY_TOKEN_KEY,token);
+  }catch{}
+}
+
+function clearJWT(){
+  try{
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  }catch{}
+}
+
+function authError(data,fallback){
+  const raw=String((data&&(data.message||data.error_description||data.error||data.detail))||'').trim();
+  if(!raw)return fallback;
+  const normalized=raw.toLowerCase();
+  if(normalized.includes('invalid email or password')||normalized.includes('invalid credentials'))return 'Invalid email or password.';
+  if(normalized.includes('auth_session_missing')||normalized.includes('session token'))return 'The authentication provider did not return a session. Please try again.';
+  if(normalized.includes('temporarily unreachable')||normalized.includes('unavailable'))return 'Authentication is temporarily unavailable. Please try again.';
+  return raw;
+}
+
+async function sameOriginEmailAuth(path,email,password,includeName){
+  const payload={
+    email:String(email||'').trim(),
+    password:String(password||''),
+    callbackURL:window.location.origin.replace(/\/+$/,'')+'/dashboard'
+  };
+  if(includeName){
+    payload.name=(payload.email.split('@')[0]||'User').trim()||'User';
+  }
+  const response=await nativeFetch(path,{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  const data=await readJSON(response);
+  if(!response.ok)throw new Error(authError(data,includeName?'Account creation failed.':'Sign-in failed.'));
+  const token=findJWT(data);
+  if(!token)throw new Error('The authentication provider did not return a session. Please try again.');
+  saveJWT(token);
+  const meResponse=await nativeFetch('/api/me',{
+    method:'GET',
+    credentials:'same-origin',
+    headers:{Authorization:'Bearer '+token}
+  });
+  const me=await readJSON(meResponse);
+  if(!meResponse.ok){
+    clearJWT();
+    throw new Error(authError(me,'The authenticated session could not be verified.'));
+  }
+  return {...data,me,access_token:token,token_type:'Bearer'};
+}
+
+function installSameOriginAuthContract(){
+  const auth=window.KoscheiAuth;
+  if(!auth||window.__koscheiSameOriginEmailAuthInstalled)return false;
+  window.__koscheiSameOriginEmailAuthInstalled=true;
+  auth.signIn=(email,password)=>sameOriginEmailAuth('/api/auth/login',email,password,false);
+  auth.signUp=(email,password)=>sameOriginEmailAuth('/api/auth/register',email,password,true);
+  return true;
+}
+
+// The frozen auth helper may start a provider-session restore while /api/config
+// is resolving. Block only those cross-origin restore probes; email/password
+// authentication is always handled through the same-origin backend contract.
+window.fetch=async function(input,init){
+  try{
+    const raw=typeof input==='string'?input:(input&&input.url)||'';
+    const target=new URL(raw,window.location.origin);
+    const crossOrigin=target.origin!==window.location.origin;
+    const providerHost=/neonauth\.|\.neon\.tech$/i.test(target.hostname);
+    const providerSessionPath=/(?:\/token|\/get-session)$/i.test(target.pathname);
+    if(crossOrigin&&providerHost&&providerSessionPath){
+      return new Response('{}',{status:404,headers:{'Content-Type':'application/json'}});
+    }
+  }catch{}
+  return nativeFetch(input,init);
+};
+
+installSameOriginAuthContract();
+queueMicrotask(installSameOriginAuthContract);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installSameOriginAuthContract,{once:true});
+
 const exact=new Map(Object.entries({
   'Giriş Yap':'Sign In',
   'Hesap Oluştur':'Create Account',
@@ -61,6 +185,7 @@ function visit(node){
 }
 
 function run(){
+  installSameOriginAuthContract();
   document.title=translateText(document.title);
   document.querySelectorAll('meta[name="description"]').forEach(meta=>meta.setAttribute('content',translateText(meta.getAttribute('content'))));
   if(document.body)visit(document.body);
