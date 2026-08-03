@@ -153,11 +153,61 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 	if math.Abs(share-99.2987) >= 0.0001 {
 		t.Fatalf("owner-resolved share=%f", share)
 	}
+	if gradeFinding.EvidenceFile == "" {
+		t.Fatal("grade-determining URD-C005 finding has no permanent evidence file")
+	}
+
+	allRows := map[string]productionEvidenceRowFixture{}
+	gradeRaw := readProductionEvidenceFile(t, filepath.Join(root, filepath.FromSlash(gradeFinding.EvidenceFile)))
+	assertProductionEvidenceHasNoSecrets(t, gradeRaw)
+	var concentrationEvidence struct {
+		RuleID               string `json:"rule_id"`
+		VerificationStatus   string `json:"verification_status"`
+		StateObservationHash string `json:"state_observation_hash"`
+		StateSnapshot        struct {
+			ObservedAt               string   `json:"observed_at"`
+			SourceMethods            []string `json:"source_methods"`
+			SourceArtifactSHA256     string   `json:"source_artifact_sha256"`
+			Mint                     string   `json:"mint"`
+			TokenAccount             string   `json:"token_account"`
+			OwnerWallet              string   `json:"owner_wallet"`
+			OwnerProgram             string   `json:"owner_program"`
+			Balance                  float64  `json:"balance"`
+			CirculatingSupply        float64  `json:"circulating_supply"`
+			OwnerResolvedTopSharePct float64  `json:"owner_resolved_top_share_pct"`
+			VerificationStatus       string   `json:"verification_status"`
+		} `json:"state_snapshot"`
+		CorroboratingRows []productionEvidenceRowFixture `json:"corroborating_evidence_rows"`
+	}
+	if err := json.Unmarshal(gradeRaw, &concentrationEvidence); err != nil {
+		t.Fatalf("decode %s: %v", gradeFinding.EvidenceFile, err)
+	}
+	state := concentrationEvidence.StateSnapshot
+	if concentrationEvidence.RuleID != services.UnifiedRuleOwnerConcentration || concentrationEvidence.VerificationStatus != "verified" || !strings.HasPrefix(concentrationEvidence.StateObservationHash, "sha256:") || state.ObservedAt == "" || len(state.SourceMethods) < 3 || len(state.SourceArtifactSHA256) != 64 || state.Mint != snapshot.Target || state.TokenAccount == "" || state.OwnerWallet == "" || state.OwnerProgram == "" || state.Balance <= 0 || state.CirculatingSupply <= 0 || math.Abs(state.OwnerResolvedTopSharePct-99.2987) >= 0.0001 || state.VerificationStatus != "verified_state_snapshot" {
+		t.Fatalf("incomplete URD-C005 state evidence: %#v", concentrationEvidence)
+	}
+	if len(concentrationEvidence.CorroboratingRows) != 3 {
+		t.Fatalf("URD-C005 corroborating rows=%d", len(concentrationEvidence.CorroboratingRows))
+	}
+	for _, row := range concentrationEvidence.CorroboratingRows {
+		assertCompleteProductionEvidenceRow(t, row)
+		if _, duplicate := allRows[row.EvidenceKey]; duplicate {
+			t.Fatalf("duplicate grade evidence key %s", row.EvidenceKey)
+		}
+		allRows[row.EvidenceKey] = row
+	}
+	for _, evidenceKey := range gradeFinding.EvidenceKeys {
+		if strings.HasPrefix(evidenceKey, "state:sha256:") {
+			continue
+		}
+		if _, exists := allRows[evidenceKey]; !exists {
+			t.Fatalf("URD-C005 missing complete evidence row %s", evidenceKey)
+		}
+	}
 
 	if len(snapshot.Supporting) != 4 {
 		t.Fatalf("supporting evidence groups=%d", len(snapshot.Supporting))
 	}
-	allRows := map[string]productionEvidenceRowFixture{}
 	for _, group := range snapshot.Supporting {
 		if group.RuleID != services.ActorRuleCompoundRepeatedTransfer || group.EvidenceStatus != "verified" || group.GradeEffect != "supporting_context" || group.EvidenceFile == "" {
 			t.Fatalf("supporting group semantics=%#v", group)
@@ -176,7 +226,7 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 			}
 		}
 	}
-	if len(allRows) != 12 {
+	if len(allRows) != 15 {
 		t.Fatalf("permanent complete evidence rows=%d", len(allRows))
 	}
 
