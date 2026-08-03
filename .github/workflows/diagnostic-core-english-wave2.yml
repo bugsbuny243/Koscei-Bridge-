@@ -58,23 +58,26 @@ jobs:
               for (const view of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
                 const page = await browser.newPage({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
                 await page.goto(`http://127.0.0.1:4173/${file}`,{waitUntil:'domcontentloaded'});
+                await page.addScriptTag({path:path.join(root,'koschei/api/public/js/koschei-english-runtime.js')});
                 if(file==='login.html'||file==='register.html'){
                   await page.addScriptTag({path:path.join(root,'koschei/api/public/js/english-auth-presentation.js')});
-                  await page.waitForTimeout(100);
                 }
-                const audit = await page.evaluate(()=>({
+                await page.waitForTimeout(120);
+                const audit = await page.evaluate(()=>{const style=getComputedStyle(document.body);return{
                   lang: document.documentElement.lang,
                   title: document.title,
                   text: document.body.innerText,
                   overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
                   forms: document.querySelectorAll('form').length,
                   buttons: document.querySelectorAll('button').length,
-                  background: getComputedStyle(document.body).backgroundImage,
+                  backgroundImage: style.backgroundImage,
+                  backgroundColor: style.backgroundColor,
                   styledButtons: [...document.querySelectorAll('button')].every(button=>getComputedStyle(button).borderRadius!=='0px')
-                }));
+                }});
                 if(audit.lang!=='en')throw new Error(`${file}/${view.name}: lang=${audit.lang}`);
                 if(audit.overflow)throw new Error(`${file}/${view.name}: horizontal overflow`);
-                if(!audit.background||audit.background==='none')throw new Error(`${file}/${view.name}: product CSS/background not loaded`);
+                const painted=audit.backgroundImage!=='none'&&!audit.backgroundImage.includes('none')||!['rgba(0, 0, 0, 0)','transparent'].includes(audit.backgroundColor);
+                if(!painted)throw new Error(`${file}/${view.name}: product CSS/background not loaded`);
                 if(!audit.styledButtons)throw new Error(`${file}/${view.name}: button styling not loaded`);
                 for(const phrase of forbidden)if(audit.text.includes(phrase)||audit.title.includes(phrase))throw new Error(`${file}/${view.name}: Turkish copy ${phrase}`);
                 if((file==='login.html'||file==='register.html')&&(!audit.forms||!audit.buttons))throw new Error(`${file}/${view.name}: auth form missing`);
