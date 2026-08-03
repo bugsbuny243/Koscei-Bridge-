@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: Verify public pages, ARVIS surfaces, SOC APIs and published case
+    name: Verify public pages, canonical Scan Center, SOC APIs and published case
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -90,17 +90,20 @@ jobs:
           expect_200 account_page /account "KOSCHEI ARVIS"
           expect_200 reports_page /reports "KOSCHEI ARVIS"
 
-          expect_200 arvis_scan /scan "Public Evidence Scan"
+          # These markers work against the currently deployed main during PRs
+          # and against the consolidated product after deployment.
+          expect_200 arvis_scan /scan "arvis-premium-contract.js"
           expect_200 arvis_dashboard /dashboard "Security Workspace"
-          expect_200 safe_check /safe-check "Safe Check"
-          expect_200 security_radar /security-radar "ARVIS Security Radar"
+          expect_200 safe_check /safe-check "Koschei ARVIS"
+          expect_200 transaction_shield /transaction-shield "Koschei ARVIS"
+          expect_200 security_radar /security-radar "Koschei ARVIS"
           expect_200 owner_production /owner-production.html "Owner Evidence Operations"
           expect_200 complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
           expect_200 social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
 
-          for page in arvis_scan arvis_dashboard safe_check security_radar owner_production; do
+          for page in arvis_scan arvis_dashboard safe_check transaction_shield security_radar owner_production; do
             grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
-              echo "ARVIS_LANGUAGE_FAILURE: ${page} is not source-English." >&2
+              echo "ARVIS_LANGUAGE_FAILURE: ${page} is not response-English." >&2
               exit 33
             }
           done
@@ -121,15 +124,39 @@ jobs:
 
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
             wait_expect_200 auth_english_asset /js/english-auth-presentation.js "__koscheiAuthEnglishOverlayInstalled"
+            wait_expect_200 unified_scan_navigation_asset /js/unified-scan-navigation.js "__koscheiUnifiedScanNavigation"
             wait_expect_200 landing_page / "Evidence-backed Web3 investigation system"
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
             wait_expect_200 account_page /account "KOSCH Holder Access"
             wait_expect_200 reports_page /reports "Report Vault"
-            for page in landing_page login_page register_page account_page reports_page; do
+            wait_expect_200 arvis_scan /scan "Unified Scan Center"
+            wait_expect_200 arvis_dashboard /dashboard "Workspace, not another scanner"
+            wait_expect_200 safe_check /safe-check "Unified Scan Center"
+            wait_expect_200 transaction_shield /transaction-shield "Unified Scan Center"
+            wait_expect_200 security_radar /security-radar "Unified Scan Center"
+
+            grep -Fqi 'location: /scan?mode=quick' diagnostics/safe_check.headers || {
+              echo 'SAFE_CHECK_REDIRECT_FAILURE: /safe-check does not redirect to quick mode.' >&2
+              exit 40
+            }
+            grep -Fqi 'location: /scan?mode=transaction' diagnostics/transaction_shield.headers || {
+              echo 'TRANSACTION_REDIRECT_FAILURE: /transaction-shield does not redirect to transaction mode.' >&2
+              exit 41
+            }
+            grep -Fqi 'location: /scan?mode=deep' diagnostics/security_radar.headers || {
+              echo 'RADAR_REDIRECT_FAILURE: /security-radar does not redirect to deep mode.' >&2
+              exit 42
+            }
+
+            for page in landing_page login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
               grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
                 echo "CORE_LANGUAGE_FAILURE: ${page} does not declare English after deployment." >&2
                 exit 37
+              }
+              grep -Fq 'unified-scan-navigation.js' "diagnostics/${page}.body" || {
+                echo "SCAN_NAVIGATION_FAILURE: ${page} is missing canonical navigation enforcement." >&2
+                exit 43
               }
             done
             for page in login_page register_page; do
@@ -176,7 +203,7 @@ jobs:
           grep -Fq "${case_ref}" diagnostics/dossier_page.body || { echo 'PUBLIC_DOSSIER_PAGE_CONTRACT_FAILURE: case ref missing.' >&2; exit 31; }
           grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE: ARVIS marker missing.' >&2; exit 32; }
 
-          echo 'PUBLIC_PRODUCT_HEALTHY: English core surfaces, frozen auth contract, ARVIS assets, public APIs, and immutable case passed.'
+          echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, legacy mode redirects, English core, ARVIS assets, public APIs, and immutable case passed.'
 
       - name: Upload public product diagnostics
         if: always()
@@ -196,12 +223,12 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Public product, English core, auth presentation, ARVIS page/asset, SOC API or published-case smoke failed'
+          description='Canonical Scan Center, redirect, English core, ARVIS asset, SOC API or published-case smoke failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description='Production English core, frozen auth, ARVIS assets, SOC APIs and immutable case verified'
-            target_url="${BASE_URL}/security-radar"
+            description='Production Scan Center, legacy redirects, ARVIS assets, SOC APIs and immutable case verified'
+            target_url="${BASE_URL}/scan"
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
           payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-product",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))')"
