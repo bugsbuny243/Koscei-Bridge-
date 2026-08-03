@@ -10,9 +10,10 @@ import (
 
 // resolveCanonicalCreatorSourceContext closes the entry-point gap between a
 // manually submitted mint and the actor investigation pipeline. Existing
-// chain/source evidence always wins. Solscan token metadata is discovery-only:
-// it can start the actor investigation as OBSERVED evidence, but it cannot mark
-// the creator relation VERIFIED without chain-native signature verification.
+// chain/source evidence always wins. Helius metadata and history are
+// discovery-only: they may start the actor investigation as OBSERVED evidence,
+// but cannot mark the creator relation VERIFIED without canonical RPC signer
+// and instruction verification.
 func (h *Handler) resolveCanonicalCreatorSourceContext(ctx context.Context, target, network, mode string, source map[string]any) map[string]any {
 	out := cloneCreatorSourceContext(source)
 	if creator := strings.TrimSpace(creatorIntelCleanString(out["creator_wallet"])); creator != "" {
@@ -24,7 +25,7 @@ func (h *Handler) resolveCanonicalCreatorSourceContext(ctx context.Context, targ
 		return out
 	}
 
-	metadata := services.FetchSolscanTokenMetadata(ctx, target)
+	metadata := services.FetchHeliusTokenMetadata(ctx, strings.TrimSpace(creatorIntelRPCURL()), target)
 	out["creator_resolution"] = metadata
 	out["creator_resolution_provider"] = metadata.Provider
 	out["creator_resolution_status"] = metadata.Status
@@ -48,14 +49,14 @@ func (h *Handler) resolveCanonicalCreatorSourceContext(ctx context.Context, targ
 	if observedAt.IsZero() {
 		observedAt = time.Now().UTC()
 	}
-	out["source"] = "solscan_token_meta"
+	out["source"] = "helius_das_and_rpc"
 	out["source_address"] = strings.TrimSpace(metadata.Creator)
 	out["creator_wallet"] = strings.TrimSpace(metadata.Creator)
-	out["creator_label"] = "Solscan token creator attribution"
+	out["creator_label"] = "Helius creator discovery"
 	out["creator_relation_verified"] = false
 	out["creator_relation_observed"] = true
 	out["creator_resolution_status"] = "observed_external_attribution"
-	out["creator_scope"] = "External token-metadata attribution only; Helius/RPC create-transaction signer verification is required before VERIFIED status."
+	out["creator_scope"] = "Helius DAS and transaction-history discovery only; canonical RPC create-transaction signer verification is required before VERIFIED status."
 	out["signature"] = strings.TrimSpace(metadata.CreateTransaction)
 	out["creation_signature"] = strings.TrimSpace(metadata.CreateTransaction)
 	out["launch_signature"] = strings.TrimSpace(metadata.CreateTransaction)
