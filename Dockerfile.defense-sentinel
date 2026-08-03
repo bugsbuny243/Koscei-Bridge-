@@ -1,15 +1,13 @@
 FROM golang:1.25.12-bookworm AS builder
 WORKDIR /app
 COPY koschei/api/go.mod koschei/api/go.sum ./
-COPY koschei/api/internal/xsync ./internal/xsync
-COPY koschei/api/internal/third_party/base58 ./internal/third_party/base58
 RUN go mod download
 COPY koschei/api .
-RUN CGO_ENABLED=0 GOOS=linux go build -o koschei-defense-sentinel ./cmd/defense-sentinel
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/koschei-defense-sentinel ./cmd/defense-sentinel
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
-COPY --from=builder /app/koschei-defense-sentinel ./koschei-defense-sentinel
-ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=true
+COPY --from=builder --chown=nonroot:nonroot /out/koschei-defense-sentinel /app/koschei-defense-sentinel
+ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=false
 USER nonroot:nonroot
-CMD ["./koschei-defense-sentinel"]
+CMD ["/app/koschei-defense-sentinel"]
