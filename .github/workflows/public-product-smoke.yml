@@ -24,9 +24,9 @@ concurrency:
 
 jobs:
   smoke:
-    name: Verify public pages, SOC APIs and current published case
+    name: Verify public pages, ARVIS surfaces, SOC APIs and published case
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 9
     env:
       BASE_URL: https://tradepigloball.co
     steps:
@@ -63,10 +63,42 @@ jobs:
             }
           }
 
+          expect_200 health /health '"status":"ok"'
           expect_200 cases_page /cases "Yayınlanmış Güvenlik Vakaları"
           expect_200 live_page /live "Canlı SOC"
           expect_200 login_page /login "Giriş Yap"
           expect_200 register_page /register "Hesap Oluştur"
+
+          # Core ARVIS pages must be live, source-English, and wired to the
+          # canonical premium + Complete Evidence v3 result contract.
+          expect_200 arvis_scan /scan "Public Evidence Scan"
+          expect_200 arvis_dashboard /dashboard "Security Workspace"
+          expect_200 safe_check /safe-check "Safe Check"
+          expect_200 security_radar /security-radar "ARVIS Security Radar"
+          expect_200 owner_production /owner-production.html "Owner Evidence Operations"
+          expect_200 complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
+          expect_200 social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
+
+          for page in arvis_scan arvis_dashboard safe_check security_radar owner_production; do
+            grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
+              echo "ARVIS_LANGUAGE_FAILURE: ${page} is not source-English." >&2
+              exit 33
+            }
+          done
+          for marker in \
+            'arvis-premium-contract.js' \
+            'customer-arvis-premium-suite.js' \
+            'arvis-complete-evidence-v3.js' \
+            'arvis-social-render-v2-core.js'; do
+            grep -Fq "${marker}" diagnostics/arvis_scan.body || {
+              echo "ARVIS_SCAN_CONTRACT_FAILURE: /scan is missing ${marker}." >&2
+              exit 34
+            }
+          done
+          grep -Fq 'arvis-complete-evidence-v3.js' diagnostics/owner_production.body || {
+            echo 'OWNER_ARVIS_CONTRACT_FAILURE: owner production is missing Complete Evidence v3.' >&2
+            exit 35
+          }
 
           cases_api_code="$(probe cases_api '/api/public/cases?limit=100')"
           feed_api_code="$(probe feed_api /api/public/soc/feed)"
@@ -100,7 +132,7 @@ jobs:
           grep -Fq "${case_ref}" diagnostics/dossier_page.body || { echo 'PUBLIC_DOSSIER_PAGE_CONTRACT_FAILURE: case ref missing.' >&2; exit 31; }
           grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE: ARVIS marker missing.' >&2; exit 32; }
 
-          echo 'PUBLIC_PRODUCT_HEALTHY: pages, public APIs and current immutable case passed.'
+          echo 'PUBLIC_PRODUCT_HEALTHY: ARVIS pages/assets, public APIs, and current immutable case passed.'
 
       - name: Upload public product diagnostics
         if: always()
@@ -120,12 +152,12 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Public product page, SOC API or published-case smoke failed'
+          description='Public product, ARVIS page/asset, SOC API or published-case smoke failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description='Public product pages, SOC APIs and immutable case verified'
-            target_url="${BASE_URL}/cases"
+            description='Production ARVIS pages/assets, SOC APIs and immutable case verified'
+            target_url="${BASE_URL}/security-radar"
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
           payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-product",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))')"
