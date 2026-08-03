@@ -30,9 +30,6 @@ concurrency:
   group: supply-chain-security-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  TRIVY_ACTION_SHA: ed142fd0673e97e23eac54620cfb913e5ce36c25
-
 jobs:
   repository:
     name: Repository vulnerability, secret and misconfiguration scan
@@ -55,7 +52,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "0"
       - name: Upload repository SARIF
-        if: always()
+        if: ${{ always() && hashFiles('trivy-repository.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-repository.sarif
@@ -93,7 +90,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "0"
       - name: Upload container SARIF
-        if: always()
+        if: ${{ always() && hashFiles('trivy-container.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-container.sarif
@@ -124,7 +121,7 @@ jobs:
           subject-path: koschei-api-image.tar
           sbom-path: koschei-api.spdx.json
       - name: Upload SBOM evidence
-        if: always()
+        if: ${{ always() && hashFiles('koschei-api.spdx.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: koschei-api-sbom-${{ github.sha }}
