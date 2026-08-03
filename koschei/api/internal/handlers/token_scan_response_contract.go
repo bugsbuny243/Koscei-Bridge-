@@ -11,7 +11,7 @@ func (response tokenScanResponse) MarshalJSON() ([]byte, error) {
 		ResponseSchemaVersion string `json:"response_schema_version"`
 		tokenScanResponseAlias
 	}{
-		ResponseSchemaVersion: customerInvestigationResponseSchemaVersion,
+		ResponseSchemaVersion:  customerInvestigationResponseSchemaVersion,
 		tokenScanResponseAlias: tokenScanResponseAlias(response),
 	})
 }
