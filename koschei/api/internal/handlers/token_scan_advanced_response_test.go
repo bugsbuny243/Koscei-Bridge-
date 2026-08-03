@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"koschei/api/internal/services"
@@ -49,7 +50,7 @@ func TestAttachCustomerAnalysisSummaryMutatesCanonicalReport(t *testing.T) {
 	if summary["schema_version"] != customerAnalysisSummarySchemaVersion {
 		t.Fatalf("unexpected summary: %#v", summary)
 	}
-	if assembly.Report["analysis_summary"] != summary {
+	if !reflect.DeepEqual(assembly.Report["analysis_summary"], summary) {
 		t.Fatalf("canonical report did not receive the shared summary: %#v", assembly.Report)
 	}
 }
