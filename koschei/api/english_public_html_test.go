@@ -10,7 +10,7 @@ import (
 func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	handler := englishPublicHTML(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`<!doctype html><html lang="tr"><body><main>Sonuç</main></body></html>`))
+		_, _ = w.Write([]byte(`<!doctype html><html lang="tr"><body><main>Result</main></body></html>`))
 	}))
 
 	request := httptest.NewRequest(http.MethodGet, "/radar", nil)
@@ -27,12 +27,12 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if strings.Count(body, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("English runtime was injected more than once: %s", body)
 	}
-	if strings.Contains(body, "arvis-social-render-v2-core.js") {
-		t.Fatalf("ARVIS renderer was injected into a non-ARVIS page: %s", body)
+	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") {
+		t.Fatalf("ARVIS result extensions were injected into a non-ARVIS page: %s", body)
 	}
 }
 
-func TestEnglishPublicHTMLInjectsARVISSocialRendererExactlyOnce(t *testing.T) {
+func TestEnglishPublicHTMLInjectsARVISResultExtensionsExactlyOnce(t *testing.T) {
 	html := `<!doctype html><html lang="en"><body><script src="/js/arvis-premium-contract.js?v=1"></script><script src="/js/koschei-english-runtime.js?v=1"></script></body></html>`
 	first := string(rewritePublicHTMLToEnglish([]byte(html)))
 	second := string(rewritePublicHTMLToEnglish([]byte(first)))
@@ -41,6 +41,7 @@ func TestEnglishPublicHTMLInjectsARVISSocialRendererExactlyOnce(t *testing.T) {
 		"arvis-social-render-v2-core.js",
 		"arvis-social-render-v2-cards.js",
 		"arvis-social-render-v2-publish.js",
+		"arvis-complete-evidence-v3.js",
 	} {
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("expected exactly one %s reference: %s", script, second)
