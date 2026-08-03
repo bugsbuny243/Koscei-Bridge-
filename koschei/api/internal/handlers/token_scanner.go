@@ -54,6 +54,7 @@ type tokenScanResponse struct {
 	HolderAnalysisStatus      string                           `json:"holder_analysis_status"`
 	VerdictWithheld           bool                             `json:"verdict_withheld"`
 	Disclaimer                string                           `json:"disclaimer"`
+	AnalysisSummary           map[string]any                   `json:"analysis_summary"`
 	InvestigationReport       map[string]any                   `json:"investigation_report"`
 }
 
@@ -112,6 +113,7 @@ func (h *Handler) TokenScan(w http.ResponseWriter, r *http.Request) {
 
 	holderCore := h.runHolderIntelligenceCore(r.Context(), mint, req.Network, "customer_token_scan")
 	assembly := h.assembleUnifiedInvestigationReport(r.Context(), holderCore)
+	analysisSummary := attachCustomerAnalysisSummary(&assembly)
 	topOne, topTen, holderConcentrationAvailable := holderIntelligenceCoreConcentration(holderCore)
 
 	score := 100
@@ -228,6 +230,7 @@ func (h *Handler) TokenScan(w http.ResponseWriter, r *http.Request) {
 		HolderAnalysisStatus:      holderIntelligenceCoreStatus(holderCore),
 		VerdictWithheld:           holderPolicy == "withhold" || !extensionEvidenceComplete,
 		Disclaimer:                disclaimer,
+		AnalysisSummary:           analysisSummary,
 		InvestigationReport:       assembly.Report,
 	})
 }
