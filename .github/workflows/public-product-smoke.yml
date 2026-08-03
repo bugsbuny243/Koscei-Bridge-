@@ -97,7 +97,6 @@ jobs:
           expect_200 owner_production /owner-production.html "Owner Evidence Operations"
           expect_200 complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
           expect_200 social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
-          expect_200 auth_english_asset /js/english-auth-presentation.js "'Giriş Yap':'Sign In'"
 
           for page in arvis_scan arvis_dashboard safe_check security_radar owner_production; do
             grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
@@ -121,6 +120,7 @@ jobs:
           }
 
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            wait_expect_200 auth_english_asset /js/english-auth-presentation.js "__koscheiAuthEnglishOverlayInstalled"
             wait_expect_200 landing_page / "Evidence-backed Web3 investigation system"
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
