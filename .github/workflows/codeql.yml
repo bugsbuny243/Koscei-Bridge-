@@ -23,10 +23,6 @@ permissions:
   security-events: write
   packages: read
 
-concurrency:
-  group: codeql-${{ github.ref }}-${{ matrix.language }}
-  cancel-in-progress: true
-
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -38,6 +34,9 @@ jobs:
         language:
           - go
           - javascript-typescript
+    concurrency:
+      group: codeql-${{ github.ref }}-${{ matrix.language }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
