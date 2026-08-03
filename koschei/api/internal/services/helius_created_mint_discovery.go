@@ -124,10 +124,10 @@ func fetchHeliusCreatedMintPage(ctx context.Context, endpoint, wallet, paginatio
 		limit = 250
 	}
 	options := map[string]any{
-		"transactionDetails":          "full",
-		"sortOrder":                   "desc",
-		"limit":                       limit,
-		"encoding":                    "jsonParsed",
+		"transactionDetails":             "full",
+		"sortOrder":                      "desc",
+		"limit":                          limit,
+		"encoding":                       "jsonParsed",
 		"maxSupportedTransactionVersion": 0,
 		"filters": map[string]any{
 			"status": "succeeded",
