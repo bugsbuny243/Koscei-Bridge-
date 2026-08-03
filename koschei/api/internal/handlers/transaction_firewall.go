@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	transactionFirewallProduct = "Koschei Transaction Firewall"
-	transactionFirewallMode    = "shadow"
-	maxFirewallTransactionSize = 4096
-	maxFirewallLogs            = 200
+	transactionFirewallProduct     = "Koschei Transaction Firewall"
+	transactionFirewallShadowMode  = "shadow"
+	transactionFirewallEnforceMode = "enforce"
+	maxFirewallTransactionSize     = 4096
+	maxFirewallLogs                = 200
 )
 
 type transactionFirewallFinding struct {
@@ -45,6 +46,11 @@ type transactionFirewallAssessment struct {
 	SimulationErr any                          `json:"simulation_error,omitempty"`
 }
 
+type transactionFirewallPolicy struct {
+	Mode               string
+	EnforcementEnabled bool
+}
+
 var firewallProgramInvokePattern = regexp.MustCompile(`(?i)^Program ([1-9A-HJ-NP-Za-km-z]{32,44}) invoke`)
 
 func (h *Handler) transactionFirewallSimulate(w http.ResponseWriter, r *http.Request, input shieldPreflightRequest) {
@@ -57,6 +63,7 @@ func (h *Handler) transactionFirewallSimulate(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	policy := currentTransactionFirewallPolicy()
 	transaction := strings.TrimSpace(input.Transaction)
 	encoding := strings.ToLower(strings.TrimSpace(input.Encoding))
 	if encoding == "" {
@@ -98,24 +105,36 @@ func (h *Handler) transactionFirewallSimulate(w http.ResponseWriter, r *http.Req
 			SimulationOK:  false,
 			SimulationErr: map[string]any{"code": "rpc_unavailable", "message": publicFirewallError(err.Error())},
 		}
-		h.saveTransactionFirewallReport(r.Context(), requestID, transaction, network, encoding, assessment)
-		writeJSON(w, http.StatusServiceUnavailable, transactionFirewallResponse(requestID, transaction, network, encoding, input.Wallet, time.Since(started), assessment))
+		h.saveTransactionFirewallReport(r.Context(), requestID, transaction, network, encoding, assessment, policy)
+		writeJSON(w, http.StatusServiceUnavailable, transactionFirewallResponse(requestID, transaction, network, encoding, input.Wallet, time.Since(started), assessment, policy))
 		return
 	}
 
 	assessment := assessTransactionSimulation(simulation)
-	h.saveTransactionFirewallReport(r.Context(), requestID, transaction, network, encoding, assessment)
-	writeJSON(w, http.StatusOK, transactionFirewallResponse(requestID, transaction, network, encoding, input.Wallet, time.Since(started), assessment))
+	h.saveTransactionFirewallReport(r.Context(), requestID, transaction, network, encoding, assessment, policy)
+	status := http.StatusOK
+	if firewallPolicyBlocks(policy, assessment.Action) {
+		status = http.StatusForbidden
+	}
+	writeJSON(w, status, transactionFirewallResponse(requestID, transaction, network, encoding, input.Wallet, time.Since(started), assessment, policy))
 }
 
-func transactionFirewallResponse(requestID, transaction, network, encoding, wallet string, latency time.Duration, assessment transactionFirewallAssessment) map[string]any {
+func transactionFirewallResponse(requestID, transaction, network, encoding, wallet string, latency time.Duration, assessment transactionFirewallAssessment, policy transactionFirewallPolicy) map[string]any {
+	blocked := firewallPolicyBlocks(policy, assessment.Action)
+	outcome := firewallPolicyOutcome(policy, assessment.Action)
+	warning := "Shadow mode only: this response does not submit, sign, or block the transaction."
+	if policy.EnforcementEnabled {
+		warning = "Preflight policy enforcement is active. Koschei does not sign or submit transactions; blocked decisions must not proceed to wallet signing."
+	}
 	return map[string]any{
-		"ok":                      assessment.SimulationOK,
+		"ok":                      assessment.SimulationOK && !blocked,
 		"request_id":              requestID,
 		"product":                 transactionFirewallProduct,
-		"mode":                    transactionFirewallMode,
-		"shadow_mode":             true,
-		"enforcement_enabled":     false,
+		"mode":                    policy.Mode,
+		"shadow_mode":             !policy.EnforcementEnabled,
+		"enforcement_enabled":     policy.EnforcementEnabled,
+		"enforced":                blocked,
+		"policy_outcome":          outcome,
 		"billable":                false,
 		"network":                 network,
 		"encoding":                encoding,
@@ -135,7 +154,50 @@ func transactionFirewallResponse(requestID, transaction, network, encoding, wall
 			"logs":           assessment.Logs,
 		},
 		"latency_ms": latency.Milliseconds(),
-		"warning":    "Shadow mode only: this response does not submit, sign, or block the transaction.",
+		"warning":    warning,
+	}
+}
+
+func currentTransactionFirewallPolicy() transactionFirewallPolicy {
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("KOSCHEI_TRANSACTION_FIREWALL_MODE")))
+	if mode == "" {
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
+			mode = transactionFirewallEnforceMode
+		} else {
+			mode = transactionFirewallShadowMode
+		}
+	}
+	if mode == transactionFirewallEnforceMode {
+		return transactionFirewallPolicy{Mode: transactionFirewallEnforceMode, EnforcementEnabled: true}
+	}
+	return transactionFirewallPolicy{Mode: transactionFirewallShadowMode, EnforcementEnabled: false}
+}
+
+func firewallPolicyBlocks(policy transactionFirewallPolicy, action string) bool {
+	if !policy.EnforcementEnabled {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "block", "withhold":
+		return true
+	default:
+		return false
+	}
+}
+
+func firewallPolicyOutcome(policy transactionFirewallPolicy, action string) string {
+	if !policy.EnforcementEnabled {
+		return "observed"
+	}
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "block":
+		return "blocked"
+	case "withhold":
+		return "withheld"
+	case "warn":
+		return "allowed_with_warning"
+	default:
+		return "allowed"
 	}
 }
 
@@ -366,7 +428,7 @@ func publicFirewallError(raw string) string {
 	}
 }
 
-func (h *Handler) saveTransactionFirewallReport(ctx context.Context, requestID, transaction, network, encoding string, assessment transactionFirewallAssessment) {
+func (h *Handler) saveTransactionFirewallReport(ctx context.Context, requestID, transaction, network, encoding string, assessment transactionFirewallAssessment, policy transactionFirewallPolicy) {
 	if h == nil || h.DB == nil {
 		return
 	}
@@ -379,9 +441,9 @@ func (h *Handler) saveTransactionFirewallReport(ctx context.Context, requestID, 
 		INSERT INTO transaction_firewall_reports (
 			request_id,api_key_id,actor_subject,actor_email,transaction_fingerprint,network,encoding,
 			action,risk_level,risk_index,simulation_ok,simulation_error,units_consumed,program_ids,findings,logs,shadow_mode
-		) VALUES ($1,NULLIF($2,'')::uuid,$3,lower($4),$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15::jsonb,$16::jsonb,true)
+		) VALUES ($1,NULLIF($2,'')::uuid,$3,lower($4),$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17)
 		ON CONFLICT (request_id) DO NOTHING`,
 		requestID, principal.KeyID, principal.AuthSubject, principal.Email, transactionFingerprint(transaction), network, encoding,
 		assessment.Action, assessment.RiskLevel, assessment.RiskIndex, assessment.SimulationOK, string(errorJSON), assessment.UnitsConsumed,
-		string(programsJSON), string(findingsJSON), string(logsJSON))
+		string(programsJSON), string(findingsJSON), string(logsJSON), !policy.EnforcementEnabled)
 }

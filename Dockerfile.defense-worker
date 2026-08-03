@@ -1,18 +1,22 @@
 FROM golang:1.25.12-bookworm AS builder
 WORKDIR /app
 COPY koschei/api/go.mod koschei/api/go.sum ./
-COPY koschei/api/internal/xsync ./internal/xsync
-COPY koschei/api/internal/third_party/base58 ./internal/third_party/base58
 RUN go mod download
 COPY koschei/api .
-RUN CGO_ENABLED=0 GOOS=linux go build -o koschei-defense-worker ./cmd/defense-worker
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/koschei-defense-worker ./cmd/defense-worker
 
 FROM rust:1.82-bookworm
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends bubblewrap ca-certificates git pkg-config \
+    && useradd --create-home --home-dir /home/koschei --uid 10001 --shell /usr/sbin/nologin koschei \
+    && mkdir -p /workspace /home/koschei/.cargo /home/koschei/.cache \
+    && chown -R 10001:10001 /app /workspace /home/koschei \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/koschei-defense-worker ./koschei-defense-worker
-ENV KOSCHEI_DEFENSE_WORKER_ENABLED=true
-ENV KOSCHEI_DEFENSE_SANDBOX_ENABLED=true
-CMD ["./koschei-defense-worker"]
+COPY --from=builder --chown=10001:10001 /out/koschei-defense-worker /app/koschei-defense-worker
+ENV HOME=/home/koschei
+ENV CARGO_HOME=/home/koschei/.cargo
+ENV KOSCHEI_DEFENSE_WORKER_ENABLED=false
+ENV KOSCHEI_DEFENSE_SANDBOX_ENABLED=false
+USER 10001:10001
+CMD ["/app/koschei-defense-worker"]

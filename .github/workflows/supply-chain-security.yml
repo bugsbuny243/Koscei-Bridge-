@@ -1,0 +1,151 @@
+name: Supply Chain Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "koschei/api/**"
+      - "sdk/typescript/**"
+      - "oss/event-normalizer/**"
+      - ".github/workflows/supply-chain-security.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "koschei/api/**"
+      - "sdk/typescript/**"
+      - "oss/event-normalizer/**"
+      - ".github/workflows/supply-chain-security.yml"
+  schedule:
+    - cron: "23 4 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: supply-chain-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    name: Repository vulnerability, secret and misconfiguration scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Generate repository SARIF
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-repository.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+      - name: Upload repository SARIF
+        if: ${{ always() && hashFiles('trivy-repository.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-repository.sarif
+          category: trivy-repository
+      - name: Enforce repository vulnerability gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+  container:
+    name: Production image scan, SBOM and attestation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Build production API image only
+        run: |
+          set -euo pipefail
+          docker build --pull --tag koschei-api:${GITHUB_SHA} --file Dockerfile .
+      - name: Generate container SARIF
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: koschei-api:${{ github.sha }}
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-container.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+      - name: Upload container SARIF
+        if: ${{ always() && hashFiles('trivy-container.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-container.sarif
+          category: trivy-production-container
+      - name: Enforce production image vulnerability gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: koschei-api:${{ github.sha }}
+          scanners: vuln,secret,misconfig
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - name: Generate SPDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: koschei-api:${{ github.sha }}
+          scanners: vuln
+          format: spdx-json
+          output: koschei-api.spdx.json
+          exit-code: "0"
+      - name: Export immutable image subject
+        run: docker save koschei-api:${GITHUB_SHA} --output koschei-api-image.tar
+      - name: Attest production image SBOM
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@v4
+        with:
+          subject-path: koschei-api-image.tar
+          sbom-path: koschei-api.spdx.json
+      - name: Upload SBOM evidence
+        if: ${{ always() && hashFiles('koschei-api.spdx.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: koschei-api-sbom-${{ github.sha }}
+          path: |
+            koschei-api.spdx.json
+            trivy-container.sarif
+          if-no-files-found: error
+          retention-days: 30
+
+  defense-os-off:
+    name: Defense OS remains non-autonomous
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Enforce non-autonomy invariants
+        run: |
+          set -euo pipefail
+          harness="koschei/api/internal/defense/harness.go"
+          grep -Fq '"execution_ready":          false' "${harness}"
+          grep -Fq '"manual_guidance_required": true' "${harness}"
+          grep -Fq 'ExecutionReady: false' "${harness}"
+          grep -Fq 'VerdictAuthority: false' "${harness}"
+          ! grep -Fq 'ExecutionReady: true' "${harness}"
+          ! grep -Fq 'VerdictAuthority: true' "${harness}"
+          echo "Defense OS execution and verdict authority remain disabled."
