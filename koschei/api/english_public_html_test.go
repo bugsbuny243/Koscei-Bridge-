@@ -27,7 +27,7 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if strings.Count(body, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("English runtime was injected more than once: %s", body)
 	}
-	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "koschei-auth-english-overlay.js") {
+	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "english-auth-presentation.js") {
 		t.Fatalf("specialized extensions were injected into a generic page: %s", body)
 	}
 }
@@ -63,8 +63,8 @@ func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContr
 	if strings.Count(second, "koschei-auth.js?v=33") != 1 {
 		t.Fatalf("frozen auth script contract changed: %s", second)
 	}
-	if strings.Count(second, "koschei-auth-english-overlay.js") != 1 {
-		t.Fatalf("auth English overlay was not injected exactly once: %s", second)
+	if strings.Count(second, "english-auth-presentation.js") != 1 {
+		t.Fatalf("auth English presentation was not injected exactly once: %s", second)
 	}
 	if strings.Count(second, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("global English runtime was not injected exactly once: %s", second)
