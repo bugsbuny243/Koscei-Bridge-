@@ -41,7 +41,12 @@
         confidence:text(decision.confidence)||'low',
         readiness:text(decision.readiness)||'evidence_pending',
         ruleset_version:text(decision.ruleset_version),
-        signature:text(decision.signature)
+        signature:text(decision.signature),
+        grade_determining_rule_count:number(decision.grade_determining_rule_count)??0,
+        triggered_evidence_group_count:number(decision.triggered_evidence_group_count)??0,
+        supporting_evidence_group_count:number(decision.supporting_evidence_group_count)??0,
+        distinct_compounding_rule_count:number(decision.distinct_compounding_rule_count)??0,
+        grading_semantics:text(decision.grading_semantics)
       },
       evidence_coverage:{
         architecture_arm_count:number(coverage.architecture_arm_count)??14,
@@ -54,6 +59,8 @@
         coverage_is_risk_score:coverage.coverage_is_risk_score===true
       },
       grade_changing_findings:arr(value.grade_changing_findings).map(obj),
+      supporting_findings:arr(value.supporting_findings).map(obj),
+      triggered_evidence_groups:arr(value.triggered_evidence_groups).map(obj),
       watch_items:arr(value.watch_items).map(obj),
       non_triggered_observations:arr(value.non_triggered_observations).map(obj),
       unresolved_questions:arr(value.unresolved_questions).map(obj),
@@ -62,7 +69,7 @@
   }
   function analysisSummaryPresent(summary){
     summary=normalizeAnalysisSummary(summary);
-    return Boolean(summary.schema_version||summary.executive_summary||summary.grade_changing_findings.length||summary.unresolved_questions.length);
+    return Boolean(summary.schema_version||summary.executive_summary||summary.grade_changing_findings.length||summary.supporting_findings.length||summary.unresolved_questions.length);
   }
   function evidenceReferenceHTML(item){
     const keys=unique(arr(item.evidence_keys)),signatures=unique(arr(item.signatures));
@@ -88,6 +95,7 @@
     summary=normalizeAnalysisSummary(summary);
     const decision=summary.decision,coverage=summary.evidence_coverage;
     const findings=summary.grade_changing_findings.map(item=>findingHTML(item,'finding')).join('');
+    const supporting=summary.supporting_findings.map(item=>findingHTML(item,'supporting')).join('');
     const watch=summary.watch_items.map(item=>findingHTML(item,'watch')).join('');
     const unresolved=summary.unresolved_questions.slice(0,8).map(unresolvedHTML).join('');
     const actions=summary.recommended_actions.slice(0,6).map(actionHTML).join('');
@@ -100,19 +108,20 @@
         <div><span>14-arm state</span><strong>${escapeHTML(coverage.verified)}V · ${escapeHTML(coverage.observed)}O</strong><small>${escapeHTML(coverage.pending)} pending · ${escapeHTML(coverage.not_applicable)} N/A</small></div>
       </div>
       <div class="advanced-analysis-grid">
-        <div><h4>Grade-changing findings (${summary.grade_changing_findings.length})</h4><ul>${findings||'<li class="advanced-analysis-empty">No verified or observed grade-changing rule was attached.</li>'}</ul></div>
+        <div><h4>Grade-determining findings (${summary.grade_changing_findings.length})</h4><ul>${findings||'<li class="advanced-analysis-empty">No verified or observed grade-determining rule was attached.</li>'}</ul></div>
         <div><h4>Watch-only signals (${summary.watch_items.length})</h4><ul>${watch||'<li class="advanced-analysis-empty">No watch-only signal was attached.</li>'}</ul></div>
       </div>
+      ${supporting?`<div class="advanced-analysis-section supporting-evidence-section" data-supporting-findings><h4>Supporting evidence groups (${summary.supporting_findings.length})</h4><p class="supporting-evidence-note">Supporting context remains visible, but multiple evidence groups sharing one rule ID do not count as separate grading rules.</p><ul class="advanced-supporting">${supporting}</ul></div>`:''}
       ${unresolved?`<div class="advanced-analysis-section"><h4>Unresolved evidence questions (${summary.unresolved_questions.length})</h4><ul class="advanced-unresolved">${unresolved}</ul></div>`:''}
       ${actions?`<div class="advanced-analysis-section"><h4>Priority actions</h4><ol class="advanced-actions">${actions}</ol></div>`:''}
-      <p class="advanced-analysis-policy">Missing evidence is not safety. INFERRED stays watch-only. UNVERIFIED evidence cannot change the grade. Capability is not proof of malicious intent.</p>
+      <p class="advanced-analysis-policy">Missing evidence is not safety. INFERRED stays watch-only. UNVERIFIED evidence cannot change the grade. Distinct rule IDs—not evidence-group count—control compounding. Capability is not proof of malicious intent.</p>
     </section>`;
   }
   function installAdvancedAnalysisStyle(){
     if(typeof document==='undefined'||document.querySelector('style[data-advanced-investigation-summary]'))return;
     const style=document.createElement('style');
     style.dataset.advancedInvestigationSummary='1';
-    style.textContent='.advanced-investigation-summary-card{margin-top:18px;padding:20px;border:1px solid #18ffb233;border-radius:22px;background:linear-gradient(180deg,#07131a,#040a0f);box-shadow:0 18px 44px #0006}.advanced-analysis-head{display:flex;justify-content:space-between;align-items:center;gap:16px}.advanced-analysis-head span{color:#6fffd5;font:900 10px var(--k-mono,monospace);letter-spacing:.12em}.advanced-analysis-head h3{margin:5px 0 0;font-size:21px}.advanced-analysis-head>b{display:grid;place-items:center;min-width:62px;height:62px;border-radius:17px;color:#00110d;background:linear-gradient(135deg,#18ffb2,#45cfff);font-size:30px}.advanced-analysis-summary{margin-top:14px;color:#c8dbe4;line-height:1.65}.advanced-analysis-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:15px}.advanced-analysis-metrics>div{padding:13px;border:1px solid #ffffff14;border-radius:15px;background:#ffffff06}.advanced-analysis-metrics span,.advanced-analysis-metrics small{display:block;color:#7893a2;font-size:10px}.advanced-analysis-metrics strong{display:block;margin:5px 0;font:900 20px var(--k-mono,monospace)}.advanced-analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}.advanced-analysis-grid>div,.advanced-analysis-section{padding:14px;border:1px solid #ffffff12;border-radius:17px;background:#ffffff04}.advanced-analysis-grid h4,.advanced-analysis-section h4{margin:0 0 10px;font-size:14px}.advanced-analysis-grid ul,.advanced-unresolved{display:grid;gap:8px;margin:0;padding:0;list-style:none}.advanced-analysis-item,.advanced-unresolved li{padding:11px;border:1px solid #ffffff12;border-radius:13px;background:#02070b}.advanced-analysis-item.finding{border-color:#ff557544}.advanced-analysis-item.watch{border-color:#ffcc6644}.advanced-analysis-item>div{display:flex;justify-content:space-between;gap:10px}.advanced-analysis-item span{color:#8fa7b4;font:800 9px var(--k-mono,monospace)}.advanced-analysis-item p,.advanced-unresolved p,.advanced-actions p{margin:6px 0 0;color:#aebfca;font-size:12px;line-height:1.5}.advanced-analysis-refs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.advanced-analysis-refs code{padding:4px 6px;border-radius:7px;color:#9df7dc;background:#18ffb20d;font-size:9px;word-break:break-all}.advanced-analysis-section{margin-top:12px}.advanced-actions{display:grid;gap:8px;margin:0;padding:0;list-style:none}.advanced-actions li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}.advanced-actions li>span{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;color:#00110d;background:#45cfff;font-weight:1000}.advanced-actions strong{font-size:12px}.advanced-analysis-empty{padding:11px;color:#7f96a3;border:1px dashed #ffffff1f;border-radius:12px}.advanced-analysis-policy{margin:13px 0 0;color:#748d9b;font:10px var(--k-mono,monospace);line-height:1.55}@media(max-width:720px){.advanced-analysis-metrics,.advanced-analysis-grid{grid-template-columns:1fr}.advanced-analysis-head{align-items:flex-start}}';
+    style.textContent='.advanced-investigation-summary-card{margin-top:18px;padding:20px;border:1px solid #18ffb233;border-radius:22px;background:linear-gradient(180deg,#07131a,#040a0f);box-shadow:0 18px 44px #0006}.advanced-analysis-head{display:flex;justify-content:space-between;align-items:center;gap:16px}.advanced-analysis-head span{color:#6fffd5;font:900 10px var(--k-mono,monospace);letter-spacing:.12em}.advanced-analysis-head h3{margin:5px 0 0;font-size:21px}.advanced-analysis-head>b{display:grid;place-items:center;min-width:62px;height:62px;border-radius:17px;color:#00110d;background:linear-gradient(135deg,#18ffb2,#45cfff);font-size:30px}.advanced-analysis-summary{margin-top:14px;color:#c8dbe4;line-height:1.65}.advanced-analysis-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:15px}.advanced-analysis-metrics>div{padding:13px;border:1px solid #ffffff14;border-radius:15px;background:#ffffff06}.advanced-analysis-metrics span,.advanced-analysis-metrics small{display:block;color:#7893a2;font-size:10px}.advanced-analysis-metrics strong{display:block;margin:5px 0;font:900 20px var(--k-mono,monospace)}.advanced-analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}.advanced-analysis-grid>div,.advanced-analysis-section{padding:14px;border:1px solid #ffffff12;border-radius:17px;background:#ffffff04}.advanced-analysis-grid h4,.advanced-analysis-section h4{margin:0 0 10px;font-size:14px}.advanced-analysis-grid ul,.advanced-unresolved,.advanced-supporting{display:grid;gap:8px;margin:0;padding:0;list-style:none}.advanced-analysis-item,.advanced-unresolved li{padding:11px;border:1px solid #ffffff12;border-radius:13px;background:#02070b}.advanced-analysis-item.finding{border-color:#ff557544}.advanced-analysis-item.supporting{border-color:#45cfff44}.advanced-analysis-item.watch{border-color:#ffcc6644}.advanced-analysis-item>div{display:flex;justify-content:space-between;gap:10px}.advanced-analysis-item span{color:#8fa7b4;font:800 9px var(--k-mono,monospace)}.advanced-analysis-item p,.advanced-unresolved p,.advanced-actions p{margin:6px 0 0;color:#aebfca;font-size:12px;line-height:1.5}.supporting-evidence-note{margin:0 0 10px;color:#8fb3c4;font:10px var(--k-mono,monospace);line-height:1.5}.advanced-analysis-refs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.advanced-analysis-refs code{padding:4px 6px;border-radius:7px;color:#9df7dc;background:#18ffb20d;font-size:9px;word-break:break-all}.advanced-analysis-section{margin-top:12px}.advanced-actions{display:grid;gap:8px;margin:0;padding:0;list-style:none}.advanced-actions li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}.advanced-actions li>span{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;color:#00110d;background:#45cfff;font-weight:1000}.advanced-actions strong{font-size:12px}.advanced-analysis-empty{padding:11px;color:#7f96a3;border:1px dashed #ffffff1f;border-radius:12px}.advanced-analysis-policy{margin:13px 0 0;color:#748d9b;font:10px var(--k-mono,monospace);line-height:1.55}@media(max-width:720px){.advanced-analysis-metrics,.advanced-analysis-grid{grid-template-columns:1fr}.advanced-analysis-head{align-items:flex-start}}';
     document.head.appendChild(style);
   }
   function renderAdvancedAnalysis(summary){
