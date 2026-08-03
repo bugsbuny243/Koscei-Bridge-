@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://tradepigloball.co/</loc></url>
+  <url><loc>https://tradepigloball.co/scan</loc></url>
   <url><loc>https://tradepigloball.co/dashboard</loc></url>
-  <url><loc>https://tradepigloball.co/pricing.html</loc></url>
-  <url><loc>https://tradepigloball.co/reports.html</loc></url>
-  <url><loc>https://tradepigloball.co/account.html</loc></url>
-  <url><loc>https://tradepigloball.co/docs.html</loc></url>
-  <url><loc>https://tradepigloball.co/docs-api.html</loc></url>
-  <url><loc>https://tradepigloball.co/docs-sdk.html</loc></url>
-  <url><loc>https://tradepigloball.co/solana-security-tools.html</loc></url>
-  <url><loc>https://tradepigloball.co/support.html</loc></url>
+  <url><loc>https://tradepigloball.co/cases</loc></url>
+  <url><loc>https://tradepigloball.co/reports</loc></url>
+  <url><loc>https://tradepigloball.co/account</loc></url>
+  <url><loc>https://tradepigloball.co/docs</loc></url>
+  <url><loc>https://tradepigloball.co/docs/api</loc></url>
+  <url><loc>https://tradepigloball.co/docs/sdk</loc></url>
+  <url><loc>https://tradepigloball.co/support</loc></url>
 </urlset>
