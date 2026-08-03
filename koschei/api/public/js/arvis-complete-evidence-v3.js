@@ -15,6 +15,8 @@ const compact=value=>new Intl.NumberFormat('en-US',{notation:Math.abs(num(value)
 const status=value=>String(value||'unknown').trim().toLowerCase();
 const text=value=>typeof value==='string'?value.trim():value===undefined||value===null?'':String(value);
 const list=value=>arr(value).map(item=>typeof item==='string'?item:text(first(item?.summary,item?.message,item?.reason,item?.title,item?.id))).filter(Boolean);
+const uniqueBy=(items,keyOf)=>{const seen=new Set(),out=[];for(const item of items){const key=String(keyOf(item)||'').trim();if(!key||seen.has(key))continue;seen.add(key);out.push(item);}return out;};
+const uniqueStrings=items=>uniqueBy(items.map(item=>text(item)).filter(Boolean),item=>item.toLowerCase());
 
 function injectStyle(){
  if(document.getElementById('arvisCompleteEvidenceV3Style'))return;
@@ -40,9 +42,10 @@ function extract(payload){
  const modules=[...arr(report.modules),...arr(report.evidence_arms),...arr(obj(report.legacy_14_arm_radar).modules),...arr(envelope.modules)];
  const moduleMap=new Map();for(const module of modules){const id=text(first(module?.module_id,module?.module,module?.id,module?.name))||`module-${moduleMap.size+1}`;if(!moduleMap.has(id))moduleMap.set(id,module);}const uniqueModules=[...moduleMap.values()];
  const owners=arr(holder.rows).length?arr(holder.rows):arr(distribution.owners).length?arr(distribution.owners):arr(distribution.rows);
- const graph=obj(report.relationship_graph||report.graph||cluster.graph||envelope.relationship_graph);const edges=[...arr(graph.edges),...arr(cluster.graph_edges),...arr(report.relationship_edges)];
- const evidence=[...arr(report.verified_evidence),...arr(report.evidence),...arr(report.evidence_log),...arr(envelope.verified_evidence),...arr(envelope.evidence)];
- const limitations=[...list(report.limitations),...list(report.visibility_limitations),...list(envelope.visibility_limitations),...list(cluster.limitations),...list(launch.limitations),...list(dossier.limitations)];
+ const graph=obj(report.relationship_graph||report.graph||cluster.graph||envelope.relationship_graph);
+ const edges=uniqueBy([...arr(graph.edges),...arr(cluster.graph_edges),...arr(report.relationship_edges)],edge=>[first(edge?.from,edge?.source,edge?.source_wallet,edge?.a),first(edge?.to,edge?.target,edge?.destination,edge?.b),first(edge?.type,edge?.relation,edge?.kind),first(edge?.signature,edge?.slot)].join('|'));
+ const evidence=uniqueBy([...arr(report.verified_evidence),...arr(report.evidence),...arr(report.evidence_log),...arr(envelope.verified_evidence),...arr(envelope.evidence)],item=>[first(item?.claim,item?.id,item?.title,item?.summary,item?.message,item),first(item?.status,item?.evidence_status),first(item?.signature,item?.slot)].join('|'));
+ const limitations=uniqueStrings([...list(report.limitations),...list(report.visibility_limitations),...list(envelope.visibility_limitations),...list(cluster.limitations),...list(launch.limitations),...list(dossier.limitations)]);
  const track=obj(dossier.track),funding=obj(dossier.funding_origin||actor.funding_origin||report.funding_origin||envelope.funding_origin),distributionEvidence=obj(dossier.initial_distribution||actor.initial_distribution||report.initial_distribution);
  const top1=num(first(holder.top_owner_percentage,holder.top_1_percentage,distribution.top_1_percentage,envelope.largest_holder_percent));
  const top3=num(first(holder.top_3_percentage,distribution.top_3_percentage));const top10=num(first(holder.top_10_percentage,distribution.top_10_percentage,envelope.top_ten_percent));const top20=num(first(holder.top_20_percentage,distribution.top_20_percentage));
