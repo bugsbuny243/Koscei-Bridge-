@@ -1,5 +1,20 @@
 (()=>{
 'use strict';
+function installScanViewContract(){
+  if(!document.querySelector('style[data-koschei-scan-view-contract]')){
+    const style=document.createElement('style');
+    style.dataset.koscheiScanViewContract='1';
+    style.textContent='[hidden]{display:none!important}.modebar .mode{display:block!important;text-align:left!important}.modebar .mode span,.modebar .mode small{display:block}.modebar .mode small{margin-top:4px}';
+    document.head.appendChild(style);
+  }
+  if(!window.__koscheiUnifiedScanNavigation&&!document.querySelector('script[data-koschei-unified-scan-navigation]')){
+    const script=document.createElement('script');
+    script.src='/js/unified-scan-navigation.js?v=1';
+    script.dataset.koscheiUnifiedScanNavigation='1';
+    document.head.appendChild(script);
+  }
+}
+installScanViewContract();
 const OFFICIAL_KOSCH_MINT='HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump';
 const MODES={
   quick:{summary:'Run a fast preflight for a token, wallet, site, or transaction intent. Holder, liquidity, and deep graph coverage may remain unresolved.',button:'Run Quick Check'},
