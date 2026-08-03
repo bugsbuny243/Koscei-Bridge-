@@ -47,6 +47,15 @@ jobs:
           const output=path.join(process.env.RUNNER_TEMP,'unified-scan-proof');
           const root=process.cwd();
           const mint='9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump';
+          const navState=()=>{
+            const groups=[...document.querySelectorAll('nav,.koschei-global-nav,.product-footer')];
+            const scanCounts=groups.map(group=>[...group.querySelectorAll('a[href]')].filter(anchor=>new URL(anchor.href).pathname==='/scan').length);
+            return {
+              total:scanCounts.reduce((sum,value)=>sum+value,0),
+              max:scanCounts.length?Math.max(...scanCounts):0,
+              legacy:[...document.querySelectorAll('nav a[href],.koschei-global-nav a[href],.product-footer a[href]')].filter(anchor=>['/safe-check','/transaction-shield','/security-radar'].includes(new URL(anchor.href).pathname)).length
+            };
+          };
           (async()=>{
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:1440,height:1050},deviceScaleFactor:1});
@@ -72,13 +81,13 @@ jobs:
               const state=await page.evaluate(()=>({
                 lang:document.documentElement.lang,
                 overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2,
-                scanLinks:[...document.querySelectorAll('nav a[href]')].filter(a=>new URL(a.href).pathname==='/scan').length,
-                legacyNav:[...document.querySelectorAll('nav a[href]')].filter(a=>['/safe-check','/transaction-shield','/security-radar'].includes(new URL(a.href).pathname)).length
+                navigation:(()=>{const groups=[...document.querySelectorAll('nav,.koschei-global-nav,.product-footer')];const counts=groups.map(group=>[...group.querySelectorAll('a[href]')].filter(anchor=>new URL(anchor.href).pathname==='/scan').length);return{total:counts.reduce((sum,value)=>sum+value,0),max:counts.length?Math.max(...counts):0,legacy:[...document.querySelectorAll('nav a[href],.koschei-global-nav a[href],.product-footer a[href]')].filter(anchor=>['/safe-check','/transaction-shield','/security-radar'].includes(new URL(anchor.href).pathname)).length}})()
               }));
               if(state.lang!=='en')throw new Error(`${label}: lang=${state.lang}`);
               if(state.overflow)throw new Error(`${label}: horizontal overflow`);
-              if(state.scanLinks!==1)throw new Error(`${label}: expected one nav Scan Center link, got ${state.scanLinks}`);
-              if(state.legacyNav!==0)throw new Error(`${label}: legacy scanner links remain in navigation`);
+              if(state.navigation.total<1)throw new Error(`${label}: canonical Scan Center link missing`);
+              if(state.navigation.max>1)throw new Error(`${label}: one navigation group contains ${state.navigation.max} scan links`);
+              if(state.navigation.legacy!==0)throw new Error(`${label}: legacy scanner links remain in navigation`);
             };
 
             await audit('initial');
@@ -131,16 +140,24 @@ jobs:
             await dashboard.waitForTimeout(150);
             await dashboard.addScriptTag({path:path.join(root,'koschei/api/public/js/unified-scan-navigation.js')});
             await dashboard.evaluate(()=>document.querySelectorAll('[data-reveal]').forEach(node=>node.classList.add('is-visible')));
-            const workspace=await dashboard.evaluate(()=>({
-              mint:!!document.querySelector('#mint'),
-              scanner:!!document.querySelector('#scan'),
-              copy:document.body.innerText.includes('Workspace, not another scanner'),
-              scanLinks:[...document.querySelectorAll('nav a[href]')].filter(a=>new URL(a.href).pathname==='/scan').length,
-              overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2
-            }));
+            const workspace=await dashboard.evaluate(()=>{
+              const groups=[...document.querySelectorAll('nav,.koschei-global-nav,.product-footer')];
+              const counts=groups.map(group=>[...group.querySelectorAll('a[href]')].filter(anchor=>new URL(anchor.href).pathname==='/scan').length);
+              return{
+                mint:!!document.querySelector('#mint'),
+                scanner:!!document.querySelector('#scan'),
+                copy:document.body.innerText.includes('Workspace, not another scanner'),
+                totalScanLinks:counts.reduce((sum,value)=>sum+value,0),
+                maxScanLinksPerGroup:counts.length?Math.max(...counts):0,
+                legacy:[...document.querySelectorAll('nav a[href],.koschei-global-nav a[href],.product-footer a[href]')].filter(anchor=>['/safe-check','/transaction-shield','/security-radar'].includes(new URL(anchor.href).pathname)).length,
+                overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+2
+              };
+            });
             if(workspace.mint||workspace.scanner)throw new Error('dashboard still contains scanner controls');
             if(!workspace.copy)throw new Error('dashboard workspace contract missing');
-            if(workspace.scanLinks!==1)throw new Error(`dashboard expected one scan link, got ${workspace.scanLinks}`);
+            if(workspace.totalScanLinks<1)throw new Error('dashboard canonical Scan Center link missing');
+            if(workspace.maxScanLinksPerGroup>1)throw new Error(`dashboard navigation group has ${workspace.maxScanLinksPerGroup} scan links`);
+            if(workspace.legacy)throw new Error('dashboard contains legacy scanner navigation');
             if(workspace.overflow)throw new Error('dashboard: horizontal overflow');
             await dashboard.screenshot({path:path.join(output,'dashboard-desktop.png'),fullPage:true});
             await dashboard.close();
