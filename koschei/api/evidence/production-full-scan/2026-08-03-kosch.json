@@ -77,8 +77,18 @@
         "scope": "owner_resolved_infrastructure_excluded_circulating_supply",
         "thresholds": {"d_cap_pct": 50, "f_cap_pct": 70}
       },
-      "evidence_keys": ["owner:5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh"],
-      "signatures": []
+      "evidence_keys": [
+        "state:sha256:1bac56e8a8f6121d808ed4ab5808552a04022ad8ca9f091ba5ae7118210f533b",
+        "urd-c005-owner-link:5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
+        "urd-c005-owner-link:47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
+        "urd-c005-owner-link:hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
+      ],
+      "signatures": [
+        "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
+        "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
+        "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH"
+      ],
+      "evidence_file": "2026-08-03-kosch/urd-c005-owner-concentration.json"
     }
   ],
   "supporting_rule_groups": [
