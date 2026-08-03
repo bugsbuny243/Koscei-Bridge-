@@ -58,9 +58,9 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 }
 
 func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
-	overlay, err := os.ReadFile("public/js/koschei-auth-english-overlay.js")
+	overlay, err := os.ReadFile("public/js/english-auth-presentation.js")
 	if err != nil {
-		t.Fatalf("read auth English overlay: %v", err)
+		t.Fatalf("read auth English presentation: %v", err)
 	}
 	text := string(overlay)
 	for _, required := range []string{
@@ -72,7 +72,7 @@ func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
 		"'Hesap oluşturuldu.':'Account created.'",
 	} {
 		if !strings.Contains(text, required) {
-			t.Errorf("auth English overlay missing %q", required)
+			t.Errorf("auth English presentation missing %q", required)
 		}
 	}
 
