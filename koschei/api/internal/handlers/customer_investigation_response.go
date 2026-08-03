@@ -11,6 +11,24 @@ func customerInvestigationStatus(final services.UnifiedRadarVerdict, hasLiveEvid
 	return "evidence_pending"
 }
 
+// attachCustomerAnalysisSummary is the single wiring point used by every
+// customer-facing investigation response. The same deterministic summary is
+// embedded in the canonical report and may also be exposed at the response
+// top level. This prevents /api/token/scan and /api/security/radar/check from
+// drifting into different result contracts.
+func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[string]any {
+	if assembly == nil {
+		return map[string]any{}
+	}
+	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
+	analysisSummary := buildCustomerAnalysisSummary(*assembly, hasLiveEvidence)
+	if assembly.Report == nil {
+		assembly.Report = map[string]any{}
+	}
+	assembly.Report["analysis_summary"] = analysisSummary
+	return analysisSummary
+}
+
 func customerInvestigationEnvelope(assembly unifiedInvestigationAssembly, charged bool) map[string]any {
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	status := customerInvestigationStatus(assembly.UnifiedVerdict, hasLiveEvidence)
@@ -18,11 +36,7 @@ func customerInvestigationEnvelope(assembly unifiedInvestigationAssembly, charge
 	if status == "evidence_pending" {
 		message = "Investigation completed with evidence gaps; missing evidence is not treated as a safe finding."
 	}
-	analysisSummary := buildCustomerAnalysisSummary(assembly, hasLiveEvidence)
-	if assembly.Report == nil {
-		assembly.Report = map[string]any{}
-	}
-	assembly.Report["analysis_summary"] = analysisSummary
+	analysisSummary := attachCustomerAnalysisSummary(&assembly)
 	return map[string]any{
 		"ok":                      true,
 		"response_schema_version": customerInvestigationResponseSchemaVersion,
