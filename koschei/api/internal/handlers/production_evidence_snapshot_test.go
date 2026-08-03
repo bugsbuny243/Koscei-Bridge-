@@ -24,8 +24,11 @@ func TestAttachCustomerAnalysisSummarySynchronizesCanonicalFinalVerdict(t *testi
 	assembly := unifiedInvestigationAssembly{
 		Report: map[string]any{
 			"final_verdict": services.UnifiedRadarVerdict{
-				Grade: "B", Verdict: "compounding_rule", Signed: true,
-				Signature: "stale-b", RulesetVersion: "rules-v1",
+				Grade:          "B",
+				Verdict:        "compounding_rule",
+				Signed:         true,
+				Signature:      "stale-b",
+				RulesetVersion: "rules-v1",
 			},
 		},
 		UnifiedVerdict: authoritative,
@@ -48,6 +51,61 @@ func TestAttachCustomerAnalysisSummarySynchronizesCanonicalFinalVerdict(t *testi
 	}
 }
 
+type productionEvidenceSnapshot struct {
+	SchemaVersion string `json:"schema_version"`
+	Target        string `json:"target"`
+	Network       string `json:"network"`
+	Endpoint      string `json:"endpoint"`
+	Decision      struct {
+		Grade           string `json:"grade"`
+		Verdict         string `json:"verdict"`
+		Signed          bool   `json:"signed"`
+		Signature       string `json:"signature"`
+		Confidence      string `json:"confidence"`
+		Readiness       string `json:"readiness"`
+		HasLiveEvidence bool   `json:"has_live_evidence"`
+	} `json:"authoritative_decision"`
+	Coverage struct {
+		ArchitectureArmCount int  `json:"architecture_arm_count"`
+		Observed             int  `json:"observed"`
+		Pending              int  `json:"pending"`
+		NotApplicable        int  `json:"not_applicable"`
+		CoveragePercent      int  `json:"coverage_percent"`
+		CoverageIsRiskScore  bool `json:"coverage_is_risk_score"`
+	} `json:"evidence_coverage"`
+	Modules []struct {
+		ModuleID string `json:"module_id"`
+		State    string `json:"state"`
+	} `json:"evidence_modules"`
+	Findings []struct {
+		RuleID         string         `json:"rule_id"`
+		EvidenceStatus string         `json:"evidence_status"`
+		GradeEffect    string         `json:"grade_effect"`
+		Signatures     []string       `json:"signatures"`
+		Facts          map[string]any `json:"facts"`
+	} `json:"grade_changing_findings"`
+	Unresolved []map[string]any `json:"unresolved_questions"`
+	Live       struct {
+		Status               string `json:"status"`
+		WalletsRequested     int    `json:"wallets_requested"`
+		WalletsCompleted     int    `json:"wallets_completed"`
+		SignaturesSeen       int    `json:"signatures_seen"`
+		TransactionsParsed   int    `json:"transactions_parsed"`
+		RelevantTransactions int    `json:"relevant_transactions"`
+		RPCFailures          int    `json:"rpc_failures"`
+	} `json:"live_evidence"`
+	Actor struct {
+		RunStatus string `json:"run_status"`
+	} `json:"actor_investigation"`
+	Provenance struct {
+		ProductionCommit             string `json:"production_commit"`
+		ArtifactDigest               string `json:"artifact_digest"`
+		SourceFullScanResponseSHA256 string `json:"source_full_scan_response_sha256"`
+		SourceFullScanResultSHA256   string `json:"source_full_scan_result_sha256"`
+		AuthoritativeDecisionPath    string `json:"authoritative_decision_path"`
+	} `json:"provenance"`
+}
+
 func TestProductionEvidenceSnapshot(t *testing.T) {
 	path := filepath.Join("..", "..", "evidence", "production-full-scan", "2026-08-03-kosch.json")
 	raw, err := os.ReadFile(path)
@@ -65,60 +123,7 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 		}
 	}
 
-	var snapshot struct {
-		SchemaVersion string `json:"schema_version"`
-		Target        string `json:"target"`
-		Network       string `json:"network"`
-		Endpoint      string `json:"endpoint"`
-		Decision      struct {
-			Grade           string `json:"grade"`
-			Verdict         string `json:"verdict"`
-			Signed          bool   `json:"signed"`
-			Signature       string `json:"signature"`
-			Confidence      string `json:"confidence"`
-			Readiness       string `json:"readiness"`
-			HasLiveEvidence bool   `json:"has_live_evidence"`
-		} `json:"authoritative_decision"`
-		Coverage struct {
-			ArchitectureArmCount int  `json:"architecture_arm_count"`
-			Observed             int  `json:"observed"`
-			Pending              int  `json:"pending"`
-			NotApplicable        int  `json:"not_applicable"`
-			CoveragePercent      int  `json:"coverage_percent"`
-			CoverageIsRiskScore  bool `json:"coverage_is_risk_score"`
-		} `json:"evidence_coverage"`
-		Modules []struct {
-			ModuleID string `json:"module_id"`
-			State    string `json:"state"`
-		} `json:"evidence_modules"`
-		Findings []struct {
-			RuleID         string         `json:"rule_id"`
-			EvidenceStatus string         `json:"evidence_status"`
-			GradeEffect    string         `json:"grade_effect"`
-			Signatures     []string       `json:"signatures"`
-			Facts          map[string]any `json:"facts"`
-		} `json:"grade_changing_findings"`
-		Unresolved []map[string]any `json:"unresolved_questions"`
-		Live       struct {
-			Status               string `json:"status"`
-			WalletsRequested     int    `json:"wallets_requested"`
-			WalletsCompleted     int    `json:"wallets_completed"`
-			SignaturesSeen       int    `json:"signatures_seen"`
-			TransactionsParsed   int    `json:"transactions_parsed"`
-			RelevantTransactions int    `json:"relevant_transactions"`
-			RPCFailures          int    `json:"rpc_failures"`
-		} `json:"live_evidence"`
-		Actor struct {
-			RunStatus string `json:"run_status"`
-		} `json:"actor_investigation"`
-		Provenance struct {
-			ProductionCommit             string `json:"production_commit"`
-			ArtifactDigest               string `json:"artifact_digest"`
-			SourceFullScanResponseSHA256 string `json:"source_full_scan_response_sha256"`
-			SourceFullScanResultSHA256   string `json:"source_full_scan_result_sha256"`
-			AuthoritativeDecisionPath    string `json:"authoritative_decision_path"`
-		} `json:"provenance"`
-	}
+	var snapshot productionEvidenceSnapshot
 	if err := json.Unmarshal(raw, &snapshot); err != nil {
 		t.Fatalf("decode production evidence snapshot: %v", err)
 	}
@@ -142,7 +147,7 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 		t.Fatalf("unexpected evidence coverage: %#v", snapshot.Coverage)
 	}
 
-	pending := []string{}
+	pending := make([]string, 0, snapshot.Coverage.Pending)
 	for _, module := range snapshot.Modules {
 		if module.State == "pending" {
 			pending = append(pending, module.ModuleID)
@@ -170,9 +175,7 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 		}
 		metrics, _ := finding.Facts["metrics"].(map[string]any)
 		share, _ := metrics["owner_resolved_top_share_pct"].(float64)
-		if finding.GradeEffect == "hard_cap_F" && math.Abs(share-99.2987) < 0.0001 {
-			foundFCap = true
-		}
+		foundFCap = finding.GradeEffect == "hard_cap_F" && math.Abs(share-99.2987) < 0.0001
 	}
 	if !foundFCap {
 		t.Fatal("verified URD-C005 F-cap evidence missing")
@@ -190,7 +193,7 @@ func TestProductionEvidenceSnapshot(t *testing.T) {
 		t.Fatalf("unexpected provenance: %#v", snapshot.Provenance)
 	}
 	for name, value := range map[string]string{
-		"artifact_digest":                 snapshot.Provenance.ArtifactDigest,
+		"artifact_digest":                  snapshot.Provenance.ArtifactDigest,
 		"source_full_scan_response_sha256": snapshot.Provenance.SourceFullScanResponseSHA256,
 		"source_full_scan_result_sha256":   snapshot.Provenance.SourceFullScanResultSHA256,
 	} {
