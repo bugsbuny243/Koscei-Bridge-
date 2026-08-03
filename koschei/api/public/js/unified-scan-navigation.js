@@ -25,10 +25,7 @@ function cleanSeparators(group){
   const nodes=[];
   while(walker.nextNode())nodes.push(walker.currentNode);
   nodes.forEach(node=>{
-    node.nodeValue=String(node.nodeValue||'')
-      .replace(/(?:\s*·\s*){2,}/g,' · ')
-      .replace(/^\s*·\s*/,'')
-      .replace(/\s*·\s*$/,'');
+    node.nodeValue=String(node.nodeValue||'').replace(/(?:\s*·\s*){2,}/g,' · ');
   });
 }
 function normalizeLinks(root=document){
