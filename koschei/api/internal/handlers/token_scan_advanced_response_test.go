@@ -59,9 +59,9 @@ func TestTokenScanResponseExposesV3ContractAndSummaryAtBothLevels(t *testing.T) 
 	summary := map[string]any{
 		"schema_version": customerAnalysisSummarySchemaVersionV3,
 		"decision": map[string]any{
-			"grade":              "F",
-			"signed":             true,
-			"ruleset_version":    services.UnifiedRadarRulesetVersionV110,
+			"grade":             "F",
+			"signed":            true,
+			"ruleset_version":   services.UnifiedRadarRulesetVersionV110,
 			"grading_semantics": "distinct_rule_ids_not_evidence_group_count",
 		},
 		"grade_changing_findings": []map[string]any{{"rule_id": services.UnifiedRuleOwnerConcentration}},
