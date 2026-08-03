@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - "Dockerfile.defense-worker"
+      - "Dockerfile.defense-sentinel"
       - "koschei/api/**"
       - "sdk/typescript/**"
       - "oss/event-normalizer/**"
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - "Dockerfile"
+      - "Dockerfile.defense-worker"
+      - "Dockerfile.defense-sentinel"
       - "koschei/api/**"
       - "sdk/typescript/**"
       - "oss/event-normalizer/**"
@@ -37,7 +41,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
       - name: Generate repository SARIF
@@ -53,7 +57,7 @@ jobs:
           exit-code: "0"
       - name: Upload repository SARIF
         if: ${{ always() && hashFiles('trivy-repository.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           sarif_file: trivy-repository.sarif
           category: trivy-repository
@@ -74,7 +78,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Build production API image only
         run: |
           set -euo pipefail
@@ -91,7 +95,7 @@ jobs:
           exit-code: "0"
       - name: Upload container SARIF
         if: ${{ always() && hashFiles('trivy-container.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           sarif_file: trivy-container.sarif
           category: trivy-production-container
@@ -116,13 +120,13 @@ jobs:
         run: docker save koschei-api:${GITHUB_SHA} --output koschei-api-image.tar
       - name: Attest production image SBOM
         if: github.event_name != 'pull_request'
-        uses: actions/attest@v4
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
         with:
           subject-path: koschei-api-image.tar
           sbom-path: koschei-api.spdx.json
       - name: Upload SBOM evidence
         if: ${{ always() && hashFiles('koschei-api.spdx.json') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: koschei-api-sbom-${{ github.sha }}
           path: |
@@ -137,15 +141,26 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Enforce non-autonomy invariants
         run: |
           set -euo pipefail
           harness="koschei/api/internal/defense/harness.go"
+          worker="Dockerfile.defense-worker"
+          sentinel="Dockerfile.defense-sentinel"
+
           grep -Fq '"execution_ready":          false' "${harness}"
           grep -Fq '"manual_guidance_required": true' "${harness}"
           grep -Fq 'ExecutionReady: false' "${harness}"
           grep -Fq 'VerdictAuthority: false' "${harness}"
           ! grep -Fq 'ExecutionReady: true' "${harness}"
           ! grep -Fq 'VerdictAuthority: true' "${harness}"
-          echo "Defense OS execution and verdict authority remain disabled."
+
+          grep -Fq 'ENV KOSCHEI_DEFENSE_WORKER_ENABLED=false' "${worker}"
+          grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=false' "${sentinel}"
+          grep -Fq 'USER 10001:10001' "${worker}"
+          grep -Fq 'USER nonroot:nonroot' "${sentinel}"
+          ! grep -Fq 'ENV KOSCHEI_DEFENSE_WORKER_ENABLED=true' "${worker}"
+          ! grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=true' "${sentinel}"
+
+          echo "Defense OS execution, verdict authority, and image defaults remain disabled."
