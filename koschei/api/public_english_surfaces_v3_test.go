@@ -73,7 +73,7 @@ func TestDashboardIsWorkspaceNotAnotherScanner(t *testing.T) {
 		t.Fatalf("read dashboard: %v", err)
 	}
 	text := string(body)
-	for _, required := range []string{"Workspace, not another scanner", "Open Scan Center", "Report vault", "Monitoring and integration"} {
+	for _, required := range []string{"Workspace, not another scanner", "Open Scan Center", "Signed report vault", "Monitoring and integration"} {
 		if !strings.Contains(text, required) {
 			t.Errorf("dashboard missing workspace contract %q", required)
 		}
@@ -97,7 +97,7 @@ func TestUnifiedScanBehaviorUsesRealModeEndpoints(t *testing.T) {
 		"/api/public/transaction-simulate",
 		"Quick Check",
 		"Token Investigation",
-		"Transaction Simulation",
+		"Simulate Transaction",
 		"Deep Radar",
 		"Missing evidence = no safety decision",
 	} {
