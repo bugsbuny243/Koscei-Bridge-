@@ -47,7 +47,7 @@ func TestAttachCustomerAnalysisSummaryMutatesCanonicalReport(t *testing.T) {
 	}
 
 	summary := attachCustomerAnalysisSummary(&assembly)
-	if summary["schema_version"] != customerAnalysisSummarySchemaVersion {
+	if summary["schema_version"] != customerAnalysisSummarySchemaVersionV3 {
 		t.Fatalf("unexpected summary: %#v", summary)
 	}
 	if !reflect.DeepEqual(assembly.Report["analysis_summary"], summary) {
@@ -55,10 +55,17 @@ func TestAttachCustomerAnalysisSummaryMutatesCanonicalReport(t *testing.T) {
 	}
 }
 
-func TestTokenScanResponseExposesAdvancedSummaryAtBothLevels(t *testing.T) {
+func TestTokenScanResponseExposesV3ContractAndSummaryAtBothLevels(t *testing.T) {
 	summary := map[string]any{
-		"schema_version": customerAnalysisSummarySchemaVersion,
-		"decision":       map[string]any{"grade": "B", "signed": true},
+		"schema_version": customerAnalysisSummarySchemaVersionV3,
+		"decision": map[string]any{
+			"grade":              "F",
+			"signed":             true,
+			"ruleset_version":    services.UnifiedRadarRulesetVersionV110,
+			"grading_semantics": "distinct_rule_ids_not_evidence_group_count",
+		},
+		"grade_changing_findings": []map[string]any{{"rule_id": services.UnifiedRuleOwnerConcentration}},
+		"supporting_findings":     []map[string]any{{"rule_id": services.ActorRuleCompoundRepeatedTransfer}},
 	}
 	response := tokenScanResponse{
 		Mint:            "Mint555",
@@ -78,16 +85,22 @@ func TestTokenScanResponseExposesAdvancedSummaryAtBothLevels(t *testing.T) {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("decode token scan response: %v", err)
 	}
+	if decoded["response_schema_version"] != customerInvestigationResponseSchemaVersion {
+		t.Fatalf("response schema missing: %#v", decoded)
+	}
 	top, ok := decoded["analysis_summary"].(map[string]any)
-	if !ok || top["schema_version"] != customerAnalysisSummarySchemaVersion {
-		t.Fatalf("top-level advanced summary missing: %#v", decoded)
+	if !ok || top["schema_version"] != customerAnalysisSummarySchemaVersionV3 {
+		t.Fatalf("top-level v3 summary missing: %#v", decoded)
+	}
+	if supporting, ok := top["supporting_findings"].([]any); !ok || len(supporting) != 1 {
+		t.Fatalf("supporting findings missing from top-level summary: %#v", top)
 	}
 	report, ok := decoded["investigation_report"].(map[string]any)
 	if !ok {
 		t.Fatalf("investigation report missing: %#v", decoded)
 	}
 	nested, ok := report["analysis_summary"].(map[string]any)
-	if !ok || nested["schema_version"] != customerAnalysisSummarySchemaVersion {
-		t.Fatalf("nested advanced summary missing: %#v", report)
+	if !ok || nested["schema_version"] != customerAnalysisSummarySchemaVersionV3 {
+		t.Fatalf("nested v3 summary missing: %#v", report)
 	}
 }
