@@ -33,11 +33,19 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/core-en/node_modules
         run: |
+          set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/core-en-proof"
+          python3 -m http.server 4173 --directory koschei/api/public >"${RUNNER_TEMP}/core-en-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill ${server_pid} 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            curl --silent --fail http://127.0.0.1:4173/index.html >/dev/null && break
+            sleep 1
+          done
+          curl --silent --fail http://127.0.0.1:4173/index.html >/dev/null
           cat > "${RUNNER_TEMP}/render-core-en.cjs" <<'NODE'
           const path = require('path');
           const { chromium } = require('playwright');
-          const root = process.cwd();
           const output = path.join(process.env.RUNNER_TEMP, 'core-en-proof');
           const files = ['index.html','login.html','register.html'];
           const forbidden = ['Giriş Yap','Hesap Oluştur','Token Tara','Ücretsiz kontrol et','KAPSAM SINIRI','Kontrol ediliyor'];
@@ -46,17 +54,20 @@ jobs:
             for (const file of files) {
               for (const view of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
                 const page = await browser.newPage({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
-                const url = 'file://' + path.join(root,'koschei/api/public',file);
-                await page.goto(url,{waitUntil:'domcontentloaded'});
+                await page.goto(`http://127.0.0.1:4173/${file}`,{waitUntil:'networkidle'});
                 const audit = await page.evaluate(()=>({
                   lang: document.documentElement.lang,
                   text: document.body.innerText,
                   overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
                   forms: document.querySelectorAll('form').length,
-                  buttons: document.querySelectorAll('button').length
+                  buttons: document.querySelectorAll('button').length,
+                  background: getComputedStyle(document.body).backgroundImage,
+                  styledButtons: [...document.querySelectorAll('button')].every(button=>getComputedStyle(button).borderRadius!=='0px')
                 }));
                 if(audit.lang!=='en')throw new Error(`${file}/${view.name}: lang=${audit.lang}`);
                 if(audit.overflow)throw new Error(`${file}/${view.name}: horizontal overflow`);
+                if(!audit.background||audit.background==='none')throw new Error(`${file}/${view.name}: product CSS/background not loaded`);
+                if(!audit.styledButtons)throw new Error(`${file}/${view.name}: button styling not loaded`);
                 for(const phrase of forbidden)if(audit.text.includes(phrase))throw new Error(`${file}/${view.name}: Turkish copy ${phrase}`);
                 if((file==='login.html'||file==='register.html')&&(!audit.forms||!audit.buttons))throw new Error(`${file}/${view.name}: auth form missing`);
                 await page.screenshot({path:path.join(output,`${file.replace('.html','')}-${view.name}.png`),fullPage:true});
