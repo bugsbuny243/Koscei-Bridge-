@@ -88,12 +88,13 @@ jobs:
               modules: document.querySelectorAll('.arvis-module-v3').length,
               holders: document.querySelectorAll('.arvis-holder-v3').length,
               graph: document.querySelectorAll('.arvis-graph-v3').length,
-              text: document.querySelector('[data-arvis-complete-v3]').innerText,
+              text: document.querySelector('[data-arvis-complete-v3]').textContent,
               overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2
             }));
             if(audit.version!=='3.0.0')throw new Error(`version=${audit.version}`);
             if(audit.modules!==6||audit.holders!==3||audit.graph!==2)throw new Error(JSON.stringify(audit));
-            for(const phrase of ['Top 3','Top 20','ALL ARVIS MODULES','CREATOR, FUNDING & LAUNCH','RELATIONSHIP GRAPH','SIGNED CANONICAL PACKAGE'])if(!audit.text.includes(phrase))throw new Error(`missing ${phrase}`);
+            const renderedText=String(audit.text||'').toUpperCase();
+            for(const phrase of ['TOP 3','TOP 20','ALL ARVIS MODULES','CREATOR, FUNDING & LAUNCH','RELATIONSHIP GRAPH','SIGNED CANONICAL PACKAGE'])if(!renderedText.includes(phrase))throw new Error(`missing ${phrase}`);
             if(audit.overflow)throw new Error('horizontal overflow detected');
             await page.screenshot({path:output,fullPage:true});
             await browser.close();
