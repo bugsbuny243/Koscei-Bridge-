@@ -69,6 +69,11 @@ func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContr
 	if strings.Count(second, "koschei-english-runtime.js") != 1 {
 		t.Fatalf("global English runtime was not injected exactly once: %s", second)
 	}
+	presentationIndex := strings.Index(second, "english-auth-presentation.js")
+	runtimeIndex := strings.Index(second, "koschei-english-runtime.js")
+	if presentationIndex < 0 || runtimeIndex < 0 || presentationIndex > runtimeIndex {
+		t.Fatalf("auth presentation must run before the generic runtime: %s", second)
+	}
 }
 
 func TestEnglishPublicHTMLLeavesAPIJSONUntouched(t *testing.T) {
