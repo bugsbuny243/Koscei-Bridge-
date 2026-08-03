@@ -9,6 +9,8 @@ on:
       - "koschei/api/public/register.html"
       - "koschei/api/public/account.html"
       - "koschei/api/public/reports.html"
+      - "koschei/api/public/js/koschei-auth-english-overlay.js"
+      - "koschei/api/english_public_html.go"
       - "koschei/api/core_source_english_wave2_test.go"
       - ".github/workflows/diagnostic-core-english-wave2.yml"
 
@@ -46,17 +48,23 @@ jobs:
           cat > "${RUNNER_TEMP}/render-core-en.cjs" <<'NODE'
           const path = require('path');
           const { chromium } = require('playwright');
+          const root = process.cwd();
           const output = path.join(process.env.RUNNER_TEMP, 'core-en-proof');
           const files = ['index.html','login.html','register.html'];
-          const forbidden = ['Giriş Yap','Hesap Oluştur','Token Tara','Ücretsiz kontrol et','KAPSAM SINIRI','Kontrol ediliyor'];
+          const forbidden = ['Giriş Yap','Hesap Oluştur','Token Tara','Ücretsiz kontrol et','KAPSAM SINIRI','Kontrol ediliyor','E-posta','Şifre'];
           (async()=>{
             const browser = await chromium.launch({headless:true});
             for (const file of files) {
               for (const view of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
                 const page = await browser.newPage({viewport:{width:view.width,height:view.height},deviceScaleFactor:1});
-                await page.goto(`http://127.0.0.1:4173/${file}`,{waitUntil:'networkidle'});
+                await page.goto(`http://127.0.0.1:4173/${file}`,{waitUntil:'domcontentloaded'});
+                if(file==='login.html'||file==='register.html'){
+                  await page.addScriptTag({path:path.join(root,'koschei/api/public/js/koschei-auth-english-overlay.js')});
+                  await page.waitForTimeout(100);
+                }
                 const audit = await page.evaluate(()=>({
                   lang: document.documentElement.lang,
+                  title: document.title,
                   text: document.body.innerText,
                   overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
                   forms: document.querySelectorAll('form').length,
@@ -68,8 +76,10 @@ jobs:
                 if(audit.overflow)throw new Error(`${file}/${view.name}: horizontal overflow`);
                 if(!audit.background||audit.background==='none')throw new Error(`${file}/${view.name}: product CSS/background not loaded`);
                 if(!audit.styledButtons)throw new Error(`${file}/${view.name}: button styling not loaded`);
-                for(const phrase of forbidden)if(audit.text.includes(phrase))throw new Error(`${file}/${view.name}: Turkish copy ${phrase}`);
+                for(const phrase of forbidden)if(audit.text.includes(phrase)||audit.title.includes(phrase))throw new Error(`${file}/${view.name}: Turkish copy ${phrase}`);
                 if((file==='login.html'||file==='register.html')&&(!audit.forms||!audit.buttons))throw new Error(`${file}/${view.name}: auth form missing`);
+                if(file==='login.html'&&!audit.text.includes('Sign In'))throw new Error(`${file}/${view.name}: English login copy missing`);
+                if(file==='register.html'&&!audit.text.includes('Create Account'))throw new Error(`${file}/${view.name}: English registration copy missing`);
                 await page.screenshot({path:path.join(output,`${file.replace('.html','')}-${view.name}.png`),fullPage:true});
                 await page.close();
               }
