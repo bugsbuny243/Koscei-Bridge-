@@ -84,17 +84,37 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 }
 
 // EvaluateUnifiedRadarVerdictV110 is retained as the public compatibility name,
-// but emits ruleset v1.1.1. The v1.1.1 correction counts distinct compounding
-// rule IDs rather than treating several evidence groups from one rule as several
-// grading rules. Evidence groups remain in TriggeredRules for auditability.
+// but emits ruleset v1.1.1. It deliberately preserves every actor evidence group
+// in TriggeredRules while counting only distinct rule IDs for grading.
 func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdict, behavior UnifiedRadarBehaviorReport) UnifiedRadarVerdict {
-	base := EvaluateUnifiedRadarVerdict(target, actor, behavior)
-	out := base
-	out.RulesetVersion = UnifiedRadarRulesetVersionV110
-	out.DecisionPath = []string{
-		"The 14 legacy evidence arms, actor investigation and market/holder behavior rules are joined in one manual Radar dossier.",
-		"No weighted score or 0-100 final result is calculated.",
-		"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
+	triggered := append([]ActorDefenseRuleHit{}, actor.TriggeredRules...)
+	watch := append([]ActorDefenseRuleHit{}, actor.WatchFlags...)
+	for _, signal := range behavior.Signals {
+		hit := unifiedSignalRuleHit(signal)
+		if signal.Triggered && (signal.EvidenceStatus == "verified" || signal.EvidenceStatus == "observed") {
+			triggered = append(triggered, hit)
+		} else if signal.EvidenceStatus == "inferred" {
+			watch = append(watch, hit)
+		}
+	}
+	actorRuleSortHits(triggered)
+	watch = actorRuleMergeHits(watch)
+	actorRuleSortHits(watch)
+
+	out := UnifiedRadarVerdict{
+		Grade:           "-",
+		Verdict:         "no_grade_trigger",
+		RulesetVersion:  UnifiedRadarRulesetVersionV110,
+		ActorRuleset:    ActorDefenseRulesetVersion,
+		TriggeredRules:  triggered,
+		WatchFlags:      watch,
+		NarrativeSource: "deterministic_rules_only_ai_explains_but_never_grades",
+		GeneratedAt:     time.Now().UTC(),
+		DecisionPath: []string{
+			"The 14 legacy evidence arms, actor investigation and market/holder behavior rules are joined in one manual Radar dossier.",
+			"No weighted score or 0-100 final result is calculated.",
+			"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
+		},
 	}
 
 	for _, hit := range out.TriggeredRules {
@@ -123,16 +143,12 @@ func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdic
 			out.Verdict = "compounding_rule"
 			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rule IDs lowered the baseline by one grade to B: %s.", len(distinctIDs), strings.Join(distinctIDs, ", ")))
 		case len(distinctIDs) == 1:
-			out.Grade = "-"
 			out.Verdict = "single_observation"
 			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Multiple evidence groups may exist, but only one distinct compounding rule ID was satisfied (%s); it cannot issue a letter grade alone.", distinctIDs[0]))
 		case len(out.WatchFlags) > 0:
-			out.Grade = "-"
 			out.Verdict = "watch_only"
 			out.DecisionPath = append(out.DecisionPath, "Only watch flags are present; no letter grade is issued.")
 		default:
-			out.Grade = "-"
-			out.Verdict = "no_grade_trigger"
 			out.DecisionPath = append(out.DecisionPath, "No grade-changing rule was satisfied; absence of evidence is not an A grade.")
 		}
 	}
@@ -155,7 +171,6 @@ func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdic
 	}
 
 	out.Signed = out.Grade != "-" && len(out.TriggeredRules) > 0
-	out.Signature = ""
 	if out.Signed {
 		out.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), out)
 	}
