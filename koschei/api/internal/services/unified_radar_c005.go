@@ -2,12 +2,13 @@ package services
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
 const (
-	UnifiedRadarRulesetVersionV110 = "koschei-unified-radar-rules-v1.1.0"
+	UnifiedRadarRulesetVersionV110 = "koschei-unified-radar-rules-v1.1.1"
 	UnifiedRuleOwnerConcentration  = "URD-C005"
 	UnifiedOwnerConcentrationDCap  = 50.0
 	UnifiedOwnerConcentrationFCap  = 70.0
@@ -82,11 +83,59 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 	return report
 }
 
-// EvaluateUnifiedRadarVerdictV110 preserves all v1.0 decisions and then applies
-// the explicit C005 hard ceiling. The existing deterministic signer is reused.
+// EvaluateUnifiedRadarVerdictV110 is retained as the public compatibility name,
+// but emits ruleset v1.1.1. The v1.1.1 correction counts distinct compounding
+// rule IDs rather than treating several evidence groups from one rule as several
+// grading rules. Evidence groups remain in TriggeredRules for auditability.
 func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdict, behavior UnifiedRadarBehaviorReport) UnifiedRadarVerdict {
-	out := EvaluateUnifiedRadarVerdict(target, actor, behavior)
+	base := EvaluateUnifiedRadarVerdict(target, actor, behavior)
+	out := base
 	out.RulesetVersion = UnifiedRadarRulesetVersionV110
+	out.DecisionPath = []string{
+		"The 14 legacy evidence arms, actor investigation and market/holder behavior rules are joined in one manual Radar dossier.",
+		"No weighted score or 0-100 final result is calculated.",
+		"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
+	}
+
+	for _, hit := range out.TriggeredRules {
+		out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Rule %s [%s/%s]: %s", hit.RuleID, hit.Tier, hit.EvidenceStatus, hit.Summary))
+	}
+
+	if actor.Verdict == "hard_trigger" && actor.Grade != "-" {
+		out.Grade = actor.Grade
+		out.Verdict = "hard_trigger"
+		out.DecisionPath = append(out.DecisionPath, "A VERIFIED actor hard trigger fixed the letter-grade ceiling at "+actor.Grade+".")
+	} else {
+		distinctIDs := unifiedDistinctCompoundingRuleIDs(out.TriggeredRules)
+		holderPressure, holderPressureOK := unifiedRadarSignalByRule(behavior, UnifiedRuleHolderLiquidityPressure)
+		dominantExit, dominantExitOK := unifiedRadarSignalByRule(behavior, UnifiedRuleDominantHolderFirstExit)
+		pressureRatio := unifiedRadarMetricFloat(holderPressure.Metrics["position_liquidity_ratio"])
+		severeCompounding := len(distinctIDs) >= 2 && holderPressureOK && dominantExitOK && holderPressure.Triggered && dominantExit.Triggered && pressureRatio >= 10
+
+		switch {
+		case severeCompounding:
+			out.Grade = "C"
+			out.Verdict = "severe_compounding_rule"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rule IDs were satisfied: %s.", len(distinctIDs), strings.Join(distinctIDs, ", ")))
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Dominant-holder reference position is %.2fx reported liquidity and a transaction-backed dominant-holder exit is present; severity-aware compounding caps the grade at C.", pressureRatio))
+		case len(distinctIDs) >= 2:
+			out.Grade = "B"
+			out.Verdict = "compounding_rule"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rule IDs lowered the baseline by one grade to B: %s.", len(distinctIDs), strings.Join(distinctIDs, ", ")))
+		case len(distinctIDs) == 1:
+			out.Grade = "-"
+			out.Verdict = "single_observation"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Multiple evidence groups may exist, but only one distinct compounding rule ID was satisfied (%s); it cannot issue a letter grade alone.", distinctIDs[0]))
+		case len(out.WatchFlags) > 0:
+			out.Grade = "-"
+			out.Verdict = "watch_only"
+			out.DecisionPath = append(out.DecisionPath, "Only watch flags are present; no letter grade is issued.")
+		default:
+			out.Grade = "-"
+			out.Verdict = "no_grade_trigger"
+			out.DecisionPath = append(out.DecisionPath, "No grade-changing rule was satisfied; absence of evidence is not an A grade.")
+		}
+	}
 
 	capGrade := ""
 	for _, signal := range behavior.Signals {
@@ -111,6 +160,28 @@ func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdic
 		out.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), out)
 	}
 	return out
+}
+
+func unifiedDistinctCompoundingRuleIDs(hits []ActorDefenseRuleHit) []string {
+	seen := map[string]bool{}
+	for _, hit := range hits {
+		status := strings.ToLower(strings.TrimSpace(hit.EvidenceStatus))
+		if !strings.EqualFold(hit.Tier, "compounding") || (status != "verified" && status != "observed") {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(hit.GradeEffect)), "hard_cap_") {
+			continue
+		}
+		if id := strings.TrimSpace(hit.RuleID); id != "" {
+			seen[id] = true
+		}
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 func worseUnifiedGrade(current, cap string) string {
