@@ -34,13 +34,13 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	}
 	registerStaticFileAlias(mux, "/docs/api", filepath.Join(staticDir, "docs-api.html"))
 	registerStaticFileAlias(mux, "/docs/sdk", filepath.Join(staticDir, "docs-sdk.html"))
-	mux.HandleFunc("/scan/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		http.ServeFile(w, r, filepath.Join(staticDir, "scan.html"))
-	})
+
+	// Konsolidasyon: /scan/ ücretsiz taramanın kopyasıydı.
+	mux.HandleFunc("/scan/", redirectPermanent("/safe-check"))
+	mux.HandleFunc("/scan", redirectPermanent("/safe-check"))
+
+	// Konsolidasyon: /security-radar premium panelin kopyasıydı.
+	mux.HandleFunc("/security-radar", redirectPermanent("/dashboard"))
 }
 
 func registerStaticFileAlias(mux *http.ServeMux, route, filename string) {
@@ -55,4 +55,14 @@ func registerStaticFileAlias(mux *http.ServeMux, route, filename string) {
 		}
 		http.ServeFile(w, r, filename)
 	})
+}
+
+func redirectPermanent(target string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}
 }
