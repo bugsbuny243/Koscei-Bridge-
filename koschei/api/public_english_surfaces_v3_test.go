@@ -10,7 +10,6 @@ func TestPrimaryPublicSurfacesAreSourceEnglish(t *testing.T) {
 	files := []string{
 		"public/owner-production.html",
 		"public/scan.html",
-		"public/safe-check.html",
 		"public/dashboard.html",
 	}
 	for _, path := range files {
@@ -40,21 +39,70 @@ func TestPrimaryPublicSurfacesAreSourceEnglish(t *testing.T) {
 	}
 }
 
-func TestCustomerScanSurfacesMountCompleteCanonicalARVIS(t *testing.T) {
-	for _, path := range []string{"public/scan.html", "public/dashboard.html"} {
-		body, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
+func TestCanonicalScanCenterMountsCompleteARVISAndAllModes(t *testing.T) {
+	body, err := os.ReadFile("public/scan.html")
+	if err != nil {
+		t.Fatalf("read canonical scan page: %v", err)
+	}
+	text := string(body)
+	for _, required := range []string{
+		"Unified Scan Center",
+		"data-scan-mode=\"quick\"",
+		"data-scan-mode=\"token\"",
+		"data-scan-mode=\"transaction\"",
+		"data-scan-mode=\"deep\"",
+		"arvis-premium-contract.js",
+		"customer-arvis-premium-suite.js",
+		"data-customer-arvis-result",
+		"public-solana-scan.js?v=11",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("canonical scan page missing %q", required)
 		}
-		text := string(body)
-		for _, required := range []string{
-			"arvis-premium-contract.js",
-			"customer-arvis-premium-suite.js",
-			"data-customer-arvis-result",
-		} {
-			if !strings.Contains(text, required) {
-				t.Errorf("%s missing complete ARVIS mount contract %q", path, required)
-			}
+	}
+	for _, forbidden := range []string{`href="/safe-check"`, `href="/transaction-shield"`, `href="/security-radar"`} {
+		if strings.Contains(text, forbidden) {
+			t.Errorf("canonical scan page still links to duplicate scanner %q", forbidden)
+		}
+	}
+}
+
+func TestDashboardIsWorkspaceNotAnotherScanner(t *testing.T) {
+	body, err := os.ReadFile("public/dashboard.html")
+	if err != nil {
+		t.Fatalf("read dashboard: %v", err)
+	}
+	text := string(body)
+	for _, required := range []string{"Workspace, not another scanner", "Open Scan Center", "Report vault", "Monitoring and integration"} {
+		if !strings.Contains(text, required) {
+			t.Errorf("dashboard missing workspace contract %q", required)
+		}
+	}
+	for _, forbidden := range []string{`id="mint"`, `id="scan"`, "/api/token/scan", "data-customer-arvis-result"} {
+		if strings.Contains(text, forbidden) {
+			t.Errorf("dashboard still contains duplicate scan behavior %q", forbidden)
+		}
+	}
+}
+
+func TestUnifiedScanBehaviorUsesRealModeEndpoints(t *testing.T) {
+	body, err := os.ReadFile("public/js/public-solana-scan.js")
+	if err != nil {
+		t.Fatalf("read unified scan behavior: %v", err)
+	}
+	text := string(body)
+	for _, required := range []string{
+		"/api/arvis/preflight",
+		"/api/token/scan",
+		"/api/public/transaction-simulate",
+		"Quick Check",
+		"Token Investigation",
+		"Transaction Simulation",
+		"Deep Radar",
+		"Missing evidence = no safety decision",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("unified scan behavior missing %q", required)
 		}
 	}
 }
