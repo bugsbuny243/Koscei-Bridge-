@@ -187,17 +187,21 @@ jobs:
           node scripts/verify-customer-investigation-ui.js
           node scripts/verify-report-trust-consistency.js
           node scripts/verify-dossier-contract.mjs
-      - name: Check Turkish public copy
+      - name: Check public language and investigation contracts
         run: |
+          # The legacy landing page remains Turkish until its dedicated source-copy migration.
           grep -q '<html lang="tr">' public/index.html
-          grep -q '<html lang="tr">' public/scan.html
-          grep -q '<html lang="tr">' public/safe-check.html
-          grep -q '<html lang="tr">' public/security-radar.html
+          grep -q '<html lang="en">' public/scan.html
+          grep -q '<html lang="en">' public/safe-check.html
+          grep -q '<html lang="en">' public/security-radar.html
           grep -q 'lp-control-evidence-card.js' public/scan.html
           grep -q 'unified-live-evidence-card.js' public/scan.html
           grep -q 'public-scan-request-guard.js' public/scan.html
+          grep -q 'arvis-premium-contract.js' public/scan.html
+          grep -q 'customer-arvis-premium-suite.js' public/scan.html
           ! grep -Eqi 'Paste it before|Token ikinci planda|KOSCH stays as|What ARVIS does|Who it is for|Power users|Automatic flow' public/index.html
-          ! grep -Eqi 'Login yok|Wallet connect yok|Read-only analiz|İmzalı verdict geçmişi' public/scan.html
+          ! grep -Eqi 'Login yok|Wallet connect yok|Read-only analiz|İmzalı verdict geçmişi|Taramayı Başlat|Token Tara' public/scan.html
+          ! grep -Eqi 'Holder ve likidite|Kontrol ediliyor|Tam Radar' public/safe-check.html
       - name: Test
         run: |
           set -o pipefail
@@ -259,7 +263,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-security-scanner-logs
+          name: security-scanner-logs
           path: |
             ${{ runner.temp }}/govulncheck.txt
             ${{ runner.temp }}/gosec.txt
