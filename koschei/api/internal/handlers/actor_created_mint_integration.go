@@ -11,7 +11,7 @@ import (
 
 type actorCreatedMintIntegrationRun struct {
 	Status                          string                                    `json:"status"`
-	Discovery                       services.SolscanCreatedMintDiscovery      `json:"discovery"`
+	Discovery                       services.CreatedMintDiscovery             `json:"discovery"`
 	ObservedEvidenceProduced        int                                       `json:"observed_evidence_produced"`
 	ObservedEvidencePersisted       int                                       `json:"observed_evidence_persisted"`
 	CandidatesRequested             int                                       `json:"candidates_requested"`
@@ -34,8 +34,8 @@ type actorCreatedMintIntegrationRun struct {
 func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegrationRun {
 	return actorCreatedMintIntegrationRun{
 		Status: "not_requested",
-		Discovery: services.SolscanCreatedMintDiscovery{
-			Status: "not_requested", Provider: "solscan_enhanced_transactions",
+		Discovery: services.CreatedMintDiscovery{
+			Status: "not_requested", Provider: "helius_get_transactions_for_address",
 			Wallet: strings.TrimSpace(wallet), Candidates: []services.ActorCreatedMintCandidate{}, Limitations: []string{},
 		},
 		LifecycleSummary:      services.SummarizeActorTokenLifecycles(nil),
@@ -58,8 +58,8 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		return out
 	}
 
-	// Helius birincil keşif kaynağıdır. Solscan Pro key gerektirir ve 401
-	// verdiğinde keşfi bozuyordu; Koschei zaten Helius kullanıyor.
+	// Helius is the sole external discovery provider. Every candidate remains
+	// OBSERVED until canonical Solana RPC verification succeeds below.
 	out.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)
 	out.Status = out.Discovery.Status
 	out.Limitations = append(out.Limitations, out.Discovery.Limitations...)

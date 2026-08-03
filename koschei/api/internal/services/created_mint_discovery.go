@@ -1,11 +1,8 @@
 package services
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,7 +34,10 @@ type ActorCreatedMintCandidate struct {
 	FateReason                 string    `json:"fate_reason,omitempty"`
 }
 
-type SolscanCreatedMintDiscovery struct {
+// CreatedMintDiscovery is provider-neutral. Discovery records remain OBSERVED
+// until the candidate transaction is independently re-read from canonical
+// Solana RPC and the actor signer plus create/initializeMint instruction match.
+type CreatedMintDiscovery struct {
 	Configured       bool                        `json:"configured"`
 	Available        bool                        `json:"available"`
 	Status           string                      `json:"status"`
@@ -51,153 +51,10 @@ type SolscanCreatedMintDiscovery struct {
 	Limitations      []string                    `json:"limitations"`
 }
 
-type solscanEnhancedPage struct {
-	Transactions []map[string]any
-	Cursor       string
-}
-
-func FetchSolscanCreatedMintDiscovery(ctx context.Context, wallet string) SolscanCreatedMintDiscovery {
-	client := NewSolscanClientFromEnv()
-	return client.DiscoverCreatedMints(ctx, wallet)
-}
-
-func (c *SolscanClient) DiscoverCreatedMints(ctx context.Context, wallet string) SolscanCreatedMintDiscovery {
-	wallet = strings.TrimSpace(wallet)
-	out := SolscanCreatedMintDiscovery{
-		Configured: c != nil && strings.TrimSpace(c.APIKey) != "",
-		Status:     "not_configured", Provider: "solscan_enhanced_transactions",
-		Wallet: wallet, Candidates: []ActorCreatedMintCandidate{}, ObservedAt: time.Now().UTC(), Limitations: []string{},
-	}
-	if wallet == "" {
-		out.Status = "wallet_required"
-		out.Limitations = append(out.Limitations, "Creator wallet is required for created-mint discovery.")
-		return out
-	}
-	if !out.Configured {
-		out.Limitations = append(out.Limitations, "SOLSCAN_API_KEY is not configured; created-mint discovery was skipped.")
-		return out
-	}
-
-	maxPages := solscanEnvInt("SOLSCAN_CREATED_MINT_MAX_PAGES", 20, 1, 100)
-	pageLimit := solscanEnvInt("SOLSCAN_CREATED_MINT_PAGE_LIMIT", 100, 10, 1000)
-	cursor := ""
-	candidateIndex := map[string]ActorCreatedMintCandidate{}
-	for pageIndex := 0; pageIndex < maxPages && ctx.Err() == nil; pageIndex++ {
-		page, err := c.fetchEnhancedCreatorPage(ctx, wallet, cursor, pageLimit)
-		if err != nil {
-			out.Limitations = append(out.Limitations, "Solscan enhanced creator page could not be collected: "+compactSolscanError(err))
-			if out.PagesFetched == 0 {
-				out.Status = "enhanced_endpoint_unavailable"
-			} else {
-				out.Status = "partial"
-			}
-			break
-		}
-		out.PagesFetched++
-		out.TransactionsSeen += len(page.Transactions)
-		for _, candidate := range ExtractActorCreatedMintCandidates(page.Transactions, wallet, "solscan_enhanced_transactions") {
-			key := candidate.Mint + "|" + candidate.Signature
-			if existing, ok := candidateIndex[key]; !ok || candidate.Slot > existing.Slot {
-				candidateIndex[key] = candidate
-			}
-		}
-		if strings.TrimSpace(page.Cursor) == "" || page.Cursor == cursor {
-			cursor = ""
-			break
-		}
-		cursor = page.Cursor
-	}
-	out.NextCursor = cursor
-	for _, candidate := range candidateIndex {
-		out.Candidates = append(out.Candidates, candidate)
-	}
-	sort.SliceStable(out.Candidates, func(i, j int) bool {
-		if out.Candidates[i].Slot != out.Candidates[j].Slot {
-			return out.Candidates[i].Slot > out.Candidates[j].Slot
-		}
-		return out.Candidates[i].Mint < out.Candidates[j].Mint
-	})
-	out.Available = out.PagesFetched > 0
-	if out.Status == "not_configured" {
-		switch {
-		case out.PagesFetched == 0:
-			out.Status = "collection_failed"
-		case cursor != "":
-			out.Status = "bounded"
-		default:
-			out.Status = "complete"
-		}
-	}
-	if out.Available && len(out.Candidates) == 0 && out.Status == "complete" {
-		out.Status = "complete_no_created_mints_observed"
-	}
-	if cursor != "" {
-		out.Limitations = append(out.Limitations, fmt.Sprintf("Created-mint discovery stopped after %d filtered pages; next cursor is preserved.", out.PagesFetched))
-	}
-	return out
-}
-
-func (c *SolscanClient) fetchEnhancedCreatorPage(ctx context.Context, wallet, cursor string, limit int) (solscanEnhancedPage, error) {
-	path := strings.TrimSpace(os.Getenv("SOLSCAN_ENHANCED_TRANSACTIONS_PATH"))
-	if path == "" {
-		path = "/account/transactions/enhanced"
-	}
-	params := url.Values{}
-	params.Set("address", wallet)
-	params.Set("status", "true")
-	params.Set("encoding", "jsonParsed")
-	params.Set("limit", strconv.Itoa(limit))
-	params.Add("signer[]", wallet)
-	params.Add("program[]", canonicalPumpFunProgramID)
-	params.Add("program[]", canonicalSPLTokenProgramID)
-	params.Add("program[]", canonicalToken2022ProgramID)
-	if strings.TrimSpace(cursor) != "" {
-		params.Set("cursor", cursor)
-	}
-	var response solscanResponse[json.RawMessage]
-	if err := c.get(ctx, path, params, &response); err != nil {
-		return solscanEnhancedPage{}, err
-	}
-	if !response.Success {
-		return solscanEnhancedPage{}, fmt.Errorf("solscan enhanced response unsuccessful: %s", strings.TrimSpace(response.Errors.Message))
-	}
-	return decodeSolscanEnhancedPage(response.Data)
-}
-
-func decodeSolscanEnhancedPage(raw json.RawMessage) (solscanEnhancedPage, error) {
-	page := solscanEnhancedPage{Transactions: []map[string]any{}}
-	if len(raw) == 0 || string(raw) == "null" {
-		return page, nil
-	}
-	var array []map[string]any
-	if json.Unmarshal(raw, &array) == nil {
-		page.Transactions = array
-		return page, nil
-	}
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return page, err
-	}
-	page.Cursor = firstCreatedMintString(object["cursor"], object["next_cursor"], object["nextCursor"])
-	for _, key := range []string{"transactions", "items", "data", "result"} {
-		if rows, ok := object[key].([]any); ok {
-			for _, row := range rows {
-				if item, ok := row.(map[string]any); ok {
-					page.Transactions = append(page.Transactions, item)
-				}
-			}
-			if len(page.Transactions) > 0 {
-				break
-			}
-		}
-	}
-	return page, nil
-}
-
-// ExtractActorCreatedMintCandidates accepts raw jsonParsed transaction objects
-// from either Solscan enhanced transactions or a chain-native RPC response.
-// It requires the actor to be a transaction signer and only recognizes explicit
-// Pump create or SPL/Token-2022 initializeMint instructions.
+// ExtractActorCreatedMintCandidates accepts jsonParsed transaction objects
+// from Helius getTransactionsForAddress or canonical Solana RPC. It requires
+// the actor to be a transaction signer and recognizes only explicit Pump create
+// or SPL/Token-2022 initializeMint instructions.
 func ExtractActorCreatedMintCandidates(transactions []map[string]any, actorWallet, source string) []ActorCreatedMintCandidate {
 	actorWallet = strings.TrimSpace(actorWallet)
 	if actorWallet == "" {
@@ -295,7 +152,7 @@ func ActorCreatedMintCandidateEvidence(wallet, network string, candidates []Acto
 		}
 		source := strings.TrimSpace(candidate.Source)
 		if source == "" {
-			source = "solscan_enhanced_transactions"
+			source = "helius_get_transactions_for_address"
 		}
 		key := candidate.Signature
 		if key == "" {

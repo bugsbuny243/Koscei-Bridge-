@@ -1,84 +1,102 @@
 package services
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
 
-func TestExtractHeliusCreatedMintCandidatesPrefersPumpMintAndDoesNotClaimSigner(t *testing.T) {
-	actor := "Actor111"
-	rows := extractHeliusCreatedMintCandidates([]heliusEnhancedTypedTransaction{
-		{
-			Signature: "Sig111",
-			Slot:      123,
-			Timestamp: 1700000000,
-			Type:      "CREATE",
-			Source:    "PUMP_FUN",
-			FeePayer:  actor,
-			TokenTransfers: []heliusTokenTransfer{
-				{Mint: canonicalWrappedSOLMint},
-				{Mint: canonicalUSDCMint},
-				{Mint: "Mint111pump"},
-			},
-			Instructions: []heliusInstruction{
-				{ProgramID: "ComputeBudget111111111111111111111111111111"},
-				{ProgramID: canonicalPumpFunProgramID},
-			},
-		},
-	}, actor)
-	if len(rows) != 1 {
-		t.Fatalf("expected one candidate, got %#v", rows)
-	}
-	if rows[0].Mint != "Mint111pump" {
-		t.Fatalf("quote asset was selected instead of created mint: %#v", rows[0])
-	}
-	if rows[0].Program != canonicalPumpFunProgramID {
-		t.Fatalf("canonical Pump program was not selected: %#v", rows[0])
-	}
-	if rows[0].ActorSigned {
-		t.Fatalf("fee-payer discovery must not claim signer proof: %#v", rows[0])
-	}
-	if rows[0].VerificationStatus != "discovery_candidate" {
-		t.Fatalf("candidate was promoted before canonical RPC verification: %#v", rows[0])
-	}
+type heliusRewriteTransport struct {
+	target *url.URL
+	base   http.RoundTripper
 }
 
-func TestExtractHeliusCreatedMintCandidatesRejectsSwapAndActorMismatch(t *testing.T) {
-	transactions := []heliusEnhancedTypedTransaction{
-		{
-			Signature:      "SwapSig111",
-			Type:           "SWAP",
-			Source:         "PUMP_AMM",
-			FeePayer:       "Actor111",
-			TokenTransfers: []heliusTokenTransfer{{Mint: "Mint111pump"}},
-		},
-		{
-			Signature:      "CreateSig222",
-			Type:           "CREATE",
-			Source:         "PUMP_FUN",
-			FeePayer:       "OtherActor222",
-			TokenTransfers: []heliusTokenTransfer{{Mint: "Mint222pump"}},
-		},
-	}
-	if rows := extractHeliusCreatedMintCandidates(transactions, "Actor111"); len(rows) != 0 {
-		t.Fatalf("swap or mismatched fee payer produced discovery candidates: %#v", rows)
-	}
+func (transport heliusRewriteTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	clone := request.Clone(request.Context())
+	clone.URL.Scheme = transport.target.Scheme
+	clone.URL.Host = transport.target.Host
+	return transport.base.RoundTrip(clone)
 }
 
-func TestHeliusEnhancedTypedTransactionsURLUsesDocumentedCursor(t *testing.T) {
-	raw := heliusEnhancedTypedTransactionsURL("key-111", "Actor111", "SigBefore111", 50)
-	parsed, err := url.Parse(raw)
+func TestFetchHeliusCreatedMintDiscoveryUsesCurrentHistoryRPC(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var payload struct {
+			Method string `json:"method"`
+			Params []any  `json:"params"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Method != "getTransactionsForAddress" {
+			t.Fatalf("unexpected method: %s", payload.Method)
+		}
+		if len(payload.Params) != 2 || payload.Params[0] != "Actor111" {
+			t.Fatalf("unexpected params: %#v", payload.Params)
+		}
+		options, _ := payload.Params[1].(map[string]any)
+		if options["transactionDetails"] != "full" || options["encoding"] != "jsonParsed" {
+			t.Fatalf("missing full jsonParsed options: %#v", options)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if calls == 1 {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"jsonrpc": "2.0",
+				"result": map[string]any{
+					"paginationToken": "next-page",
+					"data": []any{
+						map[string]any{
+							"slot": float64(100), "blockTime": float64(1700000000),
+							"transaction": map[string]any{
+								"signatures": []any{"Sig111"},
+								"message": map[string]any{
+									"accountKeys": []any{map[string]any{"pubkey": "Actor111", "signer": true}},
+									"instructions": []any{map[string]any{
+										"programId": canonicalSPLTokenProgramID,
+										"parsed": map[string]any{
+											"type": "initializeMint",
+											"info": map[string]any{"mint": "Mint111"},
+										},
+									}},
+								},
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+		if options["paginationToken"] != "next-page" {
+			t.Fatalf("pagination token not propagated: %#v", options)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"jsonrpc": "2.0",
+			"result":  map[string]any{"paginationToken": "", "data": []any{}},
+		})
+	}))
+	defer server.Close()
+
+	target, err := url.Parse(server.URL)
 	if err != nil {
-		t.Fatalf("parse request URL: %v", err)
+		t.Fatal(err)
 	}
-	query := parsed.Query()
-	if query.Get("before-signature") != "SigBefore111" {
-		t.Fatalf("documented cursor missing: %s", parsed.RawQuery)
+	previousClient := http.DefaultClient
+	http.DefaultClient = &http.Client{Transport: heliusRewriteTransport{target: target, base: server.Client().Transport}}
+	defer func() { http.DefaultClient = previousClient }()
+
+	t.Setenv("HELIUS_API_KEY", "test-key")
+	t.Setenv("HELIUS_CREATED_MINT_PAGE_DELAY_MS", "0")
+	out := FetchHeliusCreatedMintDiscovery(t.Context(), "", "Actor111")
+	if !out.Available || out.Status != "complete" || out.PagesFetched != 2 {
+		t.Fatalf("unexpected discovery coverage: %#v", out)
 	}
-	if query.Get("before") != "" {
-		t.Fatalf("legacy/unknown cursor parameter must not be sent: %s", parsed.RawQuery)
+	if out.Provider != "helius_get_transactions_for_address" {
+		t.Fatalf("unexpected provider: %s", out.Provider)
 	}
-	if query.Get("limit") != "50" || query.Get("api-key") != "key-111" {
-		t.Fatalf("request parameters missing: %s", parsed.RawQuery)
+	if len(out.Candidates) != 1 || out.Candidates[0].Mint != "Mint111" {
+		t.Fatalf("created mint not extracted: %#v", out.Candidates)
 	}
 }
