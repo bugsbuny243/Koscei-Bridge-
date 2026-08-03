@@ -1,0 +1,7 @@
+{
+  "schema_version": "koschei-production-full-scan-contract-v1",
+  "analysis_summary_schema": "koschei-customer-analysis-summary-v2",
+  "response_surface": "/api/token/scan",
+  "architecture_arm_count": 14,
+  "defense_os_enabled": false
+}
