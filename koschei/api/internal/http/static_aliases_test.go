@@ -12,10 +12,13 @@ func TestLegacyScanRoutesRedirectToCanonicalModes(t *testing.T) {
 		location string
 	}{
 		{path: "/safe-check", location: "/scan?mode=quick"},
+		{path: "/safe-check/", location: "/scan?mode=quick"},
 		{path: "/safe-check.html", location: "/scan?mode=quick"},
 		{path: "/transaction-shield", location: "/scan?mode=transaction"},
+		{path: "/transaction-shield/", location: "/scan?mode=transaction"},
 		{path: "/transaction-shield.html", location: "/scan?mode=transaction"},
 		{path: "/security-radar", location: "/scan?mode=deep"},
+		{path: "/security-radar/", location: "/scan?mode=deep"},
 		{path: "/security-radar.html", location: "/scan?mode=deep"},
 		{path: "/security-radar?target=Mint123", location: "/scan?mode=deep&target=Mint123"},
 	}
