@@ -176,10 +176,10 @@ func fetchHeliusTokenAsset(ctx context.Context, endpoint, mint string) (heliusTo
 
 func fetchHeliusMintCreationObservation(ctx context.Context, endpoint, mint string) (heliusMintCreationObservation, error) {
 	options := map[string]any{
-		"transactionDetails":          "full",
-		"sortOrder":                   "asc",
-		"limit":                       20,
-		"encoding":                    "jsonParsed",
+		"transactionDetails":             "full",
+		"sortOrder":                      "asc",
+		"limit":                          20,
+		"encoding":                       "jsonParsed",
 		"maxSupportedTransactionVersion": 0,
 		"filters": map[string]any{
 			"status": "succeeded",
@@ -255,7 +255,7 @@ func extractMintCreationObservation(tx map[string]any, expectedMint string) (hel
 		}
 		return heliusMintCreationObservation{
 			Creator: creator, Signature: createdMintSignature(tx),
-			Slot: createdMintInt64(tx["slot"]),
+			Slot:      createdMintInt64(tx["slot"]),
 			BlockTime: createdMintInt64(firstCreatedMintValue(tx, "blockTime", "block_time")),
 		}, true
 	}
