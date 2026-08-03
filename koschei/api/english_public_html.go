@@ -101,11 +101,13 @@ func rewritePublicHTMLToEnglish(body []byte) []byte {
 	if hasPremiumContract && !strings.Contains(lower, "arvis-complete-evidence-v3.js") {
 		extras = append(extras, arvisCompleteEvidenceScript)
 	}
-	if !strings.Contains(lower, "koschei-english-runtime.js") {
-		extras = append(extras, englishRuntimeScript)
-	}
+	// Translate the frozen login/register DOM before the generic runtime makes
+	// token-level substitutions. This preserves complete English sentences.
 	if hasAuthContract && !strings.Contains(lower, "english-auth-presentation.js") {
 		extras = append(extras, authEnglishOverlayScript)
+	}
+	if !strings.Contains(lower, "koschei-english-runtime.js") {
+		extras = append(extras, englishRuntimeScript)
 	}
 	if len(extras) == 0 {
 		return []byte(text)
