@@ -149,7 +149,7 @@ func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdic
 		}
 	}
 	if capGrade != "" {
-		out.Grade = worseUnifiedGrade(out.Grade, capGrade)
+		out.Grade = worseUnifiedGradeV111(out.Grade, capGrade)
 		out.Verdict = "hard_trigger"
 		out.DecisionPath = append(out.DecisionPath, "URD-C005 fixed the maximum grade at "+capGrade+" from VERIFIED owner-resolved, infrastructure-excluded concentration.")
 	}
@@ -184,7 +184,7 @@ func unifiedDistinctCompoundingRuleIDs(hits []ActorDefenseRuleHit) []string {
 	return ids
 }
 
-func worseUnifiedGrade(current, cap string) string {
+func worseUnifiedGradeV111(current, cap string) string {
 	rank := map[string]int{"-": 0, "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6}
 	current = strings.ToUpper(strings.TrimSpace(current))
 	cap = strings.ToUpper(strings.TrimSpace(cap))
