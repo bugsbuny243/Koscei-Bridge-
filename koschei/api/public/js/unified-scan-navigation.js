@@ -7,7 +7,7 @@ const legacyModes=new Map([
   ['/transaction-shield','transaction'],['/transaction-shield.html','transaction'],
   ['/security-radar','deep'],['/security-radar.html','deep']
 ]);
-const navSelector='nav,.koschei-global-nav,.product-footer,.koschei-footer';
+const navSelector='nav,.koschei-global-nav,.product-footer,.koschei-footer,.koschei-safety-strip';
 
 function normalizedPath(anchor){
   try{return new URL(anchor.getAttribute('href')||'',location.origin).pathname.replace(/\/$/,'')||'/'}catch{return''}
@@ -18,6 +18,18 @@ function modeURL(anchor,mode){
   const query=new URLSearchParams(url.search);
   query.set('mode',mode);
   return `/scan?${query.toString()}`;
+}
+function cleanSeparators(group){
+  group.normalize();
+  const walker=document.createTreeWalker(group,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  while(walker.nextNode())nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    node.nodeValue=String(node.nodeValue||'')
+      .replace(/(?:\s*·\s*){2,}/g,' · ')
+      .replace(/^\s*·\s*/,'')
+      .replace(/\s*·\s*$/,'');
+  });
 }
 function normalizeLinks(root=document){
   const anchors=[...root.querySelectorAll('a[href]')];
@@ -37,6 +49,7 @@ function normalizeLinks(root=document){
     keep.textContent='Scan Center';
     keep.setAttribute('data-canonical-scan-link','1');
     scanLinks.slice(1).forEach(anchor=>anchor.remove());
+    cleanSeparators(group);
   });
 }
 
