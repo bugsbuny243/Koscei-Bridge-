@@ -24,12 +24,18 @@ concurrency:
 
 jobs:
   smoke:
-    name: Verify public pages, canonical Scan Center, SOC APIs and published case
+    name: Verify public pages, canonical Scan Center, full scan, SOC APIs and published case
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     env:
       BASE_URL: https://tradepigloball.co
+      KOSCHEI_FULL_SCAN_MINT: HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump
+      FULL_SCAN_TIMEOUT_MS: "300000"
+      OUTPUT_DIR: diagnostics
     steps:
+      - name: Checkout smoke probes
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
       - name: Probe public product
         shell: bash
         run: |
@@ -125,6 +131,7 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
             wait_expect_200 auth_english_asset /js/english-auth-presentation.js "__koscheiAuthEnglishOverlayInstalled"
             wait_expect_200 unified_scan_navigation_asset /js/unified-scan-navigation.js "__koscheiUnifiedScanNavigation"
+            wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             wait_expect_200 landing_page / "Evidence-backed Web3 investigation system"
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
@@ -205,14 +212,43 @@ jobs:
 
           echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, legacy mode redirects, English core, ARVIS assets, public APIs, and immutable case passed.'
 
+      - name: Run full production investigation
+        if: github.event_name != 'pull_request'
+        run: node koschei/api/scripts/verify-production-full-scan.js
+
+      - name: Print full scan decision
+        if: github.event_name != 'pull_request' && success()
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const result = JSON.parse(fs.readFileSync('diagnostics/full-scan-result.json', 'utf8'));
+          const c = result.evidence_coverage || {};
+          const d = result.decision || {};
+          console.log('=== KOSCHEI PRODUCTION FULL SCAN RESULT ===');
+          console.log(`Target: ${result.target}`);
+          console.log(`Grade: ${d.grade || '-'}`);
+          console.log(`Signed: ${Boolean(d.signed)}`);
+          console.log(`Confidence: ${d.confidence || 'unknown'}`);
+          console.log(`Readiness: ${d.readiness || 'unknown'}`);
+          console.log(`Coverage: ${c.coverage_percent || 0}%`);
+          console.log(`Arms: verified=${c.verified || 0} observed=${c.observed || 0} inferred=${c.inferred || 0} pending=${c.pending || 0} not_applicable=${c.not_applicable || 0}`);
+          console.log(`Grade-changing findings: ${(result.grade_changing_findings || []).length}`);
+          console.log(`Watch items: ${(result.watch_items || []).length}`);
+          console.log(`Unresolved questions: ${(result.unresolved_questions || []).length}`);
+          console.log(`Live evidence status: ${result.evidence_surfaces?.full_scan_live_evidence?.status || 'unknown'}`);
+          console.log(`Actor run status: ${result.evidence_surfaces?.actor_investigation?.run_status || 'unknown'}`);
+          console.log(result.executive_summary || '');
+          NODE
+
       - name: Upload public product diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: public-product-smoke-diagnostics
           path: diagnostics
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
       - name: Publish machine-readable status
         if: always()
@@ -223,11 +259,11 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Canonical Scan Center, redirect, English core, ARVIS asset, SOC API or published-case smoke failed'
+          description='Canonical Scan Center, full scan, English core, SOC API or published-case smoke failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description='Production Scan Center, legacy redirects, ARVIS assets, SOC APIs and immutable case verified'
+            description='Production Scan Center, full scan, ARVIS assets, SOC APIs and immutable case verified'
             target_url="${BASE_URL}/scan"
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
