@@ -9,24 +9,19 @@ import (
 )
 
 func dossierTestReport() map[string]any {
-	rowIDs := []string{
-		"launch", "mint", "freeze", "wash", "address", "liquidity", "funding", "concentration",
-		"sniper", "first-buyer", "track", "creator-sell", "dominant-exit", "liq-move", "program",
-		"metadata", "claim", "mev", "distribution", "signed",
-	}
 	refs := map[string]any{}
-	for _, id := range rowIDs {
+	for _, def := range signalRegistry {
 		value := map[string]any{
 			"wallets": []string{}, "accounts": []string{"Mint111"}, "signatures": []string{},
-			"slots": []int64{}, "evidence_keys": []string{"row:" + id},
+			"slots": []int64{}, "evidence_keys": []string{"row:" + def.ID},
 		}
-		if id == "concentration" {
+		if def.ID == "concentration" {
 			value["wallets"] = []string{"Owner111"}
 		}
-		if id == "signed" {
+		if def.ID == "signed" {
 			value["signatures"] = []string{"VerdictSignature111"}
 		}
-		refs[id] = value
+		refs[def.ID] = value
 	}
 	return map[string]any{
 		"ok":             true,
@@ -47,20 +42,34 @@ func dossierTestReport() map[string]any {
 		"holder_concentration_context": map[string]any{
 			"available": true, "top_share_pct": 72.0, "top_percentile": 5.0, "sample_count": 50000,
 		},
-		"launch_forensics":        map[string]any{"available": true, "status": "observed", "launch_slot": 100},
+		"launch_forensics": map[string]any{
+			"available": true, "status": "observed", "launch_slot": 100, "creator_linked_count": 1,
+		},
 		"market":                  map[string]any{"available": true, "status": "verified_market_snapshot", "liquidity_usd": 100000.0},
 		"lp_control":              map[string]any{"available": true, "status": "burned", "pool_address": "Pool111", "read_slot": 200},
 		"source_context":          map[string]any{"creator_wallet": "Creator111"},
-		"trade_ledger_aggregates": map[string]any{"available": true, "status": "observed_trade_ledger_aggregates", "trade_count": 3},
-		"actor_investigation":     map[string]any{"wallet": "Creator111", "store_status": "loaded"},
+		"trade_ledger_aggregates": map[string]any{"available": true, "status": "observed", "trade_count": 3},
+		"actor_investigation": map[string]any{
+			"wallet": "Creator111", "store_status": "loaded",
+			"integration_run": map[string]any{"status": "complete"},
+		},
+		"metadata_impersonation": map[string]any{"status": "not_applicable"},
 		"modules": []any{
-			map[string]any{"module_id": "token_authority_scanner", "evidence_status": "verified"},
-			map[string]any{"module_id": "funding_origin", "evidence_status": "observed"},
+			map[string]any{
+				"module_id": "token_authority_scanner", "evidence_status": "verified",
+				"signals": map[string]any{
+					"mint_authority_present": false, "freeze_authority_present": true, "update_authority_present": false,
+				},
+			},
+			map[string]any{"module_id": "funding_cluster_detector", "evidence_status": "observed"},
+			map[string]any{"module_id": "holder_concentration", "evidence_status": "observed"},
+			map[string]any{"module_id": "sniper_timing_detector", "evidence_status": "observed"},
+			map[string]any{"module_id": "launch_distribution", "evidence_status": "observed"},
+			map[string]any{"module_id": "repeat_actor_scan", "evidence_status": "observed"},
 			map[string]any{"module_id": "liquidity_movement", "evidence_status": "observed"},
-			map[string]any{"module_id": "program_relation", "evidence_status": "observed"},
-			map[string]any{"module_id": "metadata_impersonation", "evidence_status": "observed"},
-			map[string]any{"module_id": "claim_surface", "evidence_status": "not_applicable"},
-			map[string]any{"module_id": "mev_exposure", "evidence_status": "not_applicable"},
+			map[string]any{"module_id": "program_relation_scan", "evidence_status": "observed"},
+			map[string]any{"module_id": "claim_surface_risk", "evidence_status": "not_applicable"},
+			map[string]any{"module_id": "mev_shield", "evidence_status": "not_applicable"},
 		},
 		"evidence_arms": []any{},
 		"behavior_signals": map[string]any{"signals": []any{
@@ -126,14 +135,15 @@ func TestAssembleDossierBundleIsDeterministic(t *testing.T) {
 
 	card := dossierMap(first.VerdictCard)
 	rows := dossierSlice(card["signal_rows"])
-	if len(rows) != 20 {
-		t.Fatalf("signal rows=%d", len(rows))
+	if len(rows) != len(signalRegistry) {
+		t.Fatalf("signal rows=%d registry=%d", len(rows), len(signalRegistry))
 	}
 	for _, item := range rows {
 		row := dossierMap(item)
 		state := dossierString(row["state"])
+		def, registered := signalDefinitionByID(dossierString(row["id"]))
 		refs := dossierMap(row["refs"])
-		if (state == "verified" || state == "observed") && len(refs) == 0 {
+		if registered && def.RequireRefs && signalStateIsEvidence(state) && len(refs) == 0 {
 			t.Fatalf("row without refs: %#v", row)
 		}
 	}

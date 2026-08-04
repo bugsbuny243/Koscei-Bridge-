@@ -77,7 +77,8 @@ func assembleDossierBundle(snapshot dossierSnapshot) (dossierBundle, []byte, err
 		}
 	} else {
 		for _, row := range rows {
-			if (row.State == "verified" || row.State == "observed") && !dossierRefsPresent(row.Refs) {
+			def, registered := signalDefinitionByID(row.ID)
+			if registered && def.RequireRefs && signalStateIsEvidence(row.State) && !dossierRefsPresent(row.Refs) {
 				return dossierBundle{}, nil, fmt.Errorf("%w: %s", errDossierReferenceMissing, row.ID)
 			}
 		}
