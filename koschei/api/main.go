@@ -46,7 +46,6 @@ func main() {
 	var conn *sql.DB
 	var readConn *sql.DB
 	var dbInitError string
-
 	if databaseURL == "" {
 		dbInitError = "DATABASE_URL is not set"
 		log.Printf("database unavailable: %s", dbInitError)
@@ -120,6 +119,8 @@ func main() {
 	defer stopCanonicalWorker()
 	stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
 	defer stopCanonicalPumpScheduler()
+	stopAutopublish := handlers.StartAutopublishWorker(appCtx, conn)
+	defer stopAutopublish()
 
 	port := os.Getenv("PORT")
 	if port == "" {
