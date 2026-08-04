@@ -31,7 +31,7 @@ func deriveAuthorityChange(report map[string]any) map[string]any {
 	mint, mintOK := dossierChangeBool(current["mint_authority_present"])
 	freeze, freezeOK := dossierChangeBool(current["freeze_authority_present"])
 	if len(arm) == 0 {
-		return dossierChangeUnavailable("Token Authority Scanner did not produce a source row.")
+		return dossierChangeNotInvestigated("Token Authority Scanner did not produce a source row.")
 	}
 	if !signalStateIsEvidence(normalizeSignalState(firstNonEmptyString(
 		dossierString(arm["evidence_status"]), dossierString(arm["status"]),
@@ -77,7 +77,10 @@ func deriveSupplyChange(report map[string]any) map[string]any {
 	arm := dossierChangeModule(report, "holder_concentration")
 	currentSignals := dossierMap(arm["signals"])
 	current, currentOK := dossierChangeFloat(currentSignals["token_supply"])
-	if len(arm) == 0 || !currentOK || current < 0 {
+	if len(arm) == 0 {
+		return dossierChangeNotInvestigated("Holder Concentration did not produce a source row for supply monitoring.")
+	}
+	if !currentOK || current < 0 {
 		return dossierChangeUnavailable("Current parsed token supply is unavailable.")
 	}
 	baseline := dossierMap(report["structural_memory"])
@@ -114,7 +117,10 @@ func deriveConcentrationChange(report map[string]any) map[string]any {
 	currentSignals := dossierMap(arm["signals"])
 	currentTop1, top1OK := dossierChangeFloat(currentSignals["largest_holder_percentage"])
 	currentTop10, top10OK := dossierChangeFloat(currentSignals["top_10_holder_percentage"])
-	if len(arm) == 0 || !top1OK || !top10OK {
+	if len(arm) == 0 {
+		return dossierChangeNotInvestigated("Holder Concentration did not produce a source row for change monitoring.")
+	}
+	if !top1OK || !top10OK {
 		return dossierChangeUnavailable("Current role-adjusted holder concentration is unavailable.")
 	}
 	baseline := dossierMap(report["structural_memory"])
@@ -195,6 +201,13 @@ func dossierChangeModule(report map[string]any, moduleID string) map[string]any 
 		}
 	}
 	return map[string]any{}
+}
+
+func dossierChangeNotInvestigated(reason string) map[string]any {
+	return map[string]any{
+		"status": "not_investigated", "evidence_status": "not_investigated",
+		"limitations": []string{strings.TrimSpace(reason)},
+	}
 }
 
 func dossierChangeUnavailable(reason string) map[string]any {
