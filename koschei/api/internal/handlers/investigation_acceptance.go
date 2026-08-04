@@ -118,19 +118,22 @@ func evaluateInvestigationAcceptance(report map[string]any, expectedTarget, prof
 
 	rows := buildDossierSignalRows(report)
 	for _, row := range rows {
-		if row.State == "verified" || row.State == "observed" || row.State == "not_applicable" {
+		if row.State == signalStateVerified || row.State == signalStateObserved || row.State == signalStateNotApplicable {
 			result.Metrics.ConcreteSignals++
 		}
-		if row.State == "verified" || row.State == "observed" {
-			if dossierRefsPresent(row.Refs) {
-				result.Metrics.ReferenceCompleteSignals++
-			} else {
-				result.Blockers = append(result.Blockers, InvestigationAcceptanceFinding{Code: "populated_signal_missing_reference", Section: row.ID, Message: "Verified or observed signal has no wallet, account, signature, slot or evidence key."})
+		if signalStateIsEvidence(row.State) {
+			def, registered := signalDefinitionByID(row.ID)
+			if registered && def.RequireRefs {
+				if dossierRefsPresent(row.Refs) {
+					result.Metrics.ReferenceCompleteSignals++
+				} else {
+					result.Blockers = append(result.Blockers, InvestigationAcceptanceFinding{Code: "populated_signal_missing_reference", Section: row.ID, Message: "Verified or observed signal has no wallet, account, signature, slot or evidence key."})
+				}
 			}
 		}
 	}
-	if len(rows) != 20 {
-		result.Blockers = append(result.Blockers, InvestigationAcceptanceFinding{Code: "signal_contract_mismatch", Section: "verdict_card", Message: fmt.Sprintf("Expected 20 technical signals, got %d.", len(rows))})
+	if len(rows) != len(signalRegistry) {
+		result.Blockers = append(result.Blockers, InvestigationAcceptanceFinding{Code: "signal_contract_mismatch", Section: "verdict_card", Message: fmt.Sprintf("Expected %d registered technical signals, got %d.", len(signalRegistry), len(rows))})
 	}
 
 	live := dossierMap(report["full_scan_live_evidence"])
@@ -183,7 +186,7 @@ func evaluateInvestigationAcceptance(report map[string]any, expectedTarget, prof
 		result.Warnings = append(result.Warnings, InvestigationAcceptanceFinding{Code: "evidence_collector_floor_missed", Section: "investigation_coverage", Message: fmt.Sprintf("Evidence-producing collectors %d/%d; profile requires at least %d.", result.Metrics.EvidenceProducing, result.Metrics.CapabilityTotal, requirements.MinEvidenceProducing)})
 	}
 	if result.Metrics.ConcreteSignals < requirements.MinConcreteSignals {
-		result.Warnings = append(result.Warnings, InvestigationAcceptanceFinding{Code: "concrete_signal_floor_missed", Section: "verdict_card", Message: fmt.Sprintf("Concrete signals %d/20; profile requires at least %d.", result.Metrics.ConcreteSignals, requirements.MinConcreteSignals)})
+		result.Warnings = append(result.Warnings, InvestigationAcceptanceFinding{Code: "concrete_signal_floor_missed", Section: "verdict_card", Message: fmt.Sprintf("Concrete signals %d/%d; profile requires at least %d.", result.Metrics.ConcreteSignals, len(signalRegistry), requirements.MinConcreteSignals)})
 	}
 	if requirements.RequireLiveWindow && strings.EqualFold(dossierString(live["status"]), "not_requested") {
 		result.Blockers = append(result.Blockers, InvestigationAcceptanceFinding{Code: "live_window_not_requested", Section: "full_scan_live_evidence", Message: "Full investigation did not request the bounded live transaction window."})

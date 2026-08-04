@@ -18,11 +18,11 @@ import (
 	"time"
 )
 
-// Canonical gate names. Producers and consumers must agree on these values.
 const (
 	WebhookDelivery        = "webhook-delivery"
 	SecurityAlertDelivery  = "security-alert-delivery"
 	CanonicalInvestigation = "canonical-investigation-job"
+	DossierAutopublish     = "dossier-autopublish"
 )
 
 const (
@@ -31,7 +31,6 @@ const (
 	defaultRecoveryCeiling = 15 * time.Minute
 )
 
-// Gate is a coalescing wake channel for one worker loop.
 type Gate struct {
 	ch chan struct{}
 }
@@ -40,8 +39,6 @@ func NewGate() *Gate {
 	return &Gate{ch: make(chan struct{}, 1)}
 }
 
-// Signal never blocks. Multiple enqueues coalesce because workers drain their
-// queues after waking.
 func (g *Gate) Signal() {
 	if g == nil {
 		return
@@ -52,8 +49,6 @@ func (g *Gate) Signal() {
 	}
 }
 
-// Wait blocks until a signal, timeout or cancellation. A non-positive sleep
-// falls back to the recovery ceiling instead of creating a hot loop.
 func (g *Gate) Wait(ctx context.Context, sleep time.Duration) bool {
 	if g == nil {
 		return false
@@ -74,7 +69,6 @@ func (g *Gate) Wait(ctx context.Context, sleep time.Duration) bool {
 	}
 }
 
-// Drain clears one pending signal without blocking.
 func (g *Gate) Drain() {
 	if g == nil {
 		return
@@ -106,9 +100,6 @@ func Signal(name string) {
 	Get(name).Signal()
 }
 
-// RecoveryCeiling is the longest a worker sleeps without a recovery probe.
-// The configured value is clamped so a typo cannot recreate high-frequency
-// polling or leave missed work parked indefinitely.
 func RecoveryCeiling() time.Duration {
 	raw := strings.TrimSpace(os.Getenv("KOSCHEI_WORKER_RECOVERY_CEILING_SECONDS"))
 	if raw == "" {
@@ -128,9 +119,6 @@ func RecoveryCeiling() time.Duration {
 	return value
 }
 
-// NextDueSleep asks the database once, when a delivery worker becomes idle,
-// how long remains until its next retry. Queue names map to fixed SQL; no table
-// or predicate is accepted from callers.
 func NextDueSleep(ctx context.Context, db *sql.DB, queueName string) time.Duration {
 	if db == nil {
 		return RecoveryCeiling()
@@ -154,9 +142,6 @@ func NextDueSleep(ctx context.Context, db *sql.DB, queueName string) time.Durati
 func dueQuery(queueName string) (string, bool) {
 	switch strings.TrimSpace(queueName) {
 	case WebhookDelivery:
-		// Paused endpoints are excluded. Otherwise a due row belonging to a
-		// paused endpoint would make NextDueSleep return zero forever while the
-		// claim query correctly refuses to claim it.
 		return `
 			SELECT EXTRACT(EPOCH FROM (MIN(d.next_attempt_at) - now()))
 			FROM webhook_deliveries d
