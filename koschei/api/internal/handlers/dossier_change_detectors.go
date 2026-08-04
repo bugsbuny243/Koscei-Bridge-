@@ -46,9 +46,9 @@ func deriveAuthorityChange(report map[string]any) map[string]any {
 	if !dossierBool(baseline["has_authority_data"]) {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
-			"current": map[string]any{"mint_authority_present": mint, "freeze_authority_present": freeze},
-			"changed": nil,
-			"method":  "compare_current_verified_capability_flags_to_previous_verified_structural_memory",
+			"current":     map[string]any{"mint_authority_present": mint, "freeze_authority_present": freeze},
+			"changed":     nil,
+			"method":      "compare_current_verified_capability_flags_to_previous_verified_structural_memory",
 			"limitations": []string{"A previous verified authority observation is required before a change can be asserted."},
 		}
 	}
@@ -61,15 +61,15 @@ func deriveAuthorityChange(report map[string]any) map[string]any {
 	freezeChanged := freeze != previousFreeze
 	return map[string]any{
 		"status": "verified", "evidence_status": "verified",
-		"changed": mintChanged || freezeChanged,
+		"changed":                mintChanged || freezeChanged,
 		"mint_authority_changed": mintChanged, "freeze_authority_changed": freezeChanged,
-		"previous": map[string]any{"mint_authority_present": previousMint, "freeze_authority_present": previousFreeze},
-		"current":  map[string]any{"mint_authority_present": mint, "freeze_authority_present": freeze},
+		"previous":             map[string]any{"mint_authority_present": previousMint, "freeze_authority_present": previousFreeze},
+		"current":              map[string]any{"mint_authority_present": mint, "freeze_authority_present": freeze},
 		"baseline_observed_at": baseline["authority_observed_at"],
-		"current_observed_at": report["generated_at"],
-		"method": "compare_current_verified_capability_flags_to_previous_verified_structural_memory",
-		"grade_effect": "none_v1",
-		"limitations": []string{"This detects capability-state transitions only; it does not identify the authority signer or prove intent."},
+		"current_observed_at":  report["generated_at"],
+		"method":               "compare_current_verified_capability_flags_to_previous_verified_structural_memory",
+		"grade_effect":         "none_v1",
+		"limitations":          []string{"This detects capability-state transitions only; it does not identify the authority signer or prove intent."},
 	}
 }
 
@@ -86,7 +86,7 @@ func deriveSupplyChange(report map[string]any) map[string]any {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
 			"current_supply": current, "previous_supply": nil, "growth": nil,
-			"method": "compare_parsed_token_supply_across_verified_observations",
+			"method":      "compare_parsed_token_supply_across_verified_observations",
 			"limitations": []string{"The current supply was observed, but no compatible previous supply baseline exists yet."},
 		}
 	}
@@ -102,10 +102,10 @@ func deriveSupplyChange(report map[string]any) map[string]any {
 		"previous_supply": previous, "current_supply": current,
 		"delta": dossierChangeRound(delta), "delta_percent": dossierChangeRound(percent),
 		"baseline_observed_at": baseline["supply_observed_at"],
-		"current_observed_at": report["generated_at"],
-		"method": "compare_parsed_token_supply_across_verified_observations",
-		"grade_effect": "none_v1",
-		"limitations": []string{"Supply growth is an on-chain capability event; it is not by itself proof of malicious intent."},
+		"current_observed_at":  report["generated_at"],
+		"method":               "compare_parsed_token_supply_across_verified_observations",
+		"grade_effect":         "none_v1",
+		"limitations":          []string{"Supply growth is an on-chain capability event; it is not by itself proof of malicious intent."},
 	}
 }
 
@@ -121,9 +121,9 @@ func deriveConcentrationChange(report map[string]any) map[string]any {
 	if !dossierBool(baseline["has_holder_data"]) {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
-			"current": map[string]any{"top_1_pct": currentTop1, "top_10_pct": currentTop10},
-			"changed": nil,
-			"method": "compare_role_adjusted_holder_percentages_to_previous_verified_structural_memory",
+			"current":     map[string]any{"top_1_pct": currentTop1, "top_10_pct": currentTop10},
+			"changed":     nil,
+			"method":      "compare_role_adjusted_holder_percentages_to_previous_verified_structural_memory",
 			"limitations": []string{"A previous compatible holder observation is required before a concentration change can be asserted."},
 		}
 	}
@@ -136,17 +136,17 @@ func deriveConcentrationChange(report map[string]any) map[string]any {
 	top10Delta := currentTop10 - previousTop10
 	return map[string]any{
 		"status": "verified", "evidence_status": "verified",
-		"changed": top1Delta != 0 || top10Delta != 0,
+		"changed":                 top1Delta != 0 || top10Delta != 0,
 		"concentration_increased": top1Delta > 0 || top10Delta > 0,
-		"previous": map[string]any{"top_1_pct": previousTop1, "top_10_pct": previousTop10},
-		"current":  map[string]any{"top_1_pct": currentTop1, "top_10_pct": currentTop10},
-		"top_1_delta_points": dossierChangeRound(top1Delta),
-		"top_10_delta_points": dossierChangeRound(top10Delta),
-		"baseline_observed_at": baseline["holder_observed_at"],
-		"current_observed_at": report["generated_at"],
-		"method": "compare_role_adjusted_holder_percentages_to_previous_verified_structural_memory",
-		"grade_effect": "none_v1",
-		"limitations": []string{"This compares compatible role-adjusted snapshots; it does not infer common control or intent."},
+		"previous":                map[string]any{"top_1_pct": previousTop1, "top_10_pct": previousTop10},
+		"current":                 map[string]any{"top_1_pct": currentTop1, "top_10_pct": currentTop10},
+		"top_1_delta_points":      dossierChangeRound(top1Delta),
+		"top_10_delta_points":     dossierChangeRound(top10Delta),
+		"baseline_observed_at":    baseline["holder_observed_at"],
+		"current_observed_at":     report["generated_at"],
+		"method":                  "compare_role_adjusted_holder_percentages_to_previous_verified_structural_memory",
+		"grade_effect":            "none_v1",
+		"limitations":             []string{"This compares compatible role-adjusted snapshots; it does not infer common control or intent."},
 	}
 }
 
@@ -176,12 +176,12 @@ func deriveFailedAttemptWindow(report map[string]any) map[string]any {
 	return map[string]any{
 		"status": "observed", "evidence_status": "observed",
 		"failed_signature_count": int64(failed), "observed_signature_count": int64(total),
-		"signature_window_seconds": int64(windowSeconds),
+		"signature_window_seconds":   int64(windowSeconds),
 		"repeated_failures_observed": failed >= 3,
-		"source_module": arm["module_id"],
-		"method": "bounded_target_signature_failure_count",
-		"grade_effect": "none_v1",
-		"limitations": []string{"Failed transactions may be benign retries, slippage or compute errors; this row does not label them as an exploit without parsed instruction evidence."},
+		"source_module":              arm["module_id"],
+		"method":                     "bounded_target_signature_failure_count",
+		"grade_effect":               "none_v1",
+		"limitations":                []string{"Failed transactions may be benign retries, slippage or compute errors; this row does not label them as an exploit without parsed instruction evidence."},
 	}
 }
 
