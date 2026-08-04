@@ -161,6 +161,20 @@ func resolveSignalSource(report map[string]any, source signalSource) (map[string
 }
 
 func signalStateFor(report map[string]any, def signalDefinition) (string, any) {
+	if derived, ok := derivedDossierSignalSource(report, def.ID); ok {
+		raw := firstNonEmptyString(
+			dossierString(derived["evidence_status"]),
+			dossierString(derived["verification_status"]),
+			dossierString(derived["execution_status"]),
+			dossierString(derived["state"]),
+			dossierString(derived["status"]),
+		)
+		if strings.TrimSpace(raw) == "" {
+			return signalStateUnknown, derived
+		}
+		return normalizeSignalState(raw), derived
+	}
+
 	source, present := resolveSignalSource(report, def.Source)
 	if !present {
 		return signalStateNotInvestigated, nil
