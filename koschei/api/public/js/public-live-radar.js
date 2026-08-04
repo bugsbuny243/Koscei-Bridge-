@@ -117,7 +117,7 @@
   async function load() {
     if (statusNode) statusNode.textContent = 'ARVIS canlı radar güncelleniyor';
     try {
-      render(await fetchJSON('/api/public/radar/live'));
+      render(await fetchJSON('/api/public/soc/feed'));
     } catch (error) {
       renderDegraded(error);
     } finally {
