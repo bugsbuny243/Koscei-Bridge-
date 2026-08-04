@@ -27,14 +27,14 @@ func dossierChangeFixture() map[string]any {
 			},
 		},
 		"structural_memory": map[string]any{
-			"available": true,
-			"has_authority_data": true,
+			"available":              true,
+			"has_authority_data":     true,
 			"mint_authority_present": false, "freeze_authority_present": false,
-			"authority_observed_at": "2026-08-04T00:00:00Z",
-			"has_holder_data": true,
+			"authority_observed_at":     "2026-08-04T00:00:00Z",
+			"has_holder_data":           true,
 			"largest_holder_percentage": 25.0, "top_10_holder_percentage": 60.0,
 			"holder_observed_at": "2026-08-04T00:00:00Z",
-			"token_supply": 1_000_000.0, "supply_observed_at": "2026-08-04T00:00:00Z",
+			"token_supply":       1_000_000.0, "supply_observed_at": "2026-08-04T00:00:00Z",
 		},
 	}
 }
