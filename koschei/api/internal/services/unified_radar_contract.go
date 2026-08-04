@@ -71,6 +71,9 @@ func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRa
 	case len(hardCaps) > 0:
 		verdict.Grade = unifiedRadarContractWorstGrade(hardCaps)
 		verdict.Verdict = "hard_trigger"
+		if len(compoundRuleIDs) == 1 {
+			decision = append(decision, "Supporting evidence groups may exist, but only one distinct compounding rule ID was satisfied; it cannot issue a letter grade alone.")
+		}
 		decision = append(decision, fmt.Sprintf("Evidence-backed hard-trigger ceiling applied: grade %s.", verdict.Grade))
 	case len(compoundRuleIDs) >= 2:
 		verdict.Grade = "B"
