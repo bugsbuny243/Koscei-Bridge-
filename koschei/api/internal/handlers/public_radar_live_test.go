@@ -10,14 +10,14 @@ import (
 func TestBuildPublicRadarLiveEventsFiltersToRecentSignedLetterGrades(t *testing.T) {
 	now := time.Date(2026, 8, 4, 7, 30, 0, 0, time.UTC)
 	base := services.SecurityRadarVerdictRecord{
-		ModuleID:  services.ModuleFinalVerdictEngine,
-		Target:    "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdCsvHcx6PRe",
+		ModuleID:   services.ModuleFinalVerdictEngine,
+		Target:     "yHCxHBEaJW5tbndqC8JciSThr7U1cqLpdCsvHcx6PRe",
 		TargetType: "token_mint",
-		Network:   "solana-mainnet",
-		Signed:    true,
-		Signature: "signed-verdict",
-		Signals:   map[string]any{"verified_evidence": true},
-		CreatedAt: now.Add(-10 * time.Minute),
+		Network:    "solana-mainnet",
+		Signed:     true,
+		Signature:  "signed-verdict",
+		Signals:    map[string]any{"verified_evidence": true},
+		CreatedAt:  now.Add(-10 * time.Minute),
 	}
 
 	validF := base
