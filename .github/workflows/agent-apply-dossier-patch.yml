@@ -63,3 +63,5 @@ jobs:
           git add koschei/api/internal/handlers/dossier_actor.go .github/workflows/public-product-smoke.yml
           git commit -m 'fix(arvis): align actor dossier and public smoke contracts'
           git push origin HEAD:fix/dossier-registry-autopublish
+
+# Triggered once for the bounded source patch; removed after the bot commit.
