@@ -9,16 +9,12 @@ const outputDir = path.resolve(process.env.OUTPUT_DIR || 'diagnostics');
 const timeoutMs = Number(process.env.FULL_SCAN_TIMEOUT_MS || 300000);
 
 function requireObject(value, label) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label}_missing`);
-  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label}_missing`);
   return value;
 }
 
 function requireArray(value, label) {
-  if (!Array.isArray(value)) {
-    throw new Error(`${label}_missing`);
-  }
+  if (!Array.isArray(value)) throw new Error(`${label}_missing`);
   return value;
 }
 
@@ -54,7 +50,7 @@ async function main() {
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'user-agent': 'koschei-production-full-scan-acceptance/1.0',
+        'user-agent': 'koschei-production-full-scan-acceptance/1.1.1',
       },
       body: JSON.stringify({ mint, network: 'solana-mainnet' }),
       signal: controller.signal,
@@ -84,35 +80,42 @@ async function main() {
   const decision = requireObject(summary.decision, 'analysis_summary_decision');
   const coverage = requireObject(summary.evidence_coverage, 'analysis_summary_evidence_coverage');
   const finalVerdict = requireObject(report.final_verdict, 'final_verdict');
+  const topFinalVerdict = requireObject(payload.final_verdict || finalVerdict, 'top_level_final_verdict');
   const modules = requireArray(coverage.modules, 'evidence_coverage_modules');
   const actions = requireArray(summary.recommended_actions, 'recommended_actions');
   const unresolved = requireArray(summary.unresolved_questions, 'unresolved_questions');
-  const gradeChanging = requireArray(summary.grade_changing_findings, 'grade_changing_findings');
+  const gradeDetermining = requireArray(summary.grade_changing_findings, 'grade_changing_findings');
+  const supporting = requireArray(summary.supporting_findings, 'supporting_findings');
+  const triggeredGroups = requireArray(summary.triggered_evidence_groups, 'triggered_evidence_groups');
   const watchItems = requireArray(summary.watch_items, 'watch_items');
 
   if (String(payload.mint || '') !== mint) throw new Error('token_scan_mint_mismatch');
   if (String(report.target || '') !== mint) throw new Error('investigation_report_target_mismatch');
-  if (String(summary.schema_version || '') !== 'koschei-customer-analysis-summary-v2') throw new Error('analysis_summary_schema_mismatch');
-  if (String(nestedSummary.schema_version || '') !== 'koschei-customer-analysis-summary-v2') throw new Error('nested_analysis_summary_schema_mismatch');
+  if (String(payload.response_schema_version || '') !== 'koschei-customer-investigation-response-v3') throw new Error('response_schema_mismatch');
+  if (String(summary.schema_version || '') !== 'koschei-customer-analysis-summary-v3') throw new Error('analysis_summary_schema_mismatch');
+  if (String(nestedSummary.schema_version || '') !== 'koschei-customer-analysis-summary-v3') throw new Error('nested_analysis_summary_schema_mismatch');
   if (number(coverage.architecture_arm_count) !== 14) throw new Error('architecture_arm_count_not_14');
   if (coverage.coverage_is_risk_score !== false) throw new Error('coverage_misrepresented_as_risk_score');
   if (!modules.length) throw new Error('evidence_coverage_modules_empty');
   if (!actions.length) throw new Error('recommended_actions_empty');
 
+  const verdictFields = ['grade', 'verdict', 'signed', 'signature', 'ruleset_version'];
+  for (const field of verdictFields) {
+    if (String(finalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`nested_final_verdict_${field}_mismatch`);
+    if (String(topFinalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`top_final_verdict_${field}_mismatch`);
+  }
+  if (String(decision.ruleset_version || '') !== 'koschei-unified-radar-rules-v1.1.1') throw new Error('unified_ruleset_not_v111');
+  if (number(decision.grade_determining_rule_count) !== gradeDetermining.length) throw new Error('grade_determining_count_mismatch');
+  if (number(decision.triggered_evidence_group_count) !== triggeredGroups.length) throw new Error('triggered_group_count_mismatch');
+  if (number(decision.supporting_evidence_group_count) !== supporting.length) throw new Error('supporting_group_count_mismatch');
+  if (String(decision.grading_semantics || '') !== 'distinct_rule_ids_not_evidence_group_count') throw new Error('grading_semantics_missing');
+  const decisionPath = Array.isArray(decision.decision_path) ? decision.decision_path.join('\n') : '';
+  if (/\b5 distinct\b/i.test(decisionPath)) throw new Error('evidence_groups_still_counted_as_distinct_rules');
+
   const requiredReportSections = [
-    'holder_distribution',
-    'holder_intelligence',
-    'holder_cluster',
-    'launch_forensics',
-    'market',
-    'lp_control',
-    'jupiter_market_context',
-    'exit_liquidity',
-    'program_security',
-    'actor_investigation',
-    'full_scan_live_evidence',
-    'evidence_references',
-    'threat_anticipation',
+    'holder_distribution', 'holder_intelligence', 'holder_cluster', 'launch_forensics', 'market',
+    'lp_control', 'jupiter_market_context', 'exit_liquidity', 'program_security', 'actor_investigation',
+    'full_scan_live_evidence', 'evidence_references', 'threat_anticipation',
   ];
   for (const section of requiredReportSections) requireObject(report[section], `report_${section}`);
 
@@ -131,33 +134,24 @@ async function main() {
   const market = requireObject(report.market, 'market');
 
   const artifact = {
-    schema_version: 'koschei-production-full-scan-result-v1',
+    schema_version: 'koschei-production-full-scan-result-v2',
     generated_at: new Date().toISOString(),
     elapsed_ms: Date.now() - startedAt,
     endpoint: `${baseURL}/api/token/scan`,
     target: mint,
     network: String(payload.network || report.network || 'solana-mainnet'),
     response_contract: {
+      response_schema: payload.response_schema_version,
       top_level_analysis_summary: Boolean(payload.analysis_summary),
       nested_analysis_summary: Boolean(report.analysis_summary),
       analysis_summary_schema: summary.schema_version,
       report_schema: report.schema_version,
+      final_verdict_consistent: true,
     },
     legacy_token_surface: pick(payload, [
-      'score',
-      'risk_level',
-      'final_policy',
-      'verdict_withheld',
-      'supply',
-      'decimals',
-      'mint_authority',
-      'freeze_authority',
-      'largest_holder_percent',
-      'top_ten_percent',
-      'token_program',
-      'token_2022',
-      'extension_resolution_status',
-      'extension_evidence_complete',
+      'score', 'risk_level', 'final_policy', 'verdict_withheld', 'supply', 'decimals',
+      'mint_authority', 'freeze_authority', 'largest_holder_percent', 'top_ten_percent',
+      'token_program', 'token_2022', 'extension_resolution_status', 'extension_evidence_complete',
     ]),
     decision,
     executive_summary: summary.executive_summary,
@@ -174,7 +168,11 @@ async function main() {
       coverage_is_risk_score: coverage.coverage_is_risk_score,
       modules,
     },
-    grade_changing_findings: gradeChanging,
+    grade_determining_findings: gradeDetermining,
+    grade_changing_findings: gradeDetermining,
+    supporting_findings: supporting,
+    supporting_rule_groups: supporting,
+    triggered_evidence_groups: triggeredGroups,
     watch_items: watchItems,
     non_triggered_observations: Array.isArray(summary.non_triggered_observations) ? summary.non_triggered_observations : [],
     unresolved_questions: unresolved,
@@ -198,17 +196,8 @@ async function main() {
         limitations: actorRun.limitations,
       },
       full_scan_live_evidence: pick(liveEvidence, [
-        'status',
-        'rpc_configured',
-        'wallets_requested',
-        'wallets_completed',
-        'signatures_seen',
-        'transactions_parsed',
-        'relevant_transactions',
-        'rpc_failures',
-        'launch_signer',
-        'wallet_coverage',
-        'limitations',
+        'status', 'rpc_configured', 'wallets_requested', 'wallets_completed', 'signatures_seen',
+        'transactions_parsed', 'relevant_transactions', 'rpc_failures', 'launch_signer', 'wallet_coverage', 'limitations',
       ]),
     },
     evidence_references: report.evidence_references,
@@ -224,6 +213,10 @@ async function main() {
   console.log(`FULL_SCAN_TARGET=${mint}`);
   console.log(`FULL_SCAN_GRADE=${String(decision.grade || '-')}`);
   console.log(`FULL_SCAN_SIGNED=${String(Boolean(decision.signed))}`);
+  console.log(`FULL_SCAN_RULESET=${String(decision.ruleset_version || 'unknown')}`);
+  console.log(`FULL_SCAN_GRADE_DETERMINING_RULES=${gradeDetermining.length}`);
+  console.log(`FULL_SCAN_SUPPORTING_GROUPS=${supporting.length}`);
+  console.log(`FULL_SCAN_DISTINCT_COMPOUNDING_RULES=${number(decision.distinct_compounding_rule_count)}`);
   console.log(`FULL_SCAN_CONFIDENCE=${String(decision.confidence || 'unknown')}`);
   console.log(`FULL_SCAN_READINESS=${String(decision.readiness || 'unknown')}`);
   console.log(`FULL_SCAN_COVERAGE=${number(coverage.coverage_percent)}%`);

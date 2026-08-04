@@ -2,12 +2,13 @@ package services
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
 const (
-	UnifiedRadarRulesetVersionV110 = "koschei-unified-radar-rules-v1.1.0"
+	UnifiedRadarRulesetVersionV110 = "koschei-unified-radar-rules-v1.1.1"
 	UnifiedRuleOwnerConcentration  = "URD-C005"
 	UnifiedOwnerConcentrationDCap  = 50.0
 	UnifiedOwnerConcentrationFCap  = 70.0
@@ -82,11 +83,75 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 	return report
 }
 
-// EvaluateUnifiedRadarVerdictV110 preserves all v1.0 decisions and then applies
-// the explicit C005 hard ceiling. The existing deterministic signer is reused.
+// EvaluateUnifiedRadarVerdictV110 is retained as the public compatibility name,
+// but emits ruleset v1.1.1. It deliberately preserves every actor evidence group
+// in TriggeredRules while counting only distinct rule IDs for grading.
 func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdict, behavior UnifiedRadarBehaviorReport) UnifiedRadarVerdict {
-	out := EvaluateUnifiedRadarVerdict(target, actor, behavior)
-	out.RulesetVersion = UnifiedRadarRulesetVersionV110
+	triggered := append([]ActorDefenseRuleHit{}, actor.TriggeredRules...)
+	watch := append([]ActorDefenseRuleHit{}, actor.WatchFlags...)
+	for _, signal := range behavior.Signals {
+		hit := unifiedSignalRuleHit(signal)
+		if signal.Triggered && (signal.EvidenceStatus == "verified" || signal.EvidenceStatus == "observed") {
+			triggered = append(triggered, hit)
+		} else if signal.EvidenceStatus == "inferred" {
+			watch = append(watch, hit)
+		}
+	}
+	actorRuleSortHits(triggered)
+	watch = actorRuleMergeHits(watch)
+	actorRuleSortHits(watch)
+
+	out := UnifiedRadarVerdict{
+		Grade:           "-",
+		Verdict:         "no_grade_trigger",
+		RulesetVersion:  UnifiedRadarRulesetVersionV110,
+		ActorRuleset:    ActorDefenseRulesetVersion,
+		TriggeredRules:  triggered,
+		WatchFlags:      watch,
+		NarrativeSource: "deterministic_rules_only_ai_explains_but_never_grades",
+		GeneratedAt:     time.Now().UTC(),
+		DecisionPath: []string{
+			"The 14 legacy evidence arms, actor investigation and market/holder behavior rules are joined in one manual Radar dossier.",
+			"No weighted score or 0-100 final result is calculated.",
+			"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
+		},
+	}
+
+	for _, hit := range out.TriggeredRules {
+		out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Rule %s [%s/%s]: %s", hit.RuleID, hit.Tier, hit.EvidenceStatus, hit.Summary))
+	}
+
+	if actor.Verdict == "hard_trigger" && actor.Grade != "-" {
+		out.Grade = actor.Grade
+		out.Verdict = "hard_trigger"
+		out.DecisionPath = append(out.DecisionPath, "A VERIFIED actor hard trigger fixed the letter-grade ceiling at "+actor.Grade+".")
+	} else {
+		distinctIDs := unifiedDistinctCompoundingRuleIDs(out.TriggeredRules)
+		holderPressure, holderPressureOK := unifiedRadarSignalByRule(behavior, UnifiedRuleHolderLiquidityPressure)
+		dominantExit, dominantExitOK := unifiedRadarSignalByRule(behavior, UnifiedRuleDominantHolderFirstExit)
+		pressureRatio := unifiedRadarMetricFloat(holderPressure.Metrics["position_liquidity_ratio"])
+		severeCompounding := len(distinctIDs) >= 2 && holderPressureOK && dominantExitOK && holderPressure.Triggered && dominantExit.Triggered && pressureRatio >= 10
+
+		switch {
+		case severeCompounding:
+			out.Grade = "C"
+			out.Verdict = "severe_compounding_rule"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rule IDs were satisfied: %s.", len(distinctIDs), strings.Join(distinctIDs, ", ")))
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Dominant-holder reference position is %.2fx reported liquidity and a transaction-backed dominant-holder exit is present; severity-aware compounding caps the grade at C.", pressureRatio))
+		case len(distinctIDs) >= 2:
+			out.Grade = "B"
+			out.Verdict = "compounding_rule"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("%d distinct VERIFIED/OBSERVED compounding rule IDs lowered the baseline by one grade to B: %s.", len(distinctIDs), strings.Join(distinctIDs, ", ")))
+		case len(distinctIDs) == 1:
+			out.Verdict = "single_observation"
+			out.DecisionPath = append(out.DecisionPath, fmt.Sprintf("Multiple evidence groups may exist, but only one distinct compounding rule ID was satisfied (%s); it cannot issue a letter grade alone.", distinctIDs[0]))
+		case len(out.WatchFlags) > 0:
+			out.Verdict = "watch_only"
+			out.DecisionPath = append(out.DecisionPath, "Only watch flags are present; no letter grade is issued.")
+		default:
+			out.DecisionPath = append(out.DecisionPath, "No grade-changing rule was satisfied; absence of evidence is not an A grade.")
+		}
+	}
 
 	capGrade := ""
 	for _, signal := range behavior.Signals {
@@ -100,20 +165,41 @@ func EvaluateUnifiedRadarVerdictV110(target string, actor ActorDefenseRuleVerdic
 		}
 	}
 	if capGrade != "" {
-		out.Grade = worseUnifiedGrade(out.Grade, capGrade)
+		out.Grade = worseUnifiedGradeV111(out.Grade, capGrade)
 		out.Verdict = "hard_trigger"
 		out.DecisionPath = append(out.DecisionPath, "URD-C005 fixed the maximum grade at "+capGrade+" from VERIFIED owner-resolved, infrastructure-excluded concentration.")
 	}
 
 	out.Signed = out.Grade != "-" && len(out.TriggeredRules) > 0
-	out.Signature = ""
 	if out.Signed {
 		out.Signature = signUnifiedRadarVerdict(strings.TrimSpace(target), out)
 	}
 	return out
 }
 
-func worseUnifiedGrade(current, cap string) string {
+func unifiedDistinctCompoundingRuleIDs(hits []ActorDefenseRuleHit) []string {
+	seen := map[string]bool{}
+	for _, hit := range hits {
+		status := strings.ToLower(strings.TrimSpace(hit.EvidenceStatus))
+		if !strings.EqualFold(hit.Tier, "compounding") || (status != "verified" && status != "observed") {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(hit.GradeEffect)), "hard_cap_") {
+			continue
+		}
+		if id := strings.TrimSpace(hit.RuleID); id != "" {
+			seen[id] = true
+		}
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func worseUnifiedGradeV111(current, cap string) string {
 	rank := map[string]int{"-": 0, "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6}
 	current = strings.ToUpper(strings.TrimSpace(current))
 	cap = strings.ToUpper(strings.TrimSpace(cap))

@@ -1,0 +1,15 @@
+{
+  "schema_version": "koschei-production-evidence-rows-v1",
+  "target": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
+  "rule_id": "ARD-C004",
+  "relation": "direct_sol_transfer_out",
+  "counterpart_id": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
+  "verification_status": "verified",
+  "distinct_signature_count": 4,
+  "evidence_rows": [
+    {"evidence_key":"5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt:16","signature":"5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt","slot":432626147,"timestamp":"2026-07-13T10:30:37Z","source_wallet":"7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ","destination_wallet":"5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh","amount":{"native_sol":0.049382715,"token_amount":0,"token_mint":""},"program":"system","verification_status":"verified","relation":"direct_sol_transfer_out","source":"solana_jsonparsed_instruction","network":"solana-mainnet"},
+    {"evidence_key":"2uGmnYYozzZjDFjmZttMkJwH4tstGh3kugmSQbg9vzcPbSEJgiV1GSetdDXJ8ULDR2hcr9qKd6ANLbhrPXxDgzFX:4","signature":"2uGmnYYozzZjDFjmZttMkJwH4tstGh3kugmSQbg9vzcPbSEJgiV1GSetdDXJ8ULDR2hcr9qKd6ANLbhrPXxDgzFX","slot":431499344,"timestamp":"2026-07-08T02:22:24Z","source_wallet":"7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ","destination_wallet":"5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh","amount":{"native_sol":0.00025056,"token_amount":0,"token_mint":""},"program":"system","verification_status":"verified","relation":"direct_sol_transfer_out","source":"solana_jsonparsed_instruction","network":"solana-mainnet"},
+    {"evidence_key":"47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9:20","signature":"47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9","slot":431285012,"timestamp":"2026-07-07T02:11:57Z","source_wallet":"7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ","destination_wallet":"5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh","amount":{"native_sol":0.049382715,"token_amount":0,"token_mint":""},"program":"system","verification_status":"verified","relation":"direct_sol_transfer_out","source":"solana_jsonparsed_instruction","network":"solana-mainnet"},
+    {"evidence_key":"hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH:29","signature":"hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH","slot":431220956,"timestamp":"2026-07-06T18:59:26Z","source_wallet":"7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ","destination_wallet":"5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh","amount":{"native_sol":0.030000001,"token_amount":0,"token_mint":""},"program":"system","verification_status":"verified","relation":"direct_sol_transfer_out","source":"solana_jsonparsed_instruction","network":"solana-mainnet"}
+  ]
+}

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const UnifiedRadarDecisionContractVersion = "koschei-unified-radar-decision-v1.0.1"
+const UnifiedRadarDecisionContractVersion = "koschei-unified-radar-decision-v1.0.2"
 
 // FinalizeUnifiedRadarVerdictContract binds the deterministic verdict state to
 // its target before persistence. A withheld grade ("-") is still a signed
@@ -42,20 +42,20 @@ func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRa
 	actorRuleSortHits(verdict.TriggeredRules)
 	actorRuleSortHits(verdict.WatchFlags)
 
-	hard := []ActorDefenseRuleHit{}
+	hardCaps := []string{}
 	compoundRuleIDs := map[string]bool{}
 	for _, hit := range verdict.TriggeredRules {
 		status := normalizeActorEvidenceStatus(hit.EvidenceStatus)
-		switch strings.TrimSpace(hit.Tier) {
-		case "hard_trigger":
-			if status == "verified" {
-				hard = append(hard, hit)
+		if status == "verified" {
+			if capGrade := unifiedRadarContractHitGradeCap(hit); capGrade != "" {
+				hardCaps = append(hardCaps, capGrade)
+				continue
 			}
-		case "compounding":
-			if status == "verified" || status == "observed" {
-				if ruleID := strings.TrimSpace(hit.RuleID); ruleID != "" {
-					compoundRuleIDs[ruleID] = true
-				}
+		}
+		if strings.EqualFold(strings.TrimSpace(hit.Tier), "compounding") &&
+			(status == "verified" || status == "observed") {
+			if ruleID := strings.TrimSpace(hit.RuleID); ruleID != "" {
+				compoundRuleIDs[ruleID] = true
 			}
 		}
 	}
@@ -64,12 +64,16 @@ func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRa
 		"Unified verdict contract: " + UnifiedRadarDecisionContractVersion + ".",
 		"Only distinct VERIFIED/OBSERVED compounding rule IDs may lower the baseline.",
 		"Multiple evidence groups for one rule remain separately auditable but count once in the grade decision.",
+		"VERIFIED hard-cap grade effects are evaluated before compounding rules.",
 		"INFERRED is watch-only and UNVERIFIED cannot change the grade.",
 	}
 	switch {
-	case len(hard) > 0:
-		verdict.Grade = actorRuleWorstGradeCap(hard)
+	case len(hardCaps) > 0:
+		verdict.Grade = unifiedRadarContractWorstGrade(hardCaps)
 		verdict.Verdict = "hard_trigger"
+		if len(compoundRuleIDs) == 1 {
+			decision = append(decision, "Supporting evidence groups may exist, but only one distinct compounding rule ID was satisfied; it cannot issue a letter grade alone.")
+		}
 		decision = append(decision, fmt.Sprintf("Evidence-backed hard-trigger ceiling applied: grade %s.", verdict.Grade))
 	case len(compoundRuleIDs) >= 2:
 		verdict.Grade = "B"
@@ -91,6 +95,42 @@ func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRa
 	verdict.DecisionPath = decision
 	verdict.Signature = ""
 	return verdict
+}
+
+func unifiedRadarContractHitGradeCap(hit ActorDefenseRuleHit) string {
+	if grade := unifiedRadarContractLetter(hit.GradeCap); grade != "" {
+		return grade
+	}
+	effect := strings.ToUpper(strings.TrimSpace(hit.GradeEffect))
+	const prefix = "HARD_CAP_"
+	if !strings.HasPrefix(effect, prefix) {
+		return ""
+	}
+	return unifiedRadarContractLetter(strings.TrimPrefix(effect, prefix))
+}
+
+func unifiedRadarContractLetter(value string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	switch value {
+	case "A", "B", "C", "D", "E", "F":
+		return value
+	default:
+		return ""
+	}
+}
+
+func unifiedRadarContractWorstGrade(grades []string) string {
+	rank := map[string]int{"A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6}
+	worst := "-"
+	worstRank := 0
+	for _, grade := range grades {
+		grade = unifiedRadarContractLetter(grade)
+		if rank[grade] > worstRank {
+			worst = grade
+			worstRank = rank[grade]
+		}
+	}
+	return worst
 }
 
 // MarshalJSON is the public signed-verdict adapter. Internal names remain

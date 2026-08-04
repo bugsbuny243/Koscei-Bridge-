@@ -1,2 +1,21 @@
 # False positive: browser localStorage namespace in owner publishing UI, not a credential.
 6694ca112b1e203e6408c54bd4c910be5be96224:koschei/api/public/js/owner-publishing-center.js:generic-api-key:4
+
+# False positives: the public Solana token mint is repeated in three permanent
+# on-chain evidence rows. These exact commit/path/rule/line fingerprints are
+# allowlisted; the generic API-key detector remains blocking everywhere else.
+5d3be2a84c22ca9ef721382fb08ece49a400ecc1:koschei/api/evidence/production-full-scan/2026-08-03-kosch/ard-c004-token-dominant.json:generic-api-key:4
+5d3be2a84c22ca9ef721382fb08ece49a400ecc1:koschei/api/evidence/production-full-scan/2026-08-03-kosch/ard-c004-token-dominant.json:generic-api-key:5
+5d3be2a84c22ca9ef721382fb08ece49a400ecc1:koschei/api/evidence/production-full-scan/2026-08-03-kosch/ard-c004-token-dominant.json:generic-api-key:6
+
+# False positives: immutable SHA-256/public Solana mint and signed transaction
+# evidence in the permanent URD-C005 dossier. Only these exact historical
+# fingerprints are exempt; all new content and all other generic-key findings
+# remain blocking.
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:12
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:34
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:40
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:49
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:55
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:64
+a455be911c6cff06e7587dd6557a56123c2bc189:koschei/api/evidence/production-full-scan/2026-08-03-kosch/urd-c005-owner-concentration.json:generic-api-key:70

@@ -1,6 +1,9 @@
 {
   "schema_version": "koschei-production-full-scan-contract-v1",
-  "analysis_summary_schema": "koschei-customer-analysis-summary-v2",
+  "response_schema": "koschei-customer-investigation-response-v3",
+  "analysis_summary_schema": "koschei-customer-analysis-summary-v3",
+  "unified_ruleset": "koschei-unified-radar-rules-v1.1.1",
+  "grading_semantics": "distinct_rule_ids_not_evidence_group_count",
   "response_surface": "/api/token/scan",
   "architecture_arm_count": 14,
   "defense_os_enabled": false

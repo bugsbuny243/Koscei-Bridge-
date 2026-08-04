@@ -1,0 +1,73 @@
+{
+  "schema_version": "koschei-production-concentration-evidence-v1",
+  "target": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
+  "rule_id": "URD-C005",
+  "verification_status": "verified",
+  "state_observation_hash": "sha256:1bac56e8a8f6121d808ed4ab5808552a04022ad8ca9f091ba5ae7118210f533b",
+  "state_snapshot": {
+    "observed_at": "2026-08-03T16:00:17Z",
+    "source_methods": ["getTokenSupply", "getTokenLargestAccounts", "getAccountInfo"],
+    "source_artifact_sha256": "4869aaac86df20252eaf97349eda1a594f000bf67ef28df6b1bf39edd858f7e4",
+    "mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
+    "token_account": "9zVc2MQBF7RqTSjSSkzWpVcyH7aHPRQQevSC1U6x1i2T",
+    "owner_wallet": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
+    "owner_program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    "balance": 992986978.6733059,
+    "circulating_supply": 1000000000,
+    "owner_resolved_top_share_pct": 99.2987,
+    "role": "program_controlled_unresolved",
+    "role_confidence": "medium",
+    "risk_bearing": true,
+    "excluded_from_holder_risk": false,
+    "verification_status": "verified_state_snapshot",
+    "limitations": ["The original production artifact did not retain the getTokenLargestAccounts context slot; the exact state is anchored by the immutable full-response SHA-256 and corroborating signed transaction rows."]
+  },
+  "corroboration_scope": "The state snapshot establishes balance, supply, percentage and owner resolution. The transaction rows independently corroborate that the resolved owner wallet controlled the cited token account in signed on-chain activity; they are not used to reconstruct the snapshot balance.",
+  "corroborating_evidence_rows": [
+    {
+      "evidence_key": "urd-c005-owner-link:5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
+      "signature": "5T5w6ZqFLFuFKEuzqojQthB2HPt6PiNWq81xbZS7rZKZDCoQ3EVBaWjZ3zDPPCMP4ffMxWVqrSRqTsyDepb6Mirt",
+      "slot": 432626147,
+      "timestamp": "2026-07-13T10:30:37Z",
+      "source_wallet": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
+      "destination_wallet": "7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ",
+      "amount": {"native_sol": 0, "token_amount": 1744474.475606, "token_mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump"},
+      "program": "spl-token",
+      "verification_status": "verified",
+      "relation": "owner_token_account_control_corroboration",
+      "source": "helius_enhanced_transaction_and_solana_jsonparsed",
+      "network": "solana-mainnet",
+      "source_token_account": "9zVc2MQBF7RqTSjSSkzWpVcyH7aHPRQQevSC1U6x1i2T"
+    },
+    {
+      "evidence_key": "urd-c005-owner-link:47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
+      "signature": "47cKEGftmFEXf6XnnQZR9e5AtLmK4HNLg6yTQhhFmc41MAM6EN9UmxsmJSj6vBUyP7UjKKWgZA1jDmdFTyAo9cs9",
+      "slot": 431285012,
+      "timestamp": "2026-07-07T02:11:57Z",
+      "source_wallet": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
+      "destination_wallet": "7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ",
+      "amount": {"native_sol": 0, "token_amount": 1759833.90027, "token_mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump"},
+      "program": "spl-token",
+      "verification_status": "verified",
+      "relation": "owner_token_account_control_corroboration",
+      "source": "helius_enhanced_transaction_and_solana_jsonparsed",
+      "network": "solana-mainnet",
+      "source_token_account": "9zVc2MQBF7RqTSjSSkzWpVcyH7aHPRQQevSC1U6x1i2T"
+    },
+    {
+      "evidence_key": "urd-c005-owner-link:hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH",
+      "signature": "hh1PjzozjsQfTAMAs6z9D5M3VrNFKcAUKeuuMbxe4FRQXZKSS5XCMXUpu4pzBTSeba3DkpZ5G5p2sDBa5K9ZUTH",
+      "slot": 431220956,
+      "timestamp": "2026-07-06T18:59:26Z",
+      "source_wallet": "5F9bSnHvyoS2ukZnLcBqjctp9ivtE1V1m1wdhAL1bMwh",
+      "destination_wallet": "7uiyXFECjZ88Kho9qBa92ERxVhQ3HQJ4J61gc2pGp4dJ",
+      "amount": {"native_sol": 0, "token_amount": 1071928.107623, "token_mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump"},
+      "program": "spl-token",
+      "verification_status": "verified",
+      "relation": "owner_token_account_control_corroboration",
+      "source": "helius_enhanced_transaction_and_solana_jsonparsed",
+      "network": "solana-mainnet",
+      "source_token_account": "9zVc2MQBF7RqTSjSSkzWpVcyH7aHPRQQevSC1U6x1i2T"
+    }
+  ]
+}

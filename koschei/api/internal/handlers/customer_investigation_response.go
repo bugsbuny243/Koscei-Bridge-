@@ -2,7 +2,7 @@ package handlers
 
 import "koschei/api/internal/services"
 
-const customerInvestigationResponseSchemaVersion = "koschei-customer-investigation-response-v2"
+const customerInvestigationResponseSchemaVersion = "koschei-customer-investigation-response-v3"
 
 func customerInvestigationStatus(final services.UnifiedRadarVerdict, hasLiveEvidence bool) string {
 	if final.Signed && hasLiveEvidence {
@@ -24,25 +24,29 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 		assembly.Report = map[string]any{}
 	}
 
-	// UnifiedVerdict is the authoritative deterministic decision used by the
-	// customer summary. Re-attach it here so presentation or integration
-	// diagnostics cannot leave report.final_verdict on an older projection.
-	assembly.Report["final_verdict"] = assembly.UnifiedVerdict
+	// Immutable snapshot diagnostics already synchronize stale projections. Run
+	// the same no-I/O correction defensively for reports assembled by tests or
+	// older callers, then use that exact verdict for both summary and envelope.
+	if final, ok := synchronizeCanonicalUnifiedVerdict(assembly.Report); ok {
+		assembly.UnifiedVerdict = final
+	} else {
+		assembly.Report["final_verdict"] = assembly.UnifiedVerdict
+	}
 
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
-	analysisSummary := buildCustomerAnalysisSummary(*assembly, hasLiveEvidence)
+	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
 	return analysisSummary
 }
 
 func customerInvestigationEnvelope(assembly unifiedInvestigationAssembly, charged bool) map[string]any {
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
+	analysisSummary := attachCustomerAnalysisSummary(&assembly)
 	status := customerInvestigationStatus(assembly.UnifiedVerdict, hasLiveEvidence)
 	message := "Full investigation completed."
 	if status == "evidence_pending" {
 		message = "Investigation completed with evidence gaps; missing evidence is not treated as a safe finding."
 	}
-	analysisSummary := attachCustomerAnalysisSummary(&assembly)
 	return map[string]any{
 		"ok":                      true,
 		"response_schema_version": customerInvestigationResponseSchemaVersion,
@@ -62,6 +66,7 @@ func customerInvestigationEnvelope(assembly unifiedInvestigationAssembly, charge
 			"missing_evidence_is_not_safe":                 true,
 			"numeric_final_score_disabled":                 true,
 			"numeric_rug_probability_disabled":             true,
+			"distinct_rule_ids_control_compounding":        true,
 		},
 	}
 }
