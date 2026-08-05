@@ -1,18 +1,19 @@
 name: Agent Supply Memory Patch
 
 on:
-  push:
-    branches:
-      - feat/supply-structural-memory-v1
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
     paths:
       - .github/workflows/agent-supply-memory-patch.yml
+      - koschei/api/migrations/089_token_supply_structural_memory.sql
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
