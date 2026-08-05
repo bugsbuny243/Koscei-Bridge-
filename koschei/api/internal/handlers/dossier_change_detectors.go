@@ -5,7 +5,10 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const dossierChangeBaselineMaxAge = 7 * 24 * time.Hour
 
 // derivedDossierSignalSource turns already-collected immutable report evidence
 // into customer-facing change rows. It performs no I/O and never treats a
@@ -43,13 +46,13 @@ func deriveAuthorityChange(report map[string]any) map[string]any {
 	}
 
 	baseline := dossierMap(report["structural_memory"])
-	if !dossierBool(baseline["has_authority_data"]) {
+	if !dossierBool(baseline["has_authority_data"]) || !dossierChangeBaselineFresh(report, baseline, "authority_observed_at") {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
 			"current":     map[string]any{"mint_authority_present": mint, "freeze_authority_present": freeze},
 			"changed":     nil,
 			"method":      "compare_current_verified_capability_flags_to_previous_verified_structural_memory",
-			"limitations": []string{"A previous verified authority observation is required before a change can be asserted."},
+			"limitations": []string{"A fresh previous verified authority observation is required before a change can be asserted."},
 		}
 	}
 	previousMint, previousMintOK := dossierChangeBool(baseline["mint_authority_present"])
@@ -85,12 +88,12 @@ func deriveSupplyChange(report map[string]any) map[string]any {
 	}
 	baseline := dossierMap(report["structural_memory"])
 	previous, previousOK := dossierChangeFloat(baseline["token_supply"])
-	if !previousOK || previous < 0 {
+	if !dossierBool(baseline["has_supply_data"]) || !previousOK || previous < 0 || !dossierChangeBaselineFresh(report, baseline, "supply_observed_at") {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
 			"current_supply": current, "previous_supply": nil, "growth": nil,
 			"method":      "compare_parsed_token_supply_across_verified_observations",
-			"limitations": []string{"The current supply was observed, but no compatible previous supply baseline exists yet."},
+			"limitations": []string{"The current supply was observed, but no fresh compatible previous supply baseline exists yet."},
 		}
 	}
 	delta := current - previous
@@ -124,13 +127,13 @@ func deriveConcentrationChange(report map[string]any) map[string]any {
 		return dossierChangeUnavailable("Current role-adjusted holder concentration is unavailable.")
 	}
 	baseline := dossierMap(report["structural_memory"])
-	if !dossierBool(baseline["has_holder_data"]) {
+	if !dossierBool(baseline["has_holder_data"]) || !dossierChangeBaselineFresh(report, baseline, "holder_observed_at") {
 		return map[string]any{
 			"status": "monitoring_window_active", "evidence_status": "window_open",
 			"current":     map[string]any{"top_1_pct": currentTop1, "top_10_pct": currentTop10},
 			"changed":     nil,
 			"method":      "compare_role_adjusted_holder_percentages_to_previous_verified_structural_memory",
-			"limitations": []string{"A previous compatible holder observation is required before a concentration change can be asserted."},
+			"limitations": []string{"A fresh previous compatible holder observation is required before a concentration change can be asserted."},
 		}
 	}
 	previousTop1, previousTop1OK := dossierChangeFloat(baseline["largest_holder_percentage"])
@@ -215,6 +218,19 @@ func dossierChangeUnavailable(reason string) map[string]any {
 		"status": "source_unavailable", "evidence_status": "source_unavailable",
 		"limitations": []string{strings.TrimSpace(reason)},
 	}
+}
+
+func dossierChangeBaselineFresh(report, baseline map[string]any, observedKey string) bool {
+	current, err := time.Parse(time.RFC3339, strings.TrimSpace(dossierString(report["generated_at"])))
+	if err != nil || current.IsZero() {
+		return false
+	}
+	observed, err := time.Parse(time.RFC3339, strings.TrimSpace(dossierString(baseline[observedKey])))
+	if err != nil || observed.IsZero() {
+		return false
+	}
+	age := current.UTC().Sub(observed.UTC())
+	return age >= -5*time.Minute && age <= dossierChangeBaselineMaxAge
 }
 
 func dossierChangeBool(value any) (bool, bool) {
