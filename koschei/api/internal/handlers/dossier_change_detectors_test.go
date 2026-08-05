@@ -34,7 +34,8 @@ func dossierChangeFixture() map[string]any {
 			"has_holder_data":           true,
 			"largest_holder_percentage": 25.0, "top_10_holder_percentage": 60.0,
 			"holder_observed_at": "2026-08-04T00:00:00Z",
-			"token_supply":       1_000_000.0, "supply_observed_at": "2026-08-04T00:00:00Z",
+			"has_supply_data":   true,
+			"token_supply":      1_000_000.0, "supply_observed_at": "2026-08-04T00:00:00Z",
 		},
 	}
 }
@@ -73,6 +74,21 @@ func TestDerivedConcentrationAndSupplyChangesAreDeterministic(t *testing.T) {
 func TestChangeRowsRemainWindowOpenWithoutBaseline(t *testing.T) {
 	report := dossierChangeFixture()
 	delete(report, "structural_memory")
+	for _, id := range []string{"authority-change", "supply-change", "concentration-change"} {
+		def, _ := signalDefinitionByID(id)
+		state, _ := signalStateFor(report, def)
+		if state != signalStateWindowOpen {
+			t.Fatalf("id=%s state=%q", id, state)
+		}
+	}
+}
+
+func TestChangeRowsRemainWindowOpenWithStaleBaseline(t *testing.T) {
+	report := dossierChangeFixture()
+	baseline := dossierMap(report["structural_memory"])
+	baseline["authority_observed_at"] = "2026-07-01T00:00:00Z"
+	baseline["holder_observed_at"] = "2026-07-01T00:00:00Z"
+	baseline["supply_observed_at"] = "2026-07-01T00:00:00Z"
 	for _, id := range []string{"authority-change", "supply-change", "concentration-change"} {
 		def, _ := signalDefinitionByID(id)
 		state, _ := signalStateFor(report, def)
