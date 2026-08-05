@@ -2,23 +2,98 @@
   "ok": true,
   "product": "Koschei ARVIS",
   "surface": "Security Radar Ecosystem",
-  "version": "security-ecosystem-v3-free-core-kosch-premium",
-  "positioning": "Koschei ARVIS offers public basic security checks and lets verified KOSCH holders unlock deeper structural intelligence, history and automation.",
+  "version": "security-ecosystem-v4-native-intelligence",
+  "positioning": "Koschei ARVIS keeps provider-backed Solana collection intact while owning durable actor, incident, funding and verdict intelligence. Verified KOSCH holders may unlock documented premium depth without changing security truth.",
+  "ecosystem": {
+    "contract": "/docs/koschei-ecosystem-contract-v1.md",
+    "projects": [
+      {
+        "id": "koschei-web3-hub",
+        "role": "deterministic Solana evidence, durable security memory and signed verdicts",
+        "repository": "https://github.com/bugsbuny243/Koschei-Web3-Hub"
+      },
+      {
+        "id": "koschei-lang",
+        "role": "independent capability-secure programming language and bounded interoperability",
+        "repository": "https://github.com/bugsbuny243/koschei-lang"
+      },
+      {
+        "id": "koschei-sentinel",
+        "role": "evidence-grounded Solana security model and explanation layer",
+        "repository": "https://github.com/bugsbuny243/koschei-sentinel"
+      }
+    ],
+    "official_asset": {
+      "symbol": "KOSCH",
+      "network": "solana-mainnet",
+      "mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
+      "pump_callout": "https://pump.fun/callouts/HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump/62c9a163-75a7-4f45-914c-1c9479d3a5ec",
+      "identity_only": true,
+      "disclaimer": "Asset identity or holdings never change evidence, verdicts, compiler rules or model promotion gates."
+    }
+  },
   "access_model": {
     "provider": "free core plus KOSCH premium",
     "mode": "public_basic_verified_holder_premium",
-    "free_core": ["public safe check", "basic token fundamentals"],
-    "premium": ["security radar", "exposure reports", "graph", "watchlist", "webhooks", "developer API", "advanced agents"],
+    "free_core": [
+      "public safe check",
+      "basic token fundamentals"
+    ],
+    "premium": [
+      "security radar",
+      "exposure reports",
+      "graph",
+      "watchlist",
+      "webhooks",
+      "developer API",
+      "advanced agents"
+    ],
     "wallet_proof": "Phantom one-time message signature",
     "legacy_payment_providers": [],
     "package_outputs": false
+  },
+  "provider_policy": {
+    "preserve_existing_helius_paths": true,
+    "helius_role": [
+      "Solana RPC and account data",
+      "parsed transaction inputs where supported",
+      "webhook delivery where configured"
+    ],
+    "koschei_role": [
+      "normalization and evidence verification",
+      "cross-token actor memory",
+      "repeat-operator incident corpus",
+      "funding-cluster history",
+      "immutable verdict and evidence-bundle history"
+    ],
+    "missing_provider_data": "unavailable_or_withheld_not_fabricated"
+  },
+  "native_intelligence": {
+    "actor_identity_graph": {
+      "scope": "verified on-chain actor roles and relations across tokens",
+      "real_world_identity_claims": false,
+      "provenance_required": true
+    },
+    "repeat_operator_corpus": {
+      "scope": "versioned incident families backed by verified behavior bundles",
+      "funding_or_selling_alone_is_sufficient": false
+    },
+    "verdict_history": {
+      "immutable_revisions": true,
+      "superseded_results_preserved": true,
+      "bundle_hashes_rewritten": false
+    },
+    "funding_cluster_history": {
+      "direct_and_inferred_relations_separate": true,
+      "inferred_relations_grade_bearing_alone": false
+    }
   },
   "architecture": {
     "evidence_arm_count": 13,
     "final_verdict_engine_count": 1,
     "total_arm_count": 14,
     "scoring": "deterministic evidence-backed risk rules",
-    "ai_role": "explanation and evidence summary only"
+    "ai_role": "explanation, historical relation summary and investigation leads only"
   },
   "feed_policy": {
     "one_card_per_token": true,
@@ -37,20 +112,76 @@
     "best_effort_cache": true
   },
   "arms": [
-    {"id":"pump_sybil_radar","name":"Pump.fun Sybil Radar","category":"launch evidence"},
-    {"id":"raydium_pool_guardian","name":"Raydium Pool Guardian","category":"pool evidence"},
-    {"id":"walletless_claim_shield","name":"Walletless Claim Shield","category":"claim evidence"},
-    {"id":"intelligence_graph","name":"Intelligence Graph","category":"relation evidence"},
-    {"id":"mev_shield","name":"MEV Shield","category":"transaction evidence"},
-    {"id":"token_authority_scanner","name":"Token Authority Scanner","category":"structural authority"},
-    {"id":"holder_concentration","name":"Holder Concentration","category":"structural holder risk"},
-    {"id":"liquidity_movement","name":"Liquidity Movement","category":"liquidity evidence"},
-    {"id":"creator_link_analysis","name":"Creator Link Analysis","category":"creator evidence"},
-    {"id":"funding_cluster_detector","name":"Funding Cluster Detector","category":"funding evidence"},
-    {"id":"sniper_timing_detector","name":"Sniper Timing Detector","category":"timing evidence"},
-    {"id":"claim_surface_risk","name":"Claim Surface Risk","category":"web surface evidence"},
-    {"id":"program_relation_scan","name":"Program Relation Scan","category":"program evidence"},
-    {"id":"final_verdict_engine","name":"Final Verdict Engine","category":"signed customer decision"}
+    {
+      "id": "pump_sybil_radar",
+      "name": "Pump.fun Sybil Radar",
+      "category": "launch evidence"
+    },
+    {
+      "id": "raydium_pool_guardian",
+      "name": "Raydium Pool Guardian",
+      "category": "pool evidence"
+    },
+    {
+      "id": "walletless_claim_shield",
+      "name": "Walletless Claim Shield",
+      "category": "claim evidence"
+    },
+    {
+      "id": "intelligence_graph",
+      "name": "Intelligence Graph",
+      "category": "relation evidence"
+    },
+    {
+      "id": "mev_shield",
+      "name": "MEV Shield",
+      "category": "transaction evidence"
+    },
+    {
+      "id": "token_authority_scanner",
+      "name": "Token Authority Scanner",
+      "category": "structural authority"
+    },
+    {
+      "id": "holder_concentration",
+      "name": "Holder Concentration",
+      "category": "structural holder risk"
+    },
+    {
+      "id": "liquidity_movement",
+      "name": "Liquidity Movement",
+      "category": "liquidity evidence"
+    },
+    {
+      "id": "creator_link_analysis",
+      "name": "Creator Link Analysis",
+      "category": "creator evidence"
+    },
+    {
+      "id": "funding_cluster_detector",
+      "name": "Funding Cluster Detector",
+      "category": "funding evidence"
+    },
+    {
+      "id": "sniper_timing_detector",
+      "name": "Sniper Timing Detector",
+      "category": "timing evidence"
+    },
+    {
+      "id": "claim_surface_risk",
+      "name": "Claim Surface Risk",
+      "category": "web surface evidence"
+    },
+    {
+      "id": "program_relation_scan",
+      "name": "Program Relation Scan",
+      "category": "program evidence"
+    },
+    {
+      "id": "final_verdict_engine",
+      "name": "Final Verdict Engine",
+      "category": "signed customer decision"
+    }
   ],
   "customer_surfaces": [
     "/dashboard",
@@ -66,7 +197,8 @@
   "immutable_rules": [
     "No evidence, no claim",
     "Basic security checks remain public and rate limited",
-    "KOSCH unlocks premium depth; it does not remove free access",
+    "KOSCH unlocks documented premium depth; it does not remove free access",
+    "KOSCH holdings cannot change evidence, grades, signatures, compiler rules or model promotion",
     "A temporary event gap cannot lower a fresh structural token floor",
     "Customers cannot alter verdict thresholds",
     "AI summaries cannot override the deterministic final grade",
