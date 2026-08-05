@@ -1,16 +1,19 @@
 # Koschei Ecosystem Contract v1
 
 Status: canonical architecture contract  
+Integration state: `incubation_only`  
 Scope: Koschei Web3 Hub, Koschei language, Koschei Sentinel and the official KOSCH Solana asset
 
-## 1. One ecosystem, four independent responsibilities
+## 1. One ecosystem, independent products
 
-| Component | Canonical responsibility | Must never own |
-| --- | --- | --- |
-| Koschei Web3 Hub / ARVIS | Solana evidence collection, durable security memory, deterministic rules and signed verdicts | Compiler semantics, model training authority or token price support |
-| Koschei language | A new capability-secure programming language with explicit authority and broad interoperability | ARVIS production verdicts, holder entitlements or model-generated security claims |
-| Koschei Sentinel | A Solana-security model trained on privacy-safe, evidence-grounded ARVIS data | Final verdict authority, evidence fabrication or autonomous production execution |
-| KOSCH asset | Verifiable ecosystem identity, access and contribution coordination | Buying a safer verdict, changing compiler behavior, changing evidence or promising financial return |
+The projects share an ecosystem identity and long-term direction, but they are not one runtime system today.
+
+| Component | Current responsibility | Current integration state | Must never own |
+| --- | --- | --- | --- |
+| Koschei Web3 Hub / ARVIS | Solana evidence collection, durable security memory, deterministic rules and signed verdicts | production-independent | Compiler semantics, model promotion authority or token price support |
+| Koschei language | Independent capability-secure language research, compiler/runtime development and interoperability tests | incubation-only | ARVIS production verdicts, Web3 runtime dependencies or token-controlled compiler behavior |
+| Koschei Sentinel | Offline Solana-security dataset, training, evaluation and model-lineage research | incubation-only | Final verdict authority, evidence fabrication, Web3 runtime execution or automatic production deployment |
+| KOSCH asset | Verifiable ecosystem identity and separately documented access/community coordination | identity/utility only | Buying a safer verdict, changing compiler behavior, changing model promotion or promising financial return |
 
 Repositories:
 
@@ -24,15 +27,35 @@ Official KOSCH mint:
 HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump
 ```
 
-Pump callout:
+The mint identifies the ecosystem asset. It is not evidence that a user, token, wallet, model, compiler build or transaction is safe.
+
+## 2. Incubation firewall
+
+Until separately approved maturity gates pass, production Web3 Hub must not:
+
+- call Sentinel during a customer request;
+- use Sentinel output in a verdict, grade, publication or blocking decision;
+- depend on Sentinel availability to start or remain healthy;
+- import, compile or execute Koschei language code in the production request path;
+- require the Koschei compiler or runtime for deployment, migrations, workers or incident recovery;
+- present either project as already integrated into the live product.
+
+Allowed during incubation:
+
+- read-only, privacy-safe offline dataset extraction from ARVIS to Sentinel;
+- historical replay, shadow evaluation and benchmark generation outside the customer path;
+- Web3-derived compiler fixtures, examples and interoperability prototypes outside production;
+- documentation links, shared ecosystem identity and independently governed contribution programs;
+- reversible experiments on isolated branches and non-production environments.
+
+The distinction is permanent until an explicit future decision changes it:
 
 ```text
-https://pump.fun/callouts/HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump/62c9a163-75a7-4f45-914c-1c9479d3a5ec
+shared data and benchmarks  !=  runtime integration
+shared ecosystem identity   !=  shared production authority
 ```
 
-The mint identifies the ecosystem asset. It is not evidence that a user, token, wallet or transaction is safe.
-
-## 2. Provider policy: keep Helius, own the missing intelligence
+## 3. Provider policy: keep Helius, own the missing intelligence
 
 Helius remains a supported Solana data and delivery provider. Existing Helius-backed RPC, parsed transaction, webhook and enrichment paths must not be broken merely to replace the provider.
 
@@ -52,9 +75,9 @@ deterministic ARVIS queries and signed verdicts
 
 Provider output is source material, not a verdict. A provider outage, unsupported parser or missing field must produce unavailable or withheld evidence rather than an invented relation.
 
-## 3. Native intelligence that Koschei must own
+## 4. Native intelligence that Web3 Hub must own
 
-### 3.1 Cross-token actor identity graph
+### 4.1 Cross-token actor graph
 
 Purpose: connect verified on-chain roles and relations across many token launches without claiming real-world identity.
 
@@ -69,43 +92,17 @@ Canonical node kinds:
 - incident family
 - signed verdict revision
 
-Canonical edge kinds include:
-
-- created or deployed
-- funded
-- received creator outflow
-- controlled token balance
-- co-funded
-- co-launched
-- co-fired in an early-buyer window
-- removed or added liquidity
-- invoked program
-- linked by a specific evidence bundle
-
 Every edge must carry provenance, observed time, verification state and evidence references. Wallet relations are on-chain actor relations, not claims about a natural person's identity.
 
-### 3.2 Repeat rug-operator corpus
+### 4.2 Repeat rug-operator corpus
 
 Purpose: preserve the historical record of actors and incident families that repeatedly exhibit verified harmful launch, authority, liquidity or exit behavior.
 
 A wallet or cluster is not added merely because it funded many launches or sold a token. Corpus membership requires versioned deterministic criteria and one or more verified incident bundles.
 
-Required properties:
+### 4.3 Verdict history and evidence bundles
 
-- immutable incident-family identifier
-- member actor references
-- affected token mints
-- first and last verified observation
-- behavior taxonomy and ruleset version
-- supporting signatures, slots and evidence IDs
-- confidence ceiling derived from the weakest material evidence
-- supersession history when a later ruleset changes interpretation
-
-### 3.3 Verdict history and evidence bundles
-
-Purpose: answer what ARVIS knew, when it knew it and which rules produced each decision.
-
-A new verdict never rewrites an old signed verdict. The system stores a revision chain:
+A new verdict never rewrites an old signed verdict. The system preserves:
 
 ```text
 target + ruleset + evidence snapshot
@@ -117,30 +114,17 @@ signed verdict revision
 current / historical / superseded presentation state
 ```
 
-Historical results remain auditable. Public presentation must clearly label superseded revisions and link to the current revision without changing the old bundle hash.
+Historical results remain auditable. A newer verdict may supersede an older presentation, but it cannot alter the old bundle hash or signature.
 
-### 3.4 Funding-cluster history
+### 4.4 Funding-cluster history
 
-Purpose: answer which funding cluster previously funded which creators, launches, wallets and incident families.
+The cluster memory must answer evidence-bounded questions about prior launches, creators, direct funding transfers, reappearance and later verified incidents. Direct transfers and inferred co-occurrence remain separate. Inferred cluster membership is watch intelligence and cannot independently create a fraud grade.
 
-The cluster memory must support at least these evidence-bounded questions:
-
-- Which token launches received initial or material funding from this cluster?
-- Which creators were funded by the same source actors?
-- Which funded launches later received verified high-risk or incident verdicts?
-- Did the cluster reappear after a dormancy window?
-- Which relations are direct transfers and which are inferred co-occurrence?
-- What is the earliest and latest verified activity for the cluster?
-
-Direct transfer evidence and inferred clustering must remain separate. Inferred cluster membership is watch intelligence and cannot independently create a fraud grade.
-
-## 4. Minimum durable data contract
-
-The physical schema may evolve, but the logical contract must preserve these records:
+## 5. Minimum durable data contract
 
 | Logical record | Required identity |
 | --- | --- |
-| actor entity | stable pseudonymous actor reference + chain + entity kind |
+| actor entity | stable actor reference + chain + entity kind |
 | actor relation | source + destination + relation kind + evidence bundle + observed time |
 | funding cluster | cluster reference + version + member evidence + lifecycle timestamps |
 | incident family | family reference + taxonomy + ruleset + supporting bundles |
@@ -150,11 +134,9 @@ The physical schema may evolve, but the logical contract must preserve these rec
 
 Raw provider payloads must not become permanent truth merely because they were received. Long-lived memory stores normalized facts, provenance and digests under explicit retention rules.
 
-## 5. Native query families
+## 6. Native query families
 
-ARVIS should expose owner/research APIs first, then bounded customer APIs after privacy, abuse and cost controls pass.
-
-Planned query families:
+Owner/research routes come first. Customer exposure follows only after privacy, abuse and cost review.
 
 ```text
 GET /api/owner/intelligence/actor-graph?target=<mint-or-wallet>
@@ -164,102 +146,121 @@ GET /api/owner/intelligence/verdict-history?target=<mint>
 GET /api/owner/intelligence/evidence-bundles?target=<mint>
 ```
 
-Customer routes must return masked or pseudonymous references when raw addresses are not needed. Bulk graph traversal must be bounded by depth, node count, time range and entitlement.
+Bulk graph traversal must be bounded by depth, node count, time range and entitlement.
 
-## 6. Deterministic ARVIS and Sentinel boundary
+## 7. Sentinel boundary during incubation
 
-ARVIS owns:
+ARVIS owns facts, evidence verification, deterministic rules, final grade, final action and signatures.
 
-- source collection and normalization
-- evidence verification
-- actor and incident memory
-- deterministic rule execution
-- final grade, action and signature
+Sentinel may currently operate only offline or in isolated research environments to:
 
-Sentinel may:
+- train on privacy-safe snapshots;
+- replay historical evidence bundles;
+- compare model candidates;
+- test evidence citation, limitations and abstention;
+- generate non-production analyst commentary for evaluation.
 
-- explain the evidence bundle
-- summarize prior related incidents
-- surface missing evidence and limitations
-- rank investigation leads without changing the verdict
-- generate structured analyst commentary with cited evidence IDs
+Sentinel must not currently:
 
-Sentinel may not:
+- receive live customer requests from Web3 Hub;
+- appear in the production verdict path;
+- publish customer-facing commentary;
+- write to ARVIS evidence or verdict tables;
+- alter immutable verdict fields;
+- promote itself or deploy automatically;
+- become a production startup dependency.
 
-- modify immutable verdict fields
-- invent a wallet relation
-- exceed evidence confidence
-- promote inferred evidence into verified evidence
-- sign or publish a final ARVIS verdict
+## 8. Koschei language boundary during incubation
 
-## 7. Koschei language boundary
+The language remains a standalone project. Web3 Hub may supply difficult fixtures and benchmark cases, but production Web3 components remain in their existing implementation until the language is mature and separately approved.
 
-The language is a standalone capability-secure programming language. Web3 Hub may become a demanding reference application and interoperability customer, but the compiler must not become a token-gated or Solana-only product.
+During incubation the language may:
 
-The security target is measured improvement, not an unsupported slogan. Claims such as being safer than Rust require reproducible benchmarks covering authority containment, supply-chain reach, memory and concurrency safety, backend parity and escape resistance.
+- model bounded evidence-processing examples;
+- generate experimental adapters;
+- use Web3 cases in compiler, capability and interoperability tests;
+- measure security ceremony against existing implementations.
 
-Interoperability must be explicit and bounded through stable interfaces such as generated C/Go ABI adapters, JSON/HTTP, process capabilities, package manifests and future WASM or native foreign-function contracts. Compatibility must not reintroduce ambient authority.
+It must not currently:
 
-## 8. KOSCH utility contract
+- replace production Go/JavaScript components;
+- become a build or deployment dependency;
+- run in production workers;
+- be required for incident recovery;
+- be advertised as securing the live Web3 system.
 
-Permitted ecosystem uses include:
+## 9. Future Sentinel integration gates
 
-- proving possession of the official ecosystem asset
-- unlocking explicitly documented premium depth or capacity
-- receiving transparent usage credits or contribution recognition
-- voting or signaling on non-security product priorities after a separate governance design is approved
-- accessing community programs, bounties or ecosystem events
+No Sentinel runtime integration proposal may begin until all gates have documented evidence:
 
-Forbidden coupling:
+1. dataset lineage, privacy and family-safe splitting pass;
+2. multiple consecutive candidate releases pass every hard authority, grounding, abstention and privacy gate;
+3. historical replay shows no invented evidence, changed verdict or unsupported certainty;
+4. prompt-injection and data-poisoning suites pass;
+5. latency, cost, availability, rollback and model-version observability are proven;
+6. Sentinel remains optional and fail-closed behind deterministic ARVIS output;
+7. an owner-approved integration decision explicitly authorizes the next stage.
 
-- holdings cannot lower a risk grade or bypass a withheld verdict
-- holdings cannot alter evidence, bundle hashes or signatures
-- holdings cannot disable compiler checks or capability rules
-- holdings cannot promote a Sentinel candidate
-- holdings cannot guarantee profit, price support, yield or investment safety
-- token payments never authorize wallet custody, signing or transaction submission
+Even after approval, rollout order is historical replay, shadow-only traffic, owner-only review, bounded canary and only then optional production commentary. No model receives verdict authority.
 
-Public basic security checks remain available under the existing free-core policy. Token utility must be documented as product access and coordination, not as a promise of financial return.
+## 10. Future language integration gates
 
-## 9. Implementation sequence
+No Web3 production component may be implemented in Koschei until all relevant gates pass:
 
-### Phase A — preserve and formalize
+1. stable syntax, type-system and capability semantics;
+2. frozen runtime/ABI contract for the required boundary;
+3. package integrity, lock files and reproducible builds;
+4. interpreter/native/foreign-adapter parity;
+5. fuzzing, adversarial capability tests and cross-platform validation;
+6. measurable security and ergonomics benchmarks;
+7. a reversible reference component with equivalent external behavior;
+8. an owner-approved integration decision explicitly authorizes the component.
 
-1. Keep current Helius/RPC paths working.
-2. Publish this ecosystem and provider-boundary contract.
-3. Publish the exact official mint and asset-identity disclaimer.
-4. Inventory existing actor graph, repeat actor, funding cluster, verdict history and evidence-bundle paths.
+A future integration begins with a small replaceable component, never a production rewrite.
 
-### Phase B — durable native memory
+## 11. KOSCH utility contract
 
-1. Complete stable actor references and evidence-linked relations.
-2. Persist funding-cluster lifecycle and historical launch links.
-3. Persist repeat-operator incident families under deterministic criteria.
-4. Preserve immutable verdict revision chains and superseded presentation state.
-5. Add retention and archive rules that preserve audit-critical bundles.
+Permitted uses may include documented access, capacity, contribution recognition, community programs or bounties. Forbidden coupling remains absolute:
 
-### Phase C — native queries
+- holdings cannot lower a risk grade or bypass a withheld verdict;
+- holdings cannot alter evidence, bundle hashes or signatures;
+- holdings cannot disable compiler checks or capability rules;
+- holdings cannot promote or deploy a Sentinel candidate;
+- holdings cannot authorize a premature Web3 integration;
+- holdings cannot guarantee profit, price support, yield or investment safety.
 
-1. Ship owner/research endpoints with bounded traversal.
-2. Add deterministic query tests and replay fixtures.
-3. Add masked customer outputs only after privacy and abuse review.
-4. Measure provider dependency, query latency, coverage and withheld rates.
+## 12. Current implementation sequence
 
-### Phase D — Sentinel and language integration
+### Active Web3 work
 
-1. Export privacy-safe graph, incident, funding and verdict examples to Sentinel.
-2. Prevent family or cluster leakage across train/validation/test splits.
-3. Use Web3 Hub as a reference application for Koschei interoperability only after the language interfaces are real and tested.
-4. Keep the final ARVIS verdict deterministic through every integration.
+1. Preserve Helius and existing Solana collection.
+2. Complete durable actor, incident, funding and verdict memory.
+3. Ship bounded native intelligence queries.
+4. Improve production evidence quality, resilience and auditability.
 
-## 10. Acceptance rule
+### Background Sentinel work
 
-The ecosystem is integrated only when all four components can be used together without violating their authority boundaries:
+1. Build privacy-safe historical datasets.
+2. Train and evaluate model candidates offline.
+3. Preserve full lineage, benchmark and rejection records.
+4. Do not connect the candidate to production Web3.
+
+### Background language work
+
+1. Continue compiler, runtime, capability and interoperability development.
+2. Build independent benchmarks and real standalone programs.
+3. Use Web3 only as an offline stress-test source.
+4. Do not replace or couple production Web3 code.
+
+## 13. Acceptance rule
+
+The ecosystem may share identity while runtime integration remains disabled.
 
 ```text
-provider data can fail without fabricated evidence
-ARVIS history can evolve without rewriting old truth
-Sentinel can explain without becoming the judge
-KOSCH can unlock utility without buying security truth
-Koschei language can interoperate without surrendering capability safety
+Web3 Hub remains production-independent
+Sentinel matures offline without customer authority
+Koschei language matures independently without production dependency
+KOSCH coordinates utility without changing technical truth
 ```
+
+A future integration is a separate reviewed project, not an automatic consequence of belonging to the same ecosystem.
