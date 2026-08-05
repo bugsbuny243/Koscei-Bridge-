@@ -82,10 +82,10 @@ func TestVerifiedSupplyMemoryPostgres17(t *testing.T) {
 	capture := func(module string, signed, verified bool, value any) {
 		t.Helper()
 		store.captureStructuralSignals(ctx, SecurityRadarVerdictRecord{
-			ModuleID: module,
-			Target:   target,
-			Network:  network,
-			Signed:   signed,
+			ModuleID:  module,
+			Target:    target,
+			Network:   network,
+			Signed:    signed,
 			Signature: "ci-supply-signature",
 			Signals: map[string]any{
 				"verified_evidence": verified,
