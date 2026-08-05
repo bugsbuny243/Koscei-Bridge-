@@ -2,24 +2,28 @@
   "ok": true,
   "product": "Koschei ARVIS",
   "surface": "Security Radar Ecosystem",
-  "version": "security-ecosystem-v4-native-intelligence",
-  "positioning": "Koschei ARVIS keeps provider-backed Solana collection intact while owning durable actor, incident, funding and verdict intelligence. Verified KOSCH holders may unlock documented premium depth without changing security truth.",
+  "version": "security-ecosystem-v5-incubation-boundary",
+  "positioning": "Koschei ARVIS remains a production-independent deterministic Solana security product. Koschei Sentinel and the Koschei language mature separately in offline incubation until explicit future integration gates pass.",
   "ecosystem": {
     "contract": "/docs/koschei-ecosystem-contract-v1.md",
+    "runtime_integration_state": "incubation_only",
     "projects": [
       {
         "id": "koschei-web3-hub",
         "role": "deterministic Solana evidence, durable security memory and signed verdicts",
+        "status": "production_independent",
         "repository": "https://github.com/bugsbuny243/Koschei-Web3-Hub"
       },
       {
         "id": "koschei-lang",
-        "role": "independent capability-secure programming language and bounded interoperability",
+        "role": "independent capability-secure programming language research and development",
+        "status": "incubating_not_runtime_integrated",
         "repository": "https://github.com/bugsbuny243/koschei-lang"
       },
       {
         "id": "koschei-sentinel",
-        "role": "evidence-grounded Solana security model and explanation layer",
+        "role": "offline evidence-grounded Solana security model training and evaluation",
+        "status": "incubating_not_runtime_integrated",
         "repository": "https://github.com/bugsbuny243/koschei-sentinel"
       }
     ],
@@ -29,8 +33,21 @@
       "mint": "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
       "pump_callout": "https://pump.fun/callouts/HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump/62c9a163-75a7-4f45-914c-1c9479d3a5ec",
       "identity_only": true,
-      "disclaimer": "Asset identity or holdings never change evidence, verdicts, compiler rules or model promotion gates."
+      "disclaimer": "Asset identity or holdings never change evidence, verdicts, compiler rules, model promotion gates or integration readiness."
     }
+  },
+  "incubation_policy": {
+    "sentinel_runtime_integrated": false,
+    "language_runtime_integrated": false,
+    "sentinel_customer_requests_enabled": false,
+    "sentinel_verdict_authority": false,
+    "sentinel_production_writes_enabled": false,
+    "language_production_components_enabled": false,
+    "language_build_dependency_enabled": false,
+    "offline_sentinel_training_exports_allowed": true,
+    "offline_language_benchmarks_allowed": true,
+    "future_integration_requires_explicit_owner_approval": true,
+    "shared_identity_is_not_runtime_integration": true
   },
   "access_model": {
     "provider": "free core plus KOSCH premium",
@@ -46,7 +63,7 @@
       "watchlist",
       "webhooks",
       "developer API",
-      "advanced agents"
+      "advanced deterministic agents"
     ],
     "wallet_proof": "Phantom one-time message signature",
     "legacy_payment_providers": [],
@@ -93,7 +110,8 @@
     "final_verdict_engine_count": 1,
     "total_arm_count": 14,
     "scoring": "deterministic evidence-backed risk rules",
-    "ai_role": "explanation, historical relation summary and investigation leads only"
+    "ai_role": "offline incubation and benchmark research only; no customer runtime role",
+    "language_role": "offline benchmark and interoperability research only; no production runtime role"
   },
   "feed_policy": {
     "one_card_per_token": true,
@@ -198,10 +216,11 @@
     "No evidence, no claim",
     "Basic security checks remain public and rate limited",
     "KOSCH unlocks documented premium depth; it does not remove free access",
-    "KOSCH holdings cannot change evidence, grades, signatures, compiler rules or model promotion",
+    "KOSCH holdings cannot change evidence, grades, signatures, compiler rules, model promotion or integration readiness",
+    "Sentinel is not connected to customer runtime during incubation",
+    "Koschei language is not a Web3 production dependency during incubation",
     "A temporary event gap cannot lower a fresh structural token floor",
     "Customers cannot alter verdict thresholds",
-    "AI summaries cannot override the deterministic final grade",
     "Infrastructure mints remain internal and do not become public risk cards"
   ]
 }
