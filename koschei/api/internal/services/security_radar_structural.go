@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -21,8 +22,11 @@ type tokenStructuralSignals struct {
 	MintAuthorityPresent      bool
 	FreezeAuthorityPresent    bool
 	HasAuthorityData          bool
+	TokenSupply               float64
+	HasSupplyData             bool
 	HolderObservedAt          *time.Time
 	AuthorityObservedAt       *time.Time
+	SupplyObservedAt          *time.Time
 	LaunchForensicsRisk       int
 	LaunchForensicsObservedAt *time.Time
 }
@@ -95,7 +99,10 @@ func (s *SecurityRadarStore) captureStructuralSignals(ctx context.Context, verdi
 	isTokenMint, _ := structuralSignalBool(verdict.Signals, "is_token_mint")
 	hasAuthority := hasMintAuth && hasFreezeAuth && (verdict.ModuleID == ModuleTokenAuthorityScanner || isTokenMint)
 
-	if !hasHolder && !hasAuthority {
+	tokenSupply, hasTokenSupply := structuralSignalFloat(verdict.Signals, "token_supply")
+	hasSupply := hasTokenSupply && tokenSupply >= 0 && verdict.ModuleID == ModuleHolderConcentration
+
+	if !hasHolder && !hasAuthority && !hasSupply {
 		return
 	}
 
@@ -105,10 +112,12 @@ func (s *SecurityRadarStore) captureStructuralSignals(ctx context.Context, verdi
 		INSERT INTO token_structural_signals
 			(target, network, largest_holder_pct, top10_holder_pct, has_holder_data,
 			 mint_authority_present, freeze_authority_present, has_authority_data,
-			 holder_observed_at, authority_observed_at, observed_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+			 token_supply, has_supply_data,
+			 holder_observed_at, authority_observed_at, supply_observed_at, observed_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
 			CASE WHEN $5 THEN now() ELSE NULL END,
 			CASE WHEN $8 THEN now() ELSE NULL END,
+			CASE WHEN $10 THEN now() ELSE NULL END,
 			now(),now())
 		ON CONFLICT (target, network) DO UPDATE SET
 			largest_holder_pct = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.largest_holder_pct ELSE token_structural_signals.largest_holder_pct END,
@@ -119,13 +128,17 @@ func (s *SecurityRadarStore) captureStructuralSignals(ctx context.Context, verdi
 			freeze_authority_present = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.freeze_authority_present ELSE token_structural_signals.freeze_authority_present END,
 			has_authority_data = token_structural_signals.has_authority_data OR EXCLUDED.has_authority_data,
 			authority_observed_at = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at ELSE token_structural_signals.authority_observed_at END,
+			token_supply = CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.token_supply ELSE token_structural_signals.token_supply END,
+			has_supply_data = token_structural_signals.has_supply_data OR EXCLUDED.has_supply_data,
+			supply_observed_at = CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.supply_observed_at ELSE token_structural_signals.supply_observed_at END,
 			observed_at = GREATEST(
 				COALESCE(CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.holder_observed_at END, '-infinity'::timestamptz),
 				COALESCE(CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at END, '-infinity'::timestamptz),
+				COALESCE(CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.supply_observed_at END, '-infinity'::timestamptz),
 				token_structural_signals.observed_at
 			),
 			updated_at = now()`,
-		target, network, largest, top10, hasHolder, mintAuth, freezeAuth, hasAuthority)
+		target, network, largest, top10, hasHolder, mintAuth, freezeAuth, hasAuthority, tokenSupply, hasSupply)
 }
 
 // applyStructuralFloor prevents final verdicts from dropping below the
@@ -263,6 +276,44 @@ func (s *SecurityRadarStore) CaptureLaunchForensicsFloor(ctx context.Context, ta
 			launch_forensics_observed_at=EXCLUDED.launch_forensics_observed_at,
 			observed_at=GREATEST(token_structural_signals.observed_at,EXCLUDED.observed_at),
 			updated_at=now()`, target, normalizeRadarNetwork(network), analysis.StructuralFloor)
+}
+
+func structuralSignalFloat(signals map[string]any, key string) (float64, bool) {
+	value, ok := signals[key]
+	if !ok || value == nil {
+		return 0, false
+	}
+	var parsed float64
+	switch typed := value.(type) {
+	case float64:
+		parsed = typed
+	case float32:
+		parsed = float64(typed)
+	case int:
+		parsed = float64(typed)
+	case int64:
+		parsed = float64(typed)
+	case uint64:
+		parsed = float64(typed)
+	case json.Number:
+		value, err := typed.Float64()
+		if err != nil {
+			return 0, false
+		}
+		parsed = value
+	case string:
+		value, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
+		if err != nil {
+			return 0, false
+		}
+		parsed = value
+	default:
+		return 0, false
+	}
+	if math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, false
+	}
+	return parsed, true
 }
 
 func structuralSignalBool(signals map[string]any, key string) (bool, bool) {

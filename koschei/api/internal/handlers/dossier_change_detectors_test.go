@@ -8,33 +8,45 @@ func dossierChangeFixture() map[string]any {
 		"generated_at": "2026-08-05T00:00:00Z",
 		"modules": []any{
 			map[string]any{
-				"module_id": "token_authority_scanner", "evidence_status": "verified",
-				"signals": map[string]any{"mint_authority_present": true, "freeze_authority_present": false},
-			},
-			map[string]any{
-				"module_id": "holder_concentration", "evidence_status": "verified",
+				"module_id":       "token_authority_scanner",
+				"evidence_status": "verified",
 				"signals": map[string]any{
-					"largest_holder_percentage": 31.0, "top_10_holder_percentage": 63.0,
-					"token_supply": 1_050_000.0,
+					"mint_authority_present":   true,
+					"freeze_authority_present": false,
 				},
 			},
 			map[string]any{
-				"module_id": "sniper_timing_detector", "evidence_status": "observed",
+				"module_id":       "holder_concentration",
+				"evidence_status": "verified",
 				"signals": map[string]any{
-					"failed_signature_count": 4, "recent_signature_count": 20,
+					"largest_holder_percentage": 31.0,
+					"top_10_holder_percentage":  63.0,
+					"token_supply":              1_050_000.0,
+				},
+			},
+			map[string]any{
+				"module_id":       "sniper_timing_detector",
+				"evidence_status": "observed",
+				"signals": map[string]any{
+					"failed_signature_count":   4,
+					"recent_signature_count":   20,
 					"signature_window_seconds": 600,
 				},
 			},
 		},
 		"structural_memory": map[string]any{
-			"available":              true,
-			"has_authority_data":     true,
-			"mint_authority_present": false, "freeze_authority_present": false,
+			"available":                 true,
+			"has_authority_data":        true,
+			"mint_authority_present":    false,
+			"freeze_authority_present":  false,
 			"authority_observed_at":     "2026-08-04T00:00:00Z",
 			"has_holder_data":           true,
-			"largest_holder_percentage": 25.0, "top_10_holder_percentage": 60.0,
-			"holder_observed_at": "2026-08-04T00:00:00Z",
-			"token_supply":       1_000_000.0, "supply_observed_at": "2026-08-04T00:00:00Z",
+			"largest_holder_percentage": 25.0,
+			"top_10_holder_percentage":  60.0,
+			"holder_observed_at":        "2026-08-04T00:00:00Z",
+			"has_supply_data":           true,
+			"token_supply":              1_000_000.0,
+			"supply_observed_at":        "2026-08-04T00:00:00Z",
 		},
 	}
 }
@@ -73,6 +85,21 @@ func TestDerivedConcentrationAndSupplyChangesAreDeterministic(t *testing.T) {
 func TestChangeRowsRemainWindowOpenWithoutBaseline(t *testing.T) {
 	report := dossierChangeFixture()
 	delete(report, "structural_memory")
+	for _, id := range []string{"authority-change", "supply-change", "concentration-change"} {
+		def, _ := signalDefinitionByID(id)
+		state, _ := signalStateFor(report, def)
+		if state != signalStateWindowOpen {
+			t.Fatalf("id=%s state=%q", id, state)
+		}
+	}
+}
+
+func TestChangeRowsRemainWindowOpenWithStaleBaseline(t *testing.T) {
+	report := dossierChangeFixture()
+	baseline := dossierMap(report["structural_memory"])
+	baseline["authority_observed_at"] = "2026-07-01T00:00:00Z"
+	baseline["holder_observed_at"] = "2026-07-01T00:00:00Z"
+	baseline["supply_observed_at"] = "2026-07-01T00:00:00Z"
 	for _, id := range []string{"authority-change", "supply-change", "concentration-change"} {
 		def, _ := signalDefinitionByID(id)
 		state, _ := signalStateFor(report, def)

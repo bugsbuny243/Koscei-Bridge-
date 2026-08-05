@@ -226,30 +226,40 @@ func (h *Handler) radarDetailStructuralContext(ctx context.Context, target, netw
 		return out
 	}
 	var largest, top10 int
-	var hasHolder, mintAuth, freezeAuth, hasAuthority bool
-	var holderAt, authorityAt sql.NullTime
+	var hasHolder, mintAuth, freezeAuth, hasAuthority, hasSupply bool
+	var tokenSupply sql.NullFloat64
+	var holderAt, authorityAt, supplyAt sql.NullTime
 	err := db.QueryRowContext(ctx, `
 		SELECT largest_holder_pct, top10_holder_pct, has_holder_data,
 		       mint_authority_present, freeze_authority_present, has_authority_data,
-		       holder_observed_at, authority_observed_at
+		       token_supply, has_supply_data,
+		       holder_observed_at, authority_observed_at, supply_observed_at
 		FROM token_structural_signals
 		WHERE lower(target)=lower($1) AND network=$2`, target, network).Scan(
-		&largest, &top10, &hasHolder, &mintAuth, &freezeAuth, &hasAuthority, &holderAt, &authorityAt)
+		&largest, &top10, &hasHolder, &mintAuth, &freezeAuth, &hasAuthority,
+		&tokenSupply, &hasSupply, &holderAt, &authorityAt, &supplyAt)
 	if err != nil {
 		return out
 	}
-	out["available"] = hasHolder || hasAuthority
+	out["available"] = hasHolder || hasAuthority || hasSupply
 	out["has_holder_data"] = hasHolder
 	out["largest_holder_percentage"] = largest
 	out["top_10_holder_percentage"] = top10
 	out["has_authority_data"] = hasAuthority
 	out["mint_authority_present"] = mintAuth
 	out["freeze_authority_present"] = freezeAuth
+	out["has_supply_data"] = hasSupply
+	if hasSupply && tokenSupply.Valid {
+		out["token_supply"] = tokenSupply.Float64
+	}
 	if holderAt.Valid {
 		out["holder_observed_at"] = holderAt.Time.UTC().Format(time.RFC3339)
 	}
 	if authorityAt.Valid {
 		out["authority_observed_at"] = authorityAt.Time.UTC().Format(time.RFC3339)
+	}
+	if supplyAt.Valid {
+		out["supply_observed_at"] = supplyAt.Time.UTC().Format(time.RFC3339)
 	}
 	return out
 }
