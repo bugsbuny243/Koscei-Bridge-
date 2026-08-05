@@ -1,0 +1,285 @@
+name: Agent Supply Memory Patch
+
+on:
+  push:
+    branches:
+      - feat/supply-structural-memory-v1
+    paths:
+      - .github/workflows/agent-supply-memory-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/supply-structural-memory-v1
+          fetch-depth: 0
+
+      - name: Patch supply persistence and report projection
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected source block missing: {path}')
+              p.write_text(text.replace(old, new, 1))
+
+          structural = 'koschei/api/internal/services/security_radar_structural.go'
+          replace_once(structural,
+              '"encoding/json"\n\t"fmt"',
+              '"encoding/json"\n\t"fmt"\n\t"math"')
+          replace_once(structural,
+              '''\tHasAuthorityData          bool
+\tHolderObservedAt          *time.Time
+\tAuthorityObservedAt       *time.Time
+\tLaunchForensicsRisk       int''',
+              '''\tHasAuthorityData          bool
+\tTokenSupply               float64
+\tHasSupplyData             bool
+\tHolderObservedAt          *time.Time
+\tAuthorityObservedAt       *time.Time
+\tSupplyObservedAt          *time.Time
+\tLaunchForensicsRisk       int''')
+          replace_once(structural,
+              '''\thasAuthority := hasMintAuth && hasFreezeAuth && (verdict.ModuleID == ModuleTokenAuthorityScanner || isTokenMint)
+
+\tif !hasHolder && !hasAuthority {''',
+              '''\thasAuthority := hasMintAuth && hasFreezeAuth && (verdict.ModuleID == ModuleTokenAuthorityScanner || isTokenMint)
+
+\ttokenSupply, hasTokenSupply := structuralSignalFloat(verdict.Signals, "token_supply")
+\thasSupply := hasTokenSupply && tokenSupply >= 0 && verdict.ModuleID == ModuleHolderConcentration
+
+\tif !hasHolder && !hasAuthority && !hasSupply {''')
+          replace_once(structural,
+              '''\t_, _ = s.DB.ExecContext(cacheCtx, `
+\t\tINSERT INTO token_structural_signals
+\t\t\t(target, network, largest_holder_pct, top10_holder_pct, has_holder_data,
+\t\t\t mint_authority_present, freeze_authority_present, has_authority_data,
+\t\t\t holder_observed_at, authority_observed_at, observed_at, updated_at)
+\t\tVALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+\t\t\tCASE WHEN $5 THEN now() ELSE NULL END,
+\t\t\tCASE WHEN $8 THEN now() ELSE NULL END,
+\t\t\tnow(),now())
+\t\tON CONFLICT (target, network) DO UPDATE SET
+\t\t\tlargest_holder_pct = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.largest_holder_pct ELSE token_structural_signals.largest_holder_pct END,
+\t\t\ttop10_holder_pct = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.top10_holder_pct ELSE token_structural_signals.top10_holder_pct END,
+\t\t\thas_holder_data = token_structural_signals.has_holder_data OR EXCLUDED.has_holder_data,
+\t\t\tholder_observed_at = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.holder_observed_at ELSE token_structural_signals.holder_observed_at END,
+\t\t\tmint_authority_present = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.mint_authority_present ELSE token_structural_signals.mint_authority_present END,
+\t\t\tfreeze_authority_present = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.freeze_authority_present ELSE token_structural_signals.freeze_authority_present END,
+\t\t\thas_authority_data = token_structural_signals.has_authority_data OR EXCLUDED.has_authority_data,
+\t\t\tauthority_observed_at = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at ELSE token_structural_signals.authority_observed_at END,
+\t\t\tobserved_at = GREATEST(
+\t\t\t\tCOALESCE(CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.holder_observed_at END, '-infinity'::timestamptz),
+\t\t\t\tCOALESCE(CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at END, '-infinity'::timestamptz),
+\t\t\t\ttoken_structural_signals.observed_at
+\t\t\t),
+\t\t\tupdated_at = now()`,
+\t\ttarget, network, largest, top10, hasHolder, mintAuth, freezeAuth, hasAuthority)''',
+              '''\t_, _ = s.DB.ExecContext(cacheCtx, `
+\t\tINSERT INTO token_structural_signals
+\t\t\t(target, network, largest_holder_pct, top10_holder_pct, has_holder_data,
+\t\t\t mint_authority_present, freeze_authority_present, has_authority_data,
+\t\t\t token_supply, has_supply_data,
+\t\t\t holder_observed_at, authority_observed_at, supply_observed_at, observed_at, updated_at)
+\t\tVALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+\t\t\tCASE WHEN $5 THEN now() ELSE NULL END,
+\t\t\tCASE WHEN $8 THEN now() ELSE NULL END,
+\t\t\tCASE WHEN $10 THEN now() ELSE NULL END,
+\t\t\tnow(),now())
+\t\tON CONFLICT (target, network) DO UPDATE SET
+\t\t\tlargest_holder_pct = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.largest_holder_pct ELSE token_structural_signals.largest_holder_pct END,
+\t\t\ttop10_holder_pct = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.top10_holder_pct ELSE token_structural_signals.top10_holder_pct END,
+\t\t\thas_holder_data = token_structural_signals.has_holder_data OR EXCLUDED.has_holder_data,
+\t\t\tholder_observed_at = CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.holder_observed_at ELSE token_structural_signals.holder_observed_at END,
+\t\t\tmint_authority_present = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.mint_authority_present ELSE token_structural_signals.mint_authority_present END,
+\t\t\tfreeze_authority_present = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.freeze_authority_present ELSE token_structural_signals.freeze_authority_present END,
+\t\t\thas_authority_data = token_structural_signals.has_authority_data OR EXCLUDED.has_authority_data,
+\t\t\tauthority_observed_at = CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at ELSE token_structural_signals.authority_observed_at END,
+\t\t\ttoken_supply = CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.token_supply ELSE token_structural_signals.token_supply END,
+\t\t\thas_supply_data = token_structural_signals.has_supply_data OR EXCLUDED.has_supply_data,
+\t\t\tsupply_observed_at = CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.supply_observed_at ELSE token_structural_signals.supply_observed_at END,
+\t\t\tobserved_at = GREATEST(
+\t\t\t\tCOALESCE(CASE WHEN EXCLUDED.has_holder_data THEN EXCLUDED.holder_observed_at END, '-infinity'::timestamptz),
+\t\t\t\tCOALESCE(CASE WHEN EXCLUDED.has_authority_data THEN EXCLUDED.authority_observed_at END, '-infinity'::timestamptz),
+\t\t\t\tCOALESCE(CASE WHEN EXCLUDED.has_supply_data THEN EXCLUDED.supply_observed_at END, '-infinity'::timestamptz),
+\t\t\t\ttoken_structural_signals.observed_at
+\t\t\t),
+\t\t\tupdated_at = now()`,
+\t\ttarget, network, largest, top10, hasHolder, mintAuth, freezeAuth, hasAuthority, tokenSupply, hasSupply)''')
+          replace_once(structural,
+              '''func structuralSignalBool(signals map[string]any, key string) (bool, bool) {''',
+              '''func structuralSignalFloat(signals map[string]any, key string) (float64, bool) {
+\tvalue, ok := signals[key]
+\tif !ok || value == nil {
+\t\treturn 0, false
+\t}
+\tvar parsed float64
+\tswitch typed := value.(type) {
+\tcase float64:
+\t\tparsed = typed
+\tcase float32:
+\t\tparsed = float64(typed)
+\tcase int:
+\t\tparsed = float64(typed)
+\tcase int64:
+\t\tparsed = float64(typed)
+\tcase uint64:
+\t\tparsed = float64(typed)
+\tcase json.Number:
+\t\tvalue, err := typed.Float64()
+\t\tif err != nil {
+\t\t\treturn 0, false
+\t\t}
+\t\tparsed = value
+\tcase string:
+\t\tvalue, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
+\t\tif err != nil {
+\t\t\treturn 0, false
+\t\t}
+\t\tparsed = value
+\tdefault:
+\t\treturn 0, false
+\t}
+\tif math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+\t\treturn 0, false
+\t}
+\treturn parsed, true
+}
+
+func structuralSignalBool(signals map[string]any, key string) (bool, bool) {''')
+
+          detail = 'koschei/api/internal/handlers/security_radar_detail.go'
+          old_detail = '''func (h *Handler) radarDetailStructuralContext(ctx context.Context, target, network string) map[string]any {
+\tout := map[string]any{"available": false}
+\tdb := h.DBRead
+\tif db == nil {
+\t\tdb = h.DB
+\t}
+\tif db == nil {
+\t\treturn out
+\t}
+\tvar largest, top10 int
+\tvar hasHolder, mintAuth, freezeAuth, hasAuthority bool
+\tvar holderAt, authorityAt sql.NullTime
+\terr := db.QueryRowContext(ctx, `
+\t\tSELECT largest_holder_pct, top10_holder_pct, has_holder_data,
+\t\t       mint_authority_present, freeze_authority_present, has_authority_data,
+\t\t       holder_observed_at, authority_observed_at
+\t\tFROM token_structural_signals
+\t\tWHERE lower(target)=lower($1) AND network=$2`, target, network).Scan(
+\t\t&largest, &top10, &hasHolder, &mintAuth, &freezeAuth, &hasAuthority, &holderAt, &authorityAt)
+\tif err != nil {
+\t\treturn out
+\t}
+\tout["available"] = hasHolder || hasAuthority
+\tout["has_holder_data"] = hasHolder
+\tout["largest_holder_percentage"] = largest
+\tout["top_10_holder_percentage"] = top10
+\tout["has_authority_data"] = hasAuthority
+\tout["mint_authority_present"] = mintAuth
+\tout["freeze_authority_present"] = freezeAuth
+\tif holderAt.Valid {
+\t\tout["holder_observed_at"] = holderAt.Time.UTC().Format(time.RFC3339)
+\t}
+\tif authorityAt.Valid {
+\t\tout["authority_observed_at"] = authorityAt.Time.UTC().Format(time.RFC3339)
+\t}
+\treturn out
+}'''
+          new_detail = '''func (h *Handler) radarDetailStructuralContext(ctx context.Context, target, network string) map[string]any {
+\tout := map[string]any{"available": false}
+\tdb := h.DBRead
+\tif db == nil {
+\t\tdb = h.DB
+\t}
+\tif db == nil {
+\t\treturn out
+\t}
+\tvar largest, top10 int
+\tvar hasHolder, mintAuth, freezeAuth, hasAuthority, hasSupply bool
+\tvar tokenSupply sql.NullFloat64
+\tvar holderAt, authorityAt, supplyAt sql.NullTime
+\terr := db.QueryRowContext(ctx, `
+\t\tSELECT largest_holder_pct, top10_holder_pct, has_holder_data,
+\t\t       mint_authority_present, freeze_authority_present, has_authority_data,
+\t\t       token_supply, has_supply_data,
+\t\t       holder_observed_at, authority_observed_at, supply_observed_at
+\t\tFROM token_structural_signals
+\t\tWHERE lower(target)=lower($1) AND network=$2`, target, network).Scan(
+\t\t&largest, &top10, &hasHolder, &mintAuth, &freezeAuth, &hasAuthority,
+\t\t&tokenSupply, &hasSupply, &holderAt, &authorityAt, &supplyAt)
+\tif err != nil {
+\t\treturn out
+\t}
+\tout["available"] = hasHolder || hasAuthority || hasSupply
+\tout["has_holder_data"] = hasHolder
+\tout["largest_holder_percentage"] = largest
+\tout["top_10_holder_percentage"] = top10
+\tout["has_authority_data"] = hasAuthority
+\tout["mint_authority_present"] = mintAuth
+\tout["freeze_authority_present"] = freezeAuth
+\tout["has_supply_data"] = hasSupply
+\tif hasSupply && tokenSupply.Valid {
+\t\tout["token_supply"] = tokenSupply.Float64
+\t}
+\tif holderAt.Valid {
+\t\tout["holder_observed_at"] = holderAt.Time.UTC().Format(time.RFC3339)
+\t}
+\tif authorityAt.Valid {
+\t\tout["authority_observed_at"] = authorityAt.Time.UTC().Format(time.RFC3339)
+\t}
+\tif supplyAt.Valid {
+\t\tout["supply_observed_at"] = supplyAt.Time.UTC().Format(time.RFC3339)
+\t}
+\treturn out
+}'''
+          replace_once(detail, old_detail, new_detail)
+
+          bootstrap = 'koschei/api/neon_structural_floor.sql'
+          replace_once(bootstrap,
+              '''  authority_observed_at timestamptz,
+  observed_at timestamptz NOT NULL DEFAULT now(),''',
+              '''  authority_observed_at timestamptz,
+  token_supply double precision,
+  has_supply_data boolean NOT NULL DEFAULT false,
+  supply_observed_at timestamptz,
+  observed_at timestamptz NOT NULL DEFAULT now(),''')
+          replace_once(bootstrap,
+              '''  ADD COLUMN IF NOT EXISTS holder_observed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS authority_observed_at timestamptz;''',
+              '''  ADD COLUMN IF NOT EXISTS holder_observed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS authority_observed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS token_supply double precision,
+  ADD COLUMN IF NOT EXISTS has_supply_data boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS supply_observed_at timestamptz;''')
+          PY
+          gofmt -w \
+            koschei/api/internal/services/security_radar_structural.go \
+            koschei/api/internal/handlers/security_radar_detail.go
+          git diff --check
+
+      - name: Commit integration patch
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No source patch required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            koschei/api/internal/services/security_radar_structural.go \
+            koschei/api/internal/handlers/security_radar_detail.go \
+            koschei/api/neon_structural_floor.sql
+          git commit -m 'feat(arvis): persist and expose verified supply baseline'
+          git push origin HEAD:feat/supply-structural-memory-v1
