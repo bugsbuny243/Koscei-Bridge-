@@ -27,6 +27,21 @@ func TestActorExitEventFromEvidenceRequiresSignatureAndSlot(t *testing.T) {
 	}
 }
 
+func TestActorExitEventFromEvidenceRejectsUnknownState(t *testing.T) {
+	item := ActorDefenseEvidenceRecord{
+		Network: "solana-mainnet", ActorWallet: "fixture-actor", TokenMint: "fixture-target",
+		Relation: "dominant_holder_first_exit", VerificationStatus: "unexpected_status",
+		Signature: "fixture-signature", Slot: 100, ObservedAt: time.Now().UTC(),
+		Metadata: map[string]any{
+			"unified_rule_id": UnifiedRuleDominantHolderFirstExit,
+			"metrics":         map[string]any{"holder_wallet": "fixture-holder"},
+		},
+	}
+	if _, ok := actorExitEventFromEvidence(item); ok {
+		t.Fatal("unknown evidence state was promoted to an exit-event observation")
+	}
+}
+
 func TestActorExitEventFromCreatorSellIsWithheld(t *testing.T) {
 	item := ActorDefenseEvidenceRecord{
 		Network: "solana-mainnet", ActorWallet: "fixture-actor", TokenMint: "fixture-target",

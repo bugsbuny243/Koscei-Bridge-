@@ -401,6 +401,7 @@ func (s *ActorDefenseStore) UpsertEvidence(ctx context.Context, item ActorDefens
 	item.Source = strings.TrimSpace(item.Source)
 	item.Signature = strings.TrimSpace(item.Signature)
 	item.TokenMint = strings.TrimSpace(item.TokenMint)
+	exitEventState, exitEventStateOK := strictActorExitEvidenceState(item.VerificationStatus)
 	item.VerificationStatus = normalizeActorEvidenceStatus(item.VerificationStatus)
 	if item.Source == "" {
 		item.Source = "solana_rpc"
@@ -448,9 +449,13 @@ func (s *ActorDefenseStore) UpsertEvidence(ctx context.Context, item ActorDefens
 	if err != nil {
 		return err
 	}
-	if event, ok := actorExitEventFromEvidence(item); ok {
-		if err := upsertActorExitEventTx(ctx, tx, event); err != nil {
-			return err
+	if exitEventStateOK {
+		eventItem := item
+		eventItem.VerificationStatus = exitEventState
+		if event, ok := actorExitEventFromEvidence(eventItem); ok {
+			if err := upsertActorExitEventTx(ctx, tx, event); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()

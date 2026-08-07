@@ -59,9 +59,20 @@ type ActorExitRecurrence struct {
 
 // actorExitEventFromEvidence projects only transaction-referenced rule evidence
 // into the event corpus. It never invents a target, signer, signature or slot.
+func strictActorExitEvidenceState(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "verified":
+		return "verified", true
+	case "observed":
+		return "observed", true
+	default:
+		return "", false
+	}
+}
+
 func actorExitEventFromEvidence(item ActorDefenseEvidenceRecord) (ActorExitEvent, bool) {
-	state := normalizeActorEvidenceStatus(item.VerificationStatus)
-	if state != "verified" && state != "observed" {
+	state, ok := strictActorExitEvidenceState(item.VerificationStatus)
+	if !ok {
 		return ActorExitEvent{}, false
 	}
 	signature := strings.TrimSpace(item.Signature)
