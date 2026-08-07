@@ -90,6 +90,7 @@ type radarEvidenceProfile struct {
 	LargestAccounts                 int
 	HolderRoles                     HolderRoleAnalysis
 	HolderCluster                   HolderClusterAnalysis
+	FundingRecurrence               FundingRecurrenceAnalysis
 	TargetOldestBlockTime           int64
 	TargetOldestSlot                int64
 	RecentSignatureCount            int
@@ -277,6 +278,17 @@ func collectRadarEvidenceContext(parent context.Context, req SecurityRadarReques
 
 	if profile.IsTokenMint && profile.HolderRoles.Available {
 		profile.HolderCluster = AnalyzeSolanaHolderCluster(ctx, rpcURL, req.Target, profile.HolderRoles, profile.TargetOldestBlockTime, profile.TargetOldestSlot)
+		if store := securityRadarStoreFromContext(ctx); store != nil {
+			_ = store.CaptureFundingClusters(ctx, req.Target, req.Network, profile.HolderCluster)
+			if recurrence, err := store.LoadFundingRecurrence(ctx, req.Target, req.Network, profile.HolderCluster); err == nil {
+				profile.FundingRecurrence = recurrence
+			} else {
+				profile.FundingRecurrence = FundingRecurrenceAnalysis{
+					Status: "unavailable", EvidenceStatus: "unavailable", CurrentTarget: req.Target, Network: normalizeRadarNetwork(req.Network),
+					Sources: []FundingSourceRecurrence{}, Limitations: []string{"Funding corpus read failed after holder-cluster persistence."},
+				}
+			}
+		}
 	}
 
 	if profile.LiveRPC {

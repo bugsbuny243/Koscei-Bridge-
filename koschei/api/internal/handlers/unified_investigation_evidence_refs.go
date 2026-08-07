@@ -103,7 +103,15 @@ func buildUnifiedEvidenceReferences(core holderIntelligenceCoreResult, creator s
 
 	refs["wash"] = mergeUnifiedEvidenceReferences(refs["wash"], allTradeRef)
 	refs["address"] = mergeUnifiedEvidenceReferences(refs["address"], ownerRef, creatorRef)
-	refs["funding"] = mergeUnifiedEvidenceReferences(refs["funding"], creatorRef)
+	fundingRecurrenceRef := unifiedEvidenceReference{}
+	for _, recurrence := range core.FundingRecurrence.Sources {
+		if recurrence.DistinctTargets < services.UnifiedFundingRecurrenceMinimumTargetCount || !recurrence.ReferencesComplete {
+			continue
+		}
+		fundingRecurrenceRef.Wallets = append(fundingRecurrenceRef.Wallets, recurrence.FundingSource)
+		fundingRecurrenceRef.Accounts = append(fundingRecurrenceRef.Accounts, recurrence.OtherTargets...)
+	}
+	refs["funding"] = mergeUnifiedEvidenceReferences(refs["funding"], creatorRef, fundingRecurrenceRef)
 	refs["concentration"] = mergeUnifiedEvidenceReferences(refs["concentration"], ownerRef)
 	refs["track"] = mergeUnifiedEvidenceReferences(refs["track"], creatorRef)
 	refs["creator-sell"] = mergeUnifiedEvidenceReferences(refs["creator-sell"], creatorRef, creatorSellRef)
@@ -219,7 +227,7 @@ func referenceFromTransactions(values []unifiedTransactionEvidence) unifiedEvide
 
 func evidenceReferenceFromArm(arm services.SecurityRadarVerdict) unifiedEvidenceReference {
 	out := unifiedEvidenceReference{Accounts: []string{arm.Target}, Signatures: []string{arm.Signature}}
-	for _, key := range []string{"signature", "transaction_signature", "source_signature"} {
+	for _, key := range []string{"signature", "transaction_signature", "source_signature", "creator_creation_signatures"} {
 		out.Signatures = append(out.Signatures, signalStringValues(arm.Signals[key])...)
 	}
 	for _, key := range []string{"evidence_key", "evidence_keys"} {
@@ -230,10 +238,13 @@ func evidenceReferenceFromArm(arm services.SecurityRadarVerdict) unifiedEvidence
 			out.Slots = append(out.Slots, slot)
 		}
 	}
+	for _, slot := range signalInt64Values(arm.Signals["creator_creation_slots"]) {
+		out.Slots = append(out.Slots, slot)
+	}
 	for _, key := range []string{"owner_wallet", "creator_wallet", "wallet", "trader"} {
 		out.Wallets = append(out.Wallets, signalStringValues(arm.Signals[key])...)
 	}
-	for _, key := range []string{"account", "account_address", "pool_address", "lp_mint", "token_vault", "quote_vault"} {
+	for _, key := range []string{"account", "account_address", "pool_address", "lp_mint", "token_vault", "quote_vault", "creator_other_mints"} {
 		out.Accounts = append(out.Accounts, signalStringValues(arm.Signals[key])...)
 	}
 	return normalizedUnifiedEvidenceReference(out)
@@ -342,6 +353,21 @@ func signalStringValues(value any) []string {
 	default:
 		return []string{}
 	}
+}
+
+func signalInt64Values(value any) []int64 {
+	out := []int64{}
+	switch typed := value.(type) {
+	case []int64:
+		return append(out, typed...)
+	case []any:
+		for _, item := range typed {
+			if slot := signalInt64(item); slot > 0 {
+				out = append(out, slot)
+			}
+		}
+	}
+	return out
 }
 
 func signalInt64(value any) int64 {

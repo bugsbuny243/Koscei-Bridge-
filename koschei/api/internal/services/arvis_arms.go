@@ -102,6 +102,7 @@ func AnalyzeArvisRadarsContext(ctx context.Context, req SecurityRadarRequest) Ar
 			"investigation_capability_scope": ArvisCapabilityRulesetScope,
 			"data_quality":                   profile.DataQuality, "evidence_status": profile.EvidenceStatus,
 			"holder_cluster_analysis": profile.HolderCluster,
+			"funding_recurrence":      profile.FundingRecurrence,
 		},
 	}
 	return ArvisAnalysis{Bundle: bundle, Arms: arms, Graph: graph, Final: final}
@@ -325,6 +326,7 @@ func buildFundingClusterArm(req SecurityRadarRequest, p radarEvidenceProfile, ge
 		v := unavailableArm("Funding Cluster Detector", ModuleFundingClusterDetector, req, generatedAt, "At least three resolved holder wallets with parsed funding evidence are required; unavailable evidence is not LOW.")
 		v.Signals["holder_cluster_analysis"] = a
 		v.Signals["cluster_confidence"] = a.Confidence
+		v.Signals["funding_recurrence"] = p.FundingRecurrence
 		for _, limitation := range a.Limitations {
 			v.Evidence = append(v.Evidence, "Limitation: "+limitation)
 		}
@@ -333,6 +335,7 @@ func buildFundingClusterArm(req SecurityRadarRequest, p radarEvidenceProfile, ge
 	s := armSignals(req, p, ModuleFundingClusterDetector)
 	s["holder_cluster_analysis"] = a
 	s["cluster_confidence"] = a.Confidence
+	s["funding_recurrence"] = p.FundingRecurrence
 	s["shared_funding_group_count"] = a.SharedFundingGroupCount
 	s["largest_shared_funding_group"] = a.LargestSharedFundingGroup
 	s["same_amount_group_count"] = a.SameAmountGroupCount
