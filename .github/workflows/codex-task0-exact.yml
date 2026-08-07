@@ -1,0 +1,41 @@
+name: Codex Task0 Exact Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  task0:
+    name: Exact Task 0 commands
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go 1.25.12
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache-dependency-path: koschei/api/go.sum
+      - name: Record toolchain
+        run: go version
+      - name: Download modules
+        run: go mod download
+      - name: Task 0 exact verification
+        run: |
+          set -o pipefail
+          echo '$ gofmt -l .'
+          gofmt -l .
+          echo '$ go build ./...'
+          go build ./...
+          echo '$ go test ./...'
+          go test ./...
+          echo '$ go test -race ./internal/handlers ./internal/services'
+          go test -race ./internal/handlers ./internal/services
