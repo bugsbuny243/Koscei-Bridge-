@@ -33,7 +33,11 @@ jobs:
           marker = '# Keep recurrence in ARVIS metadata and funding-arm lineage.'
           start = text.index('replace(\n    "internal/services/arvis_arms.go",\n    "\\te := append', text.index(marker))
           end = text.index('\n\n# Give the scan an existing request-scoped DB store', start)
-          p.write_text(text[:start] + text[end:])
+          text = text[:start] + text[end:]
+          meta = text.index('# Metadata impersonation deliberately stays unfed until a real detector exists.')
+          done = text.index('print("funding/lifecycle patch set applied")', meta)
+          text = text[:meta] + text[done:]
+          p.write_text(text)
           PY
             python .codex/apply_funding_patches.py
             cd koschei/api
