@@ -1,0 +1,64 @@
+name: Operator Exit Corpus Acceptance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_exit_corpus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_exit_corpus"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache-dependency-path: koschei/api/go.sum
+      - run: go mod download
+      - name: Apply migrations on PostgreSQL 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            psql --host=127.0.0.1 --port=5432 --username=postgres --dbname=koschei_exit_corpus --set=ON_ERROR_STOP=1 --file="$migration" >/dev/null
+          done
+      - name: Exit corpus PostgreSQL acceptance
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_exit_corpus?sslmode=disable
+        run: |
+          set -o pipefail
+          go test -v ./internal/services -run 'TestActorExitEventCorpusPostgres17|TestActorExitEventFrom|TestCrossTokenExitEvent' -count=1
+          go test -v ./internal/handlers -run 'TestFundingCorpusWarmup|TestTrackRowResolvesFromExitEventRecurrenceFixture' -count=1
+      - name: Task 0 exact final-head verification
+        run: |
+          set -o pipefail
+          echo '$ gofmt -l .'
+          gofmt -l .
+          echo '$ go build ./...'
+          go build ./...
+          echo '$ go test ./...'
+          go test ./...
+          echo '$ go test -race ./internal/handlers ./internal/services'
+          go test -race ./internal/handlers ./internal/services
