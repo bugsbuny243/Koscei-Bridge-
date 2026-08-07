@@ -1,0 +1,33 @@
+name: Codex Apply Funding Patches
+
+on:
+  push:
+    branches: [agent/funding-corpus-registry-lifecycle]
+    paths: [.codex/apply_funding_patches.py]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/funding-corpus-registry-lifecycle
+          fetch-depth: 0
+      - name: Apply deterministic patches
+        run: python .codex/apply_funding_patches.py
+      - name: Format touched Go files
+        run: |
+          cd koschei/api
+          gofmt -w internal/services/security_radars.go internal/services/arvis_arms.go internal/handlers/holder_intelligence_core.go internal/handlers/unified_investigation_report.go internal/handlers/unified_investigation_evidence_refs.go internal/handlers/dossier_signal_registry.go internal/handlers/dossier_signal_registry_test.go internal/handlers/canonical_verdict_sync.go
+      - name: Commit patched tree
+        run: |
+          rm -f .codex/apply_funding_patches.py .github/workflows/codex-apply-funding-patches.yml
+          rmdir .codex 2>/dev/null || true
+          git config user.name "koschei-codex"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(security): wire funding recurrence and lifecycle corpus"
+          git push origin HEAD:agent/funding-corpus-registry-lifecycle
