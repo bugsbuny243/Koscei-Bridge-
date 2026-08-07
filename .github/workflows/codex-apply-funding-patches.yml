@@ -18,10 +18,10 @@ jobs:
           fetch-depth: 0
       - name: Apply deterministic patches
         run: python .codex/apply_funding_patches.py
-      - name: Format touched Go files
+      - name: Format Go tree
         run: |
           cd koschei/api
-          gofmt -w internal/services/security_radars.go internal/services/arvis_arms.go internal/handlers/holder_intelligence_core.go internal/handlers/unified_investigation_report.go internal/handlers/unified_investigation_evidence_refs.go internal/handlers/dossier_signal_registry.go internal/handlers/dossier_signal_registry_test.go internal/handlers/canonical_verdict_sync.go
+          find . -name '*.go' -type f -print0 | xargs -0 gofmt -w
       - name: Commit patched tree
         run: |
           rm -f .codex/apply_funding_patches.py .github/workflows/codex-apply-funding-patches.yml
