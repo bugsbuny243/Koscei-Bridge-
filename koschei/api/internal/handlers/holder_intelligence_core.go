@@ -25,6 +25,7 @@ type holderIntelligenceCoreResult struct {
 	JupiterContext        services.JupiterMarketContext
 	ExitLiquidity         services.ExitLiquiditySimulation
 	RepeatDominantHolders []services.RepeatDominantHolderEvidence
+	FundingRecurrence     services.FundingRecurrenceAnalysis
 	ThreatAnticipation    services.ThreatAnticipationReport
 	SourceContext         map[string]any
 }
@@ -44,7 +45,17 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 	}
 
 	req := services.SecurityRadarRequest{Target: target, Network: network, Mode: mode}
-	analysis := services.AnalyzeArvisRadarsContext(parent, req)
+	analysisCtx := parent
+	if h != nil {
+		historyDB := h.DB
+		if historyDB == nil {
+			historyDB = h.DBRead
+		}
+		if historyDB != nil {
+			analysisCtx = services.WithSecurityRadarStore(parent, services.NewSecurityRadarStore(historyDB))
+		}
+	}
+	analysis := services.AnalyzeArvisRadarsContext(analysisCtx, req)
 	bundle := services.EvidenceBackedSecurityRadarBundle(analysis.Bundle)
 	roles := services.ArvisHolderRolesFromBundle(bundle)
 	distribution := radarDetailHolderDistributionFromRoles(roles)
@@ -52,6 +63,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		distribution, roles = radarDetailHolderDistribution(parent, target)
 	}
 	cluster := services.ArvisHolderClusterFromBundle(bundle)
+	fundingRecurrence := services.ArvisFundingRecurrenceFromBundle(bundle)
 	source := h.radarDetailSourceContext(parent, target, network)
 	source = h.resolveCanonicalCreatorSourceContext(parent, target, network, mode, source)
 	launch := h.analyzeLaunchForensics(parent, target, roles, cluster, source)
@@ -121,7 +133,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		services.NewSecurityRadarStore(h.DB).CaptureLaunchForensicsFloor(parent, target, network, launch)
 	}
 	threatAnticipation := services.BuildThreatAnticipation(services.ThreatAnticipationInput{Target: target, Market: market, Holder: intelligence, Cluster: cluster, Arms: arms})
-	return holderIntelligenceCoreResult{Request: req, Analysis: analysis, Bundle: bundle, Arms: arms, Final: final, Roles: roles, Distribution: distribution, Cluster: cluster, Market: market, Intelligence: intelligence, LaunchForensics: launch, LPControl: lpControl, JupiterContext: jupiter, ExitLiquidity: exitLiquidity, RepeatDominantHolders: repeatDominant, ThreatAnticipation: threatAnticipation, SourceContext: source}
+	return holderIntelligenceCoreResult{Request: req, Analysis: analysis, Bundle: bundle, Arms: arms, Final: final, Roles: roles, Distribution: distribution, Cluster: cluster, Market: market, Intelligence: intelligence, LaunchForensics: launch, LPControl: lpControl, JupiterContext: jupiter, ExitLiquidity: exitLiquidity, RepeatDominantHolders: repeatDominant, FundingRecurrence: fundingRecurrence, ThreatAnticipation: threatAnticipation, SourceContext: source}
 }
 
 func phase2MarketContextAllowed(mode string) bool {

@@ -52,12 +52,12 @@ type fundingClusterObservation struct {
 // wallet observed on the current target. OtherTargets contains only different
 // token mints, never the current target repeated as evidence.
 type FundingSourceRecurrence struct {
-	FundingSource       string    `json:"funding_source"`
-	DistinctTargets     int       `json:"distinct_targets"`
-	OtherTargets        []string  `json:"other_targets"`
-	MemberWallets       []string  `json:"member_wallets"`
-	FirstObservedAt     time.Time `json:"first_observed_at,omitempty"`
-	LastObservedAt      time.Time `json:"last_observed_at,omitempty"`
+	FundingSource      string    `json:"funding_source"`
+	DistinctTargets    int       `json:"distinct_targets"`
+	OtherTargets       []string  `json:"other_targets"`
+	MemberWallets      []string  `json:"member_wallets"`
+	FirstObservedAt    time.Time `json:"first_observed_at,omitempty"`
+	LastObservedAt     time.Time `json:"last_observed_at,omitempty"`
 	ReferencesComplete bool      `json:"references_complete"`
 	StoredRowsVerified bool      `json:"stored_rows_verified"`
 }

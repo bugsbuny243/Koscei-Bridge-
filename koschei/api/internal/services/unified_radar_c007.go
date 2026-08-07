@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	UnifiedRadarRulesetVersionV130            = "koschei-unified-radar-rules-v1.3.0"
-	UnifiedRuleCrossTokenFundingRecurrence    = "URD-C007"
+	UnifiedRadarRulesetVersionV130             = "koschei-unified-radar-rules-v1.3.0"
+	UnifiedRuleCrossTokenFundingRecurrence     = "URD-C007"
 	UnifiedFundingRecurrenceMinimumTargetCount = 2
 )
 
@@ -60,16 +60,16 @@ func ApplyCrossTokenFundingRecurrenceRuleV130(report UnifiedRadarBehaviorReport,
 		GradeEffect:    "evidence_only",
 		Scope:          "persisted_shared_funder_cross_token_memory",
 		Metrics: map[string]any{
-			"funding_sources":       funders,
-			"other_target_mints":     otherTargets,
-			"member_wallets":         memberWallets,
-			"max_distinct_targets":   maxDistinctTargets,
+			"funding_sources":         funders,
+			"other_target_mints":      otherTargets,
+			"member_wallets":          memberWallets,
+			"max_distinct_targets":    maxDistinctTargets,
 			"qualifying_source_count": qualifying,
-			"current_target":         strings.TrimSpace(recurrence.CurrentTarget),
+			"current_target":          strings.TrimSpace(recurrence.CurrentTarget),
 		},
 		Thresholds: map[string]any{
-			"minimum_distinct_targets": UnifiedFundingRecurrenceMinimumTargetCount,
-			"requires_other_target_ref": true,
+			"minimum_distinct_targets":   UnifiedFundingRecurrenceMinimumTargetCount,
+			"requires_other_target_ref":  true,
 			"requires_funder_wallet_ref": true,
 		},
 		EvidenceKeys: []string{},

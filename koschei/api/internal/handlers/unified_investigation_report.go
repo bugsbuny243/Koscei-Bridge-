@@ -170,6 +170,27 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		actorRun.LiveEvidence.Status = "stored_evidence_only"
 	}
 
+	actorLifecycle := services.ActorTokenLifecycleRecurrence{
+		Status: "not_investigated", EvidenceStatus: "not_investigated", ActorWallet: creator, Network: network, CurrentMint: target,
+		OtherMints: []string{}, CreationSignatures: []string{}, CreationSlots: []int64{}, RuggedStatus: "not_classified_by_lifecycle_table", Limitations: []string{},
+	}
+	if store != nil && creator != "" {
+		if loaded, err := store.LoadTokenLifecycleRecurrence(ctx, creator, network, target); err == nil {
+			actorLifecycle = loaded
+			core.Analysis = services.ApplyActorTokenLifecycleRecurrenceToAnalysis(core.Analysis, loaded)
+			core.Bundle = services.EvidenceBackedSecurityRadarBundle(core.Analysis.Bundle)
+			core.Arms = services.ArvisArmsFromBundle(core.Bundle)
+			if len(core.Arms) == 0 {
+				core.Arms = core.Analysis.Arms
+			}
+			core.Final = services.ArvisFinalFromBundle(core.Bundle)
+		} else {
+			actorLifecycle.Status = "unavailable"
+			actorLifecycle.EvidenceStatus = "unavailable"
+			actorLifecycle.Limitations = append(actorLifecycle.Limitations, "Actor lifecycle corpus query failed.")
+		}
+	}
+
 	// Token-scoped live evidence remains a separate collector. Its rows enrich the
 	// report but do not silently mutate deterministic rules that require explicit
 	// verified actor evidence.
@@ -196,6 +217,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	behavior := services.EvaluateUnifiedRadarBehavior(target, creator, core.Market, core.Intelligence, core.Cluster, sales, now)
 	behavior = services.HardenUnifiedRadarBehavior(behavior, storedVerification, core.Cluster)
 	behavior = services.ApplyOwnerConcentrationRuleV110(behavior, core.Intelligence, now)
+	behavior = services.ApplyCrossTokenFundingRecurrenceRuleV130(behavior, core.FundingRecurrence, now)
 	threat := services.BuildThreatAnticipation(services.ThreatAnticipationInput{
 		Target: target, Market: core.Market, Holder: core.Intelligence, Cluster: core.Cluster,
 		Arms: core.Arms, Behavior: behavior,
@@ -210,7 +232,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			actorRun.Limitations = append(actorRun.Limitations, "Deterministik actor rule verdict kalıcı actor index'e yazılamadı.")
 		}
 	}
-	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV110(target, actorVerdict, behavior)
+	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV130(target, actorVerdict, behavior)
 	if h.DB != nil {
 		_ = services.CaptureHolderConcentrationObservation(ctx, h.DB, network, target, core.Intelligence, now)
 	}
@@ -249,6 +271,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"funding_origin_persistence": actorRun.FundingOriginPersistence,
 			"actor_live_evidence":        actorRun.LiveEvidence,
 			"current_token_distribution": distributionRun,
+			"token_lifecycle_recurrence": actorLifecycle,
 			// Backward-compatible token live-wallet coverage retained for existing UI clients.
 			"live_wallet_evidence":     liveEvidence.WalletCoverage,
 			"rule_verdict_persistence": actorRun.RuleVerdictPersistence,
@@ -267,6 +290,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"corpus_percentile_can_change_verdict":       false,
 			"live_transaction_rows_can_change_grade":     false,
 			"verified_actor_evidence_can_change_verdict": true,
+			"funding_recurrence_can_change_grade":        false,
 		},
 	}
 	_ = h.persistDossierSourceSnapshot(ctx, report)
