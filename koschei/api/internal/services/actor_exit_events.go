@@ -369,6 +369,7 @@ func ApplyActorExitRecurrenceToAnalysis(analysis ArvisAnalysis, recurrence Actor
 		arms[index].Signals["exit_event_references_complete"] = recurrence.ReferencesComplete
 		arms[index].Signals["persistent_exit_event_index"] = true
 		if recurrence.DistinctTargetsWithEvents >= 2 && recurrence.ReferencesComplete {
+			arms[index].Signals["execution_status"] = recurrence.EvidenceStatus
 			arms[index].Signals["finding_observed"] = true
 			arms[index].Signals["cross_token_exit_event_recurrence"] = true
 			current := normalizeActorEvidenceStatus(actorExitAnyString(arms[index].Signals["evidence_status"]))

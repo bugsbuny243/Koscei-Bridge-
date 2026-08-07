@@ -6,11 +6,9 @@ func TestTrackRowResolvesFromExitEventRecurrenceFixture(t *testing.T) {
 	report := map[string]any{
 		"evidence_arms": []any{
 			map[string]any{
-				"module_id":       "repeat_actor_scan",
-				"signed":          true,
-				"signature":       "fixture-arm-signature",
-				"evidence_status": "verified",
+				"module_id": "repeat_actor_scan",
 				"signals": map[string]any{
+					"execution_status":                  "verified",
 					"cross_token_exit_event_recurrence": true,
 					"exit_event_actor_wallet":           "fixture-wallet",
 					"exit_event_other_mints":            []any{"fixture-other-mint"},
