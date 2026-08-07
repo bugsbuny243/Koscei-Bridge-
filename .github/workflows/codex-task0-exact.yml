@@ -22,33 +22,40 @@ jobs:
         with:
           ref: agent/funding-corpus-registry-lifecycle
           fetch-depth: 0
-      - name: Apply staged integration patch once
+      - name: Fix PostgreSQL 17 lifecycle parameter typing once
         working-directory: .
         run: |
-          if [ -f .codex/apply_funding_patches.py ]; then
-            python - <<'PY'
+          python - <<'PY'
           from pathlib import Path
-          p = Path('.codex/apply_funding_patches.py')
+          p = Path('koschei/api/internal/services/actor_token_lifecycle.go')
           text = p.read_text()
-          marker = '# Keep recurrence in ARVIS metadata and funding-arm lineage.'
-          start = text.index('replace(\n    "internal/services/arvis_arms.go",\n    "\\te := append', text.index(marker))
-          end = text.index('\n\n# Give the scan an existing request-scoped DB store', start)
-          text = text[:start] + text[end:]
-          meta = text.index('# Metadata impersonation deliberately stays unfed until a real detector exists.')
-          done = text.index('print("funding/lifecycle patch set applied")', meta)
-          text = text[:meta] + text[done:]
-          p.write_text(text)
+          old = """\t\t\t$1,$2,$3,$4,NULLIF($5,0),$6,$7,$7,
+\t\t\tCASE WHEN $10='active' THEN $7 ELSE NULL END,
+\t\t\tCASE WHEN $10='active' THEN $7 ELSE NULL END,
+\t\t\tCASE WHEN $10='inactive_or_dead' THEN $7 ELSE NULL END,
+\t\t\tCASE WHEN $10='inactive_or_dead' THEN $7 ELSE NULL END,
+\t\t\t$8,$9,$10,1,0,now(),now()
+"""
+          new = """\t\t\t$1,$2,$3,$4,NULLIF($5,0),$6,$7::timestamptz,$7::timestamptz,
+\t\t\tCASE WHEN $10::text='active' THEN $7::timestamptz ELSE NULL END,
+\t\t\tCASE WHEN $10::text='active' THEN $7::timestamptz ELSE NULL END,
+\t\t\tCASE WHEN $10::text='inactive_or_dead' THEN $7::timestamptz ELSE NULL END,
+\t\t\tCASE WHEN $10::text='inactive_or_dead' THEN $7::timestamptz ELSE NULL END,
+\t\t\t$8,$9,$10::text,1,0,now(),now()
+"""
+          if old in text:
+              p.write_text(text.replace(old, new, 1))
+          elif new not in text:
+              raise SystemExit('actor lifecycle SQL block did not match old or fixed form')
           PY
-            python .codex/apply_funding_patches.py
+          if ! git diff --quiet -- koschei/api/internal/services/actor_token_lifecycle.go; then
             cd koschei/api
-            find . -name '*.go' -type f -print0 | xargs -0 gofmt -w
+            gofmt -w internal/services/actor_token_lifecycle.go
             cd ../..
-            rm -f .codex/apply_funding_patches.py .github/workflows/codex-apply-funding-patches.yml
-            rmdir .codex 2>/dev/null || true
             git config user.name "koschei-codex"
             git config user.email "actions@users.noreply.github.com"
-            git add -A
-            git commit -m "feat(security): wire funding recurrence and lifecycle corpus"
+            git add koschei/api/internal/services/actor_token_lifecycle.go
+            git commit -m "fix(security): pin lifecycle upsert parameter types"
             git push origin HEAD:agent/funding-corpus-registry-lifecycle
           fi
       - name: Set up Go 1.25.12
