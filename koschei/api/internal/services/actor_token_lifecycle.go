@@ -135,12 +135,12 @@ func (s *ActorDefenseStore) UpsertTokenLifecycleObservation(ctx context.Context,
 			first_inactive_observed_at,current_inactive_since,current_liquidity_usd,current_price_usd,
 			fate_status,observation_count,reactivation_count,created_at,updated_at
 		) VALUES (
-			$1,$2,$3,$4,NULLIF($5,0),$6,$7,$7,
-			CASE WHEN $10='active' THEN $7 ELSE NULL END,
-			CASE WHEN $10='active' THEN $7 ELSE NULL END,
-			CASE WHEN $10='inactive_or_dead' THEN $7 ELSE NULL END,
-			CASE WHEN $10='inactive_or_dead' THEN $7 ELSE NULL END,
-			$8,$9,$10,1,0,now(),now()
+			$1,$2,$3,$4,NULLIF($5,0),$6,$7::timestamptz,$7::timestamptz,
+			CASE WHEN $10::text='active' THEN $7::timestamptz ELSE NULL END,
+			CASE WHEN $10::text='active' THEN $7::timestamptz ELSE NULL END,
+			CASE WHEN $10::text='inactive_or_dead' THEN $7::timestamptz ELSE NULL END,
+			CASE WHEN $10::text='inactive_or_dead' THEN $7::timestamptz ELSE NULL END,
+			$8,$9,$10::text,1,0,now(),now()
 		)
 		ON CONFLICT (network,actor_wallet,mint)
 		DO UPDATE SET
