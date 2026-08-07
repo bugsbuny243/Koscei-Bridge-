@@ -26,6 +26,15 @@ jobs:
         working-directory: .
         run: |
           if [ -f .codex/apply_funding_patches.py ]; then
+            python - <<'PY'
+          from pathlib import Path
+          p = Path('.codex/apply_funding_patches.py')
+          text = p.read_text()
+          marker = '# Keep recurrence in ARVIS metadata and funding-arm lineage.'
+          start = text.index('replace(\n    "internal/services/arvis_arms.go",\n    "\\te := append', text.index(marker))
+          end = text.index('\n\n# Give the scan an existing request-scoped DB store', start)
+          p.write_text(text[:start] + text[end:])
+          PY
             python .codex/apply_funding_patches.py
             cd koschei/api
             find . -name '*.go' -type f -print0 | xargs -0 gofmt -w
