@@ -1,0 +1,34 @@
+name: Codex Track Exit State Stage
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    if: github.head_ref == 'agent/operator-exit-corpus-warmup'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/operator-exit-corpus-warmup
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache-dependency-path: koschei/api/go.sum
+      - run: python3 .codex/track_exit_state_patch.py
+      - run: gofmt -w koschei/api/internal/services/actor_exit_events.go koschei/api/internal/handlers/dossier_track_exit_events_test.go
+      - name: Commit product fix once
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name koschei-codex
+          git config user.email actions@users.noreply.github.com
+          git add koschei/api
+          git commit -m "fix(dossier): propagate exit recurrence state to track"
+          git push origin HEAD:agent/operator-exit-corpus-warmup
