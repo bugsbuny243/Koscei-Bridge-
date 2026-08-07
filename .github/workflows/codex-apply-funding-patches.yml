@@ -4,6 +4,8 @@ on:
   push:
     branches: [agent/funding-corpus-registry-lifecycle]
     paths: [.codex/apply_funding_patches.py]
+  pull_request:
+    types: [synchronize]
 
 permissions:
   contents: write
