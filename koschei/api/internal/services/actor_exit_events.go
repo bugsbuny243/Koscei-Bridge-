@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	ActorExitEventLiquidityRemoval         = "liquidity_removal"
-	ActorExitEventDominantHolderExit       = "dominant_holder_exit"
+	ActorExitEventLiquidityRemoval          = "liquidity_removal"
+	ActorExitEventDominantHolderExit        = "dominant_holder_exit"
 	ActorExitEventAuthorityChangePostLaunch = "authority_change_post_launch"
 	ActorExitEventSupplyGrowthPostLaunch    = "supply_growth_post_launch"
 	ActorExitEventCreatorSell               = "creator_sell"

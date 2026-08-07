@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	UnifiedRadarRulesetVersionV140         = "koschei-unified-radar-rules-v1.4.0"
+	UnifiedRadarRulesetVersionV140           = "koschei-unified-radar-rules-v1.4.0"
 	UnifiedRuleCrossTokenExitEventRecurrence = "URD-C008"
 	UnifiedExitEventRecurrenceMinimumTargets = 2
 )
@@ -26,29 +26,29 @@ func ApplyCrossTokenExitEventRecurrenceRuleV140(report UnifiedRadarBehaviorRepor
 	eventKinds := uniqueFundingStrings(recurrence.EventKinds)
 
 	signal := UnifiedRadarSignal{
-		RuleID: UnifiedRuleCrossTokenExitEventRecurrence,
-		Title: "Cross-token exit-event recurrence",
+		RuleID:         UnifiedRuleCrossTokenExitEventRecurrence,
+		Title:          "Cross-token exit-event recurrence",
 		EvidenceStatus: "unverified",
-		Triggered: false,
-		GradeEffect: "evidence_only",
-		Scope: "persisted_transaction_referenced_cross_token_event_memory",
+		Triggered:      false,
+		GradeEffect:    "evidence_only",
+		Scope:          "persisted_transaction_referenced_cross_token_event_memory",
 		Metrics: map[string]any{
-			"actor_wallet": actor,
+			"actor_wallet":                 actor,
 			"distinct_targets_with_events": recurrence.DistinctTargetsWithEvents,
-			"other_target_mints": otherTargets,
-			"event_kinds": eventKinds,
-			"current_target": strings.TrimSpace(recurrence.CurrentTarget),
+			"other_target_mints":           otherTargets,
+			"event_kinds":                  eventKinds,
+			"current_target":               strings.TrimSpace(recurrence.CurrentTarget),
 		},
 		Thresholds: map[string]any{
-			"minimum_distinct_targets": UnifiedExitEventRecurrenceMinimumTargets,
+			"minimum_distinct_targets":  UnifiedExitEventRecurrenceMinimumTargets,
 			"requires_actor_wallet_ref": true,
 			"requires_other_target_ref": true,
-			"requires_signature_ref": true,
+			"requires_signature_ref":    true,
 		},
 		EvidenceKeys: []string{},
-		Signatures: append([]string{}, signatures...),
-		ObservedAt: now,
-		Limitations: append([]string{}, recurrence.Limitations...),
+		Signatures:   append([]string{}, signatures...),
+		ObservedAt:   now,
+		Limitations:  append([]string{}, recurrence.Limitations...),
 	}
 
 	switch {

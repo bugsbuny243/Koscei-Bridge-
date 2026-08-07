@@ -6,25 +6,25 @@ func TestTrackRowResolvesFromExitEventRecurrenceFixture(t *testing.T) {
 	report := map[string]any{
 		"evidence_arms": []any{
 			map[string]any{
-				"module_id": "repeat_actor_scan",
-				"signed": true,
-				"signature": "fixture-arm-signature",
+				"module_id":       "repeat_actor_scan",
+				"signed":          true,
+				"signature":       "fixture-arm-signature",
 				"evidence_status": "verified",
 				"signals": map[string]any{
 					"cross_token_exit_event_recurrence": true,
-					"exit_event_actor_wallet": "fixture-wallet",
-					"exit_event_other_mints": []any{"fixture-other-mint"},
-					"exit_event_signatures": []any{"fixture-event-signature"},
-					"exit_event_slots": []any{int64(4242)},
+					"exit_event_actor_wallet":           "fixture-wallet",
+					"exit_event_other_mints":            []any{"fixture-other-mint"},
+					"exit_event_signatures":             []any{"fixture-event-signature"},
+					"exit_event_slots":                  []any{int64(4242)},
 				},
 			},
 		},
 		"evidence_references": map[string]any{
 			"track": map[string]any{
-				"wallets": []any{"fixture-wallet"},
-				"accounts": []any{"fixture-other-mint"},
+				"wallets":    []any{"fixture-wallet"},
+				"accounts":   []any{"fixture-other-mint"},
 				"signatures": []any{"fixture-event-signature"},
-				"slots": []any{int64(4242)},
+				"slots":      []any{int64(4242)},
 			},
 		},
 	}

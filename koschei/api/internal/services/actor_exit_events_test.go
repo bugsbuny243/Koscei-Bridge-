@@ -144,7 +144,7 @@ func TestActorExitEventCorpusPostgres17(t *testing.T) {
 		EvidenceKey: "fixture-sell-evidence-" + suffix, Source: "unified_manual_radar",
 		Signature: "fixture-sell-signature-" + suffix, Slot: 1004, ObservedAt: time.Now().UTC(),
 		TokenMint: "fixture-sell-target-" + suffix,
-		Metadata: map[string]any{"unified_rule_id": UnifiedRuleCreatorSellAcceleration},
+		Metadata:  map[string]any{"unified_rule_id": UnifiedRuleCreatorSellAcceleration},
 	}
 	if err := store.UpsertEvidence(ctx, creatorSell); err != nil {
 		t.Fatal(err)
