@@ -227,7 +227,7 @@ func referenceFromTransactions(values []unifiedTransactionEvidence) unifiedEvide
 
 func evidenceReferenceFromArm(arm services.SecurityRadarVerdict) unifiedEvidenceReference {
 	out := unifiedEvidenceReference{Accounts: []string{arm.Target}, Signatures: []string{arm.Signature}}
-	for _, key := range []string{"signature", "transaction_signature", "source_signature", "creator_creation_signatures"} {
+	for _, key := range []string{"signature", "transaction_signature", "source_signature", "creator_creation_signatures", "exit_event_signatures"} {
 		out.Signatures = append(out.Signatures, signalStringValues(arm.Signals[key])...)
 	}
 	for _, key := range []string{"evidence_key", "evidence_keys"} {
@@ -238,13 +238,15 @@ func evidenceReferenceFromArm(arm services.SecurityRadarVerdict) unifiedEvidence
 			out.Slots = append(out.Slots, slot)
 		}
 	}
-	for _, slot := range signalInt64Values(arm.Signals["creator_creation_slots"]) {
-		out.Slots = append(out.Slots, slot)
+	for _, key := range []string{"creator_creation_slots", "exit_event_slots"} {
+		for _, slot := range signalInt64Values(arm.Signals[key]) {
+			out.Slots = append(out.Slots, slot)
+		}
 	}
-	for _, key := range []string{"owner_wallet", "creator_wallet", "wallet", "trader"} {
+	for _, key := range []string{"owner_wallet", "creator_wallet", "wallet", "trader", "exit_event_actor_wallet"} {
 		out.Wallets = append(out.Wallets, signalStringValues(arm.Signals[key])...)
 	}
-	for _, key := range []string{"account", "account_address", "pool_address", "lp_mint", "token_vault", "quote_vault", "creator_other_mints"} {
+	for _, key := range []string{"account", "account_address", "pool_address", "lp_mint", "token_vault", "quote_vault", "creator_other_mints", "exit_event_other_mints"} {
 		out.Accounts = append(out.Accounts, signalStringValues(arm.Signals[key])...)
 	}
 	return normalizedUnifiedEvidenceReference(out)

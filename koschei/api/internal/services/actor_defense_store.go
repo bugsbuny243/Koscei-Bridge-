@@ -401,6 +401,7 @@ func (s *ActorDefenseStore) UpsertEvidence(ctx context.Context, item ActorDefens
 	item.Source = strings.TrimSpace(item.Source)
 	item.Signature = strings.TrimSpace(item.Signature)
 	item.TokenMint = strings.TrimSpace(item.TokenMint)
+	exitEventState, exitEventStateOK := strictActorExitEvidenceState(item.VerificationStatus)
 	item.VerificationStatus = normalizeActorEvidenceStatus(item.VerificationStatus)
 	if item.Source == "" {
 		item.Source = "solana_rpc"
@@ -415,7 +416,13 @@ func (s *ActorDefenseStore) UpsertEvidence(ctx context.Context, item ActorDefens
 	if err != nil {
 		return fmt.Errorf("encode actor evidence metadata: %w", err)
 	}
-	_, err = s.DB.ExecContext(ctx, `
+
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO security_actor_evidence
 			(network,actor_wallet,counterpart_kind,counterpart_id,relation,verification_status,
 			 evidence_key,source,signature,slot,observed_at,amount_native,token_mint,token_amount,
@@ -439,7 +446,19 @@ func (s *ActorDefenseStore) UpsertEvidence(ctx context.Context, item ActorDefens
 		item.Network, item.ActorWallet, item.CounterpartKind, item.CounterpartID, item.Relation,
 		item.VerificationStatus, item.EvidenceKey, item.Source, item.Signature, item.Slot,
 		item.ObservedAt.UTC(), item.AmountNative, item.TokenMint, item.TokenAmount, string(metadata))
-	return err
+	if err != nil {
+		return err
+	}
+	if exitEventStateOK {
+		eventItem := item
+		eventItem.VerificationStatus = exitEventState
+		if event, ok := actorExitEventFromEvidence(eventItem); ok {
+			if err := upsertActorExitEventTx(ctx, tx, event); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *ActorDefenseStore) upsertTrack(ctx context.Context, track *ActorDefenseTrack) error {

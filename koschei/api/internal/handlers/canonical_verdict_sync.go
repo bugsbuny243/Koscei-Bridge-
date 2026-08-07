@@ -40,7 +40,9 @@ func synchronizeCanonicalUnifiedVerdict(report map[string]any) (services.Unified
 	}
 
 	var final services.UnifiedRadarVerdict
-	if canonicalUnifiedRulesetAtLeast(behavior.RulesetVersion, 1, 3, 0) {
+	if canonicalUnifiedRulesetAtLeast(behavior.RulesetVersion, 1, 4, 0) {
+		final = services.EvaluateUnifiedRadarVerdictV140(target, actor, behavior)
+	} else if canonicalUnifiedRulesetAtLeast(behavior.RulesetVersion, 1, 3, 0) {
 		final = services.EvaluateUnifiedRadarVerdictV130(target, actor, behavior)
 	} else if canonicalUnifiedRulesetAtLeast(behavior.RulesetVersion, 1, 2, 0) {
 		final = services.EvaluateUnifiedRadarVerdictV120(target, actor, behavior)
