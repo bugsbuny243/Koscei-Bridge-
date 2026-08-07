@@ -1,0 +1,39 @@
+name: Codex Exit Fix Stage
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    if: github.head_ref == 'agent/operator-exit-corpus-warmup'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/operator-exit-corpus-warmup
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply strict event-state patch
+        run: python3 .codex/exit_corpus_fix.py
+      - name: Regenerate OpenAPI from registered routes
+        working-directory: koschei/api
+        run: go run ./cmd/openapi-gen
+      - name: Format touched Go files
+        run: gofmt -w koschei/api/internal/services/actor_defense_store.go koschei/api/internal/services/actor_exit_events.go koschei/api/internal/services/actor_exit_events_test.go
+      - name: Commit product fixes once
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name koschei-codex
+          git config user.email actions@users.noreply.github.com
+          git add koschei/api
+          git commit -m "fix(security): enforce strict event states and sync OpenAPI"
+          git push origin HEAD:agent/operator-exit-corpus-warmup
