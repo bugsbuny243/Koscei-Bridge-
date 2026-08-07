@@ -14,7 +14,7 @@ func TestFundingArmCarriesCrossTokenRecurrenceLineage(t *testing.T) {
 	}
 	arm := buildFundingClusterArm(SecurityRadarRequest{Target: "current-mint", Network: "solana-mainnet"}, radarEvidenceProfile{
 		LiveRPC: true, EvidenceStatus: "verified",
-		HolderCluster: HolderClusterAnalysis{Available: true, Confidence: "high", SharedFundingGroupCount: 1, LargestSharedFundingGroup: 2},
+		HolderCluster:     HolderClusterAnalysis{Available: true, Confidence: "high", SharedFundingGroupCount: 1, LargestSharedFundingGroup: 2},
 		FundingRecurrence: recurrence,
 	}, "2026-08-07T12:00:00Z")
 	got, ok := arm.Signals["funding_recurrence"].(FundingRecurrenceAnalysis)
