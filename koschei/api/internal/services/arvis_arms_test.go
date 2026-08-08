@@ -120,7 +120,7 @@ func TestSecurityModuleAllowlistWithholdsDisabledArmEvidence(t *testing.T) {
 	if len(got) != 2 || !got[0].Signed || got[1].Signed {
 		t.Fatalf("module allowlist did not preserve/withhold correctly: %#v", got)
 	}
-	if status := arvisSignalString(got[1].Signals, "execution_status"); status != ArvisExecutionUnavailable {
+	if status := arvisSignalString(got[1].Signals, "execution_status"); status != ArvisExecutionSourceUnavailable {
 		t.Fatalf("disabled module status=%q", status)
 	}
 }

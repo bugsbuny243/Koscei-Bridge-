@@ -121,7 +121,9 @@ func applyRuntimeSecurityModulePolicy(req SecurityRadarRequest, generatedAt stri
 			out = append(out, arm)
 			continue
 		}
-		out = append(out, unavailableArm(arm.Module, arm.ModuleID, req, generatedAt, "Module disabled by KOSCHEI_SECURITY_MODULES runtime policy."))
+		disabled := unavailableArm(arm.Module, arm.ModuleID, req, generatedAt, "Module disabled by KOSCHEI_SECURITY_MODULES runtime policy.")
+		disabled = markArvisArmExecution(disabled, ArvisExecutionSourceUnavailable, "module_disabled_by_runtime_policy", false, false)
+		out = append(out, disabled)
 	}
 	return out
 }
