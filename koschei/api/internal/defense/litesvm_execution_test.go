@@ -61,6 +61,7 @@ func TestLiteSVMWorkerRequestRejectsInjectionAndDeduplicatesActiveJobs(t *testin
 }
 
 func TestPrepareLiteSVMExecutionReauthorizesExactEvidence(t *testing.T) {
+	t.Setenv("WORKER_MAX_BUILD_THREADS", "7")
 	db := defenseWorkerTestDB(t)
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -92,7 +93,7 @@ func TestPrepareLiteSVMExecutionReauthorizesExactEvidence(t *testing.T) {
 		len(plan.Bundle) != materialization.FileCount {
 		t.Fatalf("prepared executable/materialization evidence is incomplete: %+v", plan)
 	}
-	if plan.EnvironmentTemplate["CARGO_NET_OFFLINE"] != "true" ||
+	if plan.EnvironmentTemplate["CARGO_BUILD_JOBS"] != "7" || plan.EnvironmentTemplate["CARGO_NET_OFFLINE"] != "true" ||
 		plan.EnvironmentTemplate["CARGO_TARGET_DIR"] != "/tmp/koschei-scratch/target" ||
 		plan.EnvironmentTemplate["RUSTC"] == "" || plan.SandboxPolicy["unshare_all"] != true ||
 		plan.SandboxPolicy["host_work_root_masked"] != true || plan.SandboxPolicy["shell"] != false {

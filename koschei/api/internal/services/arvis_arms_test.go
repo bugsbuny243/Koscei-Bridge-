@@ -107,3 +107,20 @@ func TestArvisPumpAndRaydiumDistinctNotApplicableReasons(t *testing.T) {
 		t.Fatalf("raydium reason=%#v", raydium.Signals)
 	}
 }
+
+func TestSecurityModuleAllowlistWithholdsDisabledArmEvidence(t *testing.T) {
+	t.Setenv("KOSCHEI_SECURITY_MODULES", ModuleHolderConcentration)
+	req := SecurityRadarRequest{Target: "target", Network: "solana-mainnet"}
+	generatedAt := time.Now().UTC().Format(time.RFC3339)
+	arms := []SecurityRadarVerdict{
+		evidenceArm("Holder Concentration", ModuleHolderConcentration, req, 1, map[string]any{"real_onchain_evidence": true}, []string{"holder evidence"}, generatedAt),
+		evidenceArm("Funding Cluster Detector", ModuleFundingClusterDetector, req, 1, map[string]any{"real_onchain_evidence": true}, []string{"funding evidence"}, generatedAt),
+	}
+	got := applyRuntimeSecurityModulePolicy(req, generatedAt, arms)
+	if len(got) != 2 || !got[0].Signed || got[1].Signed {
+		t.Fatalf("module allowlist did not preserve/withhold correctly: %#v", got)
+	}
+	if status := arvisSignalString(got[1].Signals, "execution_status"); status != ArvisExecutionSourceUnavailable {
+		t.Fatalf("disabled module status=%q", status)
+	}
+}

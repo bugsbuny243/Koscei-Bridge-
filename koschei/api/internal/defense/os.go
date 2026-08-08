@@ -14,8 +14,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 const (
@@ -571,7 +574,7 @@ func VerifyBundle(ctx context.Context, a Artifact, findingRef, patchRef string, 
 		started := time.Now()
 		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 		cmd.Dir = root
-		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + root, "CARGO_HOME=" + filepath.Join(root, ".cargo"), "RUSTUP_HOME=" + filepath.Join(root, ".rustup"), "KOSCHEI_SANDBOX=1"}
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + root, "CARGO_HOME=" + filepath.Join(root, ".cargo"), "RUSTUP_HOME=" + filepath.Join(root, ".rustup"), "CARGO_BUILD_JOBS=" + strconv.Itoa(runtimecfg.Load().WorkerMaxBuildThreads), "KOSCHEI_SANDBOX=1"}
 		var output bytes.Buffer
 		cmd.Stdout = &limitedWriter{w: &output, n: maxSandboxOutput}
 		cmd.Stderr = &limitedWriter{w: &output, n: maxSandboxOutput}

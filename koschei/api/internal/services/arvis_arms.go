@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 const (
@@ -77,7 +79,11 @@ func AnalyzeArvisRadarsContext(ctx context.Context, req SecurityRadarRequest) Ar
 		creator, funding, launchDistribution, repeatActors, sniper,
 		claimSurface, program,
 	}
+	arms = applyRuntimeSecurityModulePolicy(req, generatedAt, arms)
 	graph := buildIntelligenceGraphArm(req, profile, generatedAt)
+	if !runtimecfg.ModuleEnabled(ModuleIntelligenceGraph) {
+		graph = unavailableArm("Intelligence Graph", ModuleIntelligenceGraph, req, generatedAt, "Module disabled by KOSCHEI_SECURITY_MODULES runtime policy.")
+	}
 	final := arvisCompatibilityFinal()
 	verified := verifiedArvisEvidenceCount(arms)
 
@@ -106,6 +112,20 @@ func AnalyzeArvisRadarsContext(ctx context.Context, req SecurityRadarRequest) Ar
 		},
 	}
 	return ArvisAnalysis{Bundle: bundle, Arms: arms, Graph: graph, Final: final}
+}
+
+func applyRuntimeSecurityModulePolicy(req SecurityRadarRequest, generatedAt string, arms []SecurityRadarVerdict) []SecurityRadarVerdict {
+	out := make([]SecurityRadarVerdict, 0, len(arms))
+	for _, arm := range arms {
+		if runtimecfg.ModuleEnabled(arm.ModuleID) {
+			out = append(out, arm)
+			continue
+		}
+		disabled := unavailableArm(arm.Module, arm.ModuleID, req, generatedAt, "Module disabled by KOSCHEI_SECURITY_MODULES runtime policy.")
+		disabled = markArvisArmExecution(disabled, ArvisExecutionSourceUnavailable, "module_disabled_by_runtime_policy", false, false)
+		out = append(out, disabled)
+	}
+	return out
 }
 
 func ArvisArmsFromBundle(bundle SecurityRadarBundle) []SecurityRadarVerdict {
