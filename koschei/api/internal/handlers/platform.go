@@ -15,10 +15,11 @@ import (
 func (h *Handler) Config(w http.ResponseWriter, _ *http.Request) {
 	cfg := runtimecfg.Load()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"version":        "3.1.0",
-		"app_name":       cfg.AppName,
-		"runtime_config": runtimecfg.PublicSnapshot(),
-		"neonAuthUrl":    configuredPublicNeonAuthURL(),
+		"version":               "3.1.0",
+		"app_name":              cfg.AppName,
+		"runtime_config":        runtimecfg.PublicSnapshot(),
+		"runtime_control_plane": runtimecfg.ControlPlaneHealthSnapshot(),
+		"neonAuthUrl":           configuredPublicNeonAuthURL(),
 		"access": map[string]any{
 			"provider":       "free_core_plus_kosch_premium",
 			"mode":           "public_basic_verified_holder_premium",
