@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"koschei/api/internal/cache"
+	"koschei/api/internal/runtimecfg"
 )
 
 type SolanaRPC struct {
@@ -46,8 +47,19 @@ func (s *SolanaRPC) URL(network string) string {
 }
 
 func configuredSolanaRPCURL(network, apiKey string) string {
+	cfg := runtimecfg.Load()
+	if strings.TrimSpace(network) == "" {
+		network = cfg.SolanaNetwork
+	}
 	if isSolanaMainnet(network) {
-		for _, key := range []string{"SOLANA_RPC_URL", "ALCHEMY_SOLANA_RPC_URL", "HELIUS_SOLANA_RPC_URL", "QUICKNODE_SOLANA_RPC_URL"} {
+		if value := strings.TrimSpace(os.Getenv("SOLANA_RPC_URL")); value != "" {
+			return value
+		}
+		provider := cfg.Web3Provider
+		if provider == "auto" && cfg.SecurityProvider != "auto" {
+			provider = cfg.SecurityProvider
+		}
+		for _, key := range preferredMainnetRPCKeys(provider) {
 			if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 				return value
 			}
@@ -68,21 +80,53 @@ func configuredSolanaRPCURL(network, apiKey string) string {
 	return "https://api.devnet.solana.com"
 }
 
+func preferredMainnetRPCKeys(provider string) []string {
+	base := map[string]string{
+		"alchemy":   "ALCHEMY_SOLANA_RPC_URL",
+		"helius":    "HELIUS_SOLANA_RPC_URL",
+		"quicknode": "QUICKNODE_SOLANA_RPC_URL",
+	}
+	ordered := []string{}
+	if key := base[strings.ToLower(strings.TrimSpace(provider))]; key != "" {
+		ordered = append(ordered, key)
+	}
+	for _, key := range []string{"ALCHEMY_SOLANA_RPC_URL", "HELIUS_SOLANA_RPC_URL", "QUICKNODE_SOLANA_RPC_URL"} {
+		found := false
+		for _, existing := range ordered {
+			if existing == key {
+				found = true
+				break
+			}
+		}
+		if !found {
+			ordered = append(ordered, key)
+		}
+	}
+	return ordered
+}
+
 func SolanaRPCURL(network, apiKey string) string {
 	return configuredSolanaRPCURL(network, apiKey)
 }
 
 func SolanaRPCFallbackURL(network string) string {
+	cfg := runtimecfg.Load()
+	if strings.TrimSpace(network) == "" {
+		network = cfg.SolanaNetwork
+	}
 	if isSolanaMainnet(network) {
 		primaryURL := configuredSolanaRPCURL(network, strings.TrimSpace(os.Getenv("ALCHEMY_API_KEY")))
 		if explicit := strings.TrimSpace(os.Getenv("SOLANA_RPC_FALLBACK_URL")); explicit != "" && explicit != strings.TrimSpace(primaryURL) {
 			return explicit
 		}
 		primaryHost := RPCProviderHost(primaryURL)
-		candidates := []string{
-			strings.TrimSpace(os.Getenv("ALCHEMY_SOLANA_RPC_URL")),
-			strings.TrimSpace(os.Getenv("HELIUS_SOLANA_RPC_URL")),
-			strings.TrimSpace(os.Getenv("QUICKNODE_SOLANA_RPC_URL")),
+		provider := cfg.Web3Provider
+		if provider == "auto" && cfg.SecurityProvider != "auto" {
+			provider = cfg.SecurityProvider
+		}
+		candidates := []string{}
+		for _, key := range preferredMainnetRPCKeys(provider) {
+			candidates = append(candidates, strings.TrimSpace(os.Getenv(key)))
 		}
 		if key := strings.TrimSpace(os.Getenv("ALCHEMY_API_KEY")); key != "" {
 			candidates = append(candidates, "https://solana-mainnet.g.alchemy.com/v2/"+key)

@@ -129,3 +129,28 @@ func TestSolanaRPCFallbackPrefersDifferentConfiguredProvider(t *testing.T) {
 		t.Fatalf("fallback host=%q url=%q", RPCProviderHost(got), got)
 	}
 }
+
+func TestSolanaRPCBlankNetworkUsesSOLANANetworkAndProviderPreference(t *testing.T) {
+	t.Setenv("SOLANA_NETWORK", "mainnet")
+	t.Setenv("SOLANA_RPC_URL", "")
+	t.Setenv("WEB3_PROVIDER", "helius")
+	t.Setenv("KOSCHEI_SECURITY_PROVIDER", "auto")
+	t.Setenv("HELIUS_SOLANA_RPC_URL", "https://helius.example.test")
+	t.Setenv("ALCHEMY_SOLANA_RPC_URL", "https://alchemy.example.test")
+	t.Setenv("QUICKNODE_SOLANA_RPC_URL", "https://quicknode.example.test")
+	if got := SolanaRPCURL("", ""); got != "https://helius.example.test" {
+		t.Fatalf("blank network/provider preference got %q", got)
+	}
+}
+
+func TestSecurityProviderDrivesRPCWhenWeb3ProviderAuto(t *testing.T) {
+	t.Setenv("SOLANA_NETWORK", "mainnet")
+	t.Setenv("SOLANA_RPC_URL", "")
+	t.Setenv("WEB3_PROVIDER", "auto")
+	t.Setenv("KOSCHEI_SECURITY_PROVIDER", "quicknode")
+	t.Setenv("QUICKNODE_SOLANA_RPC_URL", "https://quicknode.example.test")
+	t.Setenv("ALCHEMY_SOLANA_RPC_URL", "https://alchemy.example.test")
+	if got := SolanaRPCURL("", ""); got != "https://quicknode.example.test" {
+		t.Fatalf("security provider preference got %q", got)
+	}
+}

@@ -78,6 +78,11 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 	cpiComplete := !cpiFlow.Required || cpiFlow.Complete
 	authorityComplete := !authoritySurface.Required || authoritySurface.Complete
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete && authorityComplete
+	originalAction := assessment.Action
+	assessment, enforcement := applyTransactionGuardEnforcementRequirement(input, requestID, assessment, guardComplete, time.Now().UTC())
+	if originalAction == "allow" && assessment.Action != "allow" && alertID == "" {
+		alertID = h.emitTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
+	}
 	explanation := buildTransactionGuardV3ExplanationWithAuthority(input.Wallet, assessment, decoded, threatHistory, cpiFlow, authoritySurface)
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
@@ -88,7 +93,7 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"analysis_version":           transactionGuardV3AnalysisVersion,
 		"mode":                       transactionFirewallMode,
 		"shadow_mode":                true,
-		"enforcement_enabled":        false,
+		"enforcement_enabled":        enforcement.Configured,
 		"billable":                   false,
 		"network":                    input.Network,
 		"encoding":                   input.Encoding,
@@ -121,7 +126,8 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 			"logs_count": len(assessment.Logs), "logs": assessment.Logs,
 		},
 		"latency_ms": time.Since(started).Milliseconds(),
-		"warning":    "Shadow mode only: Koschei does not sign, submit or custody this transaction.",
+		"warning":    "Koschei does not sign, submit or custody the transaction; an enforcement permit, when issued, only authorizes the exact fingerprint until expiry.",
 	}
-	writeJSON(w, guardHTTPStatus(assessment), response)
+	attachTransactionGuardEnforcementResponse(response, enforcement)
+	writeJSON(w, transactionGuardHTTPStatusWithEnforcement(assessment, enforcement), response)
 }

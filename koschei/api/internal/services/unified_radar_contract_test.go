@@ -164,3 +164,31 @@ func unifiedDecisionContains(items []string, fragment string) bool {
 	}
 	return false
 }
+
+func TestStrictVerdictModeRequiresVerifiedCompoundingRules(t *testing.T) {
+	t.Setenv("KOSCHEI_VERDICT_MODE", "strict")
+	verdict := FinalizeUnifiedRadarVerdictContract("StrictMint", UnifiedRadarVerdict{
+		RulesetVersion: UnifiedRadarRulesetVersion,
+		TriggeredRules: []ActorDefenseRuleHit{
+			{RuleID: ActorRuleCompoundCreatorReuse, Tier: "compounding", EvidenceStatus: "verified", Summary: "verified group"},
+			{RuleID: UnifiedRuleVolumeLiquidityGap, Tier: "compounding", EvidenceStatus: "observed", Summary: "observed group"},
+		},
+	})
+	if verdict.Grade != "-" || verdict.Verdict != "single_observation" {
+		t.Fatalf("strict mode let OBSERVED evidence change grade: %#v", verdict)
+	}
+}
+
+func TestEvidenceOnlyVerdictModePreservesSignedEvidenceAndWithholdsGrade(t *testing.T) {
+	t.Setenv("KOSCHEI_VERDICT_MODE", "evidence_only")
+	verdict := FinalizeUnifiedRadarVerdictContract("EvidenceMint", UnifiedRadarVerdict{
+		RulesetVersion: UnifiedRadarRulesetVersion,
+		TriggeredRules: []ActorDefenseRuleHit{
+			{RuleID: ActorRuleCompoundCreatorReuse, Tier: "compounding", EvidenceStatus: "verified", Summary: "one"},
+			{RuleID: UnifiedRuleVolumeLiquidityGap, Tier: "compounding", EvidenceStatus: "verified", Summary: "two"},
+		},
+	})
+	if verdict.Grade != "-" || verdict.Verdict != "evidence_only" || !verdict.Signed || verdict.Signature == "" {
+		t.Fatalf("evidence-only mode contract=%#v", verdict)
+	}
+}

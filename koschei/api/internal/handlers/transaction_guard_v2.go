@@ -450,6 +450,11 @@ func guardHTTPStatus(assessment transactionFirewallAssessment) int {
 
 func (h *Handler) finishTransactionGuardResponse(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, alertID string) {
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete
+	originalAction := assessment.Action
+	assessment, enforcement := applyTransactionGuardEnforcementRequirement(input, requestID, assessment, guardComplete, time.Now().UTC())
+	if originalAction == "allow" && assessment.Action != "allow" && alertID == "" {
+		alertID = h.emitTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
+	}
 	h.saveTransactionGuardV2Report(r.Context(), requestID, input, assessment, programPolicy, intentPolicy, guardComplete, alertID)
 	response := map[string]any{
 		"ok":                      !guardProviderUnavailable(assessment),
@@ -458,7 +463,7 @@ func (h *Handler) finishTransactionGuardResponse(w http.ResponseWriter, r *http.
 		"guard_version":           transactionGuardVersion,
 		"mode":                    transactionFirewallMode,
 		"shadow_mode":             true,
-		"enforcement_enabled":     false,
+		"enforcement_enabled":     enforcement.Configured,
 		"billable":                false,
 		"network":                 input.Network,
 		"encoding":                input.Encoding,
@@ -478,9 +483,10 @@ func (h *Handler) finishTransactionGuardResponse(w http.ResponseWriter, r *http.
 			"logs_count": len(assessment.Logs), "logs": assessment.Logs,
 		},
 		"latency_ms": time.Since(started).Milliseconds(),
-		"warning":    "Shadow mode only: Koschei does not sign, submit or custody this transaction.",
+		"warning":    "Koschei does not sign, submit or custody the transaction; an enforcement permit, when issued, only authorizes the exact fingerprint until expiry.",
 	}
-	writeJSON(w, guardHTTPStatus(assessment), response)
+	attachTransactionGuardEnforcementResponse(response, enforcement)
+	writeJSON(w, transactionGuardHTTPStatusWithEnforcement(assessment, enforcement), response)
 }
 
 func (h *Handler) emitTransactionGuardAlert(ctx context.Context, requestID string, input transactionGuardV2Request, assessment transactionFirewallAssessment, program transactionGuardProgramPolicy, intent transactionGuardIntentPolicy) string {

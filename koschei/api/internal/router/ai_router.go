@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 type ChatRequest struct {
@@ -69,8 +71,8 @@ func Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, req.Timeout)
 	defer cancel()
-	if strings.TrimSpace(os.Getenv("TOGETHER_API_KEY")) == "" {
-		return ChatResponse{}, errors.New("TOGETHER_API_KEY is not configured")
+	if err := togetherRuntimePolicy(); err != nil {
+		return ChatResponse{}, err
 	}
 	return callTogether(ctx, req)
 }
@@ -86,10 +88,10 @@ func Embed(ctx context.Context, req EmbedRequest) (EmbedResponse, error) {
 	if req.Timeout <= 0 {
 		req.Timeout = 15 * time.Second
 	}
-	apiKey := strings.TrimSpace(os.Getenv("TOGETHER_API_KEY"))
-	if apiKey == "" {
-		return EmbedResponse{}, errors.New("TOGETHER_API_KEY is not configured")
+	if err := togetherRuntimePolicy(); err != nil {
+		return EmbedResponse{}, err
 	}
+	apiKey := strings.TrimSpace(os.Getenv("TOGETHER_API_KEY"))
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
 		model = firstEnv("TOGETHER_MODEL_EMBEDDING", "TOGETHER_EMBEDDING_MODEL")
@@ -131,6 +133,26 @@ func Embed(ctx context.Context, req EmbedRequest) (EmbedResponse, error) {
 		model = decoded.Model
 	}
 	return EmbedResponse{Provider: "together", Model: model, Embedding: decoded.Data[0].Embedding}, nil
+}
+
+func togetherRuntimePolicy() error {
+	cfg := runtimecfg.Load()
+	if !cfg.AIEnabled {
+		return errors.New("AI is disabled by AI_ENABLED")
+	}
+	if !cfg.ModelRouterEnabled {
+		return errors.New("AI model routing is disabled by KOSCHEI_MODEL_ROUTER_ENABLED")
+	}
+	if cfg.AIProvider != "auto" && cfg.AIProvider != "together" {
+		return errors.New("AI_PROVIDER does not select Together")
+	}
+	if !cfg.TogetherEnabled {
+		return errors.New("Together AI is disabled by TOGETHER_AI_ENABLED")
+	}
+	if strings.TrimSpace(os.Getenv("TOGETHER_API_KEY")) == "" {
+		return errors.New("TOGETHER_API_KEY is not configured")
+	}
+	return nil
 }
 
 // DecodeJSONObject accepts an optional fenced response but requires exactly one complete JSON object.

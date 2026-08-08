@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 const UnifiedRadarDecisionContractVersion = "koschei-unified-radar-decision-v1.0.2"
@@ -94,7 +96,66 @@ func normalizeUnifiedRadarVerdictDecision(verdict UnifiedRadarVerdict) UnifiedRa
 	}
 	verdict.DecisionPath = decision
 	verdict.Signature = ""
+	return applyRuntimeVerdictMode(verdict)
+}
+
+func applyRuntimeVerdictMode(verdict UnifiedRadarVerdict) UnifiedRadarVerdict {
+	mode := runtimecfg.Load().VerdictMode
+	switch mode {
+	case "strict":
+		if len(unifiedRadarVerifiedHardCaps(verdict.TriggeredRules)) > 0 {
+			verdict.DecisionPath = append(nonNilStrings(verdict.DecisionPath), "KOSCHEI_VERDICT_MODE=strict accepted a VERIFIED hard-cap rule.")
+			return verdict
+		}
+		verifiedCompounding := unifiedRadarVerifiedCompoundingRuleCount(verdict.TriggeredRules)
+		switch {
+		case verifiedCompounding >= 2:
+			verdict.Grade = "B"
+			verdict.Verdict = "compounding_rule"
+		case verifiedCompounding == 1:
+			verdict.Grade = "-"
+			verdict.Verdict = "single_observation"
+		default:
+			verdict.Grade = "-"
+			if len(verdict.WatchFlags) > 0 {
+				verdict.Verdict = "watch_only"
+			} else {
+				verdict.Verdict = "no_grade_trigger"
+			}
+		}
+		verdict.DecisionPath = append(nonNilStrings(verdict.DecisionPath), fmt.Sprintf("KOSCHEI_VERDICT_MODE=strict counted %d distinct VERIFIED compounding rule IDs; OBSERVED compounding evidence remains auditable but cannot lower the grade.", verifiedCompounding))
+	case "observe", "evidence_only":
+		verdict.Grade = "-"
+		verdict.Verdict = "evidence_only"
+		verdict.DecisionPath = append(nonNilStrings(verdict.DecisionPath), "KOSCHEI_VERDICT_MODE="+mode+" withheld letter-grade publication while preserving evidence and deterministic signing.")
+	}
 	return verdict
+}
+
+func unifiedRadarVerifiedHardCaps(hits []ActorDefenseRuleHit) []string {
+	grades := []string{}
+	for _, hit := range hits {
+		if normalizeActorEvidenceStatus(hit.EvidenceStatus) != "verified" {
+			continue
+		}
+		if grade := unifiedRadarContractHitGradeCap(hit); grade != "" {
+			grades = append(grades, grade)
+		}
+	}
+	return grades
+}
+
+func unifiedRadarVerifiedCompoundingRuleCount(hits []ActorDefenseRuleHit) int {
+	seen := map[string]struct{}{}
+	for _, hit := range hits {
+		if !strings.EqualFold(strings.TrimSpace(hit.Tier), "compounding") || normalizeActorEvidenceStatus(hit.EvidenceStatus) != "verified" {
+			continue
+		}
+		if ruleID := strings.TrimSpace(hit.RuleID); ruleID != "" {
+			seen[ruleID] = struct{}{}
+		}
+	}
+	return len(seen)
 }
 
 func unifiedRadarContractHitGradeCap(hit ActorDefenseRuleHit) string {

@@ -9,9 +9,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 const (
@@ -223,6 +226,7 @@ func PrepareLiteSVMExecution(ctx context.Context, db *sql.DB, jobRef, profileRef
 	toolDirs = uniqueStrings(toolDirs)
 	sort.Strings(toolDirs)
 	environmentTemplate := map[string]string{
+		"CARGO_BUILD_JOBS":         strconv.Itoa(runtimecfg.Load().WorkerMaxBuildThreads),
 		"CARGO_HOME":               "/tmp/koschei-scratch/cargo-home",
 		"CARGO_NET_OFFLINE":        "true",
 		"CARGO_TARGET_DIR":         "/tmp/koschei-scratch/target",

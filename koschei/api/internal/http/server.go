@@ -12,6 +12,7 @@ import (
 	"koschei/api/internal/cache"
 	"koschei/api/internal/handlers"
 	"koschei/api/internal/jobs"
+	"koschei/api/internal/runtimecfg"
 	"koschei/api/internal/web3"
 )
 
@@ -104,7 +105,7 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, koschAccess rou
 	}))
 	mux.HandleFunc("/api/version", method("GET", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"app": "koschei-engine", "status": "ok", "access": "free-core-kosch-tier-quota"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"app": runtimecfg.Load().AppName, "status": "ok", "access": "free-core-kosch-tier-quota"})
 	}))
 	mux.HandleFunc("/api/auth/register", method("POST", h.Register))
 	mux.HandleFunc("/api/auth/login", method("POST", h.Login))
@@ -163,30 +164,35 @@ func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir stri
 }
 
 func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, koschTier tierRouteGate) {
-	mux.HandleFunc("/api/token/scan", method("POST", h.TokenScan))
-	mux.HandleFunc("/api/v1/risk/badge", method("GET", h.SecurityRiskBadge))
-	mux.HandleFunc("/api/v1/token/extensions", requiresDB(h, koschTier("basic", method("POST", h.TokenScan))))
-	mux.HandleFunc("/api/v1/address-poisoning/check", requiresDB(h, koschTier("basic", method("POST", h.AddressPoisoningCheck))))
-	mux.HandleFunc("/api/v1/radar/check", requiresDB(h, koschTier("basic", method("POST", h.SecurityRadarCheckWithAlerts))))
-	mux.HandleFunc("/api/v1/radar/jobs", requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job))))
-	mux.HandleFunc("/api/v1/radar/jobs/", requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job))))
-	mux.HandleFunc("/api/jobs/token-scan", requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job))))
-	mux.HandleFunc("/api/jobs/", requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job))))
-	mux.HandleFunc("/api/v1/radar/detail", requiresDB(h, koschTier("basic", method("GET", h.SecurityRadarDetailV3))))
-	mux.HandleFunc("/api/v1/radar/feed", requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarFeed))))
-	mux.HandleFunc("/api/v1/radar/creator-intelligence", requiresDB(h, koschTier("pro", method("GET", h.OwnerCreatorIntelligence))))
-	mux.HandleFunc("/api/v1/radar/actor-intelligence", requiresDB(h, koschTier("pro", method("GET", h.OwnerActorSecurityIntelligence))))
-	mux.HandleFunc("/api/v1/radar/graph", requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarGraph))))
-	mux.HandleFunc("/api/v1/radar/exposure", requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarExposureReport))))
-	mux.HandleFunc("/api/v1/radar/court", requiresDB(h, koschTier("pro", method("POST", h.SecurityRadarCourt))))
+	solana := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureSolana, next) }
+	risk := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureRiskScanner, next) }
+	badge := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featurePublicBadge, next) }
+	mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))
+	mux.HandleFunc("/api/v1/risk/badge", solana(badge(method("GET", h.SecurityRiskBadge))))
+	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.TokenScan))))))
+	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, koschTier("basic", method("POST", h.AddressPoisoningCheck)))))
+	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, koschTier("basic", method("POST", h.SecurityRadarCheckWithAlerts)))))
+	mux.HandleFunc("/api/v1/radar/jobs", solana(requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job)))))
+	mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
+	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job))))))
+	mux.HandleFunc("/api/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
+	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, koschTier("basic", method("GET", h.SecurityRadarDetailV3)))))
+	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarFeed)))))
+	mux.HandleFunc("/api/v1/radar/creator-intelligence", solana(requiresDB(h, koschTier("pro", method("GET", h.OwnerCreatorIntelligence)))))
+	mux.HandleFunc("/api/v1/radar/actor-intelligence", solana(requiresDB(h, koschTier("pro", method("GET", h.OwnerActorSecurityIntelligence)))))
+	mux.HandleFunc("/api/v1/radar/graph", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarGraph)))))
+	mux.HandleFunc("/api/v1/radar/exposure", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarExposureReport)))))
+	mux.HandleFunc("/api/v1/radar/court", solana(requiresDB(h, koschTier("pro", method("POST", h.SecurityRadarCourt)))))
 }
 
 func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, enterprise routeGate, enterpriseMetered routeGate) {
-	mux.HandleFunc("/api/v1/scan/token", requiresDB(h, enterpriseMetered(method("POST", h.B2BTokenScan))))
+	solana := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureSolana, next) }
+	risk := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureRiskScanner, next) }
+	mux.HandleFunc("/api/v1/scan/token", solana(risk(requiresDB(h, enterpriseMetered(method("POST", h.B2BTokenScan))))))
 	mux.HandleFunc("/api/v1/usage", requiresDB(h, enterprise(method("GET", h.APIUsage))))
-	mux.HandleFunc("/api/v1/shield/preflight", requiresDB(h, enterpriseMetered(method("POST", h.ShieldPreflight))))
-	mux.HandleFunc("/api/v1/shield/transaction", requiresDB(h, enterpriseMetered(method("POST", h.TransactionGuardV2Configured))))
-	mux.HandleFunc("/api/v1/shield/address-poisoning", requiresDB(h, enterpriseMetered(method("POST", h.AddressPoisoningCheck))))
+	mux.HandleFunc("/api/v1/shield/preflight", solana(requiresDB(h, enterpriseMetered(method("POST", h.ShieldPreflight)))))
+	mux.HandleFunc("/api/v1/shield/transaction", solana(requiresDB(h, enterpriseMetered(method("POST", h.TransactionGuardV2Configured)))))
+	mux.HandleFunc("/api/v1/shield/address-poisoning", solana(requiresDB(h, enterpriseMetered(method("POST", h.AddressPoisoningCheck)))))
 }
 
 func registerStatic(mux *http.ServeMux, staticDir string) {
@@ -212,6 +218,12 @@ func registerStatic(mux *http.ServeMux, staticDir string) {
 		}
 		if r.URL.Path == "/" {
 			http.ServeFile(w, r, indexPath)
+			return
+		}
+		if (r.URL.Path == "/launches" || r.URL.Path == "/launches.html") && !runtimeFeatureEnabled(featureLaunchPageBuilder) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "code": "feature_disabled", "feature": string(featureLaunchPageBuilder)})
 			return
 		}
 		clean := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")

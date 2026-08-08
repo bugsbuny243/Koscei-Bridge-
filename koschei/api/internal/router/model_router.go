@@ -3,6 +3,8 @@ package router
 import (
 	"os"
 	"strings"
+
+	"koschei/api/internal/runtimecfg"
 )
 
 type ModelRoute struct {
@@ -13,7 +15,9 @@ type ModelRoute struct {
 }
 
 const (
-	liveStatus = "live"
+	liveStatus         = "live"
+	disabledStatus     = "disabled"
+	unconfiguredStatus = "unconfigured"
 )
 
 var toolRouteMap = map[string]string{
@@ -37,12 +41,28 @@ func ResolveModelRoute(tool string) ModelRoute {
 	}
 	provider := providerFromEnv()
 	model := defaultModel(provider)
-	return ModelRoute{Route: model, Provider: provider, Status: liveStatus, Message: "Live provider route selected."}
+	status := liveStatus
+	message := "Live provider route selected."
+	if provider == "disabled" {
+		status = disabledStatus
+		message = "AI model routing is disabled by runtime policy."
+	} else if provider == "unconfigured" {
+		status = unconfiguredStatus
+		message = "No enabled AI provider is configured."
+	}
+	return ModelRoute{Route: model, Provider: provider, Status: status, Message: message}
 }
 
 func providerFromEnv() string {
-	if strings.TrimSpace(getEnv("TOGETHER_API_KEY")) != "" {
-		return "together"
+	cfg := runtimecfg.LoadWith(getEnv)
+	if !cfg.AIEnabled || !cfg.ModelRouterEnabled {
+		return "disabled"
+	}
+	requested := cfg.AIProvider
+	if requested == "auto" || requested == "together" {
+		if cfg.TogetherEnabled && strings.TrimSpace(getEnv("TOGETHER_API_KEY")) != "" {
+			return "together"
+		}
 	}
 	return "unconfigured"
 }

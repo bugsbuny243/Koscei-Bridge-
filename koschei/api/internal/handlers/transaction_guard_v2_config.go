@@ -10,6 +10,14 @@ import (
 const maxConfiguredGuardPrograms = 64
 
 func (h *Handler) TransactionGuardV2Configured(w http.ResponseWriter, r *http.Request) {
+	if err := validateRequiredTransactionGuardEnforcementConfig(); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok":      false,
+			"code":    "transaction_guard_enforcement_configuration_invalid",
+			"message": "Transaction Guard enforcement is required but its signing configuration is invalid.",
+		})
+		return
+	}
 	if err := validateGuardOperatorBlocklist(os.Getenv("TRANSACTION_GUARD_BLOCKED_PROGRAMS")); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"ok":      false,
