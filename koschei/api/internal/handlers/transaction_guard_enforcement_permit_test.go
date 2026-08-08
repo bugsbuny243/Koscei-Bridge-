@@ -86,7 +86,7 @@ func TestTransactionGuardEnforcementRequirementFailsClosedWhenGuardIncomplete(t 
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_KEY_ID", "test-key")
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY", base64.StdEncoding.EncodeToString(make([]byte, ed25519.SeedSize)))
 
-	input := transactionGuardV2Request{TransactionBase64: base64.StdEncoding.EncodeToString([]byte("tx")), Network: "solana-mainnet"}
+	input := transactionGuardV2Request{Transaction: base64.StdEncoding.EncodeToString([]byte("tx")), Network: "solana-mainnet"}
 	assessment := transactionFirewallAssessment{Action: "allow", RiskLevel: "low"}
 	updated, state := applyTransactionGuardEnforcementRequirement(input, "req-incomplete", assessment, false, time.Unix(1_700_000_000, 0).UTC())
 	if state.Issued || state.Status != "not_eligible" {
