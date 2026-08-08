@@ -40,9 +40,9 @@ func TestRecoveredControlPlaneContractWiredAndDocumented(t *testing.T) {
 
 func TestControlPlaneHealthDetectsShadowingAndInvalidBounds(t *testing.T) {
 	values := map[string]string{
-		"AI_ENABLED":              "false",
-		"AI_PROVIDER":             "together",
-		"TOGETHER_AI_ENABLED":     "true",
+		"AI_ENABLED":               "false",
+		"AI_PROVIDER":              "together",
+		"TOGETHER_AI_ENABLED":      "true",
 		"WORKER_MAX_BUILD_THREADS": "9999",
 	}
 	report := ControlPlaneHealthWith(mapGetter(values))
@@ -63,8 +63,8 @@ func TestControlPlaneHealthDetectsShadowingAndInvalidBounds(t *testing.T) {
 func TestControlPlaneHealthDetectsRequiredPermitDependency(t *testing.T) {
 	values := map[string]string{
 		"TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT": "true",
-		"TRANSACTION_GUARD_ENFORCEMENT_KEY_ID":          "",
-		"TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY":     "",
+		"TRANSACTION_GUARD_ENFORCEMENT_KEY_ID":         "",
+		"TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY":    "",
 	}
 	report := ControlPlaneHealthWith(mapGetter(values))
 	if report.OK || report.Misconfigured < 3 {
@@ -84,9 +84,9 @@ func TestControlPlaneHealthDetectsRequiredPermitDependency(t *testing.T) {
 func TestControlPlaneHealthDoesNotLeakSecrets(t *testing.T) {
 	secret := "this-must-never-appear-in-config-output"
 	values := map[string]string{
-		"SOLSCAN_API_KEY":                              secret,
-		"TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY":   secret,
-		"TRANSACTION_GUARD_ENFORCEMENT_KEY_ID":        "guard-key-v1",
+		"SOLSCAN_API_KEY": secret,
+		"TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY":    secret,
+		"TRANSACTION_GUARD_ENFORCEMENT_KEY_ID":         "guard-key-v1",
 		"TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT": "false",
 	}
 	report := ControlPlaneHealthWith(mapGetter(values))
