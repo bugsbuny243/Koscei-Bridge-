@@ -61,7 +61,7 @@ func LoadWith(get Getter) Config {
 		ModelRouterEnabled:       boolEnv(get, "KOSCHEI_MODEL_ROUTER_ENABLED", true),
 		PublicBadgeEnabled:       boolEnv(get, "KOSCHEI_PUBLIC_BADGE_ENABLED", true),
 		SecurityModules:          csvEnv(get, "KOSCHEI_SECURITY_MODULES"),
-		SecurityProvider:         enumEnv(get, "KOSCHEI_SECURITY_PROVIDER", DefaultSecuritySource, "auto", "alchemy", "helius", "rpc", "solscan"),
+		SecurityProvider:         enumEnv(get, "KOSCHEI_SECURITY_PROVIDER", DefaultSecuritySource, "auto", "alchemy", "helius", "quicknode", "rpc", "solscan"),
 		VerdictMode:              enumEnv(get, "KOSCHEI_VERDICT_MODE", DefaultSecurityMode, "evidence_first", "strict", "observe", "evidence_only"),
 		SolanaNetwork:            normalizeSolanaNetwork(get("SOLANA_NETWORK")),
 		SolscanConfigured:        strings.TrimSpace(get("SOLSCAN_API_KEY")) != "",
