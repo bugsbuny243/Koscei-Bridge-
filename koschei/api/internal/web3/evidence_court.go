@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const evidenceCourtSchemaVersion = "koschei-evidence-court-v1"
@@ -202,7 +201,7 @@ func EvaluateEvidenceCourt(method string, samples []EvidenceCourtSample, require
 	for _, sample := range samples {
 		witness := EvidenceCourtWitness{
 			Provider: strings.TrimSpace(sample.Provider),
-			Host:     RPCProviderHost(sample.Host),
+			Host:     evidenceCourtSafeHost(sample.Host),
 			Status:   "unavailable",
 		}
 		if witness.Provider == "" {
@@ -341,6 +340,20 @@ func evidenceCourtErrorClass(err error) string {
 	}
 }
 
+func evidenceCourtSafeHost(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "unconfigured"
+	}
+	if strings.Contains(value, "://") {
+		return RPCProviderHost(value)
+	}
+	if strings.ContainsAny(value, "/?#@") {
+		return "invalid-host"
+	}
+	return value
+}
+
 func (s *SolanaRPC) evidenceCourtEndpoints(network string) []evidenceCourtEndpoint {
 	if s == nil {
 		return nil
@@ -395,11 +408,4 @@ func providerLabel(host string) string {
 	default:
 		return host
 	}
-}
-
-// EvidenceCourtCollectedAt is intentionally separate from quorum identity.
-// Timestamps describe collection, but never participate in canonical value
-// hashing or deterministic quorum evaluation.
-func EvidenceCourtCollectedAt() time.Time {
-	return time.Now().UTC()
 }
