@@ -178,15 +178,13 @@ func StartPumpPortalRadarIfEnabled(ctx context.Context, db *sql.DB) func() {
 		ledger := NewPumpTradeLedgerWriter(db)
 		client := NewPumpPortalClient(cfg)
 		go inbox.Start(workerCtx)
-		go ledger.Start(workerCtx)
 		go client.Start(workerCtx, func(eventCtx context.Context, event PumpPortalEvent) error {
-			ledger.EnqueuePumpPortal(event)
-			if !isPumpPortalTradeEvent(event) {
-				return inbox.PersistDiscovery(eventCtx, event)
+			if isPumpPortalTradeEvent(event) {
+				return ledger.PersistPumpPortal(eventCtx, event)
 			}
-			return nil
+			return inbox.PersistDiscovery(eventCtx, event)
 		})
-		log.Printf("pumpportal discovery + durable inbox + non-blocking trade ledger started websocket=%s", cfg.redactedWebsocketHost())
+		log.Printf("pumpportal discovery + durable inbox + durable trade ledger started websocket=%s", cfg.redactedWebsocketHost())
 	}
 	if volumeEnabled {
 		if canonicalInvestigationWorkerActive() {
