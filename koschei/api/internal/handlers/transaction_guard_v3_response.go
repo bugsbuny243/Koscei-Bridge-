@@ -84,7 +84,7 @@ func (h *Handler) finishTransactionGuardV3ResponseWithWitness(w http.ResponseWri
 	authorityComplete := !authoritySurface.Required || authoritySurface.Complete
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete && authorityComplete
 	valueEvidence := buildTransactionGuardValueEvidence(input.Transaction, input.Wallet, decoded, cpiFlow)
-	programTrustGraph := h.collectTransactionGuardProgramTrustGraph(r.Context(), input.Network, decoded, cpiFlow, authoritySurface)
+	programTrustGraph := h.collectTransactionGuardProgramTrustGraph(r.Context(), input.Network, transactionFingerprint(input.Transaction), decoded, cpiFlow, authoritySurface)
 	originalAction := assessment.Action
 	assessment, enforcement := applyTransactionGuardEnforcementRequirementWithWitness(input, requestID, assessment, guardComplete, time.Now().UTC(), &stateWitness)
 	if originalAction == "allow" && assessment.Action != "allow" && alertID == "" {
