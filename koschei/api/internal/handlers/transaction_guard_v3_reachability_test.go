@@ -56,8 +56,9 @@ func TestTransactionGuardV3CollectorsReachableFromV2Endpoint(t *testing.T) {
 		"resolveTransactionGuardV3CPIFlow",
 		"analyzeTransactionGuardV3AuthoritySurface",
 		"collectTransactionGuardV3ThreatHistory",
+		"buildTransactionGuardStateWitness",
 		"finalizeEvidenceFirstGuardAssessment",
-		"finishTransactionGuardV3Response",
+		"finishTransactionGuardV3ResponseWithWitness",
 	} {
 		if !calls[required] {
 			t.Fatalf("v2 evidence-first endpoint no longer calls %s", required)
@@ -72,6 +73,14 @@ func TestTransactionGuardV3CollectorsReachableFromV2Endpoint(t *testing.T) {
 	} {
 		if !strings.Contains(body, failClosedGate) {
 			t.Fatalf("missing fail-closed collector gate %q", failClosedGate)
+		}
+	}
+	for _, stateBinding := range []string{
+		"pre.Context.Slot, simulation.Context.Slot, ordered, pre.Value",
+		"No bounded pre-state account set was available for state witnessing.",
+	} {
+		if !strings.Contains(body, stateBinding) {
+			t.Fatalf("missing live state witness binding %q", stateBinding)
 		}
 	}
 }

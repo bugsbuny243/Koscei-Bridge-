@@ -86,12 +86,14 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	var innerGroups []services.SolanaInnerInstructionGroup
 	authoritySnapshots := transactionGuardAuthoritySnapshots{}
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
+	stateWitness := unavailableTransactionGuardStateWitness(fingerprint, 0, "No bounded pre-state account set was available for state witnessing.")
 	if len(addresses) == 0 {
 		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
 		if err != nil {
 			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
+		stateWitness = unavailableTransactionGuardStateWitness(fingerprint, simulation.Context.Slot, "No bounded pre-state account set was available for state witnessing.")
 		assessment = assessTransactionGuardSimulation(simulation)
 		innerGroups = simulation.Value.InnerInstructions
 		cpiFlow, cpiFindings = resolveTransactionGuardV3CPIFlow(
@@ -109,6 +111,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 			h.finishUnavailableTransactionGuardV3(w, r, input, requestID, started, intentPolicy, decoded, decodedFindings, err)
 			return
 		}
+		stateWitness = buildTransactionGuardStateWitness(fingerprint, pre.Context.Slot, simulation.Context.Slot, ordered, pre.Value)
 		assessment = assessmentFromAccountSimulation(simulation)
 		innerGroups = simulation.Value.InnerInstructions
 		authoritySnapshots = transactionGuardAuthoritySnapshots{
@@ -164,7 +167,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	if assessment.Action != "allow" {
 		alertID = h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
 	}
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, authoritySurface, alertID)
+	h.finishTransactionGuardV3ResponseWithWitness(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, authoritySurface, stateWitness, alertID)
 }
 
 func (h *Handler) finishUnavailableTransactionGuardV2(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, intent transactionGuardIntentPolicy, err error) {
@@ -192,7 +195,8 @@ func (h *Handler) finishUnavailableTransactionGuardV3(w http.ResponseWriter, r *
 	assessment := applyTransactionGuardV3Decode(unavailableGuardAssessment(err), &intent, decoded, decodedFindings)
 	assessment = finalizeEvidenceFirstGuardAssessment(assessment, program, intent)
 	alertID := h.emitStableTransactionGuardAlert(r.Context(), requestID, input, assessment, program, intent)
-	h.finishTransactionGuardV3Response(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, cpiFlow, authoritySurface, alertID)
+	stateWitness := unavailableTransactionGuardStateWitness(transactionFingerprint(input.Transaction), 0, "Provider failure prevented bounded state witness collection.")
+	h.finishTransactionGuardV3ResponseWithWitness(w, r, input, requestID, started, assessment, program, intent, decoded, threatHistory, cpiFlow, authoritySurface, stateWitness, alertID)
 }
 
 func finalizeEvidenceFirstGuardAssessment(assessment transactionFirewallAssessment, program transactionGuardProgramPolicy, intent transactionGuardIntentPolicy) transactionFirewallAssessment {

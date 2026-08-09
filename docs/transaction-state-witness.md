@@ -1,6 +1,6 @@
 # ARVIS Transaction State Witness
 
-Status: foundation implemented; live Guard collection/recheck wiring remains gated until the integration phase.
+Status: live Guard collection and state-bound permit wiring implemented; pre-sign recheck remains the next enforcement phase.
 
 ## Goal
 
@@ -25,9 +25,36 @@ The deterministic witness contains:
 
 Account state hashing covers the RPC-observed account data, lamports, owner, executable flag, rent epoch and space. Missing accounts receive a deterministic `present=false` hash rather than being silently dropped.
 
+## Live Guard collection
+
+Guard v3 now builds the witness from the exact bounded account list already used for pre-state inspection and account-returning simulation:
+
+```text
+getMultipleAccounts(pre-state)
+        │
+        ├── context.slot
+        ├── ordered addresses
+        └── raw account states
+                │
+                ▼
+simulateTransaction(accounts)
+        │
+        └── context.slot
+                │
+                ▼
+Transaction State Witness
+```
+
+The response exposes:
+
+- `state_witness_complete`
+- `state_witness`
+
+When Guard has no bounded pre-state account set, it still records the simulation slot but returns an explicit incomplete/not-collected witness. Provider failure similarly produces an unavailable witness rather than fabricating state evidence.
+
 ## Slot policy
 
-State Witness records slot spread but this foundation does not invent a maximum safe spread. A later enforcement policy may define an acceptance window with explicit Solana/runtime evidence and tests.
+State Witness records slot spread but does not invent a maximum safe spread. A later enforcement policy may define an acceptance window only with explicit Solana/runtime evidence and regression tests.
 
 Missing pre-state or simulation context slots make the witness incomplete.
 
@@ -48,7 +75,7 @@ TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT=true
 TRANSACTION_GUARD_REQUIRE_STATE_WITNESS=true
 ```
 
-When State Witness is required, permit issuance fails closed unless a complete witness is supplied. A complete witness produces:
+When State Witness is required, permit issuance fails closed unless a complete live witness is available. A complete witness produces:
 
 ```text
 koschei-transaction-guard-permit-v2
@@ -66,20 +93,26 @@ The witness transaction fingerprint must exactly equal the permit transaction fi
 
 `TRANSACTION_GUARD_REQUIRE_STATE_WITNESS=true` without signed permit enforcement is invalid configuration.
 
+Compatibility rule: a complete witness may be present in a Guard response while state-witness enforcement is disabled, but the signed permit remains v1. This prevents the new observation layer from silently changing existing integration contracts.
+
 ## Current safety boundary
 
-This foundation deliberately does not yet enable the policy in production. Existing Guard call paths continue using permit v1 unless the later integration path supplies a complete witness.
+Live collection and permit binding are implemented, but the feature gate remains off by default. Koschei still does not sign or submit the transaction.
 
-Until live collection is wired, enabling `TRANSACTION_GUARD_REQUIRE_STATE_WITNESS=true` causes otherwise-allowable enforcement to fail closed with `state_witness_unavailable`.
+A state-bound permit proves what state the allow decision was bound to. It does **not** prove that state has remained unchanged after the response was issued.
 
-## Next integration phase
+That distinction is deliberate: TOCTOU resistance is complete only when the consumer performs a bounded pre-sign recheck.
 
-1. pass the preserved pre-state RPC context slot and simulation slot from Guard v3;
-2. build the witness from the exact bounded account list already used by Guard;
-3. expose the witness in the Guard response;
-4. pass it to state-bound permit issuance;
-5. add a bounded recheck path that re-reads the witnessed account states before relying on the permit;
-6. require re-simulation when the account-state root changes or the permit expires;
-7. selectively corroborate critical state through Evidence Court when policy requires multi-provider proof.
+## Next enforcement phase — bounded recheck
 
-The recheck layer is the part that converts state binding into TOCTOU resistance. A witness by itself is evidence, not a guarantee that state has remained unchanged.
+1. accept the signed state-bound permit and exact transaction fingerprint;
+2. verify Ed25519 signature, key ID, expiry, guard version and witness claims;
+3. re-read only the witnessed account addresses;
+4. recompute the current account-state root;
+5. compare it with the signed `state_account_root_sha256`;
+6. return `state_unchanged` only on an exact match;
+7. return `state_changed` / `recheck_required` on any mismatch, missing account evidence, expired permit or provider failure;
+8. require a fresh simulation and permit after state change;
+9. selectively corroborate hard-trigger state through Evidence Court when policy requires multi-provider proof.
+
+The recheck layer is the component that converts state binding into practical TOCTOU resistance. A witness by itself remains evidence, not a future-state guarantee.
