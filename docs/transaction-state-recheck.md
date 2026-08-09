@@ -18,6 +18,25 @@ The route uses the existing enterprise API-key plus live KOSCH-holder gate and S
 
 The request carries the exact serialized transaction, the signed state-bound permit, the issued State Witness, and optional network (default `solana-mainnet`). Permit and witness trust checks happen before any RPC access.
 
+## Response safety contract
+
+A successful HTTP request and a safe signing decision are deliberately separate concepts.
+
+- `ok=true` means the State Recheck request was processed successfully;
+- `safe_to_proceed=true` is the only positive client-facing signal that the bounded signed state is still consistent after all effective recheck and Court requirements;
+- `safe_to_proceed=false` means the prior Guard permit must not be relied on for signing without the action required by the returned decision;
+- any `ok=false` response must also be treated as unsafe, regardless of whether a `safe_to_proceed` field is present.
+
+`safe_to_proceed=true` is derived only from the final decision after Evidence Court processing. It requires the current and issued roots to match, a valid non-stale slot relationship, `state_unchanged`, `permit_state_consistent`, and no resimulation requirement. A primary `state_unchanged` result that is later downgraded by Court to `withhold` therefore cannot produce `safe_to_proceed=true`.
+
+Clients should use a fail-closed rule:
+
+```text
+sign only if ok == true AND safe_to_proceed == true
+```
+
+The field does not mean Koschei signs or executes the transaction, and state can still change after the observation.
+
 ## Permit versions
 
 Non-state-bound enforcement remains:
@@ -111,7 +130,8 @@ Only after all permit, policy and witness checks pass, the handler:
 9. when Court is required, requests the same bounded state from independent providers even if the global Court feature flag is off;
 10. excludes the primary RPC provider identity from Court voting;
 11. requires the quorum root to equal the primary root and enough matching Court observations to be at or after the signed simulation slot;
-12. returns only safe root/slot/policy/quorum metadata, never raw account state or provider hostnames.
+12. derives `safe_to_proceed` from the final post-Court decision;
+13. returns only safe root/slot/policy/quorum metadata, never raw account state or provider hostnames.
 
 Provider failure, incomplete evidence, stale quorum, provider conflict, root disagreement or insufficient independent providers fail closed with `withhold` and `requires_resimulation=true`.
 
@@ -125,6 +145,6 @@ An independent quorum can never turn a primary `state_changed` result into `stat
 
 ## Safety boundary
 
-A successful `state_unchanged` response means only that the bounded signed account-state root still matched at the recheck observation slot and all effective corroboration requirements passed. Koschei remains non-custodial and never signs, submits, mutates or holds the transaction.
+A `safe_to_proceed=true` response means only that the bounded signed account-state root still matched at the recheck observation slot and all effective corroboration requirements passed. Koschei remains non-custodial and never signs, submits, mutates or holds the transaction.
 
 No transaction-value threshold is defined here. A value-based policy should be added only after Koschei has a separately verified transaction-value evidence contract; incomplete transaction context is not converted into invented dollar or lamport exposure.

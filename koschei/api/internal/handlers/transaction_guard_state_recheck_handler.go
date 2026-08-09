@@ -141,6 +141,7 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 	decision := evaluateTransactionGuardStateRecheck(claims, currentRoot, current.Context.Slot)
 	response := map[string]any{
 		"ok":                      true,
+		"safe_to_proceed":         false,
 		"product":                 "Koschei Transaction Guard",
 		"recheck_version":         transactionGuardStateRecheckVersion,
 		"network":                 input.Network,
@@ -166,5 +167,6 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 			response["warning"] = "Evidence Court is enabled for this deployment; an independent fresh provider quorum corroborated the bounded State Witness root. Koschei never signs or submits the transaction."
 		}
 	}
+	response["safe_to_proceed"] = transactionGuardStateRecheckSafeToProceed(decision)
 	writeJSON(w, http.StatusOK, response)
 }
