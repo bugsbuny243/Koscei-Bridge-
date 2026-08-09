@@ -8,7 +8,8 @@ import (
 
 // BuildExitImpactAssessment fuses two explicitly separate evidence surfaces:
 // Jupiter read-only execution quotes and the canonical pool LP-control/reserve
-// snapshot. It does not infer that Jupiter routed through the canonical pool.
+// snapshot. Route attribution is exact-address matching against the returned
+// quote plan only; it does not claim that an unexecuted quote later executed.
 func BuildExitImpactAssessment(exit ExitLiquiditySimulation, lp LPControlEvidence) ExitImpactAssessment {
 	out := ExitImpactAssessment{
 		Version:            ExitImpactVersion,
@@ -20,22 +21,32 @@ func BuildExitImpactAssessment(exit ExitLiquiditySimulation, lp LPControlEvidenc
 	}
 	reserveUSD := lp.ReserveLiquidityUSD
 	reserveObserved := lp.Available && lp.CanonicalPool && reserveUSD > 0
+	canonicalPool := strings.TrimSpace(lp.PoolAddress)
 	if !reserveObserved {
 		out.Limitations = append(out.Limitations, "Canonical pool reserve USD evidence is unavailable or incomplete; reserve-reference ratios are withheld.")
 	}
-	out.Limitations = append(out.Limitations, "Canonical reserve reference percentages are context only; Jupiter may route across different or multiple liquidity venues.")
+	out.Limitations = append(out.Limitations,
+		"Canonical reserve reference percentages are context only; Jupiter may route across different or multiple liquidity venues.",
+		"AMM-key attribution describes the returned Jupiter quote plan only; it does not prove that an unexecuted quote was later executed.",
+	)
 
 	for _, tier := range exit.Tiers {
 		impactTier := ExitImpactTier{
-			RequestedNotionalUSD: tier.RequestedNotionalUSD,
-			QuoteAvailable:       tier.Available,
-			Status:               "unavailable",
-			QuoteContextSlot:     tier.QuoteContextSlot,
-			LPReadSlot:           lp.ReadSlot,
-			RouteLabels:          normalizedExitImpactLabels(tier.RouteLabels),
-			Limitations:          []string{},
+			RequestedNotionalUSD:     tier.RequestedNotionalUSD,
+			QuoteAvailable:           tier.Available,
+			Status:                   "unavailable",
+			QuoteContextSlot:         tier.QuoteContextSlot,
+			LPReadSlot:               lp.ReadSlot,
+			RouteLabels:              normalizedExitImpactLabels(tier.RouteLabels),
+			RouteAMMKeys:             normalizedExitImpactAMMKeys(tier.RoutePlan),
+			CanonicalPoolRouteStatus: "quote_unavailable",
+			Limitations:              []string{},
 		}
 		impactTier.UniqueRouteLabelCount = len(impactTier.RouteLabels)
+		impactTier.UniqueRouteAMMKeyCount = len(impactTier.RouteAMMKeys)
+		if tier.Available && len(impactTier.RouteAMMKeys) > 0 {
+			out.RouteAttributedTierCount++
+		}
 		if lp.ReadSlot > 0 && tier.QuoteContextSlot > 0 {
 			impactTier.ObservationSlotSpread = absoluteSlotSpread(lp.ReadSlot, tier.QuoteContextSlot)
 			if impactTier.ObservationSlotSpread > out.MaxObservationSlotSpread {
@@ -73,10 +84,45 @@ func BuildExitImpactAssessment(exit ExitLiquiditySimulation, lp LPControlEvidenc
 			impactTier.Status = "quote_unavailable_reserve_reference_only"
 			impactTier.Limitations = append(impactTier.Limitations, "Jupiter did not provide a usable execution quote for this tier.")
 		}
+
+		switch {
+		case !tier.Available:
+			impactTier.CanonicalPoolRouteStatus = "quote_unavailable"
+		case len(impactTier.RouteAMMKeys) == 0:
+			impactTier.CanonicalPoolRouteStatus = "route_keys_unavailable"
+			impactTier.Limitations = append(impactTier.Limitations, "The returned quote did not expose a usable AMM account identity for route attribution.")
+		case !lp.CanonicalPool || canonicalPool == "":
+			impactTier.CanonicalPoolRouteStatus = "canonical_pool_unavailable"
+		default:
+			for _, ammKey := range impactTier.RouteAMMKeys {
+				if ammKey == canonicalPool {
+					impactTier.CanonicalPoolRouteMatchCount++
+				}
+			}
+			if impactTier.CanonicalPoolRouteMatchCount > 0 {
+				impactTier.CanonicalPoolObservedInRoute = true
+				impactTier.CanonicalPoolRouteStatus = "canonical_pool_observed_in_returned_route_plan"
+				out.CanonicalPoolMatchedTierCount++
+				out.CanonicalPoolObservedInAnyRoute = true
+			} else {
+				impactTier.CanonicalPoolRouteStatus = "canonical_pool_not_observed_in_returned_route_plan"
+				impactTier.Limitations = append(impactTier.Limitations, "The canonical pool address was not present in the returned quote-plan AMM keys; this does not prove that a later quote or execution could not use it.")
+			}
+		}
 		out.Tiers = append(out.Tiers, impactTier)
 	}
 
 	out.Available = out.QuotedTierCount > 0
+	switch {
+	case out.QuotedTierCount == 0:
+		out.RouteAttributionStatus = "unavailable"
+	case out.RouteAttributedTierCount == out.QuotedTierCount:
+		out.RouteAttributionStatus = "complete"
+	case out.RouteAttributedTierCount > 0:
+		out.RouteAttributionStatus = "partial"
+	default:
+		out.RouteAttributionStatus = "unavailable"
+	}
 	switch {
 	case out.QuotedTierCount == len(exit.Tiers) && len(exit.Tiers) > 0 && reserveObserved:
 		out.Status = "complete"
@@ -131,6 +177,34 @@ func normalizedExitImpactLabels(labels []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func normalizedExitImpactAMMKeys(plan []ExitLiquidityRouteStep) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, step := range plan {
+		key := strings.TrimSpace(step.AMMKey)
+		if !looksLikeExitRouteAMMKey(key) || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func looksLikeExitRouteAMMKey(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 32 || len(value) > 44 {
+		return false
+	}
+	for _, char := range value {
+		if !strings.ContainsRune("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", char) {
+			return false
+		}
+	}
+	return true
 }
 
 func absoluteSlotSpread(a, b uint64) uint64 {
