@@ -19,7 +19,7 @@ type EvidenceCourtCanonicalizer func(json.RawMessage) (valueHash string, context
 // being compared. This is used by state-bound Transaction Guard rechecks so the
 // quorum compares State Witness account roots rather than generic RPC JSON.
 func (s *SolanaRPC) EvidenceCourtWithCanonicalizer(ctx context.Context, network, method string, params any, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
-	return s.EvidenceCourtWithCanonicalizerExcluding(ctx, network, method, params, "", canonicalize)
+	return s.evidenceCourtWithCanonicalizerPolicy(ctx, network, method, params, "", 0, false, canonicalize)
 }
 
 // EvidenceCourtWithCanonicalizerExcluding additionally removes the provider
@@ -27,10 +27,32 @@ func (s *SolanaRPC) EvidenceCourtWithCanonicalizer(ctx context.Context, network,
 // recognized provider identity, not only by exact hostname, so two endpoints
 // from the same provider cannot make a primary observation look independent.
 func (s *SolanaRPC) EvidenceCourtWithCanonicalizerExcluding(ctx context.Context, network, method string, params any, excludedURL string, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
-	required := evidenceCourtRequiredWitnesses()
+	return s.evidenceCourtWithCanonicalizerPolicy(ctx, network, method, params, excludedURL, 0, false, canonicalize)
+}
+
+// EvidenceCourtWithCanonicalizerExcludingRequired is reserved for a caller that
+// already authenticated a signed policy requiring corroboration. It can force
+// bounded collection even when the deployment-wide Evidence Court flag is off.
+// It does not bypass method allowlists, provider independence, timeouts, or the
+// configured provider cap.
+func (s *SolanaRPC) EvidenceCourtWithCanonicalizerExcludingRequired(ctx context.Context, network, method string, params any, excludedURL string, required int, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
+	return s.evidenceCourtWithCanonicalizerPolicy(ctx, network, method, params, excludedURL, required, true, canonicalize)
+}
+
+func (s *SolanaRPC) evidenceCourtWithCanonicalizerPolicy(ctx context.Context, network, method string, params any, excludedURL string, required int, force bool, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
+	if required <= 0 {
+		required = evidenceCourtRequiredWitnesses()
+	}
+	if required < 2 {
+		required = 2
+	}
+	if required > evidenceCourtMaxProviders {
+		required = evidenceCourtMaxProviders
+	}
+	enabled := EvidenceCourtEnabled() || force
 	result := EvidenceCourtResult{
 		SchemaVersion: evidenceCourtSchemaVersion,
-		Enabled:       EvidenceCourtEnabled(),
+		Enabled:       enabled,
 		Method:        strings.TrimSpace(method),
 		Status:        "disabled",
 		Required:      required,
@@ -61,7 +83,11 @@ func (s *SolanaRPC) EvidenceCourtWithCanonicalizerExcluding(ctx context.Context,
 	result.Requested = len(endpoints)
 	if len(endpoints) < required {
 		result.Status = "insufficient"
-		result.Limitations = append(result.Limitations, "Fewer independent providers are configured than the required witness quorum after excluding the primary RPC provider.")
+		limitation := "Fewer independent providers are configured than the required witness quorum."
+		if strings.TrimSpace(excludedURL) != "" {
+			limitation = "Fewer independent providers are configured than the required witness quorum after excluding the primary RPC provider."
+		}
+		result.Limitations = append(result.Limitations, limitation)
 		for _, endpoint := range endpoints {
 			result.Witnesses = append(result.Witnesses, EvidenceCourtWitness{Provider: endpoint.Provider, Host: endpoint.Host, Status: "not_queried"})
 		}
