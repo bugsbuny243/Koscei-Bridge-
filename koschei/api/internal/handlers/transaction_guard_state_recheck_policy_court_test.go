@@ -23,8 +23,13 @@ func TestStateRecheckSignedRequirementForcesCourtWhenGlobalDisabled(t *testing.T
 		[]string{"AddrA"},
 		transactionGuardStateRecheckCourtRequirement{Required: true, RequiredWitnesses: 2, SignedPolicy: true},
 	)
-	if !court.Enabled || court.Status != "insufficient" || court.Required != 2 || court.Requested != 0 {
+	if !court.Enabled || court.Status != "insufficient" || court.Required != 2 || court.Requested >= court.Required || court.Available != 0 {
 		t.Fatalf("court=%#v", court)
+	}
+	for _, witness := range court.Witnesses {
+		if witness.Status != "not_queried" {
+			t.Fatalf("insufficient provider set unexpectedly queried a witness: %#v", court.Witnesses)
+		}
 	}
 }
 
