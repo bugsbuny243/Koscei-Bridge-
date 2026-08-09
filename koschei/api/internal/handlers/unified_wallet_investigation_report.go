@@ -72,6 +72,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior)
 	unifiedPersistence, unifiedHistory := h.persistUnifiedRadarVerdict(ctx, db, network, "wallet", wallet, unifiedVerdict, behavior)
 	evidenceGraph := services.BuildActorEvidenceGraph(final)
+	campaignGenome := services.BuildActorCampaignGenome(final)
 	report := map[string]any{
 		"ok":                        true,
 		"schema_version":            "koschei-unified-wallet-investigation-v1",
@@ -105,6 +106,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"actor_live_evidence":        coverage,
 			"live_evidence":              coverage,
 			"evidence_graph":             evidenceGraph,
+			"campaign_genome":            campaignGenome,
 			"rule_verdict":               actorVerdict,
 			"rule_verdict_persistence":   actorVerdictPersistence,
 		},
@@ -118,6 +120,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"unverified_excluded":                   true,
 			"external_attribution_is_observed_only": true,
 			"identity_scope":                        "onchain_wallet_only",
+			"same_campaign_genome_not_identity":     true,
 			"caller_type_changes_evidence":          false,
 		},
 	}
@@ -143,6 +146,7 @@ func attachCanonicalWalletIntegrationCoverage(report map[string]any) {
 	put("actor_live_transaction_evidence", canonicalStatusFromRaw("Actor live transaction evidence", actor["actor_live_evidence"], live, true, "actor_investigation.actor_live_evidence"))
 	put("persistent_actor_dossier", canonicalStatusFromDossier(actor["dossier"], live))
 	put("actor_evidence_graph", canonicalStatusFromGraph(actor["evidence_graph"], live))
+	put("actor_campaign_genome", canonicalStatusFromRaw("Technical campaign genome", actor["campaign_genome"], live, false, "actor_investigation.campaign_genome"))
 	put("actor_ruleset", canonicalStatusFromSignedVerdict("Deterministic actor ruleset", actor["rule_verdict"], true, "actor_investigation.rule_verdict"))
 	put("deterministic_unified_verdict", canonicalStatusFromSignedVerdict("Deterministic Unified Verdict", report["final_verdict"], true, "final_verdict"))
 
