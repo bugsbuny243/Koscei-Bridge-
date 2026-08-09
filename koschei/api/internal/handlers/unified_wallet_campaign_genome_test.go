@@ -31,7 +31,14 @@ func TestCampaignGenomeIsWiredAsOptionalWalletCapability(t *testing.T) {
 	}
 }
 
-func TestObservedOnlyCampaignGenomeDoesNotBlockRequiredWalletCoverage(t *testing.T) {
+func TestObservedOnlyCampaignGenomeDoesNotChangeRequiredWalletCoverage(t *testing.T) {
+	baseline := map[string]any{
+		"actor_investigation":      map[string]any{},
+		"full_scan_live_evidence": map[string]any{"status": "complete"},
+	}
+	attachCanonicalWalletIntegrationCoverage(baseline)
+	baselineCoverage := baseline["capability_integration"].(canonicalIntegrationCoverage)
+
 	report := map[string]any{
 		"actor_investigation": map[string]any{
 			"campaign_genome": map[string]any{
@@ -51,7 +58,7 @@ func TestObservedOnlyCampaignGenomeDoesNotBlockRequiredWalletCoverage(t *testing
 	if capability.RequiredForFullScan {
 		t.Fatalf("campaign genome became mandatory: %#v", capability)
 	}
-	if coverage.RequiredCapabilityCount != 6 {
-		t.Fatalf("required capability count changed by optional genome: %#v", coverage)
+	if coverage.RequiredCapabilityCount != baselineCoverage.RequiredCapabilityCount {
+		t.Fatalf("optional campaign genome changed required capability count: baseline=%d candidate=%d", baselineCoverage.RequiredCapabilityCount, coverage.RequiredCapabilityCount)
 	}
 }
