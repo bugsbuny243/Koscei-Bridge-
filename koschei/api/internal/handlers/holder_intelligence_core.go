@@ -124,7 +124,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 			arms = analysis.Arms
 		}
 		final = services.ArvisFinalFromBundle(bundle)
-		jupiter = h.collectJupiterMarketContext(parent, network, target, intelligence, market)
+		jupiter = h.collectTrustedJupiterMarketContext(parent, network, target, intelligence, market)
 		exitLiquidity = h.collectExitLiquiditySimulation(parent, network, target, market, jupiter)
 		exitLiquidity.ImpactV2 = services.BuildExitImpactAssessment(exitLiquidity, lpControl)
 		jupiter.ExitLiquidity = exitLiquidity
