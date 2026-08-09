@@ -19,28 +19,28 @@ type transactionGuardStateWitnessAccount struct {
 }
 
 type transactionGuardStateWitness struct {
-	Version                string                               `json:"version"`
-	Status                 string                               `json:"status"`
-	Complete               bool                                 `json:"complete"`
-	TransactionFingerprint string                               `json:"transaction_fingerprint"`
-	PreStateSlot           int64                                `json:"pre_state_slot,omitempty"`
-	SimulationSlot         int64                                `json:"simulation_slot,omitempty"`
-	SlotSpread             uint64                               `json:"slot_spread,omitempty"`
-	AccountCount           int                                  `json:"account_count"`
-	AccountRoot            string                               `json:"account_root_sha256,omitempty"`
-	BindingHash            string                               `json:"binding_hash,omitempty"`
+	Version                string                                `json:"version"`
+	Status                 string                                `json:"status"`
+	Complete               bool                                  `json:"complete"`
+	TransactionFingerprint string                                `json:"transaction_fingerprint"`
+	PreStateSlot           int64                                 `json:"pre_state_slot,omitempty"`
+	SimulationSlot         int64                                 `json:"simulation_slot,omitempty"`
+	SlotSpread             uint64                                `json:"slot_spread,omitempty"`
+	AccountCount           int                                   `json:"account_count"`
+	AccountRoot            string                                `json:"account_root_sha256,omitempty"`
+	BindingHash            string                                `json:"binding_hash,omitempty"`
 	Accounts               []transactionGuardStateWitnessAccount `json:"accounts"`
-	Limitations            []string                             `json:"limitations"`
+	Limitations            []string                              `json:"limitations"`
 }
 
 type transactionGuardStateLeaf struct {
-	Present    bool `json:"present"`
-	Lamports   int64 `json:"lamports,omitempty"`
+	Present    bool   `json:"present"`
+	Lamports   int64  `json:"lamports,omitempty"`
 	Owner      string `json:"owner,omitempty"`
-	Executable bool `json:"executable,omitempty"`
-	RentEpoch  any `json:"rent_epoch,omitempty"`
-	Space      int64 `json:"space,omitempty"`
-	Data       any `json:"data,omitempty"`
+	Executable bool   `json:"executable,omitempty"`
+	RentEpoch  any    `json:"rent_epoch,omitempty"`
+	Space      int64  `json:"space,omitempty"`
+	Data       any    `json:"data,omitempty"`
 }
 
 type transactionGuardStateRootLeaf struct {
