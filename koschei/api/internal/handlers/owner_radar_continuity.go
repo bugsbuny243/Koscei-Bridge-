@@ -23,13 +23,13 @@ func (h *Handler) OwnerRadarContinuity(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	// Inbox health is read from the primary when available because retry/exhausted
-	// transitions are operational state and should not be hidden by replica lag.
-	inboxDB := h.DB
-	if inboxDB == nil {
-		inboxDB = readDB
+	// Ingress and trade delivery are operational state. Prefer the primary so
+	// replica lag cannot hide a retry, exhausted row or newly committed trade.
+	operationalDB := h.DB
+	if operationalDB == nil {
+		operationalDB = readDB
 	}
-	pumpHealth, err := services.LoadPumpPortalInboxHealth(r.Context(), inboxDB, now)
+	pumpHealth, err := services.LoadPumpPortalInboxHealth(r.Context(), operationalDB, now)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"ok":           false,
@@ -40,10 +40,23 @@ func (h *Handler) OwnerRadarContinuity(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	tradeHealth, err := services.LoadPumpPortalTradeStreamHealth(r.Context(), operationalDB, now)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok":                false,
+			"status":            "continuity_unavailable",
+			"generated_at":      now,
+			"error":             "PumpPortal trade-stream health could not be loaded",
+			"continuity":        report,
+			"pumpportal_ingest": pumpHealth,
+		})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                true,
-		"generated_at":      now,
-		"continuity":        report,
-		"pumpportal_ingest": pumpHealth,
+		"ok":                      true,
+		"generated_at":            now,
+		"continuity":              report,
+		"pumpportal_ingest":       pumpHealth,
+		"pumpportal_trade_stream": tradeHealth,
 	})
 }
