@@ -29,7 +29,7 @@ func StartSecurityRadarWatcher(ctx context.Context, db *sql.DB, _ *web3.SolanaRP
 	}
 	// Retention and corpus aggregation are pure database hygiene. They stay
 	// active even when every quota-consuming automatic scanner is disabled.
-	stopRetention := StartSecurityRadarRetentionWorker(ctx, db)
+	stopRetention := StartSecurityRadarRetentionWorkerV2(ctx, db)
 	stopCorpus := StartHolderConcentrationCorpusWorker(ctx, db)
 	stopDatabaseWorkers := func() {
 		stopCorpus()
