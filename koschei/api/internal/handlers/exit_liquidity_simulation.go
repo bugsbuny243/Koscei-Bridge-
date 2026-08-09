@@ -32,7 +32,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	}
 	for _, notional := range exitLiquidityNotionalTiers {
 		out.Tiers = append(out.Tiers, services.ExitLiquidityTier{
-			RequestedNotionalUSD: notional, Status: "not_quoted", RouteLabels: []string{}, Limitations: []string{},
+			RequestedNotionalUSD: notional, Status: "not_quoted", RouteLabels: []string{}, RoutePlan: []services.ExitLiquidityRouteStep{}, Limitations: []string{},
 		})
 	}
 	if out.Mint == "" {
@@ -136,8 +136,16 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 		tier.QuoteContextSlot = quote.ContextSlot
 		tier.ObservedAt = time.Now().UTC()
 		for _, step := range quote.RoutePlan {
-			if label := strings.TrimSpace(step.SwapInfo.Label); label != "" {
+			label := strings.TrimSpace(step.SwapInfo.Label)
+			ammKey := strings.TrimSpace(step.SwapInfo.AMMKey)
+			if label != "" {
 				tier.RouteLabels = appendUniqueExitLabel(tier.RouteLabels, label)
+			}
+			if !isValidSolanaAddress(ammKey) {
+				ammKey = ""
+			}
+			if ammKey != "" || label != "" {
+				tier.RoutePlan = append(tier.RoutePlan, services.ExitLiquidityRouteStep{AMMKey: ammKey, Label: label, Percent: step.Percent})
 			}
 		}
 		available++
@@ -153,6 +161,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	}
 	out.Limitations = append(out.Limitations,
 		"Quotes are read-only point-in-time estimates; they are not guaranteed proceeds and can change before execution.",
+		"Returned AMM account identities describe the quote plan only and are not proof of later execution.",
 		"Koschei does not request a swap transaction, sign, submit or custody assets.",
 	)
 	return out
@@ -181,8 +190,10 @@ type exitLiquidityQuoteResponse struct {
 	ContextSlot    uint64 `json:"contextSlot"`
 	RoutePlan      []struct {
 		SwapInfo struct {
-			Label string `json:"label"`
+			AMMKey string `json:"ammKey"`
+			Label  string `json:"label"`
 		} `json:"swapInfo"`
+		Percent int `json:"percent"`
 	} `json:"routePlan"`
 }
 
@@ -194,6 +205,9 @@ func requestExitLiquidityQuote(ctx context.Context, client *http.Client, endpoin
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Koschei-Exit-Liquidity/1.0")
+	if apiKey := strings.TrimSpace(os.Getenv("JUPITER_API_KEY")); apiKey != "" {
+		req.Header.Set("x-api-key", apiKey)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return out, err
