@@ -37,11 +37,12 @@ type Config struct {
 }
 
 type GuardConfig struct {
-	KeyID                string
-	PrivateKeyConfigured bool
-	PermitTTL            time.Duration
-	RequirePermit        bool
-	RequireStateWitness  bool
+	KeyID                         string
+	PrivateKeyConfigured          bool
+	PermitTTL                     time.Duration
+	RequirePermit                 bool
+	RequireStateWitness           bool
+	StateRecheckCourtRiskThreshold int
 }
 
 type Getter func(string) string
@@ -70,11 +71,12 @@ func LoadWith(get Getter) Config {
 		Web3Provider:             enumEnv(get, "WEB3_PROVIDER", DefaultWeb3Provider, "auto", "alchemy", "helius", "quicknode", "rpc", "solscan"),
 		WorkerMaxBuildThreads:    intEnv(get, "WORKER_MAX_BUILD_THREADS", 2, 1, 64),
 		Guard: GuardConfig{
-			KeyID:                stringEnv(get, "TRANSACTION_GUARD_ENFORCEMENT_KEY_ID", ""),
-			PrivateKeyConfigured: strings.TrimSpace(get("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY")) != "",
-			PermitTTL:            durationSecondsEnv(get, "TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS", 90, 10, 600),
-			RequirePermit:        boolEnv(get, "TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT", false),
-			RequireStateWitness:  boolEnv(get, "TRANSACTION_GUARD_REQUIRE_STATE_WITNESS", false),
+			KeyID:                          stringEnv(get, "TRANSACTION_GUARD_ENFORCEMENT_KEY_ID", ""),
+			PrivateKeyConfigured:           strings.TrimSpace(get("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY")) != "",
+			PermitTTL:                      durationSecondsEnv(get, "TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS", 90, 10, 600),
+			RequirePermit:                  boolEnv(get, "TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT", false),
+			RequireStateWitness:            boolEnv(get, "TRANSACTION_GUARD_REQUIRE_STATE_WITNESS", false),
+			StateRecheckCourtRiskThreshold: intEnv(get, "TRANSACTION_GUARD_STATE_RECHECK_COURT_RISK_THRESHOLD", 25, 0, 100),
 		},
 	}
 }
@@ -141,11 +143,12 @@ func PublicSnapshot() map[string]any {
 			"max_build_threads": cfg.WorkerMaxBuildThreads,
 		},
 		"transaction_guard": map[string]any{
-			"enforcement_key_id":          cfg.Guard.KeyID,
-			"enforcement_key_configured":  cfg.Guard.PrivateKeyConfigured,
-			"enforcement_permit_ttl_secs": int(cfg.Guard.PermitTTL / time.Second),
-			"require_enforcement_permit":  cfg.Guard.RequirePermit,
-			"require_state_witness":       cfg.Guard.RequireStateWitness,
+			"enforcement_key_id":                 cfg.Guard.KeyID,
+			"enforcement_key_configured":         cfg.Guard.PrivateKeyConfigured,
+			"enforcement_permit_ttl_secs":        int(cfg.Guard.PermitTTL / time.Second),
+			"require_enforcement_permit":         cfg.Guard.RequirePermit,
+			"require_state_witness":              cfg.Guard.RequireStateWitness,
+			"state_recheck_court_risk_threshold": cfg.Guard.StateRecheckCourtRiskThreshold,
 		},
 	}
 }
