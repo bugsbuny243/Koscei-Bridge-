@@ -108,6 +108,10 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 	exitLiquidity := services.ExitLiquiditySimulation{
 		Status: "not_requested_preflight", Provider: "jupiter_quote", Mint: target,
 		OutputMint: jupiterUSDCMint, QuoteOnly: true, Tiers: []services.ExitLiquidityTier{},
+		ImpactV2: services.ExitImpactAssessment{
+			Version: services.ExitImpactVersion, Status: "not_requested_preflight",
+			Tiers: []services.ExitImpactTier{}, Limitations: []string{},
+		},
 		ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
 	programSecurity := newProgramSecuritySurface("not_requested_preflight")
