@@ -491,11 +491,11 @@
         ],
         "summary": "POST /api/agent/chain-health",
         "tags": [
-          "agent"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/agent/health": {
@@ -558,11 +558,11 @@
         "security": [],
         "summary": "GET /api/agent/health",
         "tags": [
-          "agent"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/agent/metadata-template": {
@@ -659,11 +659,11 @@
         ],
         "summary": "POST /api/agent/metadata-template",
         "tags": [
-          "agent"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/agent/risk-summary": {
@@ -760,11 +760,11 @@
         ],
         "summary": "POST /api/agent/risk-summary",
         "tags": [
-          "agent"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/agent/wallet-score": {
@@ -861,11 +861,11 @@
         ],
         "summary": "POST /api/agent/wallet-score",
         "tags": [
-          "agent"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/analytics/event": {
@@ -938,10 +938,10 @@
         "security": [],
         "summary": "POST /api/analytics/event",
         "tags": [
-          "identity"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -1015,10 +1015,10 @@
         "security": [],
         "summary": "POST /api/arvis/preflight",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -1159,11 +1159,11 @@
         "security": [],
         "summary": "GET /api/auth/neon-callback",
         "tags": [
-          "auth"
+          "identity"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/auth/neon-login": {
@@ -1226,11 +1226,11 @@
         "security": [],
         "summary": "GET /api/auth/neon-login",
         "tags": [
-          "auth"
+          "identity"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/auth/neon-register": {
@@ -1293,11 +1293,11 @@
         "security": [],
         "summary": "GET /api/auth/neon-register",
         "tags": [
-          "auth"
+          "identity"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/auth/premium-access": {
@@ -1461,11 +1461,11 @@
         "security": [],
         "summary": "POST /api/auth/provision",
         "tags": [
-          "auth"
+          "identity"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/auth/register": {
@@ -2090,10 +2090,10 @@
         "security": [],
         "summary": "GET /api/config",
         "tags": [
-          "identity"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -2477,8 +2477,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/arvis": {
@@ -2568,8 +2568,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/arvis/acceptance": {
@@ -2669,8 +2669,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/arvis/scan": {
@@ -2770,8 +2770,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/brain": {
@@ -3255,8 +3255,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/actor-acceptance": {
@@ -3356,8 +3356,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/artifacts": {
@@ -3444,11 +3444,11 @@
         ],
         "summary": "GET /api/owner/defense/artifacts",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -3543,11 +3543,11 @@
         ],
         "summary": "POST /api/owner/defense/artifacts",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/deployment": {
@@ -3634,11 +3634,11 @@
         ],
         "summary": "GET /api/owner/defense/deployment",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -3733,11 +3733,11 @@
         ],
         "summary": "POST /api/owner/defense/deployment",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/distribution": {
@@ -3925,11 +3925,11 @@
         ],
         "summary": "GET /api/owner/defense/harness",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -4024,11 +4024,11 @@
         ],
         "summary": "POST /api/owner/defense/harness",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/harness-execution": {
@@ -4115,11 +4115,11 @@
         ],
         "summary": "GET /api/owner/defense/harness-execution",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -4214,11 +4214,11 @@
         ],
         "summary": "POST /api/owner/defense/harness-execution",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/harness-materialization": {
@@ -4305,11 +4305,11 @@
         ],
         "summary": "GET /api/owner/defense/harness-materialization",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -4404,11 +4404,11 @@
         ],
         "summary": "POST /api/owner/defense/harness-materialization",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/investigate": {
@@ -4596,11 +4596,11 @@
         ],
         "summary": "GET /api/owner/defense/knowledge",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -4695,11 +4695,11 @@
         ],
         "summary": "POST /api/owner/defense/knowledge",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/lab": {
@@ -4786,11 +4786,11 @@
         ],
         "summary": "GET /api/owner/defense/lab",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -4885,11 +4885,11 @@
         ],
         "summary": "POST /api/owner/defense/lab",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/litesvm-execution": {
@@ -4976,10 +4976,10 @@
         ],
         "summary": "GET /api/owner/defense/litesvm-execution",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -5075,10 +5075,10 @@
         ],
         "summary": "POST /api/owner/defense/litesvm-execution",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -5166,11 +5166,11 @@
         ],
         "summary": "GET /api/owner/defense/reproduction",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -5265,11 +5265,11 @@
         ],
         "summary": "POST /api/owner/defense/reproduction",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/sentinel": {
@@ -5356,11 +5356,11 @@
         ],
         "summary": "GET /api/owner/defense/sentinel",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -5455,11 +5455,11 @@
         ],
         "summary": "POST /api/owner/defense/sentinel",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/source-import": {
@@ -5546,11 +5546,11 @@
         ],
         "summary": "GET /api/owner/defense/source-import",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -5645,11 +5645,11 @@
         ],
         "summary": "POST /api/owner/defense/source-import",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/defense/tracks": {
@@ -5827,11 +5827,11 @@
         ],
         "summary": "GET /api/owner/defense/worker-jobs",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -5926,11 +5926,11 @@
         ],
         "summary": "POST /api/owner/defense/worker-jobs",
         "tags": [
-          "owner"
+          "defense_os_opt_in"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session_and_feature_gate",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/dossier/publications": {
@@ -6121,8 +6121,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
@@ -6220,8 +6220,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/health": {
@@ -6402,8 +6402,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/login": {
@@ -6695,8 +6695,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/radar/funding-corpus/warmup": {
@@ -6796,8 +6796,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/radar/jobs": {
@@ -7089,8 +7089,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/radar/unified": {
@@ -7372,8 +7372,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/status": {
@@ -7847,8 +7847,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/public/cases": {
@@ -7911,10 +7911,10 @@
         "security": [],
         "summary": "GET /api/public/cases",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -7978,10 +7978,10 @@
         "security": [],
         "summary": "GET /api/public/impact",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -8045,10 +8045,10 @@
         "security": [],
         "summary": "GET /api/public/metrics",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -8112,11 +8112,11 @@
         "security": [],
         "summary": "GET /api/public/scan-history",
         "tags": [
-          "public"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/public/soc/feed": {
@@ -8179,10 +8179,10 @@
         "security": [],
         "summary": "GET /api/public/soc/feed",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -8246,11 +8246,11 @@
         "security": [],
         "summary": "GET /api/public/token/readiness",
         "tags": [
-          "public"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/public/token/status": {
@@ -8313,11 +8313,11 @@
         "security": [],
         "summary": "GET /api/public/token/status",
         "tags": [
-          "public"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/public/transaction-simulate": {
@@ -8390,11 +8390,11 @@
         "security": [],
         "summary": "POST /api/public/transaction-simulate",
         "tags": [
-          "public"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/token/scan": {
@@ -8467,10 +8467,10 @@
         "security": [],
         "summary": "POST /api/token/scan",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -8679,11 +8679,11 @@
         ],
         "summary": "POST /api/v1/dossier/{case_ref}",
         "tags": [
-          "v1"
+          "dossier"
         ],
         "x-koschei-auth-tier": "dossier_access_contract",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/v1/radar/actor-intelligence": {
@@ -8770,11 +8770,11 @@
         ],
         "summary": "GET /api/v1/radar/actor-intelligence",
         "tags": [
-          "v1"
+          "premium_radar_and_reports"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "customer_session_plus_kosch",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/v1/radar/check": {
@@ -8972,11 +8972,11 @@
         ],
         "summary": "POST /api/v1/radar/court",
         "tags": [
-          "v1"
+          "premium_radar_and_reports"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "customer_session_plus_kosch",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/v1/radar/creator-intelligence": {
@@ -9063,11 +9063,11 @@
         ],
         "summary": "GET /api/v1/radar/creator-intelligence",
         "tags": [
-          "v1"
+          "premium_radar_and_reports"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "customer_session_plus_kosch",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/v1/radar/detail": {
@@ -9154,11 +9154,11 @@
         ],
         "summary": "GET /api/v1/radar/detail",
         "tags": [
-          "v1"
+          "premium_radar_and_reports"
         ],
         "x-koschei-auth-tier": "customer_session_plus_kosch",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "customer_session_plus_kosch",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/v1/radar/exposure": {
@@ -9696,10 +9696,10 @@
         "security": [],
         "summary": "GET /api/v1/risk/badge",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -10359,11 +10359,11 @@
         "security": [],
         "summary": "GET /api/version",
         "tags": [
-          "version"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/watchlist": {
@@ -10909,10 +10909,10 @@
         "security": [],
         "summary": "GET /api/web3/health",
         "tags": [
-          "free_core"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_rate_limited",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -11000,10 +11000,10 @@
         ],
         "summary": "GET /api/web3/health/logs",
         "tags": [
-          "identity"
+          "public_and_system"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "mixed",
+        "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
