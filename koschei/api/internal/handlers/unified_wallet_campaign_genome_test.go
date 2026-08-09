@@ -33,7 +33,7 @@ func TestCampaignGenomeIsWiredAsOptionalWalletCapability(t *testing.T) {
 
 func TestObservedOnlyCampaignGenomeDoesNotChangeRequiredWalletCoverage(t *testing.T) {
 	baseline := map[string]any{
-		"actor_investigation":      map[string]any{},
+		"actor_investigation":     map[string]any{},
 		"full_scan_live_evidence": map[string]any{"status": "complete"},
 	}
 	attachCanonicalWalletIntegrationCoverage(baseline)
