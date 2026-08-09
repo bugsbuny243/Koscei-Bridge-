@@ -19,6 +19,14 @@ type EvidenceCourtCanonicalizer func(json.RawMessage) (valueHash string, context
 // being compared. This is used by state-bound Transaction Guard rechecks so the
 // quorum compares State Witness account roots rather than generic RPC JSON.
 func (s *SolanaRPC) EvidenceCourtWithCanonicalizer(ctx context.Context, network, method string, params any, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
+	return s.EvidenceCourtWithCanonicalizerExcluding(ctx, network, method, params, "", canonicalize)
+}
+
+// EvidenceCourtWithCanonicalizerExcluding additionally removes the provider
+// identity used by excludedURL from the witness pool. The exclusion is by
+// recognized provider identity, not only by exact hostname, so two endpoints
+// from the same provider cannot make a primary observation look independent.
+func (s *SolanaRPC) EvidenceCourtWithCanonicalizerExcluding(ctx context.Context, network, method string, params any, excludedURL string, canonicalize EvidenceCourtCanonicalizer) EvidenceCourtResult {
 	required := evidenceCourtRequiredWitnesses()
 	result := EvidenceCourtResult{
 		SchemaVersion: evidenceCourtSchemaVersion,
@@ -49,11 +57,11 @@ func (s *SolanaRPC) EvidenceCourtWithCanonicalizer(ctx context.Context, network,
 		return result
 	}
 
-	endpoints := s.evidenceCourtEndpoints(network)
+	endpoints := evidenceCourtEndpointsExcluding(s.evidenceCourtEndpoints(network), excludedURL)
 	result.Requested = len(endpoints)
 	if len(endpoints) < required {
 		result.Status = "insufficient"
-		result.Limitations = append(result.Limitations, "Fewer independent providers are configured than the required witness quorum.")
+		result.Limitations = append(result.Limitations, "Fewer independent providers are configured than the required witness quorum after excluding the primary RPC provider.")
 		for _, endpoint := range endpoints {
 			result.Witnesses = append(result.Witnesses, EvidenceCourtWitness{Provider: endpoint.Provider, Host: endpoint.Host, Status: "not_queried"})
 		}
@@ -97,6 +105,30 @@ func (s *SolanaRPC) EvidenceCourtWithCanonicalizer(ctx context.Context, network,
 		}
 	}
 	return EvaluateEvidenceCourtWithCanonicalizer(method, samples, required, canonicalize)
+}
+
+func evidenceCourtEndpointsExcluding(endpoints []evidenceCourtEndpoint, excludedURL string) []evidenceCourtEndpoint {
+	excludedIdentity := evidenceCourtProviderIdentityForURL(excludedURL)
+	out := make([]evidenceCourtEndpoint, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		if excludedIdentity != "" && evidenceCourtProviderIdentity(endpoint.Provider, endpoint.Host) == excludedIdentity {
+			continue
+		}
+		out = append(out, endpoint)
+	}
+	return out
+}
+
+func evidenceCourtProviderIdentityForURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	host := RPCProviderHost(raw)
+	if host == "unconfigured" || host == "invalid-host" {
+		return ""
+	}
+	return evidenceCourtProviderIdentity(providerLabel(host), host)
 }
 
 // EvaluateEvidenceCourtWithCanonicalizer is the deterministic aggregation core
