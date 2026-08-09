@@ -52,11 +52,27 @@ func (h *Handler) OwnerRadarContinuity(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	providerMemory, err := services.LoadProviderWitnessMemory(r.Context(), readDB, "solana-mainnet", "", 50)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok":                      false,
+			"status":                  "continuity_unavailable",
+			"generated_at":            now,
+			"error":                   "provider witness memory could not be loaded",
+			"continuity":              report,
+			"pumpportal_ingest":       pumpHealth,
+			"pumpportal_trade_stream": tradeHealth,
+		})
+		return
+	}
+	posture := services.DeriveSecurityIntegrityPosture(report, pumpHealth, tradeHealth, providerMemory)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                      true,
 		"generated_at":            now,
+		"integrity_posture":       posture,
 		"continuity":              report,
 		"pumpportal_ingest":       pumpHealth,
 		"pumpportal_trade_stream": tradeHealth,
+		"provider_witness_memory": providerMemory,
 	})
 }
