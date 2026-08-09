@@ -3,25 +3,33 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"koschei/api/internal/services"
 )
 
+type exitLiquidityRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn exitLiquidityRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return fn(request)
+}
+
 func TestCollectExitLiquiditySimulationQuotesFixedTiersReadOnly(t *testing.T) {
 	const ammKey = "HXpGFJGCEEFdV31tDmjDBaJMEB1fKLiAoKoWr3Fnonid"
-	t.Setenv("JUPITER_API_KEY", "test-jupiter-key")
+	t.Setenv("JUPITER_API_KEY", "must-not-leak-to-custom-host")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/quote" {
 			http.Error(w, "unexpected request", http.StatusBadRequest)
 			return
 		}
-		if r.Header.Get("x-api-key") != "test-jupiter-key" {
-			http.Error(w, "missing Jupiter API key", http.StatusUnauthorized)
+		if r.Header.Get("x-api-key") != "" {
+			http.Error(w, "Jupiter API key leaked to custom quote host", http.StatusBadRequest)
 			return
 		}
 		if r.URL.Query().Get("swapMode") != "ExactIn" {
@@ -76,6 +84,32 @@ func TestCollectExitLiquiditySimulationQuotesFixedTiersReadOnly(t *testing.T) {
 	}
 	if !result.QuoteOnly {
 		t.Fatal("exit simulation must remain quote-only")
+	}
+}
+
+func TestRequestExitLiquidityQuoteSendsAPIKeyOnlyToOfficialJupiterHost(t *testing.T) {
+	t.Setenv("JUPITER_API_KEY", "trusted-jupiter-key")
+	client := &http.Client{Transport: exitLiquidityRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Hostname() != "api.jup.ag" {
+			t.Fatalf("host=%q", request.URL.Hostname())
+		}
+		if request.Header.Get("x-api-key") != "trusted-jupiter-key" {
+			t.Fatalf("trusted Jupiter API key missing")
+		}
+		body := `{"outAmount":"1000000","priceImpactPct":"0","contextSlot":10,"routePlan":[]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	quote, err := requestExitLiquidityQuote(context.Background(), client, "https://api.jup.ag/swap/v1/quote?inputMint=a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote.OutAmount != "1000000" || quote.ContextSlot != 10 {
+		t.Fatalf("unexpected quote: %#v", quote)
 	}
 }
 
