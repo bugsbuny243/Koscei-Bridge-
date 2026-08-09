@@ -108,6 +108,10 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 	exitLiquidity := services.ExitLiquiditySimulation{
 		Status: "not_requested_preflight", Provider: "jupiter_quote", Mint: target,
 		OutputMint: jupiterUSDCMint, QuoteOnly: true, Tiers: []services.ExitLiquidityTier{},
+		ImpactV2: services.ExitImpactAssessment{
+			Version: services.ExitImpactVersion, Status: "not_requested_preflight",
+			Tiers: []services.ExitImpactTier{}, Limitations: []string{},
+		},
 		ObservedAt: time.Now().UTC(), Limitations: []string{},
 	}
 	programSecurity := newProgramSecuritySurface("not_requested_preflight")
@@ -122,6 +126,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		final = services.ArvisFinalFromBundle(bundle)
 		jupiter = h.collectJupiterMarketContext(parent, network, target, intelligence, market)
 		exitLiquidity = h.collectExitLiquiditySimulation(parent, network, target, market, jupiter)
+		exitLiquidity.ImpactV2 = services.BuildExitImpactAssessment(exitLiquidity, lpControl)
 		jupiter.ExitLiquidity = exitLiquidity
 		programSecurity = h.collectProgramSecuritySurface(parent, network, source, lpControl, market)
 	}
