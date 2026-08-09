@@ -108,3 +108,26 @@ func TestStateRecheckCourtDisabledPreservesSingleProviderDecision(t *testing.T) 
 		t.Fatalf("decision changed while court disabled: %#v", got)
 	}
 }
+
+func TestStateRecheckCourtPublicResponseRedactsProviderHost(t *testing.T) {
+	court := web3.EvidenceCourtResult{
+		SchemaVersion: "koschei-evidence-court-v1",
+		Enabled:       true,
+		Status:        "verified",
+		Required:      2,
+		Witnesses: []web3.EvidenceCourtWitness{
+			{Provider: "alchemy", Host: "private-rpc.internal.example", Status: "observed", ValueHash: "root-a", ContextSlot: 101},
+		},
+	}
+	encoded, err := json.Marshal(transactionGuardStateRecheckCourtPublicResponse(court))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(encoded)
+	if strings.Contains(body, "private-rpc.internal.example") || strings.Contains(body, `"host"`) {
+		t.Fatalf("provider host leaked in public response: %s", body)
+	}
+	if !strings.Contains(body, `"provider":"alchemy"`) || !strings.Contains(body, `"context_slot":101`) {
+		t.Fatalf("expected safe witness metadata missing: %s", body)
+	}
+}
