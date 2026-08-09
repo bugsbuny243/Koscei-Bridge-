@@ -1,50 +1,47 @@
 # Koschei ARVIS Production Route Map
 
-This file tracks routes that are wired into the Go server boot chain.
+This file describes routes that are wired into the current Go server boot chain.
 
-## Server boot groups
+The machine-readable source is `productionRouteInventory()` in `koschei/api/internal/http/route_inventory.go`, exposed to the owner command surface at `GET /api/owner/route-map`. CI contract tests compare that inventory with literal API registrations in the boot-chain route files. A route must not be documented as live when it is not registered.
 
-`koschei/api/internal/http/server.go` currently registers these groups:
-
-- core routes
-- account routes
-- owner routes
-- Defense OS routes
-- public product routes
-- developer API routes
-- immutable dossier routes
-- watchlist and webhook routes
-- static public pages
-
-## Core routes
+## Public and system surface
 
 - `GET /health`
 - `GET /api/config`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/me`
-- `GET /api/me/package`
-- `GET /api/member/summary`
-- `POST /api/payments/request`
-- `POST /api/shopier/webhook`
-- `POST /api/arvis/preflight`
-- `GET /api/public/impact`
-- `GET /api/public/metrics`
-- `GET /api/public/tool-prices`
+- `GET /api/version`
 - `GET /api/web3/health`
 - `GET /api/web3/health/logs`
 - `POST /api/analytics/event`
+- `POST /api/arvis/preflight`
+- `POST /api/token/scan`
+- `GET /api/v1/risk/badge`
+- `GET /api/public/impact`
+- `GET /api/public/metrics`
+- `GET /api/public/cases`
+- `GET /api/public/soc/feed`
+- `GET /api/public/token/status`
+- `GET /api/public/token/readiness`
+- `GET /api/public/scan-history`
+- `POST /api/public/transaction-simulate`
 - `GET /api/agent/health`
 - `POST /api/agent/wallet-score`
 - `POST /api/agent/risk-summary`
 - `POST /api/agent/metadata-template`
 - `POST /api/agent/chain-health`
 
-## Account and access routes
+Some routes in this group are public while others still enforce their own authentication or database requirements. The route inventory records boot-chain presence; handler policy remains authoritative for the final access decision.
 
-- `GET /api/account/api-keys`
-- `POST /api/account/api-keys`
-- `POST /api/account/api-keys/{id}/revoke`
+## Identity and account access
+
+- `POST /api/auth/provision`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/neon-login`
+- `GET /api/auth/neon-register`
+- `GET /api/auth/neon-callback`
+- `GET /api/me`
+- `/api/account/api-keys`
+- `/api/account/api-keys/`
 - `POST /api/auth/wallet/challenge`
 - `POST /api/auth/wallet/verify`
 - `GET /api/auth/wallet/status`
@@ -52,64 +49,99 @@ This file tracks routes that are wired into the Go server boot chain.
 - `GET /api/auth/token-access`
 - `GET /api/auth/premium-access`
 
-## Radar and report routes
+Developer API keys remain credentials. They do not bypass live KOSCH eligibility checks.
 
-- `GET /api/rug-radar/feed`
-- `GET /api/v1/risk/badge`
-- `GET /api/v1/radar/feed`
+## Customer Radar and reports
+
+- `POST /api/v1/token/extensions`
+- `POST /api/v1/address-poisoning/check`
 - `POST /api/v1/radar/check`
+- `POST /api/v1/radar/jobs`
+- `GET /api/v1/radar/jobs/`
+- `GET /api/v1/radar/detail`
+- `GET /api/v1/radar/feed`
+- `GET /api/v1/radar/creator-intelligence`
+- `GET /api/v1/radar/actor-intelligence`
 - `GET /api/v1/radar/graph`
 - `GET /api/v1/radar/exposure`
+- `POST /api/v1/radar/court`
+- `POST /api/jobs/token-scan`
+- `GET /api/jobs/`
 
-## Developer API routes
+These routes are session-authenticated and apply the configured KOSCH tier and quota policy.
 
-These routes use API-key auth and API rate limits.
+## Developer API
 
 - `POST /api/v1/scan/token`
 - `GET /api/v1/usage`
 - `POST /api/v1/shield/preflight`
 - `POST /api/v1/shield/transaction`
+- `POST /api/v1/shield/address-poisoning`
 
-## Immutable dossier routes
+The transaction route is the evidence-first Transaction Guard. It may return `allow`, `warn`, `block` or `withhold`; missing required evidence never becomes an `allow` result.
 
-- `POST /api/v1/dossier/{target}` creates or retrieves an immutable export from an existing signed snapshot. Creation accepts owner credentials, an eligible Enterprise session or an eligible Enterprise API key. It never rescans missing evidence.
-- `GET /dossier/{case-ref}` is a public, account-free and KOSCH-free HTML evidence page backed by the immutable bundle.
+## Immutable dossier surface
 
-Token and wallet actor cases share the `koschei-dossier-v1` envelope. Wallet cases retain the ordered `AC-01` through `AC-10` acceptance result, evidence-labelled created-token history, funding origin, cross-token observations, evidence log and section-local limitations.
+- `POST /api/v1/dossier/`
+- `GET /dossier/`
+- `GET /case/`
+- `GET /api/public/cases`
+- `GET /api/public/soc/feed`
+- `POST /api/owner/dossier/publications`
+- `POST /api/owner/arvis/acceptance`
 
-## Watchlist routes
+Dossier publication transports immutable evidence. It does not create evidence or change the deterministic verdict.
 
-These routes use customer session auth and active entitlement checks.
+## Watchlist and webhook surface
 
 - `/api/watchlist`
-- `/api/watchlist/refresh`
+- `POST /api/watchlist/refresh`
 - `/api/watchlist/alerts`
-- `/api/watchlist/{id}`
-
-## Webhook routes
-
-These routes use customer session auth and active entitlement checks.
-
+- `/api/watchlist/`
 - `/api/webhooks`
-- `/api/webhooks/{id}`
+- `/api/webhooks/`
+- `/api/webhooks/security-alerts`
 - `/api/webhooks/deliveries`
-- `/api/webhooks/deliveries/{id}`
+- `/api/webhooks/deliveries/`
 
-## Static public pages
+Watchlist routes require the configured Pro access policy. Webhook management uses the Enterprise access policy. Security subscriptions include durable ARVIS and Transaction Guard alert delivery.
 
-The static server serves files from `koschei/api/public`.
+## Owner operations
 
-- `/` serves `index.html`
-- `/page` serves `page.html` when present
-- unknown non-API paths fall back to `index.html`
-- unknown `/api/*` paths return not found
+The owner surface includes command-center, operations, ARVIS/radar jobs, creator and actor intelligence, funding-corpus warmup, Defense investigation tracks, route-map inspection, KOSCH access inspection, security events, user operations, owner brain/chat and dossier publication controls.
 
-## Route hygiene rules
+The exact current list is returned by `GET /api/owner/route-map`; do not maintain a second hand-written owner list in product code.
 
-- A handler is not considered live until it is registered in the server boot chain.
-- Documentation must not call a route live unless it is registered.
-- Customer routes should use session auth.
-- Partner routes should use API-key auth.
-- Premium routes should check active entitlement.
-- Evidence-backed outputs should be signed only when verified evidence exists.
-- Public dossier pages transport immutable evidence and never create or alter a verdict.
+## Defense OS — opt-in only
+
+Defense OS route registration occurs only when:
+
+```text
+KOSCHEI_DEFENSE_OS_ENABLED=true
+```
+
+Registered owner-only paths under that gate are:
+
+- `/api/owner/defense/artifacts`
+- `/api/owner/defense/knowledge`
+- `/api/owner/defense/lab`
+- `/api/owner/defense/deployment`
+- `/api/owner/defense/source-import`
+- `/api/owner/defense/worker-jobs`
+- `/api/owner/defense/reproduction`
+- `/api/owner/defense/sentinel`
+- `/api/owner/defense/harness`
+- `/api/owner/defense/harness-execution`
+- `/api/owner/defense/harness-materialization`
+- `/api/owner/defense/litesvm-execution`
+
+These are lab/reproduction surfaces and remain separate from ARVIS verdict authority.
+
+## Route hygiene contract
+
+- Boot-chain registration defines whether a handler is live.
+- `productionRouteInventory()` must contain every literal `/api/*` boot-chain registration and must not retain removed routes.
+- The database-optional allowlist must not contain an unregistered API path.
+- Documentation must not resurrect legacy Shopier, Paddle, package-purchase or owner-payment routes that are no longer registered.
+- Evidence-backed outputs are signed only when verified evidence exists.
+- Missing, malformed or unavailable evidence fails closed rather than becoming a safety signal.
