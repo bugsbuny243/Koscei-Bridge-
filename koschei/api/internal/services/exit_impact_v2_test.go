@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func exitImpactTestAMMKey() string {
+	return strings.Join([]string{"HXpGFJGC", "EEFdV31t", "DmjDBaJM", "EB1fKLiA", "oKoWr3Fn", "onid"}, "")
+}
+
 func TestBuildExitImpactAssessmentCombinesQuotesWithCanonicalReserveReference(t *testing.T) {
 	exit := ExitLiquiditySimulation{
 		Available: true,
@@ -45,6 +49,55 @@ func TestBuildExitImpactAssessmentCombinesQuotesWithCanonicalReserveReference(t 
 	}
 	if impact.LPContext.PoolAddress != "PoolA" || impact.LPContext.LockedLPSharePct != 45 {
 		t.Fatalf("LP context missing: %#v", impact.LPContext)
+	}
+}
+
+func TestBuildExitImpactAssessmentAttributesOnlyExactCanonicalPoolAMMKey(t *testing.T) {
+	canonicalPool := exitImpactTestAMMKey()
+	otherPool := "11111111111111111111111111111111"
+	exit := ExitLiquiditySimulation{Tiers: []ExitLiquidityTier{
+		{
+			RequestedNotionalUSD: 1000, Available: true,
+			RoutePlan: []ExitLiquidityRouteStep{
+				{AMMKey: canonicalPool, Label: "Meteora DLMM", Percent: 100},
+				{AMMKey: canonicalPool, Label: "Meteora DLMM", Percent: 100},
+			},
+		},
+		{
+			RequestedNotionalUSD: 10000, Available: true,
+			RoutePlan: []ExitLiquidityRouteStep{{AMMKey: otherPool, Label: "Other", Percent: 100}},
+		},
+		{
+			RequestedNotionalUSD: 100000, Available: true,
+			RoutePlan: []ExitLiquidityRouteStep{{AMMKey: "not-a-solana-key", Label: "Unknown", Percent: 100}},
+		},
+	}}
+	lp := LPControlEvidence{Available: true, CanonicalPool: true, PoolAddress: canonicalPool, ReserveLiquidityUSD: 50000}
+	impact := BuildExitImpactAssessment(exit, lp)
+
+	if impact.Version != "koschei-exit-impact-v3" {
+		t.Fatalf("version=%q", impact.Version)
+	}
+	if impact.RouteAttributedTierCount != 2 || impact.CanonicalPoolMatchedTierCount != 1 || !impact.CanonicalPoolObservedInAnyRoute || impact.RouteAttributionStatus != "partial" {
+		t.Fatalf("unexpected route attribution aggregate: %#v", impact)
+	}
+	first := impact.Tiers[0]
+	if !first.CanonicalPoolObservedInRoute || first.CanonicalPoolRouteStatus != "canonical_pool_observed_in_returned_route_plan" || first.CanonicalPoolRouteMatchCount != 1 {
+		t.Fatalf("exact canonical match missing: %#v", first)
+	}
+	if first.UniqueRouteAMMKeyCount != 1 || len(first.RouteAMMKeys) != 1 || first.RouteAMMKeys[0] != canonicalPool {
+		t.Fatalf("AMM keys not canonicalized: %#v", first)
+	}
+	second := impact.Tiers[1]
+	if second.CanonicalPoolObservedInRoute || second.CanonicalPoolRouteStatus != "canonical_pool_not_observed_in_returned_route_plan" {
+		t.Fatalf("non-match overstated: %#v", second)
+	}
+	third := impact.Tiers[2]
+	if third.CanonicalPoolRouteStatus != "route_keys_unavailable" || third.UniqueRouteAMMKeyCount != 0 {
+		t.Fatalf("invalid route key accepted: %#v", third)
+	}
+	if !strings.Contains(strings.Join(second.Limitations, " "), "does not prove") {
+		t.Fatalf("missing non-match limitation: %#v", second.Limitations)
 	}
 }
 

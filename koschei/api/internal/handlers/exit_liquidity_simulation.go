@@ -32,7 +32,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	}
 	for _, notional := range exitLiquidityNotionalTiers {
 		out.Tiers = append(out.Tiers, services.ExitLiquidityTier{
-			RequestedNotionalUSD: notional, Status: "not_quoted", RouteLabels: []string{}, Limitations: []string{},
+			RequestedNotionalUSD: notional, Status: "not_quoted", RouteLabels: []string{}, RoutePlan: []services.ExitLiquidityRouteStep{}, Limitations: []string{},
 		})
 	}
 	if out.Mint == "" {
@@ -78,6 +78,11 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	if err != nil {
 		out.Status = "quote_endpoint_rejected"
 		out.Limitations = append(out.Limitations, err.Error())
+		return out
+	}
+	if strings.EqualFold(base.Hostname(), "api.jup.ag") && strings.TrimSpace(os.Getenv("JUPITER_API_KEY")) == "" {
+		out.Status = "jupiter_api_key_unavailable"
+		out.Limitations = append(out.Limitations, "JUPITER_API_KEY is required for the official api.jup.ag quote endpoint.")
 		return out
 	}
 
@@ -136,8 +141,16 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 		tier.QuoteContextSlot = quote.ContextSlot
 		tier.ObservedAt = time.Now().UTC()
 		for _, step := range quote.RoutePlan {
-			if label := strings.TrimSpace(step.SwapInfo.Label); label != "" {
+			label := strings.TrimSpace(step.SwapInfo.Label)
+			ammKey := strings.TrimSpace(step.SwapInfo.AMMKey)
+			if label != "" {
 				tier.RouteLabels = appendUniqueExitLabel(tier.RouteLabels, label)
+			}
+			if !isValidSolanaAddress(ammKey) {
+				ammKey = ""
+			}
+			if ammKey != "" || label != "" {
+				tier.RoutePlan = append(tier.RoutePlan, services.ExitLiquidityRouteStep{AMMKey: ammKey, Label: label, Percent: step.Percent})
 			}
 		}
 		available++
@@ -153,6 +166,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	}
 	out.Limitations = append(out.Limitations,
 		"Quotes are read-only point-in-time estimates; they are not guaranteed proceeds and can change before execution.",
+		"Returned AMM account identities describe the quote plan only and are not proof of later execution.",
 		"Koschei does not request a swap transaction, sign, submit or custody assets.",
 	)
 	return out
@@ -181,8 +195,10 @@ type exitLiquidityQuoteResponse struct {
 	ContextSlot    uint64 `json:"contextSlot"`
 	RoutePlan      []struct {
 		SwapInfo struct {
-			Label string `json:"label"`
+			AMMKey string `json:"ammKey"`
+			Label  string `json:"label"`
 		} `json:"swapInfo"`
+		Percent int `json:"percent"`
 	} `json:"routePlan"`
 }
 
@@ -194,6 +210,9 @@ func requestExitLiquidityQuote(ctx context.Context, client *http.Client, endpoin
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Koschei-Exit-Liquidity/1.0")
+	if apiKey := jupiterAPIKeyForQuoteEndpoint(endpoint); apiKey != "" {
+		req.Header.Set("x-api-key", apiKey)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return out, err
@@ -209,6 +228,14 @@ func requestExitLiquidityQuote(ctx context.Context, client *http.Client, endpoin
 		return out, fmt.Errorf("quote route returned no output amount")
 	}
 	return out, nil
+}
+
+func jupiterAPIKeyForQuoteEndpoint(endpoint string) string {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || !strings.EqualFold(parsed.Hostname(), "api.jup.ag") {
+		return ""
+	}
+	return strings.TrimSpace(os.Getenv("JUPITER_API_KEY"))
 }
 
 func appendUniqueExitLabel(values []string, value string) []string {
