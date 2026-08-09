@@ -26,13 +26,13 @@ type finalSecurityManifest struct {
 }
 
 type finalSecurityPolicy struct {
-	AllInvariantsReleaseBlocking           bool `json:"all_invariants_release_blocking"`
-	ReferencedTestsMustExist               bool `json:"referenced_tests_must_exist"`
-	ReferencedTestsRunUnderGoTestAll       bool `json:"referenced_tests_run_under_go_test_all"`
-	NoTestPresenceOnlySubstituteExecution  bool `json:"no_test_presence_only_substitute_for_execution"`
-	NoRealWorldIdentityClaim               bool `json:"no_real_world_identity_claim"`
-	NoAIVerdictAuthority                   bool `json:"no_ai_verdict_authority"`
-	NoCustodyOrTransactionSubmission       bool `json:"no_custody_or_transaction_submission"`
+	AllInvariantsReleaseBlocking          bool `json:"all_invariants_release_blocking"`
+	ReferencedTestsMustExist              bool `json:"referenced_tests_must_exist"`
+	ReferencedTestsRunUnderGoTestAll      bool `json:"referenced_tests_run_under_go_test_all"`
+	NoTestPresenceOnlySubstituteExecution bool `json:"no_test_presence_only_substitute_for_execution"`
+	NoRealWorldIdentityClaim              bool `json:"no_real_world_identity_claim"`
+	NoAIVerdictAuthority                  bool `json:"no_ai_verdict_authority"`
+	NoCustodyOrTransactionSubmission      bool `json:"no_custody_or_transaction_submission"`
 }
 
 type finalSecurityInvariant struct {
@@ -77,8 +77,8 @@ func TestFinalSecurityInvariantManifestReferencesExecutableTests(t *testing.T) {
 	}
 
 	requiredIDs := map[string]bool{
-		"state_witness_order_determinism":                    false,
-		"state_witness_state_sensitivity":                    false,
+		"state_witness_order_determinism":                   false,
+		"state_witness_state_sensitivity":                   false,
 		"state_recheck_rejects_untrusted_permit_before_rpc": false,
 		"state_recheck_safe_to_proceed_fail_closed":         false,
 		"evidence_court_primary_identity_excluded":          false,
