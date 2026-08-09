@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"koschei/api/internal/services"
@@ -104,11 +105,13 @@ func collectTransactionGuardStateRecheckEvidenceCourt(ctx context.Context, netwo
 		append([]string(nil), addresses...),
 		map[string]any{"encoding": "base64", "commitment": "processed"},
 	}
-	return client.EvidenceCourtWithCanonicalizer(
+	primaryURL := web3.SolanaRPCURL(network, strings.TrimSpace(os.Getenv("ALCHEMY_API_KEY")))
+	return client.EvidenceCourtWithCanonicalizerExcluding(
 		ctx,
 		network,
 		"getMultipleAccounts",
 		params,
+		primaryURL,
 		transactionGuardStateRecheckCourtCanonicalizer(addresses),
 	)
 }
@@ -153,6 +156,6 @@ func applyTransactionGuardStateRecheckEvidenceCourt(decision transactionGuardSta
 		return withhold("The provider quorum did not contain enough matching state observations at or after the signed simulation slot; run a fresh simulation before signing.")
 	}
 
-	decision.Reason = "The bounded State Witness root still matches the signed Guard decision and is corroborated by an independent provider quorum."
+	decision.Reason = "The bounded State Witness root still matches the signed Guard decision and is corroborated by an independent provider quorum that excludes the primary RPC provider."
 	return decision
 }
