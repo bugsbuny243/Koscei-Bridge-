@@ -106,11 +106,11 @@ func TestEvidenceCourtIsDefaultOffAndRejectsUnboundedMethods(t *testing.T) {
 	}
 }
 
-func TestEvidenceCourtEndpointsUseIndependentHostsAndKeepSecretsOutOfMetadata(t *testing.T) {
+func TestEvidenceCourtEndpointsDeduplicateKnownProvidersAndKeepSecretsOutOfMetadata(t *testing.T) {
 	t.Setenv("SOLANA_RPC_URL", "https://mainnet.helius-rpc.com/?api-key=top-secret")
 	t.Setenv("SOLANA_RPC_FALLBACK_URL", "https://api.mainnet-beta.solana.com")
 	t.Setenv("ALCHEMY_SOLANA_RPC_URL", "https://solana-mainnet.g.alchemy.com/v2/another-secret")
-	t.Setenv("HELIUS_SOLANA_RPC_URL", "https://mainnet.helius-rpc.com/?api-key=duplicate-secret")
+	t.Setenv("HELIUS_SOLANA_RPC_URL", "https://secondary.helius.example/v1/duplicate-secret")
 	t.Setenv("QUICKNODE_SOLANA_RPC_URL", "https://example.solana-mainnet.quiknode.pro/third-secret")
 
 	client := &SolanaRPC{}
@@ -118,17 +118,27 @@ func TestEvidenceCourtEndpointsUseIndependentHostsAndKeepSecretsOutOfMetadata(t 
 	if len(endpoints) != 4 {
 		t.Fatalf("providers=%d want 4: %#v", len(endpoints), endpoints)
 	}
-	seen := map[string]bool{}
+	seenHosts := map[string]bool{}
+	seenProviders := map[string]bool{}
 	for _, endpoint := range endpoints {
 		if endpoint.Host == "" || endpoint.Host == "invalid-host" {
 			t.Fatalf("invalid endpoint host: %#v", endpoint)
 		}
-		if seen[endpoint.Host] {
+		if seenHosts[endpoint.Host] {
 			t.Fatalf("duplicate provider host: %s", endpoint.Host)
 		}
-		seen[endpoint.Host] = true
+		seenHosts[endpoint.Host] = true
+		if endpoint.Provider == "helius" || endpoint.Provider == "alchemy" || endpoint.Provider == "quicknode" || endpoint.Provider == "solana_public" {
+			if seenProviders[endpoint.Provider] {
+				t.Fatalf("known provider counted twice: %s", endpoint.Provider)
+			}
+			seenProviders[endpoint.Provider] = true
+		}
 		if strings.Contains(endpoint.Host, "secret") || strings.Contains(endpoint.Provider, "secret") {
 			t.Fatalf("secret leaked into safe metadata: %#v", endpoint)
 		}
+	}
+	if !seenProviders["helius"] || !seenProviders["alchemy"] || !seenProviders["quicknode"] || !seenProviders["solana_public"] {
+		t.Fatalf("missing expected independent providers: %#v", seenProviders)
 	}
 }
