@@ -64,25 +64,25 @@ type ExitImpactLPContext struct {
 // ExitImpactTier correlates one read-only execution quote with separately
 // observed LP context and, when available, returned Jupiter AMM identities.
 type ExitImpactTier struct {
-	RequestedNotionalUSD          float64  `json:"requested_notional_usd"`
-	QuoteAvailable                bool     `json:"quote_available"`
-	Status                        string   `json:"status"`
-	EstimatedProceedsUSD          float64  `json:"estimated_proceeds_usd,omitempty"`
-	ExecutionShortfallPct         float64  `json:"execution_shortfall_pct,omitempty"`
-	ReferencePriceDropPct         float64  `json:"reference_price_drop_pct,omitempty"`
-	JupiterPriceImpactPct         float64  `json:"jupiter_price_impact_pct,omitempty"`
-	CanonicalReserveReferencePct  float64  `json:"canonical_reserve_reference_pct,omitempty"`
-	QuoteContextSlot              uint64   `json:"quote_context_slot,omitempty"`
-	LPReadSlot                    uint64   `json:"lp_read_slot,omitempty"`
-	ObservationSlotSpread         uint64   `json:"observation_slot_spread,omitempty"`
-	UniqueRouteLabelCount         int      `json:"unique_route_label_count"`
-	UniqueRouteAMMKeyCount        int      `json:"unique_route_amm_key_count"`
-	RouteLabels                   []string `json:"route_labels"`
-	RouteAMMKeys                  []string `json:"route_amm_keys"`
-	CanonicalPoolRouteStatus      string   `json:"canonical_pool_route_status"`
-	CanonicalPoolObservedInRoute  bool     `json:"canonical_pool_observed_in_route"`
-	CanonicalPoolRouteMatchCount  int      `json:"canonical_pool_route_match_count"`
-	Limitations                   []string `json:"limitations"`
+	RequestedNotionalUSD         float64  `json:"requested_notional_usd"`
+	QuoteAvailable               bool     `json:"quote_available"`
+	Status                       string   `json:"status"`
+	EstimatedProceedsUSD         float64  `json:"estimated_proceeds_usd,omitempty"`
+	ExecutionShortfallPct        float64  `json:"execution_shortfall_pct,omitempty"`
+	ReferencePriceDropPct        float64  `json:"reference_price_drop_pct,omitempty"`
+	JupiterPriceImpactPct        float64  `json:"jupiter_price_impact_pct,omitempty"`
+	CanonicalReserveReferencePct float64  `json:"canonical_reserve_reference_pct,omitempty"`
+	QuoteContextSlot             uint64   `json:"quote_context_slot,omitempty"`
+	LPReadSlot                   uint64   `json:"lp_read_slot,omitempty"`
+	ObservationSlotSpread        uint64   `json:"observation_slot_spread,omitempty"`
+	UniqueRouteLabelCount        int      `json:"unique_route_label_count"`
+	UniqueRouteAMMKeyCount       int      `json:"unique_route_amm_key_count"`
+	RouteLabels                  []string `json:"route_labels"`
+	RouteAMMKeys                 []string `json:"route_amm_keys"`
+	CanonicalPoolRouteStatus     string   `json:"canonical_pool_route_status"`
+	CanonicalPoolObservedInRoute bool     `json:"canonical_pool_observed_in_route"`
+	CanonicalPoolRouteMatchCount int      `json:"canonical_pool_route_match_count"`
+	Limitations                  []string `json:"limitations"`
 }
 
 // ExitImpactAssessment combines measured Jupiter execution outcomes with a
