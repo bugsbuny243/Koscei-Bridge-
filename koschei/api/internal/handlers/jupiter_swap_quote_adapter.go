@@ -26,12 +26,12 @@ type exitLiquidityQuoteProvider struct {
 }
 
 type exitLiquidityEvidenceQuote struct {
-	OutAmount       string
+	OutAmount        string
 	AdverseImpactPct float64
-	ContextSlot     uint64
-	Router          string
-	Mode            string
-	RoutePlan       []services.ExitLiquidityRouteStep
+	ContextSlot      uint64
+	Router           string
+	Mode             string
+	RoutePlan        []services.ExitLiquidityRouteStep
 }
 
 func resolveExitLiquidityQuoteProvider() (exitLiquidityQuoteProvider, error) {
