@@ -35,6 +35,9 @@ func (a *PumpPortalRadarAdapter) Start(ctx context.Context) {
 	}
 }
 
+// Enqueue remains for compatibility with tests/older callers. Production
+// discovery uses PumpPortalDurableInbox and does not route new-token coverage
+// through this lossy bounded channel.
 func (a *PumpPortalRadarAdapter) Enqueue(event PumpPortalEvent) bool {
 	if a == nil || a.queue == nil {
 		return false
@@ -43,7 +46,7 @@ func (a *PumpPortalRadarAdapter) Enqueue(event PumpPortalEvent) bool {
 	case a.queue <- event:
 		return true
 	default:
-		log.Printf("pumpportal radar queue full; discovery event dropped mint=%s", resolvePumpPortalMint(event))
+		log.Printf("pumpportal legacy radar queue full; event not accepted mint=%s", resolvePumpPortalMint(event))
 		return false
 	}
 }
@@ -58,16 +61,6 @@ func (a *PumpPortalRadarAdapter) HandleEvent(ctx context.Context, ev PumpPortalE
 	}
 	signature := strings.TrimSpace(ev.Signature)
 	creator := strings.TrimSpace(ev.Creator)
-	if signature != "" {
-		inserted, err := a.Store.MarkSignatureSeen(ctx, ModulePumpSybilRadar, signature, firstNonEmptyPumpPortal(creator, ev.Trader), "solana-mainnet")
-		if err != nil {
-			return err
-		}
-		if !inserted {
-			return nil
-		}
-	}
-
 	eventType := pumpPortalEventType(ev)
 	signals := pumpPortalSignals(ev, mint, signature, eventType)
 	rawSummary := map[string]any{
@@ -97,6 +90,15 @@ func (a *PumpPortalRadarAdapter) HandleEvent(ctx context.Context, ev PumpPortalE
 	})
 	if err != nil {
 		return err
+	}
+
+	// The durable radar event is the commit point. Marking the signature before
+	// InsertEvent could turn a transient DB failure into permanent data loss:
+	// the retry would see the signature and skip an event that never committed.
+	if signature != "" {
+		if _, err := a.Store.MarkSignatureSeen(ctx, ModulePumpSybilRadar, signature, firstNonEmptyPumpPortal(creator, ev.Trader), "solana-mainnet"); err != nil {
+			return err
+		}
 	}
 
 	// Discovery is intentionally cheap. PumpPortal new-token/migration events are
@@ -172,18 +174,19 @@ func StartPumpPortalRadarIfEnabled(ctx context.Context, db *sql.DB) func() {
 	store := NewSecurityRadarStore(db)
 	if cfg.Enabled {
 		adapter := NewPumpPortalRadarAdapter(store)
+		inbox := NewPumpPortalDurableInbox(db, adapter)
 		ledger := NewPumpTradeLedgerWriter(db)
 		client := NewPumpPortalClient(cfg)
-		go adapter.Start(workerCtx)
+		go inbox.Start(workerCtx)
 		go ledger.Start(workerCtx)
-		go client.Start(workerCtx, func(_ context.Context, event PumpPortalEvent) error {
+		go client.Start(workerCtx, func(eventCtx context.Context, event PumpPortalEvent) error {
 			ledger.EnqueuePumpPortal(event)
 			if !isPumpPortalTradeEvent(event) {
-				adapter.Enqueue(event)
+				return inbox.PersistDiscovery(eventCtx, event)
 			}
 			return nil
 		})
-		log.Printf("pumpportal discovery + non-blocking trade ledger started websocket=%s", cfg.redactedWebsocketHost())
+		log.Printf("pumpportal discovery + durable inbox + non-blocking trade ledger started websocket=%s", cfg.redactedWebsocketHost())
 	}
 	if volumeEnabled {
 		if canonicalInvestigationWorkerActive() {
