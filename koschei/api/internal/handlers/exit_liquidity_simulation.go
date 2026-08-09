@@ -205,7 +205,7 @@ func requestExitLiquidityQuote(ctx context.Context, client *http.Client, endpoin
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Koschei-Exit-Liquidity/1.0")
-	if apiKey := strings.TrimSpace(os.Getenv("JUPITER_API_KEY")); apiKey != "" {
+	if apiKey := jupiterAPIKeyForQuoteEndpoint(endpoint); apiKey != "" {
 		req.Header.Set("x-api-key", apiKey)
 	}
 	resp, err := client.Do(req)
@@ -223,6 +223,14 @@ func requestExitLiquidityQuote(ctx context.Context, client *http.Client, endpoin
 		return out, fmt.Errorf("quote route returned no output amount")
 	}
 	return out, nil
+}
+
+func jupiterAPIKeyForQuoteEndpoint(endpoint string) string {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || !strings.EqualFold(parsed.Hostname(), "api.jup.ag") {
+		return ""
+	}
+	return strings.TrimSpace(os.Getenv("JUPITER_API_KEY"))
 }
 
 func appendUniqueExitLabel(values []string, value string) []string {
