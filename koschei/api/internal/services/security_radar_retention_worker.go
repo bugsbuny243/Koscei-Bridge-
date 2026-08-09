@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -28,7 +29,9 @@ import (
 //	KOSCHEI_RADAR_ARCHIVE_BACKLOG_MAX=2000000   unexported rows allowed
 //	KOSCHEI_RADAR_ARCHIVE_PRUNE_DAYS=7          exported rows kept before prune
 const radarRetentionBatchSize = 5000
+const radarRetentionMinBatchSize = 250
 const radarRetentionMaxBatchesPerTable = 40
+const radarRetentionStepTimeout = 30 * time.Second
 
 type retentionTarget struct {
 	Table    string
@@ -206,42 +209,96 @@ func (w *securityRadarRetentionWorker) runOnce(ctx context.Context) {
 	}
 }
 
+func retentionInitialBatchSize(target retentionTarget) int {
+	switch strings.TrimSpace(target.Table) {
+	case "security_radar_verdicts":
+		// Verdict rows carry the heaviest JSON evidence payloads. Production data
+		// showed that 5k archive+hash batches can exceed the bounded statement
+		// deadline, so start smaller instead of holding locks longer.
+		return 1000
+	case "security_radar_events":
+		return 2000
+	default:
+		return radarRetentionBatchSize
+	}
+}
+
+func retentionDeadlineError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "57014") ||
+		strings.Contains(message, "canceling statement due to user request") ||
+		strings.Contains(message, "statement timeout") ||
+		strings.Contains(message, "deadline exceeded")
+}
+
+func retentionNextBatchSize(current int) int {
+	if current <= radarRetentionMinBatchSize {
+		return radarRetentionMinBatchSize
+	}
+	next := current / 2
+	if next < radarRetentionMinBatchSize {
+		next = radarRetentionMinBatchSize
+	}
+	return next
+}
+
 func (w *securityRadarRetentionWorker) archiveAndDelete(ctx context.Context, runID string, target retentionTarget, cutoff time.Time, stats *runStats) int64 {
 	query := retentionArchiveQuery(target)
 	var total int64
+	batchLimit := retentionInitialBatchSize(target)
 	for batch := 0; batch < radarRetentionMaxBatchesPerTable; batch++ {
 		if ctx.Err() != nil {
 			stats.HaltReason = "retention context canceled"
 			return total
 		}
-		stepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		var selected, archived, verified, removed int64
-		err := w.db.QueryRowContext(stepCtx, query, cutoff, radarRetentionBatchSize, runID, target.Table).
-			Scan(&selected, &archived, &verified, &removed)
-		cancel()
-		if err != nil {
-			stats.HaltReason = fmt.Sprintf("%s archive/delete failed: %v", target.Table, err)
-			log.Printf("radar retention: %s", stats.HaltReason)
-			return total
-		}
-		stats.Selected += selected
-		stats.Archived += archived
-		stats.Verified += verified
-		stats.Deleted += removed
-		total += removed
 
-		if archived != selected || verified != archived || removed != verified {
-			stats.HaltReason = fmt.Sprintf(
-				"%s batch mismatch selected=%d archived=%d verified=%d deleted=%d",
-				target.Table, selected, archived, verified, removed,
-			)
-			return total
-		}
-		if selected < radarRetentionBatchSize {
-			return total
+		// A timeout cancels the single archive+verify+delete statement atomically.
+		// Retry the exact logical batch with a smaller LIMIT; never increase the
+		// statement deadline and never count a failed attempt as progress.
+		for {
+			stepCtx, cancel := context.WithTimeout(ctx, radarRetentionStepTimeout)
+			var selected, archived, verified, removed int64
+			err := w.db.QueryRowContext(stepCtx, query, cutoff, batchLimit, runID, target.Table).
+				Scan(&selected, &archived, &verified, &removed)
+			cancel()
+			if err != nil {
+				if retentionDeadlineError(err) && batchLimit > radarRetentionMinBatchSize {
+					next := retentionNextBatchSize(batchLimit)
+					log.Printf("radar retention: %s batch deadline at limit=%d; retrying limit=%d", target.Table, batchLimit, next)
+					batchLimit = next
+					continue
+				}
+				stats.HaltReason = fmt.Sprintf("%s archive/delete failed at batch_limit=%d: %v", target.Table, batchLimit, err)
+				log.Printf("radar retention: %s", stats.HaltReason)
+				return total
+			}
+
+			stats.Selected += selected
+			stats.Archived += archived
+			stats.Verified += verified
+			stats.Deleted += removed
+			total += removed
+
+			if archived != selected || verified != archived || removed != verified {
+				stats.HaltReason = fmt.Sprintf(
+					"%s batch mismatch selected=%d archived=%d verified=%d deleted=%d",
+					target.Table, selected, archived, verified, removed,
+				)
+				return total
+			}
+			if selected < int64(batchLimit) {
+				return total
+			}
+			break
 		}
 	}
-	log.Printf("radar retention: %s hit per-run batch cap; remaining rows handled next run", target.Table)
+	log.Printf("radar retention: %s hit per-run batch cap at limit=%d; remaining rows handled next run", target.Table, batchLimit)
 	return total
 }
 
