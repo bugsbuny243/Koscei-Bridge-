@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-6"
+const transactionGuardV3AnalysisVersion = "v3-foundation-7"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
@@ -74,12 +74,17 @@ func mergeTransactionGuardV3Findings(existing, decoded []transactionFirewallFind
 }
 
 func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, authoritySurface transactionGuardAuthoritySurfaceAnalysis, alertID string) {
+	stateWitness := unavailableTransactionGuardStateWitness(transactionFingerprint(input.Transaction), 0, "No bounded pre-state account set was supplied to the response path.")
+	h.finishTransactionGuardV3ResponseWithWitness(w, r, input, requestID, started, assessment, programPolicy, intentPolicy, decoded, threatHistory, cpiFlow, authoritySurface, stateWitness, alertID)
+}
+
+func (h *Handler) finishTransactionGuardV3ResponseWithWitness(w http.ResponseWriter, r *http.Request, input transactionGuardV2Request, requestID string, started time.Time, assessment transactionFirewallAssessment, programPolicy transactionGuardProgramPolicy, intentPolicy transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, threatHistory transactionGuardThreatHistoryAnalysis, cpiFlow transactionGuardCPIFlowAnalysis, authoritySurface transactionGuardAuthoritySurfaceAnalysis, stateWitness transactionGuardStateWitness, alertID string) {
 	threatComplete := !threatHistory.Required || threatHistory.Complete
 	cpiComplete := !cpiFlow.Required || cpiFlow.Complete
 	authorityComplete := !authoritySurface.Required || authoritySurface.Complete
 	guardComplete := assessment.SimulationOK && programPolicy.Complete && intentPolicy.Complete && decoded.Complete && threatComplete && cpiComplete && authorityComplete
 	originalAction := assessment.Action
-	assessment, enforcement := applyTransactionGuardEnforcementRequirement(input, requestID, assessment, guardComplete, time.Now().UTC())
+	assessment, enforcement := applyTransactionGuardEnforcementRequirementWithWitness(input, requestID, assessment, guardComplete, time.Now().UTC(), &stateWitness)
 	if originalAction == "allow" && assessment.Action != "allow" && alertID == "" {
 		alertID = h.emitTransactionGuardAlert(r.Context(), requestID, input, assessment, programPolicy, intentPolicy)
 	}
@@ -105,6 +110,8 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 		"summary":                    assessment.Summary,
 		"findings":                   assessment.Findings,
 		"guard_complete":             guardComplete,
+		"state_witness_complete":     stateWitness.Complete,
+		"state_witness":              stateWitness,
 		"automatic_decode_complete":  decoded.Complete,
 		"automatic_balance_complete": decoded.AutomaticBalance.Complete,
 		"automatic_balance_changes":  decoded.AutomaticBalance,
@@ -126,7 +133,7 @@ func (h *Handler) finishTransactionGuardV3Response(w http.ResponseWriter, r *htt
 			"logs_count": len(assessment.Logs), "logs": assessment.Logs,
 		},
 		"latency_ms": time.Since(started).Milliseconds(),
-		"warning":    "Koschei does not sign, submit or custody the transaction; an enforcement permit, when issued, only authorizes the exact fingerprint until expiry.",
+		"warning":    "Koschei does not sign, submit or custody the transaction; permits authorize only the exact transaction fingerprint until expiry, and state-bound permits also bind the observed account-state witness.",
 	}
 	attachTransactionGuardEnforcementResponse(response, enforcement)
 	writeJSON(w, transactionGuardHTTPStatusWithEnforcement(assessment, enforcement), response)
