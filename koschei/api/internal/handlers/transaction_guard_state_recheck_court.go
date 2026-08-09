@@ -10,6 +10,60 @@ import (
 	"koschei/api/internal/web3"
 )
 
+type transactionGuardStateRecheckCourtWitnessResponse struct {
+	Provider    string `json:"provider"`
+	Status      string `json:"status"`
+	ValueHash   string `json:"value_hash,omitempty"`
+	ContextSlot uint64 `json:"context_slot,omitempty"`
+	ErrorClass  string `json:"error_class,omitempty"`
+}
+
+type transactionGuardStateRecheckCourtResponse struct {
+	SchemaVersion string                                                   `json:"schema_version"`
+	Enabled       bool                                                     `json:"enabled"`
+	Method        string                                                   `json:"method"`
+	Status        string                                                   `json:"status"`
+	Required      int                                                      `json:"required_witnesses"`
+	Requested     int                                                      `json:"requested_witnesses"`
+	Available     int                                                      `json:"available_witnesses"`
+	Matching      int                                                      `json:"matching_witnesses"`
+	ValueHash     string                                                   `json:"agreed_value_hash,omitempty"`
+	MinSlot       uint64                                                   `json:"min_context_slot,omitempty"`
+	MaxSlot       uint64                                                   `json:"max_context_slot,omitempty"`
+	SlotSpread    uint64                                                   `json:"context_slot_spread,omitempty"`
+	Witnesses     []transactionGuardStateRecheckCourtWitnessResponse       `json:"witnesses"`
+	Limitations   []string                                                 `json:"limitations"`
+}
+
+func transactionGuardStateRecheckCourtPublicResponse(court web3.EvidenceCourtResult) transactionGuardStateRecheckCourtResponse {
+	witnesses := make([]transactionGuardStateRecheckCourtWitnessResponse, 0, len(court.Witnesses))
+	for _, witness := range court.Witnesses {
+		witnesses = append(witnesses, transactionGuardStateRecheckCourtWitnessResponse{
+			Provider:    strings.TrimSpace(witness.Provider),
+			Status:      strings.TrimSpace(witness.Status),
+			ValueHash:   strings.TrimSpace(witness.ValueHash),
+			ContextSlot: witness.ContextSlot,
+			ErrorClass:  strings.TrimSpace(witness.ErrorClass),
+		})
+	}
+	return transactionGuardStateRecheckCourtResponse{
+		SchemaVersion: court.SchemaVersion,
+		Enabled:       court.Enabled,
+		Method:        court.Method,
+		Status:        court.Status,
+		Required:      court.Required,
+		Requested:     court.Requested,
+		Available:     court.Available,
+		Matching:      court.Matching,
+		ValueHash:     court.ValueHash,
+		MinSlot:       court.MinSlot,
+		MaxSlot:       court.MaxSlot,
+		SlotSpread:    court.SlotSpread,
+		Witnesses:     witnesses,
+		Limitations:   append([]string(nil), court.Limitations...),
+	}
+}
+
 func transactionGuardStateRecheckCourtCanonicalizer(addresses []string) web3.EvidenceCourtCanonicalizer {
 	ordered := append([]string(nil), addresses...)
 	return func(raw json.RawMessage) (string, uint64, bool, error) {
