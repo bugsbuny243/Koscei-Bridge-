@@ -68,6 +68,20 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 		})
 		return
 	}
+	permitPolicy, err := transactionGuardStateRecheckPermitPolicyFromClaims(claims)
+	if err != nil {
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"ok": false, "code": "state_recheck_policy_invalid", "message": "The signed State Recheck policy could not be trusted.", "requires_resimulation": true,
+		})
+		return
+	}
+	courtRequirement, err := transactionGuardStateRecheckCourtRequirementFromClaims(claims)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok": false, "code": "state_recheck_policy_unavailable", "message": "The required State Recheck corroboration policy is unavailable; run a fresh simulation before signing.", "requires_resimulation": true,
+		})
+		return
+	}
 
 	addresses := make([]string, 0, len(input.StateWitness.Accounts))
 	for _, account := range input.StateWitness.Accounts {
@@ -131,16 +145,25 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 		"recheck_version":         transactionGuardStateRecheckVersion,
 		"network":                 input.Network,
 		"transaction_fingerprint": claims.TransactionFingerprint,
-		"decision":                decision,
-		"warning":                 "State Witness recheck confirms only the bounded signed account-state root and never signs or submits the transaction.",
+		"signed_recheck_policy":   permitPolicy,
+		"court_requirement": map[string]any{
+			"required":           courtRequirement.Required,
+			"required_witnesses": courtRequirement.RequiredWitnesses,
+			"signed_policy":      courtRequirement.SignedPolicy,
+			"global_policy":      courtRequirement.GlobalPolicy,
+		},
+		"decision": decision,
+		"warning":  "State Witness recheck confirms only the bounded signed account-state root and never signs or submits the transaction.",
 	}
 	if decision.Status == "state_unchanged" {
-		court := collectTransactionGuardStateRecheckEvidenceCourt(r.Context(), input.Network, addresses)
+		court := collectTransactionGuardStateRecheckEvidenceCourtWithRequirement(r.Context(), input.Network, addresses, courtRequirement)
 		decision = applyTransactionGuardStateRecheckEvidenceCourt(decision, court)
 		response["decision"] = decision
 		response["evidence_court"] = transactionGuardStateRecheckCourtPublicResponse(court)
-		if court.Enabled {
-			response["warning"] = "When Evidence Court is enabled, a state-bound permit remains consistent only after an independent fresh provider quorum corroborates the bounded State Witness root. Koschei never signs or submits the transaction."
+		if courtRequirement.Required {
+			response["warning"] = "This permit's effective State Recheck policy requires an independent fresh provider quorum before the prior Guard decision may be relied on. Koschei never signs or submits the transaction."
+		} else if court.Enabled {
+			response["warning"] = "Evidence Court is enabled for this deployment; an independent fresh provider quorum corroborated the bounded State Witness root. Koschei never signs or submits the transaction."
 		}
 	}
 	writeJSON(w, http.StatusOK, response)

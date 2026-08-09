@@ -1,12 +1,12 @@
 # ARVIS Transaction State Recheck
 
-Status: live authenticated developer API wired to bounded Solana account-state re-read with optional independent-provider corroboration.
+Status: live authenticated developer API with bounded Solana account-state re-read, independent-provider quorum and signed permit policy.
 
 ## Purpose
 
-A State Witness binds a Guard decision to one observed account-state root. A state-bound permit v2 signs that witness identity. Recheck determines whether the permit and issued witness are authentic, re-reads only the signed bounded account set, and compares current state before a wallet relies on the prior Guard decision.
+A State Witness binds a Guard decision to one observed account-state root. Current state-witness enforcement issues a policy-bound permit v3 that signs both that witness identity and the Guard risk policy snapshot used to decide whether independent corroboration is mandatory.
 
-This layer reduces the transaction-simulation TOCTOU window but does not claim that off-chain observation can freeze Solana state. Even after a successful recheck, state can change again before execution unless the invoked on-chain programs enforce the relevant invariants themselves.
+State Recheck verifies the permit and issued witness, re-reads only the signed bounded account set, and compares current state before a wallet relies on the prior Guard decision. It reduces the transaction-simulation TOCTOU window but does not claim that off-chain observation can freeze Solana state.
 
 ## Developer API
 
@@ -16,84 +16,115 @@ POST /api/v1/shield/state-recheck
 
 The route uses the existing enterprise API-key plus live KOSCH-holder gate and Solana runtime feature gate. It is rate-limited but does not consume a second scan quota unit for the same Guard decision.
 
-The request carries:
+The request carries the exact serialized transaction, the signed state-bound permit, the issued State Witness, and optional network (default `solana-mainnet`). Permit and witness trust checks happen before any RPC access.
 
-- the exact serialized transaction previously evaluated by Transaction Guard;
-- the state-bound permit v2 token;
-- the issued State Witness returned with that Guard decision;
-- optional network, defaulting to `solana-mainnet`.
+## Permit versions
 
-The handler verifies the permit and witness before making any RPC call. Invalid or forged requests therefore cannot use State Recheck as an unauthenticated RPC proxy.
+Non-state-bound enforcement remains:
+
+```text
+koschei-transaction-guard-permit-v1
+```
+
+Legacy state-bound permits remain temporarily accepted for short-TTL migration compatibility:
+
+```text
+koschei-transaction-guard-permit-v2
+```
+
+New live state-witness issuance uses:
+
+```text
+koschei-transaction-guard-permit-v3
+```
+
+Permit v3 signs the v2 state binding plus:
+
+- `state_recheck_policy_version`;
+- final Guard `risk_level` snapshot;
+- final Guard `risk_index` snapshot;
+- the Court risk threshold used at issuance;
+- whether Evidence Court is required;
+- the signed independent-witness count when Court is required.
+
+The verifier recomputes the policy relationship and rejects a correctly signed payload if `court_required` does not equal `risk_index >= signed_threshold`, if required witness counts are outside bounds, or if mandatory claims are missing. This semantic policy validation completes before the primary account-state RPC is allowed to run. Legacy v2 is accepted only when it contains no v3 policy claims. Permit v1 remains invalid for State Recheck because it has no State Witness.
+
+## Selective Court policy
+
+Runtime issuance policy:
+
+```text
+TRANSACTION_GUARD_STATE_RECHECK_COURT_RISK_THRESHOLD=25
+```
+
+The value is bounded to `0..100`. Current Transaction Guard permits are issued only for `allow` decisions, and the current base allow band is below risk index 25. Therefore the default threshold of 25 does not newly force Court for current allow permits.
+
+Examples:
+
+- threshold `25`: current allow-band permits do not force Court through signed risk policy;
+- threshold `15`: allow permits with signed risk index `15..24` require Court;
+- threshold `0`: every state-bound allow permit requires Court.
+
+This is an issuance-time policy snapshot. Recheck does not recalculate the historic Guard score from mutable configuration.
+
+## Global policy floor
+
+`KOSCHEI_EVIDENCE_COURT_ENABLED=true` remains a deployment-wide floor. The effective recheck rule is:
+
+```text
+Court required = signed permit requires Court OR current global Court policy requires Court
+```
+
+The effective witness count is the stricter of the signed permit count and the current global Court count.
+
+A signed v3 permit can therefore require Court even when the deployment-wide Evidence Court flag is currently off. This forced path does not bypass any Evidence Court safety rule: method allowlists, provider cap, timeouts, primary-provider exclusion, provider-identity deduplication and canonical-root quorum checks remain mandatory.
 
 ## Trust rule
 
-Recheck never trusts the public key carried in a client-supplied permit object.
+State Recheck derives the trusted Ed25519 public key from Koschei's configured enforcement signing key and requires:
 
-The verifier derives the trusted Ed25519 public key from Koschei's configured enforcement signing key and requires:
-
-- valid Ed25519 signature;
-- `koschei-transaction-guard-permit-v2`;
-- configured key ID match;
-- `allow` action;
-- current Transaction Guard version;
-- exact network match;
-- exact transaction fingerprint match;
-- valid `issued_at` / `expires_at` interval;
-- permit currently active and not expired;
+- valid Ed25519 signature and configured key ID;
+- supported state-bound permit version and internally consistent policy claims;
+- `allow` action and current Transaction Guard version;
+- exact network and transaction fingerprint;
+- active, non-expired TTL;
 - complete State Witness v1;
 - exact witness slots and transaction identity;
-- witness account count within the bounded Guard account limit;
-- SHA-256-valid state hashes;
-- no duplicate or empty witness addresses;
-- recomputed witness account root equals both the witness and signed claims;
-- recomputed witness binding hash equals both the witness and signed claims.
+- bounded, duplicate-free witness account set;
+- valid SHA-256 state hashes;
+- recomputed witness root and binding hash matching signed claims.
 
-Legacy permit v1 is not accepted for state recheck because it contains no signed state witness.
+The public key embedded in a client-supplied permit object is never trusted as the verification root.
 
 ## Live current-state re-read
 
-Only after the trust checks pass, the handler:
+Only after all permit, policy and witness checks pass, the handler:
 
 1. extracts the signed witness account addresses;
 2. calls bounded `getMultipleAccounts` using base64 account state and `processed` commitment;
 3. requires the complete ordered witnessed account set;
-4. canonicalizes each current account state using the same State Witness hashing contract;
+4. canonicalizes each current account state with the same State Witness hash contract;
 5. recomputes the current account-state root;
-6. compares the current provider slot against the signed simulation slot;
-7. if the primary provider already reports changed or stale state, requires a fresh simulation immediately;
-8. if the primary provider reports unchanged state and Evidence Court is enabled, requests the exact same bounded account set from independent providers and canonicalizes each response into the same State Witness root;
-9. excludes the primary RPC provider identity from the Evidence Court witness pool before quorum evaluation;
-10. returns only root/slot/quorum decision metadata, never raw account data or provider hostnames.
+6. compares the primary provider slot with the signed simulation slot;
+7. immediately requires fresh simulation when primary state is changed or stale;
+8. resolves the effective signed/global Court requirement;
+9. when Court is required, requests the same bounded state from independent providers even if the global Court feature flag is off;
+10. excludes the primary RPC provider identity from Court voting;
+11. requires the quorum root to equal the primary root and enough matching Court observations to be at or after the signed simulation slot;
+12. returns only safe root/slot/policy/quorum metadata, never raw account state or provider hostnames.
 
-Provider failure or incomplete account evidence fails closed and requires a fresh simulation before signing.
-
-## Evidence Court corroboration
-
-Evidence Court remains configuration-controlled through `KOSCHEI_EVIDENCE_COURT_ENABLED`. When disabled, State Recheck preserves the original single-provider behavior. When enabled, an apparent primary-provider `state_unchanged` result is not sufficient by itself.
-
-The corroboration gate requires all of the following:
-
-- Evidence Court status is `verified`;
-- the quorum-agreed canonical State Witness root exactly matches the primary recheck root;
-- at least `KOSCHEI_EVIDENCE_COURT_REQUIRED_WITNESSES` independent matching providers observed that root at or after the signed simulation slot;
-- none of those quorum votes comes from the primary RPC provider identity.
-
-The required witness count defaults to 2 and remains bounded by Evidence Court's provider cap. Provider identities are deduplicated so multiple URLs from the same recognized provider do not count as independent witnesses. The primary provider identity is removed before this count is evaluated: if the primary read uses Helius, another Helius URL cannot count as a Court witness; for an unrecognized custom RPC, the exact normalized host identity is excluded.
-
-If primary exclusion leaves fewer configured providers than the required Court threshold, corroboration is `insufficient` and fails closed. If quorum is insufficient, conflicting, stale, or disagrees with the primary provider, the final decision becomes `withhold` and `requires_resimulation=true`. An independent quorum can never turn a primary `state_changed` result back into `state_unchanged`.
+Provider failure, incomplete evidence, stale quorum, provider conflict, root disagreement or insufficient independent providers fail closed with `withhold` and `requires_resimulation=true`.
 
 ## Current-state decision
 
-The recheck evaluator has three states:
+- `state_unchanged` — primary root exactly matches the signed root, primary state is not older than the simulation, and every effective Court requirement is satisfied by a fresh independent quorum;
+- `state_changed` — primary current root differs, requiring a fresh simulation;
+- `withhold` — current root/slot/policy/quorum evidence is unavailable, malformed, stale, conflicting or insufficient.
 
-- `state_unchanged` — current account-state root exactly matches the signed issued root, the primary provider slot is at or after the signed simulation slot, and, when Evidence Court is enabled, a fresh independent provider quorum that excludes the primary provider corroborates that same root;
-- `state_changed` — current account-state root differs, so a fresh simulation is required;
-- `withhold` — current root/slot/quorum evidence is missing, incomplete, unavailable, conflicting, stale, or disagrees across required providers.
-
-No arbitrary maximum slot-age threshold is introduced in this phase.
+An independent quorum can never turn a primary `state_changed` result into `state_unchanged`.
 
 ## Safety boundary
 
-A successful `state_unchanged` response means only that the bounded signed account-state root still matched at the recheck observation slot and, when enabled, was independently corroborated. Koschei remains non-custodial: the route does not sign, submit, mutate, or custody the transaction.
+A successful `state_unchanged` response means only that the bounded signed account-state root still matched at the recheck observation slot and all effective corroboration requirements passed. Koschei remains non-custodial and never signs, submits, mutates or holds the transaction.
 
-The next hardening step is policy-scoped quorum activation using signed permit risk claims, allowing mandatory corroboration to be selected cryptographically for high-risk permits rather than only by deployment-wide Evidence Court configuration. A transaction-value threshold should be added only after Koschei has a separately verified value-evidence contract; this layer does not invent one from incomplete transaction context.
+No transaction-value threshold is defined here. A value-based policy should be added only after Koschei has a separately verified transaction-value evidence contract; incomplete transaction context is not converted into invented dollar or lamport exposure.

@@ -12,27 +12,36 @@ import (
 	"time"
 
 	"koschei/api/internal/runtimecfg"
+	"koschei/api/internal/web3"
 )
 
 const transactionGuardEnforcementPermitVersion = "koschei-transaction-guard-permit-v1"
 const transactionGuardStateBoundPermitVersion = "koschei-transaction-guard-permit-v2"
+const transactionGuardPolicyBoundPermitVersion = "koschei-transaction-guard-permit-v3"
+const transactionGuardStateRecheckPolicyVersion = "koschei-state-recheck-policy-v1"
 
 type transactionGuardEnforcementPermitClaims struct {
-	Version                string `json:"version"`
-	KeyID                  string `json:"key_id"`
-	RequestID              string `json:"request_id"`
-	TransactionFingerprint string `json:"transaction_fingerprint"`
-	Network                string `json:"network"`
-	Wallet                 string `json:"wallet,omitempty"`
-	Action                 string `json:"action"`
-	GuardVersion           string `json:"guard_version"`
-	StateWitnessVersion    string `json:"state_witness_version,omitempty"`
-	StateWitnessHash       string `json:"state_witness_hash,omitempty"`
-	StateAccountRoot       string `json:"state_account_root_sha256,omitempty"`
-	PreStateSlot           int64  `json:"pre_state_slot,omitempty"`
-	SimulationSlot         int64  `json:"simulation_slot,omitempty"`
-	IssuedAt               string `json:"issued_at"`
-	ExpiresAt              string `json:"expires_at"`
+	Version                            string `json:"version"`
+	KeyID                              string `json:"key_id"`
+	RequestID                          string `json:"request_id"`
+	TransactionFingerprint             string `json:"transaction_fingerprint"`
+	Network                            string `json:"network"`
+	Wallet                             string `json:"wallet,omitempty"`
+	Action                             string `json:"action"`
+	GuardVersion                       string `json:"guard_version"`
+	StateWitnessVersion                string `json:"state_witness_version,omitempty"`
+	StateWitnessHash                   string `json:"state_witness_hash,omitempty"`
+	StateAccountRoot                   string `json:"state_account_root_sha256,omitempty"`
+	PreStateSlot                       int64  `json:"pre_state_slot,omitempty"`
+	SimulationSlot                     int64  `json:"simulation_slot,omitempty"`
+	StateRecheckPolicyVersion          string `json:"state_recheck_policy_version,omitempty"`
+	GuardRiskLevel                     string `json:"guard_risk_level,omitempty"`
+	GuardRiskIndex                     *int   `json:"guard_risk_index,omitempty"`
+	StateRecheckCourtRiskThreshold     *int   `json:"state_recheck_court_risk_threshold,omitempty"`
+	StateRecheckCourtRequired          bool   `json:"state_recheck_court_required,omitempty"`
+	StateRecheckCourtRequiredWitnesses int    `json:"state_recheck_court_required_witnesses,omitempty"`
+	IssuedAt                           string `json:"issued_at"`
+	ExpiresAt                          string `json:"expires_at"`
 }
 
 type transactionGuardEnforcementPermit struct {
@@ -51,6 +60,45 @@ type transactionGuardEnforcementState struct {
 	Issued               bool
 	Status               string
 	Permit               *transactionGuardEnforcementPermit
+}
+
+type transactionGuardSignedRecheckPolicy struct {
+	Version           string
+	RiskLevel         string
+	RiskIndex         int
+	RiskThreshold     int
+	CourtRequired     bool
+	RequiredWitnesses int
+}
+
+func buildTransactionGuardSignedRecheckPolicy(assessment transactionFirewallAssessment, riskThreshold, requiredWitnesses int) (transactionGuardSignedRecheckPolicy, error) {
+	if assessment.Action != "allow" {
+		return transactionGuardSignedRecheckPolicy{}, errors.New("signed recheck policy requires an allow assessment")
+	}
+	if assessment.RiskIndex < 0 || assessment.RiskIndex > 100 {
+		return transactionGuardSignedRecheckPolicy{}, errors.New("guard risk index is outside policy bounds")
+	}
+	if riskThreshold < 0 || riskThreshold > 100 {
+		return transactionGuardSignedRecheckPolicy{}, errors.New("state recheck court risk threshold is outside policy bounds")
+	}
+	level := strings.ToLower(strings.TrimSpace(assessment.RiskLevel))
+	if level == "" {
+		level = "low"
+	}
+	policy := transactionGuardSignedRecheckPolicy{
+		Version:       transactionGuardStateRecheckPolicyVersion,
+		RiskLevel:     level,
+		RiskIndex:     assessment.RiskIndex,
+		RiskThreshold: riskThreshold,
+		CourtRequired: assessment.RiskIndex >= riskThreshold,
+	}
+	if policy.CourtRequired {
+		if requiredWitnesses < 2 || requiredWitnesses > 4 {
+			return transactionGuardSignedRecheckPolicy{}, errors.New("state recheck court witness threshold is outside policy bounds")
+		}
+		policy.RequiredWitnesses = requiredWitnesses
+	}
+	return policy, nil
 }
 
 func buildTransactionGuardEnforcementState(input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, guardComplete bool, now time.Time) transactionGuardEnforcementState {
@@ -92,7 +140,12 @@ func buildTransactionGuardEnforcementStateWithWitness(input transactionGuardV2Re
 	}
 	var permit transactionGuardEnforcementPermit
 	if cfg.RequireStateWitness {
-		permit, err = signTransactionGuardEnforcementPermitWithWitness(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now, witness)
+		policy, policyErr := buildTransactionGuardSignedRecheckPolicy(assessment, cfg.StateRecheckCourtRiskThreshold, web3.EvidenceCourtRequiredWitnesses())
+		if policyErr != nil {
+			state.Status = "policy_invalid"
+			return state
+		}
+		permit, err = signTransactionGuardEnforcementPermitWithWitnessPolicy(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now, witness, policy)
 	} else {
 		permit, err = signTransactionGuardEnforcementPermit(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now)
 	}
@@ -107,10 +160,21 @@ func buildTransactionGuardEnforcementStateWithWitness(input transactionGuardV2Re
 }
 
 func signTransactionGuardEnforcementPermit(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time) (transactionGuardEnforcementPermit, error) {
-	return signTransactionGuardEnforcementPermitWithWitness(privateKey, keyID, ttl, input, requestID, assessment, now, nil)
+	return signTransactionGuardEnforcementPermitInternal(privateKey, keyID, ttl, input, requestID, assessment, now, nil, nil)
 }
 
+// signTransactionGuardEnforcementPermitWithWitness remains the legacy v2
+// state-bound signer so existing short-lived v2 tokens can be tested and
+// verified during the v3 migration window.
 func signTransactionGuardEnforcementPermitWithWitness(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time, witness *transactionGuardStateWitness) (transactionGuardEnforcementPermit, error) {
+	return signTransactionGuardEnforcementPermitInternal(privateKey, keyID, ttl, input, requestID, assessment, now, witness, nil)
+}
+
+func signTransactionGuardEnforcementPermitWithWitnessPolicy(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time, witness *transactionGuardStateWitness, policy transactionGuardSignedRecheckPolicy) (transactionGuardEnforcementPermit, error) {
+	return signTransactionGuardEnforcementPermitInternal(privateKey, keyID, ttl, input, requestID, assessment, now, witness, &policy)
+}
+
+func signTransactionGuardEnforcementPermitInternal(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time, witness *transactionGuardStateWitness, policy *transactionGuardSignedRecheckPolicy) (transactionGuardEnforcementPermit, error) {
 	if len(privateKey) != ed25519.PrivateKeySize {
 		return transactionGuardEnforcementPermit{}, errors.New("invalid ed25519 private key size")
 	}
@@ -156,6 +220,33 @@ func signTransactionGuardEnforcementPermitWithWitness(privateKey ed25519.Private
 		claims.StateAccountRoot = witness.AccountRoot
 		claims.PreStateSlot = witness.PreStateSlot
 		claims.SimulationSlot = witness.SimulationSlot
+		if policy != nil {
+			if policy.Version != transactionGuardStateRecheckPolicyVersion || policy.RiskIndex < 0 || policy.RiskIndex > 100 || policy.RiskThreshold < 0 || policy.RiskThreshold > 100 || strings.TrimSpace(policy.RiskLevel) == "" {
+				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck policy is invalid")
+			}
+			expectedCourtRequired := policy.RiskIndex >= policy.RiskThreshold
+			if policy.CourtRequired != expectedCourtRequired {
+				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck court decision does not match the risk threshold")
+			}
+			if policy.CourtRequired && (policy.RequiredWitnesses < 2 || policy.RequiredWitnesses > 4) {
+				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck court requirement is invalid")
+			}
+			if !policy.CourtRequired && policy.RequiredWitnesses != 0 {
+				return transactionGuardEnforcementPermit{}, errors.New("optional state recheck court policy cannot require witnesses")
+			}
+			permitVersion = transactionGuardPolicyBoundPermitVersion
+			claims.Version = permitVersion
+			claims.StateRecheckPolicyVersion = policy.Version
+			claims.GuardRiskLevel = strings.ToLower(strings.TrimSpace(policy.RiskLevel))
+			riskIndex := policy.RiskIndex
+			claims.GuardRiskIndex = &riskIndex
+			riskThreshold := policy.RiskThreshold
+			claims.StateRecheckCourtRiskThreshold = &riskThreshold
+			claims.StateRecheckCourtRequired = policy.CourtRequired
+			claims.StateRecheckCourtRequiredWitnesses = policy.RequiredWitnesses
+		}
+	} else if policy != nil {
+		return transactionGuardEnforcementPermit{}, errors.New("signed state recheck policy requires a state witness")
 	}
 	payload, err := json.Marshal(claims)
 	if err != nil {
@@ -218,6 +309,8 @@ func applyTransactionGuardEnforcementRequirementWithWitness(input transactionGua
 		assessment.RiskLevel = "unknown"
 		if state.StateWitnessRequired && state.Status == "state_witness_unavailable" {
 			assessment.Summary = "Transaction Guard withheld enforcement because the required state witness was unavailable."
+		} else if state.Status == "policy_invalid" {
+			assessment.Summary = "Transaction Guard withheld enforcement because the signed state recheck policy could not be constructed safely."
 		} else {
 			assessment.Summary = "Transaction Guard withheld enforcement because the required signed permit was unavailable."
 		}

@@ -23,6 +23,7 @@ func TestLoadRestoresLegacyControlPlane(t *testing.T) {
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY", "secret")
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS", "120")
 	t.Setenv("TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT", "true")
+	t.Setenv("TRANSACTION_GUARD_STATE_RECHECK_COURT_RISK_THRESHOLD", "17")
 
 	cfg := Load()
 	if cfg.AppName != "Koschei X" || cfg.AIEnabled || cfg.AIProvider != "together" || cfg.LaunchPageBuilderEnabled || !cfg.RiskScannerEnabled || !cfg.SolanaEnabled {
@@ -34,8 +35,27 @@ func TestLoadRestoresLegacyControlPlane(t *testing.T) {
 	if cfg.SolanaNetwork != "solana-mainnet" || !cfg.SolscanConfigured || cfg.TogetherEnabled || cfg.Web3Provider != "quicknode" || cfg.WorkerMaxBuildThreads != 7 {
 		t.Fatalf("unexpected provider config: %#v", cfg)
 	}
-	if cfg.Guard.KeyID != "guard-v1" || !cfg.Guard.PrivateKeyConfigured || cfg.Guard.PermitTTL.Seconds() != 120 || !cfg.Guard.RequirePermit {
+	if cfg.Guard.KeyID != "guard-v1" || !cfg.Guard.PrivateKeyConfigured || cfg.Guard.PermitTTL.Seconds() != 120 || !cfg.Guard.RequirePermit || cfg.Guard.StateRecheckCourtRiskThreshold != 17 {
 		t.Fatalf("unexpected guard config: %#v", cfg.Guard)
+	}
+}
+
+func TestGuardStateRecheckCourtRiskThresholdDefaultsOutsideCurrentAllowBand(t *testing.T) {
+	cfg := LoadWith(func(string) string { return "" })
+	if cfg.Guard.StateRecheckCourtRiskThreshold != 25 {
+		t.Fatalf("threshold=%d want=25", cfg.Guard.StateRecheckCourtRiskThreshold)
+	}
+}
+
+func TestGuardStateRecheckCourtRiskThresholdIsBounded(t *testing.T) {
+	cfg := LoadWith(func(key string) string {
+		if key == "TRANSACTION_GUARD_STATE_RECHECK_COURT_RISK_THRESHOLD" {
+			return "999"
+		}
+		return ""
+	})
+	if cfg.Guard.StateRecheckCourtRiskThreshold != 100 {
+		t.Fatalf("threshold=%d want=100", cfg.Guard.StateRecheckCourtRiskThreshold)
 	}
 }
 

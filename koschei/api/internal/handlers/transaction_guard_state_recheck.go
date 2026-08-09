@@ -51,8 +51,11 @@ func verifyTransactionGuardStateBoundPermitForRecheck(token, transaction, networ
 	if err != nil {
 		return transactionGuardEnforcementPermitClaims{}, err
 	}
-	if claims.Version != transactionGuardStateBoundPermitVersion || claims.KeyID != strings.TrimSpace(cfg.KeyID) {
-		return transactionGuardEnforcementPermitClaims{}, fmt.Errorf("%w: unsupported permit version or key id", errTransactionGuardPermitInvalid)
+	if claims.KeyID != strings.TrimSpace(cfg.KeyID) {
+		return transactionGuardEnforcementPermitClaims{}, fmt.Errorf("%w: enforcement key id mismatch", errTransactionGuardPermitInvalid)
+	}
+	if err := validateTransactionGuardStateRecheckPolicyClaims(claims); err != nil {
+		return transactionGuardEnforcementPermitClaims{}, fmt.Errorf("%w: %v", errTransactionGuardPermitInvalid, err)
 	}
 	if claims.Action != "allow" || claims.GuardVersion != transactionGuardVersion {
 		return transactionGuardEnforcementPermitClaims{}, fmt.Errorf("%w: permit is not an allow decision for the current Guard version", errTransactionGuardPermitInvalid)
