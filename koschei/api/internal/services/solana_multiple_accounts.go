@@ -6,10 +6,13 @@ import (
 	"strings"
 )
 
-// SolanaMultipleAccountInfoResult is the jsonParsed response returned by
-// getMultipleAccounts. It is used to resolve token-account addresses to their
-// controlling owner wallets without spending one RPC request per holder.
+// SolanaMultipleAccountInfoResult is the context-bearing response returned by
+// getMultipleAccounts. Preserving the slot is required by Transaction Guard's
+// state-witness contract; callers that only need Value remain source-compatible.
 type SolanaMultipleAccountInfoResult struct {
+	Context struct {
+		Slot int64 `json:"slot"`
+	} `json:"context"`
 	Value []*SolanaAccountInfo `json:"value"`
 }
 
