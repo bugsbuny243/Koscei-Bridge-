@@ -11,13 +11,41 @@ import (
 	"koschei/api/internal/handlers"
 )
 
+var databaseOptionalAPIPaths = map[string]struct{}{
+	"/api/me":                    {},
+	"/api/v1/risk/badge":         {},
+	"/api/version":               {},
+	"/api/config":                {},
+	"/api/auth/register":         {},
+	"/api/auth/login":            {},
+	"/api/auth/provision":        {},
+	"/api/auth/neon-login":       {},
+	"/api/auth/neon-register":    {},
+	"/api/auth/neon-callback":    {},
+	"/api/owner/login":           {},
+	"/api/owner/logout":          {},
+	"/api/owner/command-center":  {},
+	"/api/public/impact":         {},
+	"/api/public/metrics":        {},
+	"/api/public/token/status":   {},
+	"/api/public/token/readiness": {},
+	"/api/web3/health":           {},
+	"/api/analytics/event":       {},
+	"/api/arvis/preflight":       {},
+	"/api/token/scan":            {},
+}
+
+func allowedWithoutDatabase(path string) bool {
+	_, ok := databaseOptionalAPIPaths[path]
+	return ok
+}
+
 func apiReadiness(db *sql.DB, next http.Handler) http.Handler {
 	setSecurityAuditDB(db)
 	protected := bodyLimit(sensitiveRateLimit(db, next))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		allowedWithoutDB := path == "/api/me" || path == "/api/me/package" || path == "/api/v1/unified/analyze" || path == "/api/v1/risk/badge" || path == "/api/version" || path == "/api/config" || path == "/api/auth/register" || path == "/api/auth/login" || path == "/api/auth/provision" || path == "/api/auth/neon-login" || path == "/api/auth/neon-register" || path == "/api/auth/neon-callback" || path == "/api/owner/login" || path == "/api/owner/logout" || path == "/api/owner/command-center" || path == "/api/public/impact" || path == "/api/public/metrics" || path == "/api/public/token/status" || path == "/api/public/token/readiness" || path == "/api/web3/health" || path == "/api/analytics/event" || path == "/api/arvis/preflight" || path == "/api/token/scan"
-		if strings.HasPrefix(path, "/api/") && !allowedWithoutDB && db == nil {
+		if strings.HasPrefix(path, "/api/") && !allowedWithoutDatabase(path) && db == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "database unavailable"})
