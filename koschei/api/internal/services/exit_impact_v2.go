@@ -11,12 +11,12 @@ import (
 // snapshot. It does not infer that Jupiter routed through the canonical pool.
 func BuildExitImpactAssessment(exit ExitLiquiditySimulation, lp LPControlEvidence) ExitImpactAssessment {
 	out := ExitImpactAssessment{
-		Version:             ExitImpactVersion,
-		Status:              "unavailable",
-		RequestedTierCount:  len(exit.Tiers),
-		LPContext:           exitImpactLPContext(lp),
-		Tiers:               []ExitImpactTier{},
-		Limitations:         []string{},
+		Version:            ExitImpactVersion,
+		Status:             "unavailable",
+		RequestedTierCount: len(exit.Tiers),
+		LPContext:          exitImpactLPContext(lp),
+		Tiers:              []ExitImpactTier{},
+		Limitations:        []string{},
 	}
 	reserveUSD := lp.ReserveLiquidityUSD
 	reserveObserved := lp.Available && lp.CanonicalPool && reserveUSD > 0
@@ -27,13 +27,13 @@ func BuildExitImpactAssessment(exit ExitLiquiditySimulation, lp LPControlEvidenc
 
 	for _, tier := range exit.Tiers {
 		impactTier := ExitImpactTier{
-			RequestedNotionalUSD:  tier.RequestedNotionalUSD,
-			QuoteAvailable:        tier.Available,
-			Status:                "unavailable",
-			QuoteContextSlot:      tier.QuoteContextSlot,
-			LPReadSlot:            lp.ReadSlot,
-			RouteLabels:           normalizedExitImpactLabels(tier.RouteLabels),
-			Limitations:           []string{},
+			RequestedNotionalUSD: tier.RequestedNotionalUSD,
+			QuoteAvailable:       tier.Available,
+			Status:               "unavailable",
+			QuoteContextSlot:     tier.QuoteContextSlot,
+			LPReadSlot:           lp.ReadSlot,
+			RouteLabels:          normalizedExitImpactLabels(tier.RouteLabels),
+			Limitations:          []string{},
 		}
 		impactTier.UniqueRouteLabelCount = len(impactTier.RouteLabels)
 		if lp.ReadSlot > 0 && tier.QuoteContextSlot > 0 {
