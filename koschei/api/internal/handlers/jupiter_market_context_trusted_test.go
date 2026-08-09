@@ -58,7 +58,9 @@ func TestCollectTrustedJupiterMarketContextUsesTrustedPriceAndSwapV2(t *testing.
 	t.Setenv("JUPITER_QUOTE_URL", "")
 	t.Setenv("JUPITER_ORDER_URL", server.URL+"/order")
 
-	rpc := func(_ context.Context, _, method string, _ any, out any) error {
+	rpcNetwork := ""
+	rpc := func(_ context.Context, network, method string, _ any, out any) error {
+		rpcNetwork = network
 		if method != "getTokenSupply" {
 			t.Fatalf("unexpected method %s", method)
 		}
@@ -69,8 +71,11 @@ func TestCollectTrustedJupiterMarketContextUsesTrustedPriceAndSwapV2(t *testing.
 	}
 	holder := services.HolderIntelligence{Available: true, CirculatingSupply: 1000, Top1Percentage: 10}
 	market := services.TokenMarketSnapshot{PriceUSD: 2}
-	result := collectTrustedJupiterMarketContext(context.Background(), rpc, server.Client(), "Mint111", holder, market)
+	result := collectTrustedJupiterMarketContext(context.Background(), rpc, server.Client(), "solana-mainnet", "Mint111", holder, market)
 
+	if rpcNetwork != "solana-mainnet" {
+		t.Fatalf("network=%q", rpcNetwork)
+	}
 	if !result.Available || result.Status != "complete" || !result.PriceAvailable || !result.SellImpactAvailable {
 		t.Fatalf("unexpected context: %#v", result)
 	}
@@ -108,7 +113,7 @@ func TestCollectTrustedJupiterMarketContextCanReturnPriceOnlyWhenOfficialQuoteKe
 		return nil
 	}
 	result := collectTrustedJupiterMarketContext(
-		context.Background(), rpc, server.Client(), "Mint111",
+		context.Background(), rpc, server.Client(), "solana-mainnet", "Mint111",
 		services.HolderIntelligence{Available: true, CirculatingSupply: 100, Top1Percentage: 10},
 		services.TokenMarketSnapshot{PriceUSD: 1},
 	)
