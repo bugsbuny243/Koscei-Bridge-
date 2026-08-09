@@ -45,3 +45,13 @@ jobs:
         run: |
           go run ./cmd/openapi-gen -check
           go test ./internal/openapi -count=1
+      - name: Generate OpenAPI drift artifact
+        if: failure()
+        run: go run ./cmd/openapi-gen
+      - name: Upload generated OpenAPI drift artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-openapi
+          path: koschei/api/openapi.yaml
+          if-no-files-found: error
