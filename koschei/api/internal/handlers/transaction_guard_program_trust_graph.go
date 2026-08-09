@@ -36,21 +36,23 @@ type transactionGuardProgramTrustNode struct {
 }
 
 type transactionGuardProgramTrustGraph struct {
-	Version              string                             `json:"version"`
-	Status               string                             `json:"status"`
-	Complete             bool                               `json:"complete"`
-	ProgramCount         int                                `json:"program_count"`
-	BuiltinCount         int                                `json:"builtin_count"`
-	SnapshotCount        int                                `json:"defense_snapshot_count"`
-	MissingSnapshotCount int                                `json:"missing_snapshot_count"`
-	InvalidProgramCount  int                                `json:"invalid_program_count"`
-	Programs             []transactionGuardProgramTrustNode `json:"programs"`
-	Limitations          []string                           `json:"limitations"`
-	EvidenceHashSHA256   string                             `json:"evidence_hash_sha256"`
-	VerdictAuthority     bool                               `json:"verdict_authority"`
+	Version                string                              `json:"version"`
+	Network                string                              `json:"network"`
+	TransactionFingerprint string                              `json:"transaction_fingerprint"`
+	Status                 string                              `json:"status"`
+	Complete               bool                                `json:"complete"`
+	ProgramCount           int                                 `json:"program_count"`
+	BuiltinCount           int                                 `json:"builtin_count"`
+	SnapshotCount          int                                 `json:"defense_snapshot_count"`
+	MissingSnapshotCount   int                                 `json:"missing_snapshot_count"`
+	InvalidProgramCount    int                                 `json:"invalid_program_count"`
+	Programs               []transactionGuardProgramTrustNode `json:"programs"`
+	Limitations            []string                            `json:"limitations"`
+	EvidenceHashSHA256     string                              `json:"evidence_hash_sha256"`
+	VerdictAuthority       bool                                `json:"verdict_authority"`
 }
 
-func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, network string, decoded transactionGuardDecodedTransaction, cpi transactionGuardCPIFlowAnalysis, authority transactionGuardAuthoritySurfaceAnalysis) transactionGuardProgramTrustGraph {
+func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, network, transactionFingerprintValue string, decoded transactionGuardDecodedTransaction, cpi transactionGuardCPIFlowAnalysis, authority transactionGuardAuthoritySurfaceAnalysis) transactionGuardProgramTrustGraph {
 	observed := transactionGuardProgramTrustObservations(decoded, cpi, authority)
 	programIDs := make([]string, 0, len(observed))
 	for programID := range observed {
@@ -58,21 +60,21 @@ func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, 
 	}
 	sort.Strings(programIDs)
 	if len(programIDs) == 0 {
-		return buildTransactionGuardProgramTrustGraph(observed, nil, "")
+		return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, nil, "")
 	}
 
-	var db = h.DBRead
+	db := h.DBRead
 	if db == nil {
 		db = h.DB
 	}
 	if db == nil {
-		return buildTransactionGuardProgramTrustGraph(observed, nil, "deployment_snapshot_database_unavailable")
+		return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, nil, "deployment_snapshot_database_unavailable")
 	}
 	snapshots, err := defense.LatestDeploymentSnapshots(ctx, db, network, programIDs)
 	if err != nil {
-		return buildTransactionGuardProgramTrustGraph(observed, nil, "deployment_snapshot_lookup_unavailable")
+		return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, nil, "deployment_snapshot_lookup_unavailable")
 	}
-	return buildTransactionGuardProgramTrustGraph(observed, snapshots, "")
+	return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, snapshots, "")
 }
 
 func transactionGuardProgramTrustObservations(decoded transactionGuardDecodedTransaction, cpi transactionGuardCPIFlowAnalysis, authority transactionGuardAuthoritySurfaceAnalysis) map[string][]string {
@@ -106,15 +108,26 @@ func transactionGuardProgramTrustObservations(decoded transactionGuardDecodedTra
 	return out
 }
 
-func buildTransactionGuardProgramTrustGraph(observed map[string][]string, snapshots map[string]defense.DeploymentSnapshot, lookupLimitation string) transactionGuardProgramTrustGraph {
-	graph := transactionGuardProgramTrustGraph{
-		Version:          transactionGuardProgramTrustGraphVersion,
-		Status:           "complete",
-		Complete:         true,
-		Programs:         []transactionGuardProgramTrustNode{},
-		Limitations:      []string{},
-		VerdictAuthority: false,
+func buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue string, observed map[string][]string, snapshots map[string]defense.DeploymentSnapshot, lookupLimitation string) transactionGuardProgramTrustGraph {
+	network = strings.TrimSpace(network)
+	if network == "" {
+		network = "solana-mainnet"
 	}
+	graph := transactionGuardProgramTrustGraph{
+		Version:                transactionGuardProgramTrustGraphVersion,
+		Network:                network,
+		TransactionFingerprint: strings.TrimSpace(transactionFingerprintValue),
+		Status:                 "complete",
+		Complete:               true,
+		Programs:               []transactionGuardProgramTrustNode{},
+		Limitations:            []string{},
+		VerdictAuthority:       false,
+	}
+	if graph.TransactionFingerprint == "" {
+		graph.Complete = false
+		graph.Limitations = append(graph.Limitations, "Transaction fingerprint is unavailable; Program Trust Graph identity is incomplete.")
+	}
+
 	programIDs := make([]string, 0, len(observed))
 	for programID := range observed {
 		programIDs = append(programIDs, programID)
@@ -122,15 +135,21 @@ func buildTransactionGuardProgramTrustGraph(observed map[string][]string, snapsh
 	sort.Strings(programIDs)
 	graph.ProgramCount = len(programIDs)
 	if len(programIDs) == 0 {
-		graph.Status = "no_programs_observed"
+		if graph.Complete {
+			graph.Status = "no_programs_observed"
+		} else {
+			graph.Status = "partial"
+		}
 		graph.EvidenceHashSHA256 = transactionGuardProgramTrustGraphHash(graph)
 		return graph
 	}
 
 	for _, programID := range programIDs {
+		sources := append([]string(nil), observed[programID]...)
+		sort.Strings(sources)
 		node := transactionGuardProgramTrustNode{
-			ProgramID:  programID,
-			ObservedIn: append([]string(nil), observed[programID]...),
+			ProgramID:   programID,
+			ObservedIn:  sources,
 			TrustStatus: "snapshot_unavailable",
 		}
 		if !isValidSolanaAddress(programID) {
