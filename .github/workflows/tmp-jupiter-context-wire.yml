@@ -1,0 +1,38 @@
+name: Temporary Jupiter Context Wiring
+
+on:
+  push:
+    branches:
+      - agent/jupiter-market-context-integration
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/jupiter-market-context-integration
+      - name: Replace canonical Jupiter collector call and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('koschei/api/internal/handlers/holder_intelligence_core.go')
+          text = path.read_text()
+          old = 'jupiter = h.collectJupiterMarketContext(parent, network, target, intelligence, market)'
+          new = 'jupiter = h.collectTrustedJupiterMarketContext(parent, network, target, intelligence, market)'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one legacy Jupiter call, found {count}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git config user.name "koschei-wiring-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/tmp-jupiter-context-wire.yml
+          git add koschei/api/internal/handlers/holder_intelligence_core.go
+          git commit -m "wire trusted Jupiter market context"
+          git push origin HEAD:agent/jupiter-market-context-integration
