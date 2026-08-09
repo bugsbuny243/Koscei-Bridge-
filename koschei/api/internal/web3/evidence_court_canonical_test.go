@@ -55,3 +55,32 @@ func TestEvaluateEvidenceCourtWithCanonicalizerRejectsNilCanonicalizer(t *testin
 		t.Fatalf("result=%#v", result)
 	}
 }
+
+func TestEvidenceCourtEndpointsExcludingRemovesEntirePrimaryProviderIdentity(t *testing.T) {
+	endpoints := []evidenceCourtEndpoint{
+		{Provider: "helius", Host: "mainnet.helius-rpc.com", URL: "https://mainnet.helius-rpc.com/?api-key=one"},
+		{Provider: "helius", Host: "rpc.helius.xyz", URL: "https://rpc.helius.xyz/?api-key=two"},
+		{Provider: "alchemy", Host: "solana-mainnet.g.alchemy.com", URL: "https://solana-mainnet.g.alchemy.com/v2/test"},
+		{Provider: "quicknode", Host: "example.quiknode.pro", URL: "https://example.quiknode.pro/test"},
+	}
+	got := evidenceCourtEndpointsExcluding(endpoints, "https://mainnet.helius-rpc.com/?api-key=primary")
+	if len(got) != 2 {
+		t.Fatalf("endpoints=%#v", got)
+	}
+	for _, endpoint := range got {
+		if endpoint.Provider == "helius" {
+			t.Fatalf("primary provider identity remained in quorum: %#v", got)
+		}
+	}
+}
+
+func TestEvidenceCourtEndpointsExcludingCustomHostUsesExactHostIdentity(t *testing.T) {
+	endpoints := []evidenceCourtEndpoint{
+		{Provider: "rpc-a.internal.example", Host: "rpc-a.internal.example", URL: "https://rpc-a.internal.example"},
+		{Provider: "rpc-b.internal.example", Host: "rpc-b.internal.example", URL: "https://rpc-b.internal.example"},
+	}
+	got := evidenceCourtEndpointsExcluding(endpoints, "https://rpc-a.internal.example/path")
+	if len(got) != 1 || got[0].Host != "rpc-b.internal.example" {
+		t.Fatalf("endpoints=%#v", got)
+	}
+}
