@@ -66,6 +66,7 @@ func TestSwapV2ProviderQuoteIsStrictlyQuoteOnly(t *testing.T) {
 				http.Error(w, "quote-only V2 request included "+forbidden, http.StatusBadRequest)
 				return
 			}
+		}
 		if r.Header.Get("x-api-key") != "" {
 			http.Error(w, "Jupiter API key leaked to custom order host", http.StatusBadRequest)
 			return
@@ -78,8 +79,8 @@ func TestSwapV2ProviderQuoteIsStrictlyQuoteOnly(t *testing.T) {
 			"transaction": nil,
 			"routePlan": []any{map[string]any{
 				"swapInfo": map[string]any{"ammKey": ammKey, "label": "Meteora"},
-				"percent": 100,
-				"bps":     10000,
+				"percent":  100,
+				"bps":      10000,
 				"usdValue": 990.0,
 			}},
 		})
@@ -110,9 +111,9 @@ func TestSwapV2ProviderQuoteIsStrictlyQuoteOnly(t *testing.T) {
 func TestSwapV2QuoteRejectsUnexpectedTransaction(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"outAmount": "1",
+			"outAmount":   "1",
 			"transaction": "unexpected-executable-transaction",
-			"routePlan": []any{},
+			"routePlan":   []any{},
 		})
 	}))
 	defer server.Close()
@@ -125,10 +126,10 @@ func TestSwapV2QuoteRejectsUnexpectedTransaction(t *testing.T) {
 func TestSwapV2PositivePriceImpactIsNotTreatedAsAdverse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"outAmount": "1",
+			"outAmount":   "1",
 			"priceImpact": 0.3,
 			"transaction": nil,
-			"routePlan": []any{},
+			"routePlan":   []any{},
 		})
 	}))
 	defer server.Close()
@@ -145,11 +146,11 @@ func TestSwapV2PositivePriceImpactIsNotTreatedAsAdverse(t *testing.T) {
 func TestSwapV2DeprecatedPriceImpactPctFallbackUsesLegacyRatioUnits(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"outAmount": "1",
-			"priceImpact": 0,
+			"outAmount":      "1",
+			"priceImpact":    0,
 			"priceImpactPct": "0.0125",
-			"transaction": nil,
-			"routePlan": []any{},
+			"transaction":    nil,
+			"routePlan":      []any{},
 		})
 	}))
 	defer server.Close()
