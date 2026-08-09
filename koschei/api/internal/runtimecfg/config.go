@@ -41,6 +41,7 @@ type GuardConfig struct {
 	PrivateKeyConfigured bool
 	PermitTTL            time.Duration
 	RequirePermit        bool
+	RequireStateWitness  bool
 }
 
 type Getter func(string) string
@@ -73,6 +74,7 @@ func LoadWith(get Getter) Config {
 			PrivateKeyConfigured: strings.TrimSpace(get("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY")) != "",
 			PermitTTL:            durationSecondsEnv(get, "TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS", 90, 10, 600),
 			RequirePermit:        boolEnv(get, "TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT", false),
+			RequireStateWitness:  boolEnv(get, "TRANSACTION_GUARD_REQUIRE_STATE_WITNESS", false),
 		},
 	}
 }
@@ -143,6 +145,7 @@ func PublicSnapshot() map[string]any {
 			"enforcement_key_configured":  cfg.Guard.PrivateKeyConfigured,
 			"enforcement_permit_ttl_secs": int(cfg.Guard.PermitTTL / time.Second),
 			"require_enforcement_permit":  cfg.Guard.RequirePermit,
+			"require_state_witness":       cfg.Guard.RequireStateWitness,
 		},
 	}
 }
