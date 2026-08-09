@@ -192,6 +192,7 @@ func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, enterpr
 	mux.HandleFunc("/api/v1/usage", requiresDB(h, enterprise(method("GET", h.APIUsage))))
 	mux.HandleFunc("/api/v1/shield/preflight", solana(requiresDB(h, enterpriseMetered(method("POST", h.ShieldPreflight)))))
 	mux.HandleFunc("/api/v1/shield/transaction", solana(requiresDB(h, enterpriseMetered(method("POST", h.TransactionGuardV2Configured)))))
+	mux.HandleFunc("/api/v1/shield/state-recheck", solana(requiresDB(h, enterprise(method("POST", h.TransactionGuardStateRecheck)))))
 	mux.HandleFunc("/api/v1/shield/address-poisoning", solana(requiresDB(h, enterpriseMetered(method("POST", h.AddressPoisoningCheck)))))
 }
 
