@@ -158,6 +158,9 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 	}
 	if decision.Status == "state_unchanged" {
 		court := collectTransactionGuardStateRecheckEvidenceCourtWithRequirement(r.Context(), input.Network, addresses, courtRequirement)
+		if h != nil && h.DB != nil && court.Enabled {
+			response["provider_memory_recorded"] = services.RecordEvidenceCourtWitnessMemory(r.Context(), h.DB, input.Network, court) == nil
+		}
 		decision = applyTransactionGuardStateRecheckEvidenceCourt(decision, court)
 		response["decision"] = decision
 		response["evidence_court"] = transactionGuardStateRecheckCourtPublicResponse(court)
