@@ -70,25 +70,23 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	if client == nil {
 		client = &http.Client{Timeout: 8 * time.Second}
 	}
-	quoteURL := strings.TrimSpace(os.Getenv("JUPITER_QUOTE_URL"))
-	if quoteURL == "" {
-		quoteURL = defaultJupiterQuoteURL
-	}
-	base, err := validatedReadOnlyQuoteEndpoint(quoteURL)
+	provider, err := resolveExitLiquidityQuoteProvider()
 	if err != nil {
+		if err == errJupiterAPIKeyUnavailable {
+			out.Status = "jupiter_api_key_unavailable"
+			out.Limitations = append(out.Limitations, "JUPITER_API_KEY is required for the official api.jup.ag quote/order endpoint.")
+			return out
+		}
 		out.Status = "quote_endpoint_rejected"
 		out.Limitations = append(out.Limitations, err.Error())
 		return out
 	}
-	if strings.EqualFold(base.Hostname(), "api.jup.ag") && strings.TrimSpace(os.Getenv("JUPITER_API_KEY")) == "" {
-		out.Status = "jupiter_api_key_unavailable"
-		out.Limitations = append(out.Limitations, "JUPITER_API_KEY is required for the official api.jup.ag quote endpoint.")
-		return out
-	}
+	out.Provider = provider.API
 
 	available := 0
 	for i := range out.Tiers {
 		tier := &out.Tiers[i]
+		tier.QuoteAPI = provider.API
 		tokenAmount := tier.RequestedNotionalUSD / out.ReferencePriceUSD
 		raw := decimalToRaw(tokenAmount, out.TokenDecimals)
 		if raw == "" || raw == "0" {
@@ -102,16 +100,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 		}
 		tier.InputTokenAmount = roundExitNumber(tokenAmount, 8)
 		tier.InputAmountRaw = raw
-		endpoint := *base
-		q := endpoint.Query()
-		q.Set("inputMint", out.Mint)
-		q.Set("outputMint", jupiterUSDCMint)
-		q.Set("amount", raw)
-		q.Set("swapMode", "ExactIn")
-		q.Set("slippageBps", "100")
-		q.Set("restrictIntermediateTokens", "true")
-		endpoint.RawQuery = q.Encode()
-		quote, quoteErr := requestExitLiquidityQuote(ctx, client, endpoint.String())
+		quote, quoteErr := provider.quote(ctx, client, out.Mint, jupiterUSDCMint, raw)
 		if quoteErr != nil {
 			tier.Status = "quote_unavailable"
 			tier.Limitations = append(tier.Limitations, compactCollectorError(quoteErr))
@@ -126,6 +115,8 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 		shortfall := math.Max(0, tier.RequestedNotionalUSD-proceeds)
 		tier.Available = true
 		tier.Status = "quoted"
+		tier.QuoteRouter = quote.Router
+		tier.QuoteMode = quote.Mode
 		tier.OutputAmountRaw = quote.OutAmount
 		tier.EstimatedProceedsUSD = roundExitNumber(proceeds, 2)
 		tier.ExecutionShortfallUSD = roundExitNumber(shortfall, 2)
@@ -135,14 +126,12 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 			tier.EffectiveExecutionPrice = roundExitNumber(proceeds/tokenAmount, 12)
 			tier.ReferencePriceDropPct = roundExitPct(math.Max(0, out.ReferencePriceUSD-tier.EffectiveExecutionPrice) / out.ReferencePriceUSD * 100)
 		}
-		if impact, impactErr := strconv.ParseFloat(strings.TrimSpace(quote.PriceImpactPct), 64); impactErr == nil {
-			tier.JupiterPriceImpactPct = roundExitPct(math.Max(0, impact) * 100)
-		}
+		tier.JupiterPriceImpactPct = roundExitPct(math.Max(0, quote.AdverseImpactPct))
 		tier.QuoteContextSlot = quote.ContextSlot
 		tier.ObservedAt = time.Now().UTC()
 		for _, step := range quote.RoutePlan {
-			label := strings.TrimSpace(step.SwapInfo.Label)
-			ammKey := strings.TrimSpace(step.SwapInfo.AMMKey)
+			label := strings.TrimSpace(step.Label)
+			ammKey := strings.TrimSpace(step.AMMKey)
 			if label != "" {
 				tier.RouteLabels = appendUniqueExitLabel(tier.RouteLabels, label)
 			}
@@ -150,7 +139,9 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 				ammKey = ""
 			}
 			if ammKey != "" || label != "" {
-				tier.RoutePlan = append(tier.RoutePlan, services.ExitLiquidityRouteStep{AMMKey: ammKey, Label: label, Percent: step.Percent})
+				tier.RoutePlan = append(tier.RoutePlan, services.ExitLiquidityRouteStep{
+					AMMKey: ammKey, Label: label, Percent: step.Percent, BPS: step.BPS, USDValue: step.USDValue,
+				})
 			}
 		}
 		available++
@@ -167,7 +158,7 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 	out.Limitations = append(out.Limitations,
 		"Quotes are read-only point-in-time estimates; they are not guaranteed proceeds and can change before execution.",
 		"Returned AMM account identities describe the quote plan only and are not proof of later execution.",
-		"Koschei does not request a swap transaction, sign, submit or custody assets.",
+		"Koschei does not provide a taker wallet to Swap V2, request an executable swap transaction, sign, submit or custody assets.",
 	)
 	return out
 }

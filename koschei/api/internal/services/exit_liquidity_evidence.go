@@ -8,9 +8,11 @@ const ExitImpactVersion = "koschei-exit-impact-v3"
 // pool/AMM account identity returned by Jupiter for that step; it describes the
 // quote plan only and is not proof that an unexecuted quote was later executed.
 type ExitLiquidityRouteStep struct {
-	AMMKey  string `json:"amm_key,omitempty"`
-	Label   string `json:"label,omitempty"`
-	Percent int    `json:"percent,omitempty"`
+	AMMKey   string  `json:"amm_key,omitempty"`
+	Label    string  `json:"label,omitempty"`
+	Percent  int     `json:"percent,omitempty"`
+	BPS      int     `json:"bps,omitempty"`
+	USDValue float64 `json:"usd_value,omitempty"`
 }
 
 // ExitLiquidityTier is one read-only Jupiter ExactIn quote. It is an estimate,
@@ -19,6 +21,9 @@ type ExitLiquidityTier struct {
 	RequestedNotionalUSD    float64                  `json:"requested_notional_usd"`
 	Available               bool                     `json:"available"`
 	Status                  string                   `json:"status"`
+	QuoteAPI                string                   `json:"quote_api,omitempty"`
+	QuoteRouter             string                   `json:"quote_router,omitempty"`
+	QuoteMode               string                   `json:"quote_mode,omitempty"`
 	InputTokenAmount        float64                  `json:"input_token_amount,omitempty"`
 	InputAmountRaw          string                   `json:"input_amount_raw,omitempty"`
 	OutputAmountRaw         string                   `json:"output_amount_raw,omitempty"`
