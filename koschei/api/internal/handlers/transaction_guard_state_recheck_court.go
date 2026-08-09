@@ -19,20 +19,20 @@ type transactionGuardStateRecheckCourtWitnessResponse struct {
 }
 
 type transactionGuardStateRecheckCourtResponse struct {
-	SchemaVersion string                                                   `json:"schema_version"`
-	Enabled       bool                                                     `json:"enabled"`
-	Method        string                                                   `json:"method"`
-	Status        string                                                   `json:"status"`
-	Required      int                                                      `json:"required_witnesses"`
-	Requested     int                                                      `json:"requested_witnesses"`
-	Available     int                                                      `json:"available_witnesses"`
-	Matching      int                                                      `json:"matching_witnesses"`
-	ValueHash     string                                                   `json:"agreed_value_hash,omitempty"`
-	MinSlot       uint64                                                   `json:"min_context_slot,omitempty"`
-	MaxSlot       uint64                                                   `json:"max_context_slot,omitempty"`
-	SlotSpread    uint64                                                   `json:"context_slot_spread,omitempty"`
-	Witnesses     []transactionGuardStateRecheckCourtWitnessResponse       `json:"witnesses"`
-	Limitations   []string                                                 `json:"limitations"`
+	SchemaVersion string                                             `json:"schema_version"`
+	Enabled       bool                                               `json:"enabled"`
+	Method        string                                             `json:"method"`
+	Status        string                                             `json:"status"`
+	Required      int                                                `json:"required_witnesses"`
+	Requested     int                                                `json:"requested_witnesses"`
+	Available     int                                                `json:"available_witnesses"`
+	Matching      int                                                `json:"matching_witnesses"`
+	ValueHash     string                                             `json:"agreed_value_hash,omitempty"`
+	MinSlot       uint64                                             `json:"min_context_slot,omitempty"`
+	MaxSlot       uint64                                             `json:"max_context_slot,omitempty"`
+	SlotSpread    uint64                                             `json:"context_slot_spread,omitempty"`
+	Witnesses     []transactionGuardStateRecheckCourtWitnessResponse `json:"witnesses"`
+	Limitations   []string                                           `json:"limitations"`
 }
 
 func transactionGuardStateRecheckCourtPublicResponse(court web3.EvidenceCourtResult) transactionGuardStateRecheckCourtResponse {
