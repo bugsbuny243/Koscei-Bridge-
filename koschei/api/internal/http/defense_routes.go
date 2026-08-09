@@ -9,9 +9,10 @@ import (
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
-	// Live-system integrity and persistent actor memory are owner control-plane
-	// surfaces, not optional Defense OS laboratory features.
+	// Live-system integrity, persistent actor memory and provider witness memory
+	// are owner control-plane surfaces, not optional Defense OS laboratory features.
 	mux.HandleFunc("/api/owner/radar/continuity", requiresDB(h, ownerOnly(h, method("GET", h.OwnerRadarContinuity))))
+	mux.HandleFunc("/api/owner/radar/provider-memory", requiresDB(h, ownerOnly(h, method("GET", h.OwnerProviderWitnessMemory))))
 	mux.HandleFunc("/api/owner/actor-memory/matches", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorOperationalMemory))))
 
 	// Defense OS is intentionally dormant by default while Koschei is in its
