@@ -102,7 +102,24 @@ func DeriveSecurityIntegrityPosture(
 		out.Reasons = append(out.Reasons, "provider_witness_availability_degraded")
 	}
 
-	out.Reasons = uniqueStrings(out.Reasons)
+	out.Reasons = uniqueIntegrityReasons(out.Reasons)
+	return out
+}
+
+func uniqueIntegrityReasons(values []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
 	return out
 }
 
