@@ -95,7 +95,7 @@ func main() {
 		if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
 			log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
 		} else {
-			stopSBX1Stream := services.StartSecurityRadarStreamIfEnabled(appCtx, conn)
+			stopSBX1Stream := services.StartSecurityRadarSovereignStreamIfEnabled(appCtx, conn)
 			defer stopSBX1Stream()
 		}
 		stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
