@@ -120,11 +120,19 @@ func (c *PumpPortalObservableClient) run(ctx context.Context, onEvent func(conte
 			if noticeClass, handled := classifyPumpPortalProviderNotice(payload); handled {
 				current := CurrentPumpPortalTradeRuntime()
 				status := current.Status
-				if noticeClass == "trade_subscription_rejected" {
+				switch noticeClass {
+				case "trade_subscription_rejected":
 					status = "subscription_rejected"
+					setPumpPortalTradeRuntime(status, noticeClass, len(c.base.tradeOrder), current.TradeObserved)
+					log.Printf("pumpportal provider notice class=%s", noticeClass)
+				case "subscription_acknowledged":
+					if status != "trade_observed" && status != "subscription_rejected" {
+						status = "subscription_acknowledged"
+					}
+					setPumpPortalTradeRuntime(status, noticeClass, len(c.base.tradeOrder), current.TradeObserved)
+				default:
+					setPumpPortalTradeRuntime(status, noticeClass, len(c.base.tradeOrder), current.TradeObserved)
 				}
-				setPumpPortalTradeRuntime(status, noticeClass, len(c.base.tradeOrder), current.TradeObserved)
-				log.Printf("pumpportal provider notice class=%s", noticeClass)
 				continue
 			}
 			event, ok := parsePumpPortalEvent(payload)
@@ -187,6 +195,10 @@ func classifyPumpPortalProviderNotice(payload []byte) (string, bool) {
 	failure := strings.Contains(text, "error") || strings.Contains(text, "fail") || strings.Contains(text, "reject") || strings.Contains(text, "require") || strings.Contains(text, "insufficient") || strings.Contains(text, "invalid") || strings.Contains(text, "unauthor") || strings.Contains(text, "forbidden")
 	if (tradeRelated || authRelated) && failure {
 		return "trade_subscription_rejected", true
+	}
+	ack := strings.Contains(text, "success") || strings.Contains(text, "subscribed") || strings.Contains(text, "subscription") || strings.Contains(text, "acknowledg")
+	if ack {
+		return "subscription_acknowledged", true
 	}
 	return "provider_notice", true
 }
