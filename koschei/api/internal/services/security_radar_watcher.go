@@ -46,7 +46,9 @@ func StartSecurityRadarWatcher(ctx context.Context, db *sql.DB, _ *web3.SolanaRP
 	stopHeartbeat := StartArvisRadarHeartbeat(ctx, db)
 	stopStreamVerdicts := StartArvisStreamVerdictWorker(ctx, db)
 	stopStreamRecovery := StartArvisStreamRecovery(ctx, db)
+	stopGapHealer := StartSecurityRadarGapHealerIfEnabled(ctx, db)
 	stopAll := func() {
+		stopGapHealer()
 		stopStreamRecovery()
 		stopStreamVerdicts()
 		stopHeartbeat()
