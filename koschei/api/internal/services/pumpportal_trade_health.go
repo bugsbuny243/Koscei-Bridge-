@@ -9,17 +9,18 @@ import (
 )
 
 type PumpPortalTradeStreamHealth struct {
-	Available          bool       `json:"available"`
-	Status             string     `json:"status"`
-	APIKeyConfigured   bool       `json:"api_key_configured"`
-	WalletConfigured   bool       `json:"wallet_public_key_configured"`
-	TotalTrades        int64      `json:"total_trades"`
-	Trades15m          int64      `json:"trades_15m"`
-	DistinctMints15m   int64      `json:"distinct_mints_15m"`
-	DistinctTraders15m int64      `json:"distinct_traders_15m"`
-	LastTradeAt        *time.Time `json:"last_trade_at,omitempty"`
-	Limitations        []string   `json:"limitations"`
-	Policy             map[string]any `json:"policy"`
+	Available          bool                           `json:"available"`
+	Status             string                         `json:"status"`
+	APIKeyConfigured   bool                           `json:"api_key_configured"`
+	WalletConfigured   bool                           `json:"wallet_public_key_configured"`
+	Runtime            PumpPortalTradeRuntimeSnapshot `json:"runtime"`
+	TotalTrades        int64                          `json:"total_trades"`
+	Trades15m          int64                          `json:"trades_15m"`
+	DistinctMints15m   int64                          `json:"distinct_mints_15m"`
+	DistinctTraders15m int64                          `json:"distinct_traders_15m"`
+	LastTradeAt        *time.Time                      `json:"last_trade_at,omitempty"`
+	Limitations        []string                       `json:"limitations"`
+	Policy             map[string]any                 `json:"policy"`
 }
 
 func LoadPumpPortalTradeStreamHealth(ctx context.Context, db *sql.DB, now time.Time) (PumpPortalTradeStreamHealth, error) {
@@ -27,12 +28,14 @@ func LoadPumpPortalTradeStreamHealth(ctx context.Context, db *sql.DB, now time.T
 		Status:           "unavailable",
 		APIKeyConfigured: strings.TrimSpace(os.Getenv("PUMPPORTAL_API_KEY")) != "",
 		WalletConfigured: strings.TrimSpace(os.Getenv("PUMPPORTAL_WALLET_PUBLIC_KEY")) != "",
+		Runtime:          CurrentPumpPortalTradeRuntime(),
 		Limitations:      []string{},
 		Policy: map[string]any{
-			"api_key_secret_is_never_returned":          true,
-			"wallet_balance_is_not_assumed":             true,
-			"absence_of_trades_is_not_safety_evidence":  true,
-			"trade_delivery_is_not_verdict_authority":   true,
+			"api_key_secret_is_never_returned":         true,
+			"provider_notice_payload_is_not_returned":  true,
+			"wallet_balance_is_not_assumed":            true,
+			"absence_of_trades_is_not_safety_evidence": true,
+			"trade_delivery_is_not_verdict_authority":  true,
 		},
 	}
 	if !out.APIKeyConfigured {
@@ -73,6 +76,11 @@ func LoadPumpPortalTradeStreamHealth(ctx context.Context, db *sql.DB, now time.T
 		out.LastTradeAt = &value
 	}
 	out.Status = classifyPumpPortalTradeStreamHealth(out, now)
+	if out.Runtime.Status == "subscription_rejected" {
+		out.Status = "subscription_rejected"
+		out.Limitations = append(out.Limitations,
+			"PumpPortal returned a bounded provider notice classified as a trade-subscription rejection. The raw provider payload is intentionally not exposed.")
+	}
 	if out.Status == "no_trade_observed" {
 		out.Limitations = append(out.Limitations,
 			"An API key is configured, but Koschei has not durably observed a PumpPortal trade. Current PumpPortal trade entitlement and linked-wallet funding are therefore unverified.")
