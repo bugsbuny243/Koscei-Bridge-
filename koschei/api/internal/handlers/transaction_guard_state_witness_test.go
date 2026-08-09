@@ -9,16 +9,16 @@ import (
 
 func TestTransactionGuardStateWitnessDeterministicAcrossInputOrder(t *testing.T) {
 	accountA := &services.SolanaAccountInfo{
-		Data: []any{base64.StdEncoding.EncodeToString([]byte("state-a")), "base64"},
+		Data:     []any{base64.StdEncoding.EncodeToString([]byte("state-a")), "base64"},
 		Lamports: 100,
-		Owner: "OwnerA",
-		Space: 165,
+		Owner:    "OwnerA",
+		Space:    165,
 	}
 	accountB := &services.SolanaAccountInfo{
-		Data: []any{base64.StdEncoding.EncodeToString([]byte("state-b")), "base64"},
+		Data:     []any{base64.StdEncoding.EncodeToString([]byte("state-b")), "base64"},
 		Lamports: 200,
-		Owner: "OwnerB",
-		Space: 165,
+		Owner:    "OwnerB",
+		Space:    165,
 	}
 	first := buildTransactionGuardStateWitness("fingerprint", 1000, 1002, []string{"AddrB", "AddrA"}, []*services.SolanaAccountInfo{accountB, accountA})
 	second := buildTransactionGuardStateWitness("fingerprint", 1000, 1002, []string{"AddrA", "AddrB"}, []*services.SolanaAccountInfo{accountA, accountB})
