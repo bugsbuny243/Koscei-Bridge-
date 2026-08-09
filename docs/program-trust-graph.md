@@ -14,6 +14,8 @@ Transaction simulation can show which programs a transaction invokes, including 
 
 Program Trust Graph joins the live Guard program surface to immutable, previously collected Defense OS deployment snapshots. It is a read-only evidence bridge. The Guard request does not trigger program RPC inspection, source import, compilation, sandbox execution or repair.
 
+Program Trust Graph is not a second risk score. It exposes program provenance evidence and coverage while the existing deterministic Transaction Guard remains the only transaction decision authority.
+
 ## Observed program surface
 
 The graph combines and de-duplicates program IDs observed through:
