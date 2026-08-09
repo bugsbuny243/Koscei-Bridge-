@@ -39,6 +39,42 @@ func NewPumpTradeLedgerWriter(db *sql.DB) *PumpTradeLedgerWriter {
 	return &PumpTradeLedgerWriter{db: db, queue: make(chan TokenTradeEvent, pumpTradeLedgerQueueSize)}
 }
 
+// PersistPumpPortal is the production PumpPortal trade commit path. The trade
+// is written idempotently to token_trade_events before the websocket callback
+// returns. This removes the bounded RAM queue and batch-discard windows from
+// live trade capture while preserving the old queue API for compatibility.
+func (w *PumpTradeLedgerWriter) PersistPumpPortal(ctx context.Context, event PumpPortalEvent) error {
+	trade, ok := tokenTradeEventFromPumpPortal(event)
+	if !ok {
+		return nil
+	}
+	if w == nil || w.db == nil {
+		return fmt.Errorf("pump trade ledger database unavailable")
+	}
+	backoffs := []time.Duration{0, 25 * time.Millisecond, 100 * time.Millisecond, 250 * time.Millisecond, 500 * time.Millisecond, time.Second}
+	var lastErr error
+	for _, backoff := range backoffs {
+		if backoff > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := w.insertBatch(attemptCtx, []TokenTradeEvent{trade})
+		cancel()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+	}
+	return fmt.Errorf("persist PumpPortal trade signature=%s: %w", trade.Signature, lastErr)
+}
+
+// EnqueuePumpPortal is retained for compatibility with older tests/callers.
+// Production PumpPortal wiring uses PersistPumpPortal instead so queue pressure
+// cannot silently drop a trade.
 func (w *PumpTradeLedgerWriter) EnqueuePumpPortal(event PumpPortalEvent) bool {
 	trade, ok := tokenTradeEventFromPumpPortal(event)
 	if !ok || w == nil || w.db == nil {
@@ -50,7 +86,7 @@ func (w *PumpTradeLedgerWriter) EnqueuePumpPortal(event PumpPortalEvent) bool {
 	default:
 		dropped := w.dropped.Add(1)
 		if dropped == 1 || dropped%100 == 0 {
-			log.Printf("pump trade ledger queue full: dropped=%d", dropped)
+			log.Printf("pump trade legacy queue full: not accepted=%d", dropped)
 		}
 		return false
 	}
@@ -69,7 +105,7 @@ func (w *PumpTradeLedgerWriter) Start(ctx context.Context) {
 		}
 		flushCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		if err := w.insertBatch(flushCtx, batch); err != nil {
-			log.Printf("pump trade ledger batch insert failed rows=%d: %v", len(batch), err)
+			log.Printf("pump trade legacy batch insert failed rows=%d: %v", len(batch), err)
 		}
 		cancel()
 		batch = batch[:0]
