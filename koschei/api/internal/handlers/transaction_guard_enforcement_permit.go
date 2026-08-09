@@ -37,6 +37,7 @@ type transactionGuardEnforcementPermitClaims struct {
 	StateRecheckPolicyVersion          string `json:"state_recheck_policy_version,omitempty"`
 	GuardRiskLevel                     string `json:"guard_risk_level,omitempty"`
 	GuardRiskIndex                     *int   `json:"guard_risk_index,omitempty"`
+	StateRecheckCourtRiskThreshold     *int   `json:"state_recheck_court_risk_threshold,omitempty"`
 	StateRecheckCourtRequired          bool   `json:"state_recheck_court_required,omitempty"`
 	StateRecheckCourtRequiredWitnesses int    `json:"state_recheck_court_required_witnesses,omitempty"`
 	IssuedAt                           string `json:"issued_at"`
@@ -65,6 +66,7 @@ type transactionGuardSignedRecheckPolicy struct {
 	Version           string
 	RiskLevel         string
 	RiskIndex         int
+	RiskThreshold     int
 	CourtRequired     bool
 	RequiredWitnesses int
 }
@@ -87,6 +89,7 @@ func buildTransactionGuardSignedRecheckPolicy(assessment transactionFirewallAsse
 		Version:       transactionGuardStateRecheckPolicyVersion,
 		RiskLevel:     level,
 		RiskIndex:     assessment.RiskIndex,
+		RiskThreshold: riskThreshold,
 		CourtRequired: assessment.RiskIndex >= riskThreshold,
 	}
 	if policy.CourtRequired {
@@ -218,8 +221,12 @@ func signTransactionGuardEnforcementPermitInternal(privateKey ed25519.PrivateKey
 		claims.PreStateSlot = witness.PreStateSlot
 		claims.SimulationSlot = witness.SimulationSlot
 		if policy != nil {
-			if policy.Version != transactionGuardStateRecheckPolicyVersion || policy.RiskIndex < 0 || policy.RiskIndex > 100 || strings.TrimSpace(policy.RiskLevel) == "" {
+			if policy.Version != transactionGuardStateRecheckPolicyVersion || policy.RiskIndex < 0 || policy.RiskIndex > 100 || policy.RiskThreshold < 0 || policy.RiskThreshold > 100 || strings.TrimSpace(policy.RiskLevel) == "" {
 				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck policy is invalid")
+			}
+			expectedCourtRequired := policy.RiskIndex >= policy.RiskThreshold
+			if policy.CourtRequired != expectedCourtRequired {
+				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck court decision does not match the risk threshold")
 			}
 			if policy.CourtRequired && (policy.RequiredWitnesses < 2 || policy.RequiredWitnesses > 4) {
 				return transactionGuardEnforcementPermit{}, errors.New("signed state recheck court requirement is invalid")
@@ -233,6 +240,8 @@ func signTransactionGuardEnforcementPermitInternal(privateKey ed25519.PrivateKey
 			claims.GuardRiskLevel = strings.ToLower(strings.TrimSpace(policy.RiskLevel))
 			riskIndex := policy.RiskIndex
 			claims.GuardRiskIndex = &riskIndex
+			riskThreshold := policy.RiskThreshold
+			claims.StateRecheckCourtRiskThreshold = &riskThreshold
 			claims.StateRecheckCourtRequired = policy.CourtRequired
 			claims.StateRecheckCourtRequiredWitnesses = policy.RequiredWitnesses
 		}
