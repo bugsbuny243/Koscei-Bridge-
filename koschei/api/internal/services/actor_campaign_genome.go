@@ -67,16 +67,17 @@ func BuildActorCampaignGenome(dossier ActorDefenseDossier) ActorCampaignGenome {
 		WatchDescriptors: []ActorCampaignGenomeDescriptor{},
 		Limitations:      []string{},
 		Policy: map[string]any{
-			"technical_pattern_only":              true,
-			"same_genome_is_not_same_person":       true,
-			"identity_or_wrongdoing_claim":          false,
-			"verified_required_for_genome_id":       true,
-			"signature_and_slot_required_for_anchor": true,
-			"inferred_policy":                       "watch_only",
-			"unverified_policy":                     "excluded",
-			"possible_dust_policy":                  "watch_only",
-			"counterpart_addresses_in_pattern_hash": false,
-			"token_mints_in_pattern_hash":           false,
+			"technical_pattern_only":                       true,
+			"same_genome_is_not_same_person":                true,
+			"identity_or_wrongdoing_claim":                   false,
+			"verified_required_for_genome_id":                true,
+			"signature_and_slot_required_for_anchor":          true,
+			"complete_evidence_line_required_for_anchor":      true,
+			"inferred_policy":                                "watch_only",
+			"unverified_policy":                              "excluded",
+			"possible_dust_policy":                           "watch_only",
+			"counterpart_addresses_in_pattern_hash":          false,
+			"token_mints_in_pattern_hash":                    false,
 		},
 	}
 	if actor == "" {
@@ -94,7 +95,7 @@ func BuildActorCampaignGenome(dossier ActorDefenseDossier) ActorCampaignGenome {
 			continue
 		}
 		line := BuildActorDefenseEvidenceLine(item)
-		if status == "inferred" || line.PossibleDust || line.AddressPoisoningCandidate || !line.GradeEligible {
+		if status == "inferred" || line.PossibleDust || line.AddressPoisoningCandidate || !line.GradeEligible || !line.EvidenceLineComplete {
 			actorCampaignCollectEvidenceDescriptors(watch, item, line, status, false)
 			continue
 		}
@@ -126,7 +127,7 @@ func BuildActorCampaignGenome(dossier ActorDefenseDossier) ActorCampaignGenome {
 		out.Limitations = append(out.Limitations, "Fewer than two distinct technical behavior descriptors are available.")
 	} else if out.VerifiedSignatureBacked < 1 {
 		out.Status = "observed_only"
-		out.Limitations = append(out.Limitations, "No VERIFIED descriptor is anchored by complete signature-and-slot evidence; no campaign genome ID is issued.")
+		out.Limitations = append(out.Limitations, "No VERIFIED descriptor is anchored by a complete evidence line with signature-and-slot evidence; no campaign genome ID is issued.")
 	} else {
 		out.Status = "verified_supported"
 		out.Complete = true
@@ -200,7 +201,7 @@ func actorCampaignUpsertDescriptor(target map[string]*actorCampaignDescriptorBui
 	}
 	if signature := strings.TrimSpace(item.Signature); signature != "" {
 		builder.signatures[signature] = struct{}{}
-		if item.Slot > 0 && !item.ObservedAt.IsZero() && normalizeActorGraphStatus(status) == "verified" {
+		if item.Slot > 0 && !item.ObservedAt.IsZero() && normalizeActorGraphStatus(status) == "verified" && gradeEligible {
 			builder.signatureBacked = true
 		}
 	}
@@ -229,11 +230,15 @@ func actorCampaignFinalizeDescriptors(builders map[string]*actorCampaignDescript
 		evidenceKeys := actorCampaignSortedSet(builder.evidenceKeys)
 		signatures := actorCampaignSortedSet(builder.signatures)
 		status := normalizeActorGraphStatus(builder.strongestStatus)
+		weight := actorCampaignVerificationWeight(status)
+		if !builder.gradeEligible {
+			weight = "watch_only"
+		}
 		out = append(out, ActorCampaignGenomeDescriptor{
 			Kind: builder.kind, Value: builder.value, EvidenceStatus: status,
 			EvidenceKeys: evidenceKeys, Signatures: signatures,
 			SignatureBacked: builder.signatureBacked, GradeEligible: builder.gradeEligible,
-			VerificationWeight: actorCampaignVerificationWeight(status),
+			VerificationWeight: weight,
 		})
 	}
 	return out
