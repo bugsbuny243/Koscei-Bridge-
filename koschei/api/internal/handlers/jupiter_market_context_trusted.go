@@ -4,16 +4,23 @@ import (
 	"context"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"koschei/api/internal/services"
 )
 
-func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, client *http.Client, mint string, holder services.HolderIntelligence, market services.TokenMarketSnapshot) services.JupiterMarketContext {
+type jupiterPriceEnvelope map[string]struct {
+	USDPrice float64 `json:"usdPrice"`
+	BlockID  uint64  `json:"blockId"`
+}
+
+func (h *Handler) collectTrustedJupiterMarketContext(ctx context.Context, network, mint string, holder services.HolderIntelligence, market services.TokenMarketSnapshot) services.JupiterMarketContext {
+	return collectTrustedJupiterMarketContext(ctx, h.lpRPC(), &http.Client{Timeout: 7 * time.Second}, network, mint, holder, market)
+}
+
+func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, client *http.Client, network, mint string, holder services.HolderIntelligence, market services.TokenMarketSnapshot) services.JupiterMarketContext {
 	now := time.Now().UTC()
 	out := services.JupiterMarketContext{
 		Status: "jupiter_context_unavailable", DexScreenerPriceUSD: market.PriceUSD,
@@ -23,6 +30,10 @@ func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, 
 	if mint == "" {
 		out.Status = "mint_required"
 		return out
+	}
+	network = strings.TrimSpace(network)
+	if network == "" {
+		network = "solana-mainnet"
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 7 * time.Second}
@@ -55,7 +66,7 @@ func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, 
 
 	if rpc != nil && holder.Available && holder.CirculatingSupply > 0 && holder.Top1Percentage > 0 {
 		var supply rpcTokenSupplyResponse
-		if err := rpc(ctx, "solana-mainnet", "getTokenSupply", []any{mint, map[string]any{"commitment": "confirmed"}}, &supply); err == nil {
+		if err := rpc(ctx, network, "getTokenSupply", []any{mint, map[string]any{"commitment": "confirmed"}}, &supply); err == nil {
 			topHolderTokens := holder.CirculatingSupply * holder.Top1Percentage / 100
 			rawAmount := decimalToRaw(topHolderTokens, supply.Value.Decimals)
 			if rawAmount != "" && rawAmount != "0" {
@@ -78,7 +89,10 @@ func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, 
 						out.QuoteContextSlot = quote.ContextSlot
 						out.QuoteObservedAt = time.Now().UTC()
 						for _, step := range quote.RoutePlan {
-							out.RouteLabels = appendUniqueString(out.RouteLabels, strings.TrimSpace(step.Label))
+							label := strings.TrimSpace(step.Label)
+							if label != "" {
+								out.RouteLabels = uniqueStrings(append(out.RouteLabels, label))
+							}
 						}
 					}
 				}
@@ -103,22 +117,3 @@ func collectTrustedJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, 
 	)
 	return out
 }
-
-func trustedJupiterPriceURL(raw, mint string) (string, error) {
-	endpoint, err := validatedReadOnlyJupiterPriceEndpoint(raw)
-	if err != nil {
-		return "", err
-	}
-	copy := *endpoint
-	query := copy.Query()
-	query.Set("ids", strings.TrimSpace(mint))
-	copy.RawQuery = query.Encode()
-	return copy.String(), nil
-}
-
-func parseOptionalJupiterFloat(raw string) float64 {
-	value, _ := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-	return value
-}
-
-var _ = url.URL{}

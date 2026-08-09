@@ -125,13 +125,23 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 	}
 
 	decision := evaluateTransactionGuardStateRecheck(claims, currentRoot, current.Context.Slot)
-	writeJSON(w, http.StatusOK, map[string]any{
+	response := map[string]any{
 		"ok":                      true,
 		"product":                 "Koschei Transaction Guard",
 		"recheck_version":         transactionGuardStateRecheckVersion,
 		"network":                 input.Network,
 		"transaction_fingerprint": claims.TransactionFingerprint,
 		"decision":                decision,
-		"warning":                 "State Witness recheck only confirms the bounded signed account-state root observed at this recheck; it does not sign or submit the transaction.",
-	})
+		"warning":                 "State Witness recheck confirms only the bounded signed account-state root and never signs or submits the transaction.",
+	}
+	if decision.Status == "state_unchanged" {
+		court := collectTransactionGuardStateRecheckEvidenceCourt(r.Context(), input.Network, addresses)
+		decision = applyTransactionGuardStateRecheckEvidenceCourt(decision, court)
+		response["decision"] = decision
+		response["evidence_court"] = transactionGuardStateRecheckCourtPublicResponse(court)
+		if court.Enabled {
+			response["warning"] = "When Evidence Court is enabled, a state-bound permit remains consistent only after an independent fresh provider quorum corroborates the bounded State Witness root. Koschei never signs or submits the transaction."
+		}
+	}
+	writeJSON(w, http.StatusOK, response)
 }
