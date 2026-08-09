@@ -47,7 +47,7 @@ Permit v3 signs the v2 state binding plus:
 - whether Evidence Court is required;
 - the signed independent-witness count when Court is required.
 
-The verifier recomputes the policy relationship and rejects a correctly signed payload if `court_required` does not equal `risk_index >= signed_threshold`, if required witness counts are outside bounds, or if mandatory claims are missing. Legacy v2 is accepted only when it contains no v3 policy claims. Permit v1 remains invalid for State Recheck because it has no State Witness.
+The verifier recomputes the policy relationship and rejects a correctly signed payload if `court_required` does not equal `risk_index >= signed_threshold`, if required witness counts are outside bounds, or if mandatory claims are missing. This semantic policy validation completes before the primary account-state RPC is allowed to run. Legacy v2 is accepted only when it contains no v3 policy claims. Permit v1 remains invalid for State Recheck because it has no State Witness.
 
 ## Selective Court policy
 
