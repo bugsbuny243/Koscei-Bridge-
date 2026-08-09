@@ -20,6 +20,7 @@ func TestExitImpactV2ReachableFromCanonicalHolderInvestigation(t *testing.T) {
 	}
 	body := string(source)
 	for _, required := range []string{
+		"collectCompleteLPControlEvidence",
 		"exitLiquidity = h.collectExitLiquiditySimulation",
 		"exitLiquidity.ImpactV2 = services.BuildExitImpactAssessment(exitLiquidity, lpControl)",
 		"jupiter.ExitLiquidity = exitLiquidity",
@@ -28,7 +29,9 @@ func TestExitImpactV2ReachableFromCanonicalHolderInvestigation(t *testing.T) {
 			t.Fatalf("canonical investigation no longer wires Exit Impact v2: missing %q", required)
 		}
 	}
-	if strings.Index(body, "collectCompleteLPControlEvidence") > strings.Index(body, "BuildExitImpactAssessment") {
+	lpIndex := strings.Index(body, "collectCompleteLPControlEvidence")
+	impactIndex := strings.Index(body, "BuildExitImpactAssessment")
+	if lpIndex < 0 || impactIndex < 0 || lpIndex > impactIndex {
 		t.Fatal("Exit Impact v2 must be built only after LP-control evidence is collected")
 	}
 }
