@@ -22,7 +22,7 @@ The graph combines and de-duplicates program IDs observed through:
 - resolved CPI / inner instructions;
 - TransferHook program IDs resolved by the authority surface.
 
-Each node preserves the exact `observed_in` sources. Program IDs are sorted before graph construction so identical evidence produces an identical graph identity.
+Each node preserves the exact `observed_in` sources. Program IDs and observation-source labels are sorted inside the graph builder, so caller ordering cannot change the evidence identity.
 
 ## Defense snapshot evidence
 
@@ -47,7 +47,14 @@ Other invoked programs without a persisted snapshot are marked `snapshot_unavail
 
 ## Deterministic identity
 
-The graph carries `evidence_hash_sha256`, computed from the normalized ordered graph with the hash field blanked before canonical JSON encoding. There is no clock read, network call or mutable external lookup in the graph builder itself.
+The graph is explicitly bound to:
+
+- the normalized Solana network;
+- the exact Transaction Guard transaction fingerprint;
+- the sorted observed program set and each program's sorted observation sources;
+- linked immutable Defense OS snapshot evidence.
+
+The graph carries `evidence_hash_sha256`, computed from the normalized ordered graph with the hash field blanked before canonical JSON encoding. There is no clock read, network call or mutable external lookup in the graph builder itself. Identical inputs produce an identical hash; changing the transaction fingerprint or network changes the graph identity.
 
 ## Guard response
 
@@ -58,7 +65,7 @@ program_trust_graph_complete
 program_trust_graph
 ```
 
-`complete=true` requires every non-builtin observed program to have a persisted Defense OS deployment snapshot and every observed program ID to be a valid Solana public key.
+`complete=true` requires a transaction fingerprint, every non-builtin observed program to have a persisted Defense OS deployment snapshot, and every observed program ID to be a valid Solana public key.
 
 A missing database or lookup failure returns a partial graph with an explicit limitation. Raw database errors are not returned to the client.
 
