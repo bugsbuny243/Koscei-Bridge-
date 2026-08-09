@@ -11,29 +11,36 @@ import (
 	"koschei/api/internal/handlers"
 )
 
-var databaseOptionalAPIPaths = map[string]struct{}{
-	"/api/me":                    {},
-	"/api/v1/risk/badge":         {},
-	"/api/version":               {},
-	"/api/config":                {},
-	"/api/auth/register":         {},
-	"/api/auth/login":            {},
-	"/api/auth/provision":        {},
-	"/api/auth/neon-login":       {},
-	"/api/auth/neon-register":    {},
-	"/api/auth/neon-callback":    {},
-	"/api/owner/login":           {},
-	"/api/owner/logout":          {},
-	"/api/owner/command-center":  {},
-	"/api/public/impact":         {},
-	"/api/public/metrics":        {},
-	"/api/public/token/status":   {},
-	"/api/public/token/readiness": {},
-	"/api/web3/health":           {},
-	"/api/analytics/event":       {},
-	"/api/arvis/preflight":       {},
-	"/api/token/scan":            {},
-}
+var databaseOptionalAPIPaths = func() map[string]struct{} {
+	paths := []string{
+		"/api/me",
+		"/api/v1/risk/badge",
+		"/api/version",
+		"/api/config",
+		"/api/auth/register",
+		"/api/auth/login",
+		"/api/auth/provision",
+		"/api/auth/neon-login",
+		"/api/auth/neon-register",
+		"/api/auth/neon-callback",
+		"/api/owner/login",
+		"/api/owner/logout",
+		"/api/owner/command-center",
+		"/api/public/impact",
+		"/api/public/metrics",
+		"/api/public/token/status",
+		"/api/public/token/readiness",
+		"/api/web3/health",
+		"/api/analytics/event",
+		"/api/arvis/preflight",
+		"/api/token/scan",
+	}
+	result := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		result[path] = struct{}{}
+	}
+	return result
+}()
 
 func allowedWithoutDatabase(path string) bool {
 	_, ok := databaseOptionalAPIPaths[path]
