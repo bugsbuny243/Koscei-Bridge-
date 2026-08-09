@@ -41,6 +41,14 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check openapi-spec-validator==0.7.2
           openapi-spec-validator openapi.yaml
+      - name: Generate canonical OpenAPI contract
+        run: go run ./cmd/openapi-gen
+      - name: Upload generated OpenAPI contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-openapi
+          path: koschei/api/openapi.yaml
+          if-no-files-found: error
       - name: Verify registered route drift
         run: |
           go run ./cmd/openapi-gen -check
