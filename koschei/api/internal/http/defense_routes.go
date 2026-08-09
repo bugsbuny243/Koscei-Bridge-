@@ -9,10 +9,10 @@ import (
 )
 
 func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
-	// Stream continuity is live-system integrity, not an optional Defense OS lab
-	// surface. Keep it owner-only, but always register it even when the heavier
-	// Defense OS toolchain remains dormant.
+	// Live-system integrity and persistent actor memory are owner control-plane
+	// surfaces, not optional Defense OS laboratory features.
 	mux.HandleFunc("/api/owner/radar/continuity", requiresDB(h, ownerOnly(h, method("GET", h.OwnerRadarContinuity))))
+	mux.HandleFunc("/api/owner/actor-memory/matches", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorOperationalMemory))))
 
 	// Defense OS is intentionally dormant by default while Koschei is in its
 	// revenue-first product phase. Keeping registration opt-in prevents its lab,
