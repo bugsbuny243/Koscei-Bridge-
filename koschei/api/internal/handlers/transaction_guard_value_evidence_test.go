@@ -86,8 +86,8 @@ func TestTransactionValueEvidenceAggregatesTokenRawAmountsByMintWithoutDoubleCou
 	if aggregate.BurnRaw != "5" || aggregate.WalletOriginBurnRaw != "5" || aggregate.MovementCount != 3 || aggregate.WalletOriginMovementCount != 3 {
 		t.Fatalf("burn/movement aggregate=%#v", aggregate)
 	}
-	if aggregate.Decimals == nil || *aggregate.Decimals != 6 || !aggregate.DecimalsConsistent {
-		t.Fatalf("decimals aggregate=%#v", aggregate)
+	if aggregate.Decimals == nil || *aggregate.Decimals != 6 || aggregate.DecimalsConsistent {
+		t.Fatalf("mixed checked/unchecked decimals should not be reported consistent: %#v", aggregate)
 	}
 	if len(got.TokenMovements) != 3 {
 		t.Fatalf("duplicate outer/inner token transfer was double-counted: %#v", got.TokenMovements)
@@ -108,7 +108,7 @@ func TestTransactionValueEvidenceIsPartialWhenCPICoverageIncomplete(t *testing.T
 	}
 }
 
-func TestTransactionValueEvidenceUnscopedTokenMovementIsNotMintAggregate(t *testing.T) {
+func TestTransactionValueEvidenceUnscopedTokenMovementFailsClosed(t *testing.T) {
 	decoded := transactionGuardDecodedTransaction{
 		Available: true,
 		Complete:  true,
@@ -118,11 +118,29 @@ func TestTransactionValueEvidenceUnscopedTokenMovementIsNotMintAggregate(t *test
 		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Requested: false},
 	}
 	got := buildTransactionGuardValueEvidence("fixture-transaction", "WalletA", decoded, transactionGuardCPIFlowAnalysis{Requested: false})
-	if got.UnscopedTokenMovementCount != 1 || len(got.TokenAggregates) != 0 || len(got.TokenMovements) != 1 {
+	if got.Complete || got.Status != "partial" || got.UnscopedTokenMovementCount != 1 || len(got.TokenAggregates) != 0 || len(got.TokenMovements) != 1 {
 		t.Fatalf("evidence=%#v", got)
 	}
 	if got.TokenMovements[0].Mint != "" || !got.TokenMovements[0].WalletOrigin {
 		t.Fatalf("movement=%#v", got.TokenMovements[0])
+	}
+	if !strings.Contains(strings.Join(got.Limitations, " "), "could not be scoped to a mint") {
+		t.Fatalf("limitations=%v", got.Limitations)
+	}
+}
+
+func TestTransactionValueEvidenceInvalidRawAmountFailsClosed(t *testing.T) {
+	decoded := transactionGuardDecodedTransaction{
+		Available: true,
+		Complete:  true,
+		SOLTransfers: []transactionGuardDecodedSOLTransfer{
+			{Kind: "transfer", Source: "WalletA", Recipient: "RecipientA", Lamports: "not-an-integer"},
+		},
+		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Requested: false},
+	}
+	got := buildTransactionGuardValueEvidence("fixture-transaction", "WalletA", decoded, transactionGuardCPIFlowAnalysis{Requested: false})
+	if got.Complete || got.Status != "partial" || got.InvalidMovementCount != 1 || got.ExplicitSOLLamports != "0" {
+		t.Fatalf("evidence=%#v", got)
 	}
 }
 
