@@ -6,7 +6,7 @@ Status: foundation implemented, production verdict integration disabled by defau
 
 Normal Solana RPC failover answers an availability question: if the preferred endpoint fails, can another endpoint provide the requested data?
 
-Evidence Court answers a different question: when a fact is important enough to support a hard security claim, do independent provider hosts return the same canonical state?
+Evidence Court answers a different question: when a fact is important enough to support a hard security claim, do independent providers return the same canonical state?
 
 The first implementation is intentionally bounded and read-only.
 
@@ -31,7 +31,7 @@ History scans, signatures-for-address, program-wide scans and other potentially 
 
 ## Independent witnesses
 
-Configured RPC endpoints are deduplicated by provider hostname. Multiple credentials or URLs on the same provider host do not count as independent witnesses.
+Configured RPC endpoints are deduplicated by provider identity where Koschei recognizes the provider. Multiple Helius, Alchemy, QuickNode or public-Solana endpoints cannot create multiple votes for the same provider. Unknown/private RPC services fall back to hostname identity.
 
 Candidate witnesses can come from the existing Koschei Solana provider configuration, including configured Alchemy, Helius, QuickNode and public Solana RPC endpoints.
 
@@ -76,4 +76,5 @@ The foundation is considered correct only when tests prove:
 4. missing provider evidence produces `insufficient`;
 5. the feature is default-off;
 6. unbounded RPC methods are rejected;
-7. witness metadata contains independent provider hosts and no credential material.
+7. known providers cannot gain extra quorum votes through multiple hostnames or credentials;
+8. witness metadata contains only safe provider identities/hosts and no credential material.
