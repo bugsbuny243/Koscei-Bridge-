@@ -138,7 +138,7 @@ func (h *Handler) TransactionGuardStateRecheck(w http.ResponseWriter, r *http.Re
 		court := collectTransactionGuardStateRecheckEvidenceCourt(r.Context(), input.Network, addresses)
 		decision = applyTransactionGuardStateRecheckEvidenceCourt(decision, court)
 		response["decision"] = decision
-		response["evidence_court"] = court
+		response["evidence_court"] = transactionGuardStateRecheckCourtPublicResponse(court)
 		if court.Enabled {
 			response["warning"] = "When Evidence Court is enabled, a state-bound permit remains consistent only after an independent fresh provider quorum corroborates the bounded State Witness root. Koschei never signs or submits the transaction."
 		}
