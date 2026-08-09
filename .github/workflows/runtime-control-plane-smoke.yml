@@ -1,0 +1,108 @@
+name: Runtime Control Plane Smoke
+
+on:
+  pull_request:
+    paths:
+      - "koschei/api/internal/runtimecfg/**"
+      - "koschei/api/internal/handlers/platform.go"
+      - ".github/workflows/runtime-control-plane-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/runtimecfg/**"
+      - "koschei/api/internal/handlers/platform.go"
+      - ".github/workflows/runtime-control-plane-smoke.yml"
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-control-plane-smoke
+  cancel-in-progress: true
+
+jobs:
+  production:
+    name: Verify production control-plane contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      BASE_URL: https://tradepigloball.co
+    steps:
+      - name: Probe redacted runtime control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="${RUNNER_TEMP}/runtime-control-plane.json"
+          code=""
+          for attempt in $(seq 1 24); do
+            code="$(curl --location --silent --show-error --max-time 20 \
+              --output "${body}" --write-out '%{http_code}' \
+              "${BASE_URL}/api/config" || true)"
+            if [ "${code}" = "200" ] && grep -Fq '"runtime_control_plane"' "${body}"; then
+              break
+            fi
+            echo "WAITING_FOR_RUNTIME_CONTROL_PLANE attempt=${attempt}/24 code=${code}" >&2
+            sleep 5
+          done
+          [ "${code}" = "200" ] || {
+            echo "RUNTIME_CONTROL_PLANE_HTTP_FAILURE: HTTP ${code}." >&2
+            exit 51
+          }
+
+          CONFIG_BODY="${body}" node - <<'NODE'
+          const fs = require('fs');
+          const path = process.env.CONFIG_BODY;
+          const raw = fs.readFileSync(path, 'utf8');
+          const payload = JSON.parse(raw);
+          const report = payload.runtime_control_plane;
+          const pullRequest = process.env.GITHUB_EVENT_NAME === 'pull_request';
+          if (!report || typeof report !== 'object') {
+            throw new Error('runtime_control_plane is missing');
+          }
+          if (report.version !== 'runtime-control-plane/v1') {
+            throw new Error(`unexpected version ${String(report.version)}`);
+          }
+          if (report.controls !== 20) {
+            throw new Error(`unexpected control count ${String(report.controls)}`);
+          }
+          const buckets = ['active', 'disabled', 'defaulted', 'shadowed', 'misconfigured'];
+          const total = buckets.reduce((sum, key) => sum + Number(report[key] || 0), 0);
+          if (total !== report.controls) {
+            throw new Error(`state buckets total ${total}, controls ${report.controls}`);
+          }
+          if (report.ok !== true || Number(report.misconfigured || 0) !== 0) {
+            throw new Error(`production control plane unhealthy: misconfigured=${Number(report.misconfigured || 0)}`);
+          }
+          if (Number(report.shadowed || 0) !== 0) {
+            throw new Error(`production restored controls shadowed=${Number(report.shadowed || 0)}`);
+          }
+
+          const hasItems = Object.prototype.hasOwnProperty.call(report, 'items');
+          if (pullRequest && hasItems) {
+            for (const item of report.items || []) {
+              for (const forbiddenKey of ['value', 'raw', 'secret_value', 'credential_value']) {
+                if (Object.prototype.hasOwnProperty.call(item, forbiddenKey)) {
+                  throw new Error(`pre-deploy detail shape exposes ${forbiddenKey}`);
+                }
+              }
+            }
+          }
+          if (!pullRequest && hasItems) {
+            throw new Error('deployed public report exposes item inventory');
+          }
+          if (!pullRequest) {
+            for (const forbidden of [
+              'TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY',
+              'SOLSCAN_API_KEY',
+              'TOGETHER_API_KEY',
+            ]) {
+              if (raw.includes(forbidden)) {
+                throw new Error(`deployed public config exposes sensitive control name ${forbidden}`);
+              }
+            }
+          }
+          console.log(`RUNTIME_CONTROL_PLANE_HEALTHY controls=${report.controls} active=${report.active} disabled=${report.disabled} defaulted=${report.defaulted} shadowed=${report.shadowed} misconfigured=${report.misconfigured} redacted=${!hasItems}`);
+          NODE
