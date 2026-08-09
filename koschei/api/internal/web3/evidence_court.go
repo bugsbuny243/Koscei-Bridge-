@@ -90,7 +90,7 @@ func evidenceCourtAllowedMethod(method string) bool {
 // EvidenceCourt performs a bounded, read-only multi-provider comparison for
 // critical state evidence. It is default-off and intentionally separate from
 // normal failover: failover asks one provider after another for availability;
-// Evidence Court asks independent provider hosts for corroboration.
+// Evidence Court asks independent providers for corroboration.
 func (s *SolanaRPC) EvidenceCourt(ctx context.Context, network, method string, params any) EvidenceCourtResult {
 	required := evidenceCourtRequiredWitnesses()
 	result := EvidenceCourtResult{
@@ -121,7 +121,7 @@ func (s *SolanaRPC) EvidenceCourt(ctx context.Context, network, method string, p
 	result.Requested = len(endpoints)
 	if len(endpoints) < required {
 		result.Status = "insufficient"
-		result.Limitations = append(result.Limitations, "Fewer independent provider hosts are configured than the required witness quorum.")
+		result.Limitations = append(result.Limitations, "Fewer independent providers are configured than the required witness quorum.")
 		for _, endpoint := range endpoints {
 			result.Witnesses = append(result.Witnesses, EvidenceCourtWitness{Provider: endpoint.Provider, Host: endpoint.Host, Status: "not_queried"})
 		}
@@ -369,7 +369,7 @@ func (s *SolanaRPC) evidenceCourtEndpoints(network string) []evidenceCourtEndpoi
 		candidates = append(candidates, "https://api.mainnet-beta.solana.com")
 	}
 
-	seenHosts := map[string]struct{}{}
+	seenWitnesses := map[string]struct{}{}
 	out := make([]evidenceCourtEndpoint, 0, evidenceCourtMaxProviders)
 	for _, candidate := range candidates {
 		candidate = strings.TrimSpace(candidate)
@@ -380,16 +380,27 @@ func (s *SolanaRPC) evidenceCourtEndpoints(network string) []evidenceCourtEndpoi
 		if host == "unconfigured" || host == "invalid-host" {
 			continue
 		}
-		if _, exists := seenHosts[host]; exists {
+		provider := providerLabel(host)
+		identity := evidenceCourtProviderIdentity(provider, host)
+		if _, exists := seenWitnesses[identity]; exists {
 			continue
 		}
-		seenHosts[host] = struct{}{}
-		out = append(out, evidenceCourtEndpoint{Provider: providerLabel(host), Host: host, URL: candidate})
+		seenWitnesses[identity] = struct{}{}
+		out = append(out, evidenceCourtEndpoint{Provider: provider, Host: host, URL: candidate})
 		if len(out) == evidenceCourtMaxProviders {
 			break
 		}
 	}
 	return out
+}
+
+func evidenceCourtProviderIdentity(provider, host string) string {
+	switch provider {
+	case "helius", "alchemy", "quicknode", "solana_public":
+		return "provider:" + provider
+	default:
+		return "host:" + strings.ToLower(strings.TrimSpace(host))
+	}
 }
 
 func providerLabel(host string) string {
