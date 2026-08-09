@@ -35,8 +35,13 @@ func TestRequiredCanonicalEvidenceCourtForcesCollectionPolicyWhenGlobalFlagOff(t
 		2,
 		canonicalize,
 	)
-	if !result.Enabled || result.Status != "insufficient" || result.Required != 2 || result.Requested != 0 {
+	if !result.Enabled || result.Status != "insufficient" || result.Required != 2 || result.Requested >= result.Required || result.Available != 0 {
 		t.Fatalf("result=%#v", result)
+	}
+	for _, witness := range result.Witnesses {
+		if witness.Status != "not_queried" {
+			t.Fatalf("insufficient provider set unexpectedly queried a witness: %#v", result.Witnesses)
+		}
 	}
 }
 
