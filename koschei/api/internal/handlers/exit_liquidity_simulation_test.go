@@ -13,9 +13,15 @@ import (
 )
 
 func TestCollectExitLiquiditySimulationQuotesFixedTiersReadOnly(t *testing.T) {
+	const ammKey = "HXpGFJGCEEFdV31tDmjDBaJMEB1fKLiAoKoWr3Fnonid"
+	t.Setenv("JUPITER_API_KEY", "test-jupiter-key")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/quote" {
 			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("x-api-key") != "test-jupiter-key" {
+			http.Error(w, "missing Jupiter API key", http.StatusUnauthorized)
 			return
 		}
 		if r.URL.Query().Get("swapMode") != "ExactIn" {
@@ -37,7 +43,10 @@ func TestCollectExitLiquiditySimulationQuotesFixedTiersReadOnly(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"outAmount": item.out, "priceImpactPct": item.impact, "contextSlot": 99,
-			"routePlan": []any{map[string]any{"swapInfo": map[string]any{"label": "Raydium"}}},
+			"routePlan": []any{map[string]any{
+				"swapInfo": map[string]any{"ammKey": ammKey, "label": "Raydium"},
+				"percent":  100,
+			}},
 		})
 	}))
 	defer server.Close()
@@ -61,6 +70,9 @@ func TestCollectExitLiquiditySimulationQuotesFixedTiersReadOnly(t *testing.T) {
 	}
 	if result.Tiers[1].ExecutionShortfallPct != 10 || result.Tiers[2].JupiterPriceImpactPct != 40 {
 		t.Fatalf("unexpected larger tiers: %+v %+v", result.Tiers[1], result.Tiers[2])
+	}
+	if len(result.Tiers[0].RoutePlan) != 1 || result.Tiers[0].RoutePlan[0].AMMKey != ammKey || result.Tiers[0].RoutePlan[0].Label != "Raydium" || result.Tiers[0].RoutePlan[0].Percent != 100 {
+		t.Fatalf("route identity not captured: %+v", result.Tiers[0].RoutePlan)
 	}
 	if !result.QuoteOnly {
 		t.Fatal("exit simulation must remain quote-only")
