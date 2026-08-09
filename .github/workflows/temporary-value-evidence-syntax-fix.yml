@@ -1,0 +1,52 @@
+name: Temporary Value Evidence Syntax Fix
+
+on:
+  push:
+    branches:
+      - agent/transaction-value-evidence-v1
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/transaction-value-evidence-v1
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Fix exact syntax and format
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('koschei/api/internal/handlers/transaction_guard_value_evidence.go')
+          text = path.read_text()
+          old = '''\t\twalletOrigin := wallet != "" && (
+          \t\t\tstrings.EqualFold(strings.TrimSpace(operation.Authority), wallet) ||
+          \t\t\tstrings.EqualFold(strings.TrimSpace(operation.Source), wallet) ||
+          \t\t\tstrings.EqualFold(strings.TrimSpace(operation.Account), wallet)
+          \t\t)
+          '''
+          new = '''\t\twalletOrigin := wallet != "" &&
+          \t\t\t(strings.EqualFold(strings.TrimSpace(operation.Authority), wallet) ||
+          \t\t\t\tstrings.EqualFold(strings.TrimSpace(operation.Source), wallet) ||
+          \t\t\t\tstrings.EqualFold(strings.TrimSpace(operation.Account), wallet))
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'exact syntax block count={text.count(old)}; refusing to patch')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          gofmt -w koschei/api/internal/handlers/transaction_guard_value_evidence.go
+          rm .github/workflows/temporary-value-evidence-syntax-fix.yml
+          git config user.name 'koschei-wiring-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add koschei/api/internal/handlers/transaction_guard_value_evidence.go .github/workflows/temporary-value-evidence-syntax-fix.yml
+          git diff --cached --check
+          git commit -m 'Fix transaction value evidence syntax'
+          git push origin HEAD:agent/transaction-value-evidence-v1
