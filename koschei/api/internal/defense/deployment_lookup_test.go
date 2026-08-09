@@ -1,6 +1,9 @@
 package defense
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func TestNormalizeDeploymentSnapshotLookupDeterministic(t *testing.T) {
 	ids, err := normalizeDeploymentSnapshotLookup([]string{" ProgramB ", "ProgramA", "ProgramB", "", "ProgramC"})
@@ -21,7 +24,7 @@ func TestNormalizeDeploymentSnapshotLookupDeterministic(t *testing.T) {
 func TestNormalizeDeploymentSnapshotLookupRejectsUnboundedRequest(t *testing.T) {
 	ids := make([]string, maxProgramDeploymentSnapshotLookup+1)
 	for index := range ids {
-		ids[index] = "Program" + string(rune('A'+index))
+		ids[index] = "Program" + strconv.Itoa(index)
 	}
 	if _, err := normalizeDeploymentSnapshotLookup(ids); err == nil {
 		t.Fatal("unbounded deployment snapshot lookup was accepted")
