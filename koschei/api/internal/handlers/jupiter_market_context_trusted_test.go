@@ -36,15 +36,15 @@ func TestCollectTrustedJupiterMarketContextUsesTrustedPriceAndSwapV2(t *testing.
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"outAmount": "123000000",
+				"outAmount":   "123000000",
 				"priceImpact": -0.4,
-				"router": "iris",
-				"mode": "ultra",
+				"router":      "iris",
+				"mode":        "ultra",
 				"transaction": nil,
 				"routePlan": []any{map[string]any{
 					"swapInfo": map[string]any{"ammKey": "11111111111111111111111111111111", "label": "System Test Route"},
-					"percent": 100,
-					"bps": 10000,
+					"percent":  100,
+					"bps":      10000,
 				}},
 			})
 		default:
