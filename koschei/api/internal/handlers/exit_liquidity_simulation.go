@@ -80,6 +80,11 @@ func collectExitLiquiditySimulation(ctx context.Context, rpc solanaRPCCall, clie
 		out.Limitations = append(out.Limitations, err.Error())
 		return out
 	}
+	if strings.EqualFold(base.Hostname(), "api.jup.ag") && strings.TrimSpace(os.Getenv("JUPITER_API_KEY")) == "" {
+		out.Status = "jupiter_api_key_unavailable"
+		out.Limitations = append(out.Limitations, "JUPITER_API_KEY is required for the official api.jup.ag quote endpoint.")
+		return out
+	}
 
 	available := 0
 	for i := range out.Tiers {
