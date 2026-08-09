@@ -37,11 +37,11 @@ type Config struct {
 }
 
 type GuardConfig struct {
-	KeyID                         string
-	PrivateKeyConfigured          bool
-	PermitTTL                     time.Duration
-	RequirePermit                 bool
-	RequireStateWitness           bool
+	KeyID                          string
+	PrivateKeyConfigured           bool
+	PermitTTL                      time.Duration
+	RequirePermit                  bool
+	RequireStateWitness            bool
 	StateRecheckCourtRiskThreshold int
 }
 

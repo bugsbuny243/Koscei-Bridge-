@@ -15,7 +15,7 @@ func clearEvidenceCourtProviderEnv(t *testing.T) {
 	t.Setenv("ALCHEMY_SOLANA_RPC_URL", "")
 	t.Setenv("HELIUS_SOLANA_RPC_URL", "")
 	t.Setenv("QUICKNODE_SOLANA_RPC_URL", "")
-	 t.Setenv("ALCHEMY_API_KEY", "")
+	t.Setenv("ALCHEMY_API_KEY", "")
 }
 
 func TestRequiredCanonicalEvidenceCourtForcesCollectionPolicyWhenGlobalFlagOff(t *testing.T) {
