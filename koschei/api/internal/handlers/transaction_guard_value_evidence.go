@@ -45,31 +45,31 @@ type transactionGuardValueTokenAggregate struct {
 }
 
 type transactionGuardValueEvidence struct {
-	Version                          string                               `json:"version"`
-	Status                           string                               `json:"status"`
-	Complete                         bool                                 `json:"complete"`
-	TransactionFingerprint           string                               `json:"transaction_fingerprint"`
-	Wallet                            string                               `json:"wallet,omitempty"`
-	DecodeComplete                    bool                                 `json:"decode_complete"`
-	CPIComplete                       bool                                 `json:"cpi_complete"`
-	AutomaticBalanceComplete          bool                                 `json:"automatic_balance_complete"`
-	UnresolvedCPIInstructionCount     int                                  `json:"unresolved_cpi_instruction_count"`
-	InvalidMovementCount              int                                  `json:"invalid_movement_count"`
-	ExplicitSOLLamports               string                               `json:"explicit_sol_lamports"`
-	WalletExplicitSOLOutflowLamports  string                               `json:"wallet_explicit_sol_outflow_lamports"`
-	WalletObservedSOLDeltaLamports    string                               `json:"wallet_observed_sol_delta_lamports,omitempty"`
-	WalletObservedSOLSpentLamports    string                               `json:"wallet_observed_sol_spent_lamports,omitempty"`
-	WalletObservedSOLReceivedLamports string                               `json:"wallet_observed_sol_received_lamports,omitempty"`
-	WalletBalanceEvidenceStatus       string                               `json:"wallet_balance_evidence_status"`
+	Version                           string                                `json:"version"`
+	Status                            string                                `json:"status"`
+	Complete                          bool                                  `json:"complete"`
+	TransactionFingerprint            string                                `json:"transaction_fingerprint"`
+	Wallet                            string                                `json:"wallet,omitempty"`
+	DecodeComplete                    bool                                  `json:"decode_complete"`
+	CPIComplete                       bool                                  `json:"cpi_complete"`
+	AutomaticBalanceComplete          bool                                  `json:"automatic_balance_complete"`
+	UnresolvedCPIInstructionCount     int                                   `json:"unresolved_cpi_instruction_count"`
+	InvalidMovementCount              int                                   `json:"invalid_movement_count"`
+	ExplicitSOLLamports               string                                `json:"explicit_sol_lamports"`
+	WalletExplicitSOLOutflowLamports  string                                `json:"wallet_explicit_sol_outflow_lamports"`
+	WalletObservedSOLDeltaLamports    string                                `json:"wallet_observed_sol_delta_lamports,omitempty"`
+	WalletObservedSOLSpentLamports    string                                `json:"wallet_observed_sol_spent_lamports,omitempty"`
+	WalletObservedSOLReceivedLamports string                                `json:"wallet_observed_sol_received_lamports,omitempty"`
+	WalletBalanceEvidenceStatus       string                                `json:"wallet_balance_evidence_status"`
 	SOLMovements                      []transactionGuardValueSOLMovement    `json:"sol_movements"`
 	TokenMovements                    []transactionGuardValueTokenMovement  `json:"token_movements"`
 	TokenAggregates                   []transactionGuardValueTokenAggregate `json:"token_aggregates"`
-	UnscopedTokenMovementCount        int                                  `json:"unscoped_token_movement_count"`
-	FeeStatus                         string                               `json:"fee_status"`
-	PriceStatus                       string                               `json:"price_status"`
-	PolicyUseStatus                   string                               `json:"policy_use_status"`
-	EvidenceHashSHA256                string                               `json:"evidence_hash_sha256"`
-	Limitations                       []string                             `json:"limitations"`
+	UnscopedTokenMovementCount        int                                   `json:"unscoped_token_movement_count"`
+	FeeStatus                         string                                `json:"fee_status"`
+	PriceStatus                       string                                `json:"price_status"`
+	PolicyUseStatus                   string                                `json:"policy_use_status"`
+	EvidenceHashSHA256                string                                `json:"evidence_hash_sha256"`
+	Limitations                       []string                              `json:"limitations"`
 }
 
 type transactionGuardValueTokenAggregateAccumulator struct {
@@ -89,27 +89,27 @@ func buildTransactionGuardValueEvidence(transaction, wallet string, decoded tran
 	cpiComplete := !cpi.Requested || cpi.Complete
 	balanceComplete := !automatic.Requested || automatic.Complete
 	out := transactionGuardValueEvidence{
-		Version:                          transactionGuardValueEvidenceVersion,
-		Status:                           "partial",
-		TransactionFingerprint:           transactionFingerprint(transaction),
-		Wallet:                           wallet,
-		DecodeComplete:                   decoded.Available && decoded.Complete,
-		CPIComplete:                      cpiComplete,
-		AutomaticBalanceComplete:         balanceComplete,
-		UnresolvedCPIInstructionCount:    cpi.UnresolvedInstructionCount,
-		ExplicitSOLLamports:              "0",
-		WalletExplicitSOLOutflowLamports: "0",
+		Version:                           transactionGuardValueEvidenceVersion,
+		Status:                            "partial",
+		TransactionFingerprint:            transactionFingerprint(transaction),
+		Wallet:                            wallet,
+		DecodeComplete:                    decoded.Available && decoded.Complete,
+		CPIComplete:                       cpiComplete,
+		AutomaticBalanceComplete:          balanceComplete,
+		UnresolvedCPIInstructionCount:     cpi.UnresolvedInstructionCount,
+		ExplicitSOLLamports:               "0",
+		WalletExplicitSOLOutflowLamports:  "0",
 		WalletObservedSOLDeltaLamports:    strings.TrimSpace(automatic.WalletSOLDeltaLamports),
 		WalletObservedSOLSpentLamports:    strings.TrimSpace(automatic.WalletSOLSpentLamports),
 		WalletObservedSOLReceivedLamports: strings.TrimSpace(automatic.WalletSOLReceivedLamports),
-		WalletBalanceEvidenceStatus:      strings.TrimSpace(automatic.Status),
-		SOLMovements:                     []transactionGuardValueSOLMovement{},
-		TokenMovements:                   []transactionGuardValueTokenMovement{},
-		TokenAggregates:                  []transactionGuardValueTokenAggregate{},
-		FeeStatus:                        "unavailable_no_verified_fee_evidence",
-		PriceStatus:                      "not_requested_v1",
-		PolicyUseStatus:                  "evidence_only_not_enforced",
-		Limitations:                      []string{},
+		WalletBalanceEvidenceStatus:       strings.TrimSpace(automatic.Status),
+		SOLMovements:                      []transactionGuardValueSOLMovement{},
+		TokenMovements:                    []transactionGuardValueTokenMovement{},
+		TokenAggregates:                   []transactionGuardValueTokenAggregate{},
+		FeeStatus:                         "unavailable_no_verified_fee_evidence",
+		PriceStatus:                       "not_requested_v1",
+		PolicyUseStatus:                   "evidence_only_not_enforced",
+		Limitations:                       []string{},
 	}
 	if out.WalletBalanceEvidenceStatus == "" {
 		out.WalletBalanceEvidenceStatus = "not_requested"
@@ -235,11 +235,10 @@ func buildTransactionGuardValueEvidence(transaction, wallet string, decoded tran
 		if operation.Kind != "transfer" && operation.Kind != "transfer_checked" && operation.Kind != "burn" && operation.Kind != "burn_checked" {
 			continue
 		}
-		walletOrigin := wallet != "" && (
-			strings.EqualFold(strings.TrimSpace(operation.Authority), wallet) ||
-			strings.EqualFold(strings.TrimSpace(operation.Source), wallet) ||
-			strings.EqualFold(strings.TrimSpace(operation.Account), wallet)
-		)
+		walletOrigin := wallet != "" &&
+			(strings.EqualFold(strings.TrimSpace(operation.Authority), wallet) ||
+				strings.EqualFold(strings.TrimSpace(operation.Source), wallet) ||
+				strings.EqualFold(strings.TrimSpace(operation.Account), wallet))
 		if !walletOrigin && wallet != "" {
 			owner := firstNonEmptyString(
 				ownerByTokenAccount[strings.TrimSpace(operation.Source)],
