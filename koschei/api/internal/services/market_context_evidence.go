@@ -136,6 +136,9 @@ type JupiterMarketContext struct {
 	DexScreenerPriceUSD     float64                 `json:"dexscreener_price_usd,omitempty"`
 	PriceDifferencePct      float64                 `json:"price_difference_pct,omitempty"`
 	SellImpactAvailable     bool                    `json:"sell_impact_available"`
+	SellQuoteAPI            string                  `json:"sell_quote_api,omitempty"`
+	SellQuoteRouter         string                  `json:"sell_quote_router,omitempty"`
+	SellQuoteMode           string                  `json:"sell_quote_mode,omitempty"`
 	SellInputAmountRaw      string                  `json:"sell_input_amount_raw,omitempty"`
 	SellOutputAmountRaw     string                  `json:"sell_output_amount_raw,omitempty"`
 	SellOutputMint          string                  `json:"sell_output_mint,omitempty"`
