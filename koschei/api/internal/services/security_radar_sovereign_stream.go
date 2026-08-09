@@ -36,12 +36,6 @@ type securityRadarEnrichmentTarget struct {
 	Attempts  int
 }
 
-// StartSecurityRadarSovereignStreamIfEnabled keeps the legacy collector as the
-// default while allowing an opt-in durable-first journal mode. Journal mode
-// separates ingestion from RPC enrichment and verdict production: the WSS
-// reader only decodes and queues raw observations, persistence workers commit
-// them to the stream ledger, and a separate enrichment loop resolves token
-// targets for the existing ARVIS stream verdict worker.
 func StartSecurityRadarSovereignStreamIfEnabled(ctx context.Context, db *sql.DB) func() {
 	mode := securityRadarStreamIngestMode()
 	if mode != securityRadarIngestModeJournal {
@@ -192,9 +186,6 @@ func (w *securityRadarJournalStreamWorker) runOnce(ctx context.Context) error {
 	}
 }
 
-// enqueueSecurityRadarJournalEvent intentionally has no default/drop branch.
-// Backpressure blocks intake until journal capacity returns or the context is
-// cancelled, so an in-process overload cannot silently evict an observation.
 func enqueueSecurityRadarJournalEvent(ctx context.Context, queue chan<- SecurityRadarStreamEventRecord, event SecurityRadarStreamEventRecord) error {
 	select {
 	case queue <- event:
@@ -210,8 +201,35 @@ func (w *securityRadarJournalStreamWorker) persistLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case event := <-w.Queue:
-			if _, err := w.Store.InsertStreamEvent(ctx, event); err != nil && ctx.Err() == nil {
-				log.Printf("security radar sovereign journal insert failed: %v", err)
+			if err := w.persistJournalEvent(ctx, event); err != nil && ctx.Err() == nil {
+				log.Printf("security radar sovereign journal persistence stopped unexpectedly: %v", err)
+			}
+		}
+	}
+}
+
+func (w *securityRadarJournalStreamWorker) persistJournalEvent(ctx context.Context, event SecurityRadarStreamEventRecord) error {
+	backoff := 100 * time.Millisecond
+	for {
+		_, err := w.Store.InsertStreamEvent(ctx, event)
+		if err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		log.Printf("security radar sovereign journal insert retry signature=%s module=%s err=%v", event.Signature, event.ModuleID, err)
+		timer := time.NewTimer(backoff)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		if backoff < 5*time.Second {
+			backoff *= 2
+			if backoff > 5*time.Second {
+				backoff = 5 * time.Second
 			}
 		}
 	}
