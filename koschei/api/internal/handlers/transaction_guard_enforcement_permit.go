@@ -15,6 +15,7 @@ import (
 )
 
 const transactionGuardEnforcementPermitVersion = "koschei-transaction-guard-permit-v1"
+const transactionGuardStateBoundPermitVersion = "koschei-transaction-guard-permit-v2"
 
 type transactionGuardEnforcementPermitClaims struct {
 	Version                string `json:"version"`
@@ -25,6 +26,11 @@ type transactionGuardEnforcementPermitClaims struct {
 	Wallet                 string `json:"wallet,omitempty"`
 	Action                 string `json:"action"`
 	GuardVersion           string `json:"guard_version"`
+	StateWitnessVersion    string `json:"state_witness_version,omitempty"`
+	StateWitnessHash       string `json:"state_witness_hash,omitempty"`
+	StateAccountRoot       string `json:"state_account_root_sha256,omitempty"`
+	PreStateSlot           int64  `json:"pre_state_slot,omitempty"`
+	SimulationSlot         int64  `json:"simulation_slot,omitempty"`
 	IssuedAt               string `json:"issued_at"`
 	ExpiresAt              string `json:"expires_at"`
 }
@@ -39,25 +45,39 @@ type transactionGuardEnforcementPermit struct {
 }
 
 type transactionGuardEnforcementState struct {
-	Required   bool
-	Configured bool
-	Issued     bool
-	Status     string
-	Permit     *transactionGuardEnforcementPermit
+	Required             bool
+	StateWitnessRequired bool
+	Configured           bool
+	Issued               bool
+	Status               string
+	Permit               *transactionGuardEnforcementPermit
 }
 
 func buildTransactionGuardEnforcementState(input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, guardComplete bool, now time.Time) transactionGuardEnforcementState {
+	return buildTransactionGuardEnforcementStateWithWitness(input, requestID, assessment, guardComplete, now, nil)
+}
+
+func buildTransactionGuardEnforcementStateWithWitness(input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, guardComplete bool, now time.Time, witness *transactionGuardStateWitness) transactionGuardEnforcementState {
 	cfg := runtimecfg.Load().Guard
 	state := transactionGuardEnforcementState{
-		Required:   cfg.RequirePermit,
-		Configured: cfg.PrivateKeyConfigured && strings.TrimSpace(cfg.KeyID) != "",
-		Status:     "not_required",
+		Required:             cfg.RequirePermit || cfg.RequireStateWitness,
+		StateWitnessRequired: cfg.RequireStateWitness,
+		Configured:           cfg.PrivateKeyConfigured && strings.TrimSpace(cfg.KeyID) != "",
+		Status:               "not_required",
 	}
-	if !cfg.RequirePermit && !cfg.PrivateKeyConfigured {
+	if !cfg.RequirePermit && !cfg.RequireStateWitness && !cfg.PrivateKeyConfigured {
+		return state
+	}
+	if cfg.RequireStateWitness && !cfg.RequirePermit {
+		state.Status = "state_witness_requires_permit"
 		return state
 	}
 	if assessment.Action != "allow" || !guardComplete {
 		state.Status = "not_eligible"
+		return state
+	}
+	if cfg.RequireStateWitness && (witness == nil || !witness.Complete || strings.TrimSpace(witness.BindingHash) == "") {
+		state.Status = "state_witness_unavailable"
 		return state
 	}
 	if !state.Configured {
@@ -70,7 +90,12 @@ func buildTransactionGuardEnforcementState(input transactionGuardV2Request, requ
 		state.Status = "signer_invalid"
 		return state
 	}
-	permit, err := signTransactionGuardEnforcementPermit(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now)
+	var permit transactionGuardEnforcementPermit
+	if cfg.RequireStateWitness {
+		permit, err = signTransactionGuardEnforcementPermitWithWitness(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now, witness)
+	} else {
+		permit, err = signTransactionGuardEnforcementPermit(privateKey, cfg.KeyID, cfg.PermitTTL, input, requestID, assessment, now)
+	}
 	if err != nil {
 		state.Status = "signing_failed"
 		return state
@@ -82,6 +107,10 @@ func buildTransactionGuardEnforcementState(input transactionGuardV2Request, requ
 }
 
 func signTransactionGuardEnforcementPermit(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time) (transactionGuardEnforcementPermit, error) {
+	return signTransactionGuardEnforcementPermitWithWitness(privateKey, keyID, ttl, input, requestID, assessment, now, nil)
+}
+
+func signTransactionGuardEnforcementPermitWithWitness(privateKey ed25519.PrivateKey, keyID string, ttl time.Duration, input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, now time.Time, witness *transactionGuardStateWitness) (transactionGuardEnforcementPermit, error) {
 	if len(privateKey) != ed25519.PrivateKeySize {
 		return transactionGuardEnforcementPermit{}, errors.New("invalid ed25519 private key size")
 	}
@@ -100,8 +129,9 @@ func signTransactionGuardEnforcementPermit(privateKey ed25519.PrivateKey, keyID 
 	} else {
 		now = now.UTC()
 	}
+	permitVersion := transactionGuardEnforcementPermitVersion
 	claims := transactionGuardEnforcementPermitClaims{
-		Version:                transactionGuardEnforcementPermitVersion,
+		Version:                permitVersion,
 		KeyID:                  keyID,
 		RequestID:              strings.TrimSpace(requestID),
 		TransactionFingerprint: transactionFingerprint(input.Transaction),
@@ -112,6 +142,21 @@ func signTransactionGuardEnforcementPermit(privateKey ed25519.PrivateKey, keyID 
 		IssuedAt:               now.Format(time.RFC3339Nano),
 		ExpiresAt:              now.Add(ttl).Format(time.RFC3339Nano),
 	}
+	if witness != nil {
+		if !witness.Complete || strings.TrimSpace(witness.BindingHash) == "" || strings.TrimSpace(witness.AccountRoot) == "" {
+			return transactionGuardEnforcementPermit{}, errors.New("state witness is incomplete")
+		}
+		if strings.TrimSpace(witness.TransactionFingerprint) != claims.TransactionFingerprint {
+			return transactionGuardEnforcementPermit{}, errors.New("state witness transaction fingerprint mismatch")
+		}
+		permitVersion = transactionGuardStateBoundPermitVersion
+		claims.Version = permitVersion
+		claims.StateWitnessVersion = witness.Version
+		claims.StateWitnessHash = witness.BindingHash
+		claims.StateAccountRoot = witness.AccountRoot
+		claims.PreStateSlot = witness.PreStateSlot
+		claims.SimulationSlot = witness.SimulationSlot
+	}
 	payload, err := json.Marshal(claims)
 	if err != nil {
 		return transactionGuardEnforcementPermit{}, err
@@ -121,7 +166,7 @@ func signTransactionGuardEnforcementPermit(privateKey ed25519.PrivateKey, keyID 
 	payloadPart := base64.RawURLEncoding.EncodeToString(payload)
 	signaturePart := base64.RawURLEncoding.EncodeToString(signature)
 	return transactionGuardEnforcementPermit{
-		Version:   transactionGuardEnforcementPermitVersion,
+		Version:   permitVersion,
 		Algorithm: "Ed25519",
 		KeyID:     keyID,
 		PublicKey: base64.RawURLEncoding.EncodeToString(publicKey),
@@ -163,11 +208,19 @@ func transactionGuardPermitPublicKeyFingerprint(publicKey ed25519.PublicKey) str
 }
 
 func applyTransactionGuardEnforcementRequirement(input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, guardComplete bool, now time.Time) (transactionFirewallAssessment, transactionGuardEnforcementState) {
-	state := buildTransactionGuardEnforcementState(input, requestID, assessment, guardComplete, now)
+	return applyTransactionGuardEnforcementRequirementWithWitness(input, requestID, assessment, guardComplete, now, nil)
+}
+
+func applyTransactionGuardEnforcementRequirementWithWitness(input transactionGuardV2Request, requestID string, assessment transactionFirewallAssessment, guardComplete bool, now time.Time, witness *transactionGuardStateWitness) (transactionFirewallAssessment, transactionGuardEnforcementState) {
+	state := buildTransactionGuardEnforcementStateWithWitness(input, requestID, assessment, guardComplete, now, witness)
 	if state.Required && assessment.Action == "allow" && !state.Issued {
 		assessment.Action = "withhold"
 		assessment.RiskLevel = "unknown"
-		assessment.Summary = "Transaction Guard withheld enforcement because the required signed permit was unavailable."
+		if state.StateWitnessRequired && state.Status == "state_witness_unavailable" {
+			assessment.Summary = "Transaction Guard withheld enforcement because the required state witness was unavailable."
+		} else {
+			assessment.Summary = "Transaction Guard withheld enforcement because the required signed permit was unavailable."
+		}
 	}
 	return assessment, state
 }
@@ -175,6 +228,7 @@ func applyTransactionGuardEnforcementRequirement(input transactionGuardV2Request
 func attachTransactionGuardEnforcementResponse(response map[string]any, state transactionGuardEnforcementState) {
 	response["enforcement_enabled"] = state.Configured
 	response["enforcement_permit_required"] = state.Required
+	response["state_witness_required"] = state.StateWitnessRequired
 	response["enforcement_permit_issued"] = state.Issued
 	response["enforcement_permit_status"] = state.Status
 	if state.Permit != nil {
@@ -194,6 +248,9 @@ func transactionGuardHTTPStatusWithEnforcement(assessment transactionFirewallAss
 
 func validateRequiredTransactionGuardEnforcementConfig() error {
 	cfg := runtimecfg.Load().Guard
+	if cfg.RequireStateWitness && !cfg.RequirePermit {
+		return errors.New("TRANSACTION_GUARD_REQUIRE_ENFORCEMENT_PERMIT must be true when state witness enforcement is required")
+	}
 	if !cfg.RequirePermit {
 		return nil
 	}
