@@ -22,6 +22,7 @@ func completeGuardResponseFixture(t *testing.T) (transactionGuardV2Request, tran
 	assessment := transactionFirewallAssessment{
 		Action:       "allow",
 		RiskLevel:    "low",
+		RiskIndex:    0,
 		SimulationOK: true,
 		Findings:     []transactionFirewallFinding{},
 		Logs:         []string{},
@@ -54,9 +55,10 @@ func configureGuardPermitSigner(t *testing.T, requireStateWitness bool) {
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_KEY_ID", "guard-live-test")
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_PRIVATE_KEY", base64.StdEncoding.EncodeToString(seed))
 	t.Setenv("TRANSACTION_GUARD_ENFORCEMENT_PERMIT_TTL_SECONDS", "90")
+	t.Setenv("TRANSACTION_GUARD_STATE_RECHECK_COURT_RISK_THRESHOLD", "25")
 }
 
-func TestFinishTransactionGuardV3ResponseIssuesStateBoundPermitV2(t *testing.T) {
+func TestFinishTransactionGuardV3ResponseIssuesPolicyBoundPermitV3(t *testing.T) {
 	configureGuardPermitSigner(t, true)
 	input, assessment, witness := completeGuardResponseFixture(t)
 	recorder := httptest.NewRecorder()
@@ -93,12 +95,18 @@ func TestFinishTransactionGuardV3ResponseIssuesStateBoundPermitV2(t *testing.T) 
 		t.Fatalf("state witness missing from response: %#v", response["state_witness"])
 	}
 	permit, ok := response["enforcement_permit"].(map[string]any)
-	if !ok || permit["version"] != transactionGuardStateBoundPermitVersion {
-		t.Fatalf("state-bound permit missing: %#v", response["enforcement_permit"])
+	if !ok || permit["version"] != transactionGuardPolicyBoundPermitVersion {
+		t.Fatalf("policy-bound permit missing: %#v", response["enforcement_permit"])
 	}
 	claims, ok := permit["claims"].(map[string]any)
 	if !ok || claims["state_witness_hash"] != witness.BindingHash || claims["state_account_root_sha256"] != witness.AccountRoot {
 		t.Fatalf("permit does not bind witness: %#v", permit)
+	}
+	if claims["state_recheck_policy_version"] != transactionGuardStateRecheckPolicyVersion || claims["guard_risk_index"] != float64(0) || claims["state_recheck_court_risk_threshold"] != float64(25) {
+		t.Fatalf("permit does not bind recheck policy: %#v", claims)
+	}
+	if _, exists := claims["state_recheck_court_required_witnesses"]; exists {
+		t.Fatalf("optional Court policy unexpectedly requires witnesses: %#v", claims)
 	}
 }
 
