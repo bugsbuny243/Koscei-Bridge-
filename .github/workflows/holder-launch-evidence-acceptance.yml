@@ -1,0 +1,59 @@
+name: Holder and Launch Evidence Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/services/holder_role_snapshot.go"
+      - "koschei/api/internal/services/holder_role_snapshot_test.go"
+      - "koschei/api/internal/handlers/holder_distribution_transport.go"
+      - "koschei/api/internal/handlers/holder_distribution_transport_test.go"
+      - "koschei/api/internal/handlers/holder_intelligence_core.go"
+      - "koschei/api/internal/handlers/creator_relation_canonical_verification.go"
+      - "koschei/api/internal/handlers/creator_relation_canonical_verification_test.go"
+      - "koschei/api/internal/handlers/creator_source_context_resolution.go"
+      - ".github/workflows/holder-launch-evidence-acceptance.yml"
+  pull_request:
+    paths:
+      - "koschei/api/internal/services/holder_role_snapshot.go"
+      - "koschei/api/internal/services/holder_role_snapshot_test.go"
+      - "koschei/api/internal/handlers/holder_distribution_transport.go"
+      - "koschei/api/internal/handlers/holder_distribution_transport_test.go"
+      - "koschei/api/internal/handlers/holder_intelligence_core.go"
+      - "koschei/api/internal/handlers/creator_relation_canonical_verification.go"
+      - "koschei/api/internal/handlers/creator_relation_canonical_verification_test.go"
+      - "koschei/api/internal/handlers/creator_source_context_resolution.go"
+      - ".github/workflows/holder-launch-evidence-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-contract:
+    name: Prove provider-neutral holder and creator launch evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f0260f5c3f1f8a9ef0f9f
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Download modules
+        run: go mod download
+      - name: Run holder snapshot contract tests
+        run: |
+          set -euo pipefail
+          go test -v ./internal/services \
+            -run '^(TestAnalyzeSolanaHolderRolesSnapshotIsProviderNeutral|TestSolanaHolderOwnerAddressesPreservesExactCaseAndOrder|TestAnalyzeSolanaHolderRolesSnapshotFailsClosedWhenDominantOwnerMetadataMissing)$' \
+            -count=1
+      - name: Run RPC-managed holder and creator verification tests
+        run: |
+          set -euo pipefail
+          go test -v ./internal/handlers \
+            -run '^(TestHolderDistributionTransportUsesOnlySolanaRPCProof|TestVerifyCanonicalCreatorRelationRequiresSignerMintAndLaunchSemantics|TestVerifyCanonicalCreatorRelationRejectsNonSigner|TestVerifyCanonicalCreatorRelationRejectsWrongMint)$' \
+            -count=1
