@@ -1,0 +1,44 @@
+name: Temporary PR797 gofmt
+
+on:
+  push:
+    branches:
+      - feat/funding-cluster-outcome-memory-v1
+    paths:
+      - "koschei/api/internal/services/persistent_funding_cluster_outcomes.go"
+      - "koschei/api/internal/services/persistent_funding_cluster_outcomes_postgres_test.go"
+      - ".github/workflows/tmp-pr797-gofmt.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/funding-cluster-outcome-memory-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache: false
+      - name: Format only PR797 files
+        run: |
+          set -euo pipefail
+          gofmt -w \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes.go \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes_postgres_test.go
+          if git diff --quiet -- \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes.go \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes_postgres_test.go; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes.go \
+            koschei/api/internal/services/persistent_funding_cluster_outcomes_postgres_test.go
+          git commit -m "style(actor-memory): gofmt funding outcome memory"
+          git push origin HEAD:feat/funding-cluster-outcome-memory-v1
