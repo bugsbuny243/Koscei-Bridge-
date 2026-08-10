@@ -38,14 +38,14 @@ type CampaignGenomeSnapshot struct {
 }
 
 type CampaignGenomePatternMatch struct {
-	ActorWallet       string    `json:"actor_wallet"`
-	GenomeID          string    `json:"genome_id"`
-	SnapshotKey       string    `json:"snapshot_key"`
-	EvidenceHash      string    `json:"evidence_hash_sha256"`
-	RecordHash        string    `json:"record_hash"`
-	DescriptorCount   int       `json:"descriptor_count"`
-	VerifiedAnchors   int       `json:"verified_signature_backed_count"`
-	ObservedAt        time.Time `json:"observed_at"`
+	ActorWallet     string    `json:"actor_wallet"`
+	GenomeID        string    `json:"genome_id"`
+	SnapshotKey     string    `json:"snapshot_key"`
+	EvidenceHash    string    `json:"evidence_hash_sha256"`
+	RecordHash      string    `json:"record_hash"`
+	DescriptorCount int       `json:"descriptor_count"`
+	VerifiedAnchors int       `json:"verified_signature_backed_count"`
+	ObservedAt      time.Time `json:"observed_at"`
 }
 
 type CampaignGenomeMatchReport struct {
@@ -88,8 +88,8 @@ func PersistCampaignGenomeSnapshot(ctx context.Context, db *sql.DB, genome Actor
 		return snapshot, false, err
 	}
 
-	var id string
-	var createdAt time.Time
+	var id, recordHash string
+	var observedAt, createdAt time.Time
 	err = db.QueryRowContext(ctx, `
 		INSERT INTO security_campaign_genome_index (
 			snapshot_key,schema_version,genome_version,network,actor_wallet,genome_id,
@@ -100,27 +100,30 @@ func PersistCampaignGenomeSnapshot(ctx context.Context, db *sql.DB, genome Actor
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17,$18,now()
 		)
 		ON CONFLICT (snapshot_key) DO NOTHING
-		RETURNING id::text,created_at`,
+		RETURNING id::text,record_hash,observed_at,created_at`,
 		snapshot.SnapshotKey, snapshot.SchemaVersion, snapshot.GenomeVersion, snapshot.Network,
 		snapshot.ActorWallet, snapshot.GenomeID, snapshot.PatternHashSHA256, snapshot.EvidenceHashSHA256,
 		snapshot.DescriptorCount, snapshot.VerifiedDescriptorCount, snapshot.ObservedDescriptorCount,
 		snapshot.VerifiedSignatureBackedCount, snapshot.WatchDescriptorCount,
 		string(descriptorsRaw), string(watchRaw), string(policyRaw), snapshot.RecordHash, snapshot.ObservedAt,
-	).Scan(&id, &createdAt)
+	).Scan(&id, &recordHash, &observedAt, &createdAt)
 	if err == sql.ErrNoRows {
 		err = db.QueryRowContext(ctx, `
-			SELECT id::text,created_at FROM security_campaign_genome_index WHERE snapshot_key=$1`, snapshot.SnapshotKey).
-			Scan(&id, &createdAt)
+			SELECT id::text,record_hash,observed_at,created_at
+			FROM security_campaign_genome_index WHERE snapshot_key=$1`, snapshot.SnapshotKey).
+			Scan(&id, &recordHash, &observedAt, &createdAt)
 		if err != nil {
 			return snapshot, false, err
 		}
-		snapshot.ID, snapshot.CreatedAt = id, createdAt.UTC()
+		snapshot.ID, snapshot.RecordHash = id, recordHash
+		snapshot.ObservedAt, snapshot.CreatedAt = observedAt.UTC(), createdAt.UTC()
 		return snapshot, false, nil
 	}
 	if err != nil {
 		return snapshot, false, err
 	}
-	snapshot.ID, snapshot.CreatedAt = id, createdAt.UTC()
+	snapshot.ID, snapshot.RecordHash = id, recordHash
+	snapshot.ObservedAt, snapshot.CreatedAt = observedAt.UTC(), createdAt.UTC()
 	return snapshot, true, nil
 }
 
@@ -245,8 +248,10 @@ func campaignGenomeSnapshotKey(snapshot CampaignGenomeSnapshot) string {
 }
 
 func campaignGenomeSnapshotRecordHash(snapshot CampaignGenomeSnapshot) string {
+	// observed_at/created_at are collection metadata, not snapshot identity. A
+	// repeated persist of identical evidence must produce the same record hash.
 	snapshot.ID, snapshot.RecordHash, snapshot.SnapshotKey = "", "", ""
-	snapshot.CreatedAt = time.Time{}
+	snapshot.ObservedAt, snapshot.CreatedAt = time.Time{}, time.Time{}
 	payload, _ := json.Marshal(snapshot)
 	digest := sha256.Sum256(payload)
 	return "sha256:" + hex.EncodeToString(digest[:])
