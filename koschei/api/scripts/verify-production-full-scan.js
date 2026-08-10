@@ -61,7 +61,7 @@ async function fetchProductionScan(controller) {
         headers: {
           accept: 'application/json',
           'content-type': 'application/json',
-          'user-agent': 'koschei-production-full-scan-acceptance/1.1.3',
+          'user-agent': 'koschei-production-full-scan-acceptance/1.4.0',
         },
         body: JSON.stringify({ mint, network: 'solana-mainnet' }),
         signal: controller.signal,
@@ -143,7 +143,7 @@ async function main() {
     if (String(finalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`nested_final_verdict_${field}_mismatch`);
     if (String(topFinalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`top_final_verdict_${field}_mismatch`);
   }
-  if (String(decision.ruleset_version || '') !== 'koschei-unified-radar-rules-v1.1.1') throw new Error('unified_ruleset_not_v111');
+  if (String(decision.ruleset_version || '') !== 'koschei-unified-radar-rules-v1.4.0') throw new Error('unified_ruleset_not_v140');
   if (number(decision.grade_determining_rule_count) !== gradeDetermining.length) throw new Error('grade_determining_count_mismatch');
   if (number(decision.triggered_evidence_group_count) !== triggeredGroups.length) throw new Error('triggered_group_count_mismatch');
   if (number(decision.supporting_evidence_group_count) !== supporting.length) throw new Error('supporting_group_count_mismatch');
