@@ -1,0 +1,86 @@
+name: Verified Incident Corpus Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/services/security_incident_corpus.go"
+      - "koschei/api/internal/services/security_incident_corpus_test.go"
+      - "koschei/api/internal/services/security_incident_corpus_postgres_test.go"
+      - "koschei/api/internal/services/actor_exit_events.go"
+      - "koschei/api/internal/services/security_radar_store.go"
+      - "koschei/api/migrations/095_security_incident_corpus.sql"
+      - "koschei/api/migrations/096_security_incident_corpus_materialization.sql"
+      - ".github/workflows/incident-corpus-acceptance.yml"
+  pull_request:
+    paths:
+      - "koschei/api/internal/services/security_incident_corpus.go"
+      - "koschei/api/internal/services/security_incident_corpus_test.go"
+      - "koschei/api/internal/services/security_incident_corpus_postgres_test.go"
+      - "koschei/api/internal/services/actor_exit_events.go"
+      - "koschei/api/internal/services/security_radar_store.go"
+      - "koschei/api/migrations/095_security_incident_corpus.sql"
+      - "koschei/api/migrations/096_security_incident_corpus_materialization.sql"
+      - ".github/workflows/incident-corpus-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  incident-corpus:
+    name: Prove verified incident memory is convergent and immutable
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_incident_corpus_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_incident_corpus_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Download modules
+        run: go mod download
+      - name: Verify migration numbering
+        run: |
+          set -euo pipefail
+          python3 scripts/check_migration_numbering.py
+      - name: Apply migrations on PostgreSQL 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "applying ${migration}"
+            psql \
+              --host=127.0.0.1 \
+              --port=5432 \
+              --username=postgres \
+              --dbname=koschei_incident_corpus_ci \
+              --set=ON_ERROR_STOP=1 \
+              --file="${migration}" >/dev/null
+          done
+      - name: Run incident corpus contract tests
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_incident_corpus_ci?sslmode=disable
+        run: |
+          set -euo pipefail
+          go test -v ./internal/services \
+            -run '^(TestSecurityIncidentCorpusPostgres17|TestSecurityIncidentCorpusIdentityIsDeterministicAndVersioned|TestSecurityIncidentCorpusRejectsIncompleteEvidenceReferences|TestSecurityIncidentCorpusMaterialRiskNormalization)$' \
+            -count=1
