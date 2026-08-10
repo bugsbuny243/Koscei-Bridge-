@@ -5,28 +5,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"koschei/api/internal/web3"
 )
 
+// solanaRPCURL is intentionally provider-neutral. Handler collectors must use
+// the same canonical transport resolver as the rest of Koschei so an explicit
+// SOLANA_RPC_URL (including a future Koschei-owned RPC) wins without detector
+// changes. The legacy apiKey argument remains only as a compatibility fallback
+// for deployments that have not migrated away from ALCHEMY_API_KEY yet.
 func solanaRPCURL(network string, apiKey string) string {
-	if apiKey != "" {
-		switch strings.ToLower(network) {
-		case "solana-mainnet", "mainnet", "mainnet-beta", "solana-mainnet-beta":
-			return "https://solana-mainnet.g.alchemy.com/v2/" + apiKey
-		case "solana-devnet", "devnet":
-			return "https://solana-devnet.g.alchemy.com/v2/" + apiKey
-		case "solana-testnet", "testnet":
-			return "https://solana-testnet.g.alchemy.com/v2/" + apiKey
-		}
-	}
-
-	switch strings.ToLower(network) {
-	case "solana-mainnet", "mainnet", "mainnet-beta", "solana-mainnet-beta":
-		return "https://api.mainnet-beta.solana.com"
-	case "solana-testnet", "testnet":
-		return "https://api.testnet.solana.com"
-	default:
-		return "https://api.devnet.solana.com"
-	}
+	return web3.SolanaRPCURL(network, strings.TrimSpace(apiKey))
 }
 
 func aiProviderConfigured() bool {
