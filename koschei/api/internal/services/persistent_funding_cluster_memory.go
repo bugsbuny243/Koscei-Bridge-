@@ -139,16 +139,16 @@ func LoadPersistentFundingClusterHistory(ctx context.Context, db *sql.DB, subjec
 				  AND verification_status IN ('verified','observed')
 			)
 		)
-		SELECT wallet,bbool_or(direct_subject_source)
+		SELECT wallet,bool_or(direct_subject_source)
 		FROM candidates
 		WHERE btrim(wallet)<>''
 		GROUP BY wallet
-		ORDER BY bbool_or(direct_subject_source) DESC,wallet ASC
+		ORDER BY bool_or(direct_subject_source) DESC,wallet ASC
 		LIMIT $3`, network, subject, sourceLimit)
 	if err != nil {
 		// Keep a missing/partially migrated actor schema from taking down the
 		// unified investigation surface.
-		if isSecurityRadarMissingRelation(err) || strings.Contains(strings.ToLower(err.Error()), "bbool_or") {
+		if isSecurityRadarMissingRelation(err) {
 			return NewPersistentFundingClusterUnavailableReport(subject, network, "source_unavailable", "Persistent funding-cluster source schema is unavailable."), nil
 		}
 		return out, err
