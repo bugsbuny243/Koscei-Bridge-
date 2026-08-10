@@ -61,7 +61,7 @@ async function fetchProductionScan(controller) {
         headers: {
           accept: 'application/json',
           'content-type': 'application/json',
-          'user-agent': 'koschei-production-full-scan-acceptance/1.1.2',
+          'user-agent': 'koschei-production-full-scan-acceptance/1.1.3',
         },
         body: JSON.stringify({ mint, network: 'solana-mainnet' }),
         signal: controller.signal,
@@ -155,6 +155,7 @@ async function main() {
     'holder_distribution', 'holder_intelligence', 'holder_cluster', 'launch_forensics', 'market',
     'lp_control', 'jupiter_market_context', 'exit_liquidity', 'program_security', 'actor_investigation',
     'full_scan_live_evidence', 'evidence_references', 'threat_anticipation',
+    'verified_incident_corpus', 'campaign_genome_matches', 'behavioral_signatures',
   ];
   for (const section of requiredReportSections) requireObject(report[section], `report_${section}`);
 
@@ -171,9 +172,33 @@ async function main() {
   const holder = requireObject(report.holder_intelligence, 'holder_intelligence');
   const launch = requireObject(report.launch_forensics, 'launch_forensics');
   const market = requireObject(report.market, 'market');
+  const incidentCorpus = requireObject(report.verified_incident_corpus, 'verified_incident_corpus');
+  const genomeMatches = requireObject(report.campaign_genome_matches, 'campaign_genome_matches');
+  const behavioralSignatures = requireObject(report.behavioral_signatures, 'behavioral_signatures');
+  const evidencePolicy = requireObject(report.evidence_policy, 'evidence_policy');
+  const genomeMatchItems = requireArray(genomeMatches.matches, 'campaign_genome_matches_matches');
+  const behaviorMatches = requireArray(behavioralSignatures.matches, 'behavioral_signatures_matches');
+  requireArray(incidentCorpus.records, 'verified_incident_corpus_records');
+
+  if (incidentCorpus.verdict_authority !== false) throw new Error('incident_corpus_gained_verdict_authority');
+  if (incidentCorpus.real_world_identity_claim !== false) throw new Error('incident_corpus_gained_identity_claim');
+  if (incidentCorpus.wrongdoing_claim !== false) throw new Error('incident_corpus_gained_wrongdoing_claim');
+  if (genomeMatches.verdict_authority !== false) throw new Error('campaign_genome_matches_gained_verdict_authority');
+  if (genomeMatches.same_operator_claim !== false) throw new Error('campaign_genome_matches_gained_operator_claim');
+  if (genomeMatches.real_world_identity_claim !== false) throw new Error('campaign_genome_matches_gained_identity_claim');
+  const behaviorPolicy = requireObject(behavioralSignatures.policy, 'behavioral_signature_policy');
+  if (behaviorPolicy.verdict_authority !== false || behaviorPolicy.grade_authority !== false || behaviorPolicy.guard_block_authority !== false) {
+    throw new Error('behavioral_signatures_gained_decision_authority');
+  }
+  for (const flag of ['incident_corpus_can_change_grade', 'campaign_genome_matches_can_change_grade', 'behavioral_signatures_can_change_grade']) {
+    if (evidencePolicy[flag] !== false) throw new Error(`${flag}_must_be_false`);
+  }
+  for (const match of behaviorMatches) {
+    if (match?.grade_eligible === true || match?.verdict_authority === true) throw new Error('behavioral_signature_match_gained_authority');
+  }
 
   const artifact = {
-    schema_version: 'koschei-production-full-scan-result-v2',
+    schema_version: 'koschei-production-full-scan-result-v3',
     generated_at: new Date().toISOString(),
     elapsed_ms: Date.now() - startedAt,
     endpoint: `${baseURL}/api/token/scan`,
@@ -186,6 +211,8 @@ async function main() {
       analysis_summary_schema: summary.schema_version,
       report_schema: report.schema_version,
       final_verdict_consistent: true,
+      persistent_intelligence_surfaces_present: true,
+      persistent_intelligence_is_non_authoritative: true,
     },
     legacy_token_surface: pick(payload, [
       'score', 'risk_level', 'final_policy', 'verdict_withheld', 'supply', 'decimals',
@@ -217,6 +244,26 @@ async function main() {
     unresolved_questions: unresolved,
     recommended_actions: actions,
     final_verdict: finalVerdict,
+    persistent_intelligence: {
+      verified_incident_corpus: pick(incidentCorpus, [
+        'available', 'complete', 'status', 'record_count', 'distinct_target_count', 'distinct_actor_count',
+        'verdict_authority', 'real_world_identity_claim', 'wrongdoing_claim', 'limitations',
+      ]),
+      campaign_genome_matches: {
+        ...pick(genomeMatches, [
+          'available', 'complete', 'status', 'match_count', 'other_actor_count', 'pattern_hash_sha256',
+          'verdict_authority', 'same_operator_claim', 'real_world_identity_claim', 'wrongdoing_claim', 'limitations',
+        ]),
+        matches: genomeMatchItems,
+      },
+      behavioral_signatures: {
+        ...pick(behavioralSignatures, [
+          'version', 'status', 'complete', 'triggered_count', 'verified_supported_count', 'watch_count',
+          'campaign_genome_id', 'campaign_pattern_hash_sha256', 'policy', 'limitations',
+        ]),
+        matches: behaviorMatches,
+      },
+    },
     evidence_surfaces: {
       holder: pick(holder, ['available', 'status', 'top_1_percentage', 'top_10_percentage', 'circulating_supply', 'final_verdict_blocked', 'limitations']),
       launch: pick(launch, ['available', 'status', 'launch_time', 'age_seconds', 'creator_wallet', 'findings', 'limitations']),
@@ -232,6 +279,8 @@ async function main() {
         live_requested: actorRun.live_requested,
         funding_origin_persistence: actorRun.funding_origin_persistence,
         rule_verdict_persistence: actorRun.rule_verdict_persistence,
+        campaign_genome_persistence: actorInvestigation.campaign_genome_persistence,
+        behavioral_signature_status: behavioralSignatures.status,
         limitations: actorRun.limitations,
       },
       full_scan_live_evidence: pick(liveEvidence, [
@@ -262,6 +311,9 @@ async function main() {
   console.log(`FULL_SCAN_ARMS=verified:${number(coverage.verified)},observed:${number(coverage.observed)},inferred:${number(coverage.inferred)},pending:${number(coverage.pending)},not_applicable:${number(coverage.not_applicable)}`);
   console.log(`FULL_SCAN_LIVE_STATUS=${String(liveEvidence.status || 'unknown')}`);
   console.log(`FULL_SCAN_ACTOR_STATUS=${String(actorRun.status || 'unknown')}`);
+  console.log(`FULL_SCAN_INCIDENT_CORPUS_STATUS=${String(incidentCorpus.status || 'unknown')}`);
+  console.log(`FULL_SCAN_GENOME_MATCH_STATUS=${String(genomeMatches.status || 'unknown')}`);
+  console.log(`FULL_SCAN_BEHAVIOR_SIGNATURE_STATUS=${String(behavioralSignatures.status || 'unknown')}`);
   console.log('PRODUCTION_FULL_SCAN_ACCEPTED=true');
 }
 
