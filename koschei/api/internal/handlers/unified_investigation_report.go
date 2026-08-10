@@ -12,23 +12,25 @@ import (
 const unifiedInvestigationSchemaVersion = "koschei-unified-investigation-v1"
 
 type unifiedInvestigationAssembly struct {
-	Report           map[string]any
-	Core             holderIntelligenceCoreResult
-	DB               *sql.DB
-	Store            *services.ActorDefenseStore
-	Creator          string
-	ActorDossier     services.ActorDefenseDossier
-	ActorTrack       services.ActorDefenseTrack
-	ActorVerdict     services.ActorDefenseRuleVerdict
-	Behavior         services.UnifiedRadarBehaviorReport
-	UnifiedVerdict   services.UnifiedRadarVerdict
-	Threat           services.ThreatAnticipationReport
-	CombinedEvidence []services.ActorDefenseEvidenceRecord
-	Modules          []map[string]any
-	Structural       map[string]any
-	Graph            any
-	TradeLedger      map[string]any
-	ActorStoreStatus string
+	Report            map[string]any
+	Core              holderIntelligenceCoreResult
+	DB                *sql.DB
+	Store             *services.ActorDefenseStore
+	Creator           string
+	ActorDossier      services.ActorDefenseDossier
+	ActorTrack        services.ActorDefenseTrack
+	ActorVerdict      services.ActorDefenseRuleVerdict
+	CampaignGenome    services.ActorCampaignGenome
+	OperationalMemory services.ActorOperationalMemoryReport
+	Behavior          services.UnifiedRadarBehaviorReport
+	UnifiedVerdict    services.UnifiedRadarVerdict
+	Threat            services.ThreatAnticipationReport
+	CombinedEvidence  []services.ActorDefenseEvidenceRecord
+	Modules           []map[string]any
+	Structural        map[string]any
+	Graph             any
+	TradeLedger       map[string]any
+	ActorStoreStatus  string
 }
 
 type unifiedActorInvestigationRun struct {
@@ -254,6 +256,25 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			actorRun.Limitations = append(actorRun.Limitations, "Deterministik actor rule verdict kalıcı actor index'e yazılamadı.")
 		}
 	}
+
+	campaignGenome := services.BuildActorCampaignGenome(actorDossier)
+	operationalMemory := services.ActorOperationalMemoryReport{
+		Wallet: creator, Network: network, Available: false, Status: "not_investigated",
+		Matches: []services.ActorOperationalMatch{}, GeneratedAt: now,
+		Policy: map[string]any{
+			"real_world_identity_claim": false,
+			"same_operator_claim":       false,
+			"verdict_authority":         false,
+		},
+	}
+	if store != nil && creator != "" {
+		if loaded, err := store.LoadOperationalMemoryMatches(ctx, creator, network, 25); err == nil {
+			operationalMemory = loaded
+		} else {
+			operationalMemory.Status = "unavailable"
+		}
+	}
+
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
 	if h.DB != nil {
 		_ = services.CaptureHolderConcentrationObservation(ctx, h.DB, network, target, core.Intelligence, now)
@@ -295,6 +316,8 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"current_token_distribution": distributionRun,
 			"token_lifecycle_recurrence": actorLifecycle,
 			"exit_event_recurrence":      actorExit,
+			"campaign_genome":            campaignGenome,
+			"operational_memory":         operationalMemory,
 			// Backward-compatible token live-wallet coverage retained for existing UI clients.
 			"live_wallet_evidence":     liveEvidence.WalletCoverage,
 			"rule_verdict_persistence": actorRun.RuleVerdictPersistence,
@@ -315,12 +338,15 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"verified_actor_evidence_can_change_verdict": true,
 			"funding_recurrence_can_change_grade":        false,
 			"exit_event_recurrence_can_change_grade":     false,
+			"campaign_genome_can_change_verdict":         false,
+			"operational_memory_can_change_grade":        false,
 		},
 	}
 	_ = h.persistDossierSourceSnapshot(ctx, report)
 	return unifiedInvestigationAssembly{
 		Report: report, Core: core, DB: db, Store: store, Creator: creator,
 		ActorDossier: actorDossier, ActorTrack: actorTrack, ActorVerdict: actorVerdict,
+		CampaignGenome: campaignGenome, OperationalMemory: operationalMemory,
 		Behavior: behavior, UnifiedVerdict: unifiedVerdict, Threat: threat,
 		CombinedEvidence: combinedEvidence, Modules: modules, Structural: structural,
 		Graph: graph, TradeLedger: tradeLedger, ActorStoreStatus: actorStoreStatus,
