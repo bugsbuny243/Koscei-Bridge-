@@ -82,6 +82,15 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"Persistent funding-cluster memory query failed without changing the deterministic verdict.",
 		)
 	}
+	fundingClusterOutcomes, fundingOutcomeErr := services.LoadPersistentFundingClusterOutcomes(ctx, db, wallet, network, 100)
+	if fundingOutcomeErr != nil {
+		fundingClusterOutcomes = services.NewPersistentFundingClusterOutcomeUnavailableReport(
+			wallet,
+			network,
+			"query_failed",
+			"Persistent funding-cluster token outcome query failed without changing the deterministic verdict.",
+		)
+	}
 	report := map[string]any{
 		"ok":                        true,
 		"schema_version":            "koschei-unified-wallet-investigation-v1",
@@ -113,6 +122,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"funding_origin":             funding,
 			"funding_origin_persistence": fundingPersistence,
 			"funding_cluster_memory":     fundingClusterMemory,
+			"funding_cluster_outcomes":   fundingClusterOutcomes,
 			"actor_live_evidence":        coverage,
 			"live_evidence":              coverage,
 			"evidence_graph":             evidenceGraph,
@@ -132,6 +142,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"identity_scope":                         "onchain_wallet_only",
 			"same_campaign_genome_not_identity":      true,
 			"shared_funder_is_not_operator_identity": true,
+			"inactive_lifecycle_is_not_rug_claim":    true,
 			"caller_type_changes_evidence":           false,
 		},
 	}
@@ -155,6 +166,7 @@ func attachCanonicalWalletIntegrationCoverage(report map[string]any) {
 	put("created_mint_portfolio", canonicalStatusFromRaw("Created-mint portfolio discovery and RPC verification", external["created_mint_portfolio"], live, true, "actor_investigation.external_discovery.created_mint_portfolio"))
 	put("funding_origin", canonicalStatusFromRaw("Actor funding origin", actor["funding_origin"], live, true, "actor_investigation.funding_origin"))
 	put("persistent_funding_cluster_memory", canonicalStatusFromRaw("Persistent funding-cluster memory", actor["funding_cluster_memory"], live, false, "actor_investigation.funding_cluster_memory"))
+	put("persistent_funding_cluster_outcomes", canonicalStatusFromRaw("Persistent funding-cluster token outcomes", actor["funding_cluster_outcomes"], live, false, "actor_investigation.funding_cluster_outcomes"))
 	put("actor_live_transaction_evidence", canonicalStatusFromRaw("Actor live transaction evidence", actor["actor_live_evidence"], live, true, "actor_investigation.actor_live_evidence"))
 	put("persistent_actor_dossier", canonicalStatusFromDossier(actor["dossier"], live))
 	put("actor_evidence_graph", canonicalStatusFromGraph(actor["evidence_graph"], live))
