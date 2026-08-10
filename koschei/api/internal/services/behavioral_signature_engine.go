@@ -8,20 +8,20 @@ import (
 const BehavioralSignatureEngineVersion = "koschei-behavioral-signatures-v1"
 
 type BehavioralSignatureMatch struct {
-	SignatureID       string   `json:"signature_id"`
-	Label             string   `json:"label"`
-	Triggered         bool     `json:"triggered"`
-	Status            string   `json:"status"`
-	EvidenceStatus    string   `json:"evidence_status"`
-	GradeEligible     bool     `json:"grade_eligible"`
-	VerdictAuthority  bool     `json:"verdict_authority"`
-	ActorWallets      []string `json:"actor_wallets"`
-	Targets           []string `json:"targets"`
-	FundingSources    []string `json:"funding_sources"`
-	IncidentKeys      []string `json:"incident_keys"`
-	EvidenceRefs      []string `json:"evidence_refs"`
-	Explanation       string   `json:"explanation"`
-	Limitations       []string `json:"limitations"`
+	SignatureID      string   `json:"signature_id"`
+	Label            string   `json:"label"`
+	Triggered        bool     `json:"triggered"`
+	Status           string   `json:"status"`
+	EvidenceStatus   string   `json:"evidence_status"`
+	GradeEligible    bool     `json:"grade_eligible"`
+	VerdictAuthority bool     `json:"verdict_authority"`
+	ActorWallets     []string `json:"actor_wallets"`
+	Targets          []string `json:"targets"`
+	FundingSources   []string `json:"funding_sources"`
+	IncidentKeys     []string `json:"incident_keys"`
+	EvidenceRefs     []string `json:"evidence_refs"`
+	Explanation      string   `json:"explanation"`
+	Limitations      []string `json:"limitations"`
 }
 
 type BehavioralSignatureReport struct {
@@ -41,11 +41,16 @@ type BehavioralSignatureReport struct {
 	Limitations            []string                   `json:"limitations"`
 }
 
-// BuildBehavioralSignatureReport turns already-persisted Koschei memory into
-// named, versioned behavior families. v1 is context-only: no signature changes a
-// token grade or Guard decision. Exact-address recurrence may be VERIFIED when
-// immutable corpus references exist; indirect operational overlap remains watch-only.
 func BuildBehavioralSignatureReport(currentTarget string, actorHistory SecurityIncidentCorpusView, funding FundingClusterOutcomeMemory, genome ActorCampaignGenome, operational ActorOperationalMemoryReport) BehavioralSignatureReport {
+	return BuildBehavioralSignatureReportWithGenomeMatches(currentTarget, actorHistory, funding, genome, operational, CampaignGenomeMatchReport{})
+}
+
+// BuildBehavioralSignatureReportWithGenomeMatches turns already-persisted
+// Koschei memory into named, versioned behavior families. v1 is context-only:
+// no signature changes a token grade or Guard decision. Exact-address recurrence
+// may be VERIFIED when immutable corpus references exist; indirect operational
+// or cross-wallet genome overlap remains watch-only.
+func BuildBehavioralSignatureReportWithGenomeMatches(currentTarget string, actorHistory SecurityIncidentCorpusView, funding FundingClusterOutcomeMemory, genome ActorCampaignGenome, operational ActorOperationalMemoryReport, genomeMatches CampaignGenomeMatchReport) BehavioralSignatureReport {
 	network := normalizeRadarNetwork(actorHistory.Network)
 	if strings.TrimSpace(network) == "" {
 		network = normalizeRadarNetwork(funding.Network)
@@ -60,15 +65,16 @@ func BuildBehavioralSignatureReport(currentTarget string, actorHistory SecurityI
 		Matches: []BehavioralSignatureMatch{}, Limitations: []string{},
 		CampaignGenomeID: strings.TrimSpace(genome.GenomeID), CampaignPatternHash: strings.TrimSpace(genome.PatternHashSHA256),
 		Policy: map[string]any{
-			"verdict_authority":                       false,
-			"grade_authority":                         false,
-			"guard_block_authority":                   false,
-			"real_world_identity_claim":               false,
-			"same_operator_claim":                     false,
-			"wrongdoing_claim":                        false,
-			"exact_actor_recurrence_is_onchain_only":  true,
-			"operational_overlap_is_watch_only":       true,
+			"verdict_authority":                        false,
+			"grade_authority":                          false,
+			"guard_block_authority":                    false,
+			"real_world_identity_claim":                false,
+			"same_operator_claim":                      false,
+			"wrongdoing_claim":                         false,
+			"exact_actor_recurrence_is_onchain_only":   true,
+			"operational_overlap_is_watch_only":        true,
 			"campaign_genome_is_technical_anchor_only": true,
+			"cross_wallet_genome_match_is_watch_only":  true,
 		},
 	}
 
@@ -77,6 +83,7 @@ func BuildBehavioralSignatureReport(currentTarget string, actorHistory SecurityI
 		behaviorSignatureRepeatedEventFamily(actorHistory),
 		behaviorSignatureFundingOutcomeReuse(funding),
 		behaviorSignatureOperationalRotationWatch(operational),
+		behaviorSignatureCrossWalletGenomeMatch(genomeMatches),
 	)
 	for _, match := range out.Matches {
 		if !match.Triggered {
@@ -99,6 +106,9 @@ func BuildBehavioralSignatureReport(currentTarget string, actorHistory SecurityI
 	}
 	if !genome.Complete {
 		out.Limitations = append(out.Limitations, "A verified-supported campaign genome anchor is not available for the current actor; cross-address genome matching is not attempted.")
+	} else if !genomeMatches.Complete && genomeMatches.Status != "" && genomeMatches.Status != "no_pattern_match" {
+		out.Complete = false
+		out.Limitations = append(out.Limitations, "Campaign genome index matching is incomplete; cross-wallet technical-pattern absence is not conclusive.")
 	}
 	out.Limitations = append(out.Limitations,
 		"Behavior signatures summarize retained evidence patterns; they do not identify a real-world person or prove common control across different wallets.",
@@ -143,10 +153,10 @@ func behaviorSignatureExactActorMultiIncident(history SecurityIncidentCorpusView
 func behaviorSignatureRepeatedEventFamily(history SecurityIncidentCorpusView) BehavioralSignatureMatch {
 	match := newBehaviorSignature("KOSCH-BEH-002", "Repeated verified incident event family")
 	type family struct {
-		actors map[string]bool
+		actors  map[string]bool
 		targets map[string]bool
-		keys map[string]bool
-		refs map[string]bool
+		keys    map[string]bool
+		refs    map[string]bool
 	}
 	families := map[string]*family{}
 	for _, record := range history.Records {
@@ -252,6 +262,35 @@ func behaviorSignatureOperationalRotationWatch(operational ActorOperationalMemor
 		match.EvidenceStatus = "observed"
 		match.Explanation = "Persistent actor memory contains repeated operational overlap with other on-chain wallet addresses."
 		match.Limitations = append(match.Limitations, "Different wallet addresses are not merged into one actor. This is an address-rotation investigation candidate only and never an identity claim.")
+	}
+	return match
+}
+
+func behaviorSignatureCrossWalletGenomeMatch(genomeMatches CampaignGenomeMatchReport) BehavioralSignatureMatch {
+	match := newBehaviorSignature("KOSCH-BEH-005", "Same technical campaign genome across different wallet addresses")
+	actors := map[string]bool{}
+	refs := map[string]bool{}
+	for _, item := range genomeMatches.Matches {
+		if actor := strings.TrimSpace(item.ActorWallet); actor != "" {
+			actors[actor] = true
+		}
+		if key := strings.TrimSpace(item.SnapshotKey); key != "" {
+			refs[key] = true
+		}
+		if hash := strings.TrimSpace(item.RecordHash); hash != "" {
+			refs[hash] = true
+		}
+	}
+	match.ActorWallets = sortedBehaviorKeys(actors)
+	match.EvidenceRefs = sortedBehaviorKeys(refs)
+	if genomeMatches.Available && genomeMatches.MatchCount > 0 && len(match.ActorWallets) > 0 {
+		match.Triggered = true
+		match.Status = "observed_watch"
+		match.EvidenceStatus = "observed"
+		match.Explanation = "The current verified-supported technical campaign genome has the same normalized pattern hash as snapshots from other wallet addresses."
+		match.Limitations = append(match.Limitations,
+			"The genome pattern excludes counterpart addresses and token mints, so this is useful against address rotation; however, the match proves technical-pattern similarity only and never common control or identity.",
+		)
 	}
 	return match
 }
