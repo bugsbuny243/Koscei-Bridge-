@@ -10,35 +10,35 @@ import "strings"
 // Token holdings MUST NOT grant evidence mutation, verdict override, compiler
 // bypass, Sentinel promotion, privilege expansion, or integration approval.
 const (
-	koschCapabilityIdentityProof       = "identity.proof"
-	koschCapabilityBasicSecurityScan   = "security.scan.basic"
-	koschCapabilityAdvancedRadar       = "security.radar.advanced"
-	koschCapabilityExposureReport      = "security.exposure.report"
-	koschCapabilityActorGraph          = "intelligence.actor_graph"
-	koschCapabilityEvidenceExport      = "intelligence.evidence_export"
-	koschCapabilityWatchlist           = "security.watchlist"
-	koschCapabilityWebhooks            = "developer.webhooks"
-	koschCapabilityDeveloperAPI        = "developer.api"
-	koschCapabilityAdvancedAgents      = "developer.deterministic_agents"
-	koschCapabilityContributionSubmit  = "security.contribution.submit"
+	koschCapabilityIdentityProof      = "identity.proof"
+	koschCapabilityBasicSecurityScan  = "security.scan.basic"
+	koschCapabilityAdvancedRadar      = "security.radar.advanced"
+	koschCapabilityExposureReport     = "security.exposure.report"
+	koschCapabilityActorGraph         = "intelligence.actor_graph"
+	koschCapabilityEvidenceExport     = "intelligence.evidence_export"
+	koschCapabilityWatchlist          = "security.watchlist"
+	koschCapabilityWebhooks           = "developer.webhooks"
+	koschCapabilityDeveloperAPI       = "developer.api"
+	koschCapabilityAdvancedAgents     = "developer.deterministic_agents"
+	koschCapabilityContributionSubmit = "security.contribution.submit"
 )
 
 // These names are deliberately reserved as non-grantable powers. Keeping the
 // deny set explicit makes accidental future token-authority expansion testable.
 var koschNeverGrantCapabilities = map[string]struct{}{
-	"evidence.write":            {},
-	"evidence.mutate":           {},
-	"verdict.override":          {},
-	"verdict.lower_risk":        {},
-	"verdict.publish_bypass":    {},
-	"capability.grant":          {},
-	"capability.expand":         {},
-	"compiler.bypass":           {},
-	"compiler.policy_override":  {},
-	"sentinel.promote":          {},
-	"sentinel.deploy":           {},
+	"evidence.write":             {},
+	"evidence.mutate":            {},
+	"verdict.override":           {},
+	"verdict.lower_risk":         {},
+	"verdict.publish_bypass":     {},
+	"capability.grant":           {},
+	"capability.expand":          {},
+	"compiler.bypass":            {},
+	"compiler.policy_override":   {},
+	"sentinel.promote":           {},
+	"sentinel.deploy":            {},
 	"sentinel.verdict_authority": {},
-	"integration.approve":       {},
+	"integration.approve":        {},
 }
 
 var koschTierCapabilities = map[string][]string{
