@@ -62,12 +62,12 @@ func NewPersistentFundingClusterUnavailableReport(subject, network, status, limi
 		status = "source_unavailable"
 	}
 	out := PersistentFundingClusterReport{
-		Version: PersistentFundingClusterMemoryVersion,
-		Network: normalizeRadarNetwork(network),
+		Version:       PersistentFundingClusterMemoryVersion,
+		Network:       normalizeRadarNetwork(network),
 		SubjectWallet: strings.TrimSpace(subject),
-		Status: status,
-		Sources: []PersistentFundingSourceHistory{},
-		Limitations: []string{},
+		Status:        status,
+		Sources:       []PersistentFundingSourceHistory{},
+		Limitations:   []string{},
 	}
 	if strings.TrimSpace(limitation) != "" {
 		out.Limitations = append(out.Limitations, strings.TrimSpace(limitation))
@@ -91,12 +91,12 @@ func LoadPersistentFundingClusterHistory(ctx context.Context, db *sql.DB, subjec
 		memberLimit = 25
 	}
 	out := PersistentFundingClusterReport{
-		Version: PersistentFundingClusterMemoryVersion,
-		Network: network,
+		Version:       PersistentFundingClusterMemoryVersion,
+		Network:       network,
 		SubjectWallet: subject,
-		Status: "no_persistent_funding_source_observed",
-		Complete: true,
-		Sources: []PersistentFundingSourceHistory{},
+		Status:        "no_persistent_funding_source_observed",
+		Complete:      true,
+		Sources:       []PersistentFundingSourceHistory{},
 		Limitations: []string{
 			"Shared funding-source evidence is an on-chain wallet relation and does not prove common control, common identity, intent or wrongdoing.",
 			"initial_funding_in requires a completed funding-history walk; oldest_funding_in_window remains bounded-window evidence.",
@@ -191,10 +191,10 @@ func LoadPersistentFundingClusterHistory(ctx context.Context, db *sql.DB, subjec
 
 func loadPersistentFundingSourceHistory(ctx context.Context, db *sql.DB, network, funder string, directSource bool, memberLimit int) (PersistentFundingSourceHistory, error) {
 	out := PersistentFundingSourceHistory{
-		Wallet: strings.TrimSpace(funder),
+		Wallet:                strings.TrimSpace(funder),
 		DirectSourceOfSubject: directSource,
-		EvidenceStatus: "observed_supported",
-		Members: []PersistentFundingClusterMember{},
+		EvidenceStatus:        "observed_supported",
+		Members:               []PersistentFundingClusterMember{},
 		Limitations: []string{
 			"Members are grouped by a shared observed funding-source wallet only; the grouping is not an operator-identity claim.",
 		},
