@@ -1,0 +1,88 @@
+name: Campaign Genome Index Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/services/actor_campaign_genome.go"
+      - "koschei/api/internal/services/campaign_genome_index.go"
+      - "koschei/api/internal/services/campaign_genome_index_test.go"
+      - "koschei/api/internal/services/campaign_genome_index_postgres_test.go"
+      - "koschei/api/internal/services/behavioral_signature_engine.go"
+      - "koschei/api/internal/services/behavioral_signature_engine_test.go"
+      - "koschei/api/internal/services/behavioral_signature_genome_match_test.go"
+      - "koschei/api/migrations/097_campaign_genome_index.sql"
+      - ".github/workflows/campaign-genome-acceptance.yml"
+  pull_request:
+    paths:
+      - "koschei/api/internal/services/actor_campaign_genome.go"
+      - "koschei/api/internal/services/campaign_genome_index.go"
+      - "koschei/api/internal/services/campaign_genome_index_test.go"
+      - "koschei/api/internal/services/campaign_genome_index_postgres_test.go"
+      - "koschei/api/internal/services/behavioral_signature_engine.go"
+      - "koschei/api/internal/services/behavioral_signature_engine_test.go"
+      - "koschei/api/internal/services/behavioral_signature_genome_match_test.go"
+      - "koschei/api/migrations/097_campaign_genome_index.sql"
+      - ".github/workflows/campaign-genome-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-genome:
+    name: Prove technical genome memory is immutable and non-attributive
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_campaign_genome_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_campaign_genome_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Download modules
+        run: go mod download
+      - name: Verify migration numbering
+        run: |
+          set -euo pipefail
+          python3 scripts/check_migration_numbering.py
+      - name: Apply migrations on PostgreSQL 17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "applying ${migration}"
+            psql \
+              --host=127.0.0.1 \
+              --port=5432 \
+              --username=postgres \
+              --dbname=koschei_campaign_genome_ci \
+              --set=ON_ERROR_STOP=1 \
+              --file="${migration}" >/dev/null
+          done
+      - name: Run campaign genome contract tests
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_campaign_genome_ci?sslmode=disable
+        run: |
+          set -euo pipefail
+          go test -v ./internal/services \
+            -run '^(TestCampaignGenomeIndexPostgres17|TestCampaignGenomeSnapshotIdentityIgnoresObservationTime|TestCampaignGenomeSnapshotRejectsObservedOnlyGenome|TestCampaignGenomeMatchReportDoesNotClaimOperatorIdentity|TestBehavioralSignatureEngineSeparatesVerifiedAndWatchFamilies|TestBehavioralSignatureEngineDoesNotMergeDifferentActorsIntoVerifiedRecurrence|TestBehavioralSignatureGenomeMatchIsWatchOnly)$' \
+            -count=1
