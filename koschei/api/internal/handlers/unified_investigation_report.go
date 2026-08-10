@@ -336,9 +336,11 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			actorIncidentHistory = loaded
 		}
 	}
-	behavioralSignatures := services.BuildBehavioralSignatureReportWithTrajectory(
+	fundingTrajectory := services.LoadPersistentFundingTrajectoryGraphForBehavior(ctx, db, creator, network)
+	campaignTempo := services.BuildCampaignTempoFingerprint(fundingTrajectory)
+	behavioralSignatures := services.BuildBehavioralSignatureReportWithTempo(
 		target, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory, campaignGenomeMatches,
-		services.LoadPersistentFundingTrajectoryGraphForBehavior(ctx, db, creator, network),
+		fundingTrajectory, campaignTempo,
 	)
 
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
@@ -366,6 +368,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"funding_cluster_history":      fundingOutcomeMemory,
 		"verified_incident_corpus":     incidentCorpus,
 		"campaign_genome_matches":      campaignGenomeMatches,
+		"campaign_tempo_fingerprint":   campaignTempo,
 		"behavioral_signatures":        behavioralSignatures,
 		"launch_forensics":             core.LaunchForensics, "market": core.Market,
 		"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,
@@ -390,6 +393,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"campaign_genome_snapshot":    campaignGenomeSnapshot,
 			"campaign_genome_persistence": campaignGenomePersistence,
 			"campaign_genome_matches":     campaignGenomeMatches,
+			"campaign_tempo_fingerprint":  campaignTempo,
 			"operational_memory":          operationalMemory,
 			"funding_outcome_memory":      fundingOutcomeMemory,
 			"incident_corpus":             incidentCorpus,
@@ -420,6 +424,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"operational_memory_can_change_grade":        false,
 			"funding_outcome_memory_can_change_grade":    false,
 			"incident_corpus_can_change_grade":           false,
+			"campaign_tempo_can_change_grade":            false,
 			"behavioral_signatures_can_change_grade":     false,
 		},
 	}

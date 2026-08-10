@@ -18,7 +18,7 @@ func TestCampaignTempoFingerprintRecurringVerifiedPathsTriggerWatchOnly(t *testi
 			tempoLifecycleEdge("ActorA", "TokenA", base.Add(20*time.Minute), base.Add(50*time.Minute), base.Add(55*time.Minute)),
 			tempoEdge("ActorA", "wallet", "TokenA", "token", "exit_event", "liquidity_removal", "verified", base.Add(50*time.Minute), "exit-a", nil),
 
-			tempoEdge("Funder1", "wallet", "ActorB", "wallet", "funding", "funded_actor", "verified", base.Add(2*time.Hour), "fund-b", nil),
+			tempoEdge("Funder1", "wallet", "ActorB", "wallet", "funding", "funded_actor", "verified", base.Add(12*time.Hour), "fund-b", nil),
 			tempoEdge("ActorB", "wallet", "TokenB", "token", "creation", "created_token", "verified", base.Add(12*time.Hour+10*time.Minute), "create-b", nil),
 			tempoLifecycleEdge("ActorB", "TokenB", base.Add(12*time.Hour+20*time.Minute), base.Add(12*time.Hour+50*time.Minute), base.Add(12*time.Hour+55*time.Minute)),
 			tempoEdge("ActorB", "wallet", "TokenB", "token", "exit_event", "liquidity_removal", "verified", base.Add(12*time.Hour+50*time.Minute), "exit-b", nil),

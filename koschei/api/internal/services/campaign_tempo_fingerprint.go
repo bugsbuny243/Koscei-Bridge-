@@ -10,28 +10,28 @@ import (
 )
 
 const (
-	CampaignTempoFingerprintVersion  = "koschei-campaign-tempo-fingerprint-v1"
-	BehavioralSignatureTempoVersion  = "koschei-behavioral-signatures-v1.2"
-	BehavioralSignatureTempoID       = "KOSCH-BEH-007"
+	CampaignTempoFingerprintVersion = "koschei-campaign-tempo-fingerprint-v1"
+	BehavioralSignatureTempoVersion = "koschei-behavioral-signatures-v1.2"
+	BehavioralSignatureTempoID      = "KOSCH-BEH-007"
 )
 
 type CampaignTempoPath struct {
-	FundingSourceWallet              string   `json:"funding_source_wallet"`
-	ActorWallet                      string   `json:"actor_wallet"`
-	TokenMint                        string   `json:"token_mint"`
-	TerminalFamily                   string   `json:"terminal_family"`
-	FundingObservedAt                string   `json:"funding_observed_at"`
-	CreationObservedAt               string   `json:"creation_observed_at"`
-	FirstLiquidityObservedAt         string   `json:"first_liquidity_observed_at"`
-	TerminalObservedAt               string   `json:"terminal_observed_at"`
-	FundingToCreationSeconds         int64    `json:"funding_to_creation_seconds"`
-	CreationToFirstLiquiditySeconds  int64    `json:"creation_to_first_liquidity_seconds"`
-	FirstLiquidityToTerminalSeconds  int64    `json:"first_liquidity_to_terminal_seconds"`
-	FundingToCreationBin             string   `json:"funding_to_creation_bin"`
-	CreationToFirstLiquidityBin      string   `json:"creation_to_first_liquidity_bin"`
-	FirstLiquidityToTerminalBin      string   `json:"first_liquidity_to_terminal_bin"`
-	TempoProfile                     string   `json:"tempo_profile"`
-	EvidenceRefs                     []string `json:"evidence_refs"`
+	FundingSourceWallet             string   `json:"funding_source_wallet"`
+	ActorWallet                     string   `json:"actor_wallet"`
+	TokenMint                       string   `json:"token_mint"`
+	TerminalFamily                  string   `json:"terminal_family"`
+	FundingObservedAt               string   `json:"funding_observed_at"`
+	CreationObservedAt              string   `json:"creation_observed_at"`
+	FirstLiquidityObservedAt        string   `json:"first_liquidity_observed_at"`
+	TerminalObservedAt              string   `json:"terminal_observed_at"`
+	FundingToCreationSeconds        int64    `json:"funding_to_creation_seconds"`
+	CreationToFirstLiquiditySeconds int64    `json:"creation_to_first_liquidity_seconds"`
+	FirstLiquidityToTerminalSeconds int64    `json:"first_liquidity_to_terminal_seconds"`
+	FundingToCreationBin            string   `json:"funding_to_creation_bin"`
+	CreationToFirstLiquidityBin     string   `json:"creation_to_first_liquidity_bin"`
+	FirstLiquidityToTerminalBin     string   `json:"first_liquidity_to_terminal_bin"`
+	TempoProfile                    string   `json:"tempo_profile"`
+	EvidenceRefs                    []string `json:"evidence_refs"`
 }
 
 type CampaignTempoFingerprintReport struct {
@@ -464,7 +464,7 @@ func campaignTempoMetadataTime(metadata map[string]any, key string) (time.Time, 
 	case time.Time:
 		return typed.UTC(), true
 	default:
-		return parseCampaignTempoTime(strings.TrimSpace(toString(typed)))
+		return time.Time{}, false
 	}
 }
 
