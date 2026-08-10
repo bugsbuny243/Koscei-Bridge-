@@ -8,7 +8,9 @@ import (
 )
 
 // OwnerKOSCHAccessV2 returns the current wallet verification and latest KOSCH
-// snapshot without depending on legacy package or credit data.
+// snapshot without depending on legacy package or credit data. Token holdings
+// expose access/capacity capabilities only; they never expose evidence, verdict,
+// compiler, model-promotion or integration authority.
 func (h *Handler) OwnerKOSCHAccessV2(w http.ResponseWriter, r *http.Request) {
 	db := h.DBRead
 	if db == nil {
@@ -96,6 +98,7 @@ func (h *Handler) OwnerKOSCHAccessV2(w http.ResponseWriter, r *http.Request) {
 			"id": id, "auth_subject": subject, "email": email,
 			"wallet_address": wallet, "status": status, "created_at": created,
 			"wallet_verified": verifiedAt.Valid, "tier": tier, "amount": amount,
+			"security_capabilities": koschSecurityCapabilitiesForTier(tier),
 		}
 		if verifiedAt.Valid {
 			item["verified_at"] = verifiedAt.Time
@@ -113,9 +116,22 @@ func (h *Handler) OwnerKOSCHAccessV2(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "users": users, "summary": counts,
 		"mint_address": configuredKoscheiTokenMint(),
 		"thresholds": map[string]string{
-			"basic":      tokenTierThresholdEnv("KOSCHEI_TOKEN_TIER_BASIC", "0.000001"),
+			"basic":      tokenTierThresholdEnv("KOSCHEI_TOKEN_TIER_BASIC", "25000"),
 			"pro":        tokenTierThresholdEnv("KOSCHEI_TOKEN_TIER_PRO", "250000"),
 			"enterprise": tokenTierThresholdEnv("KOSCHEI_TOKEN_TIER_ENTERPRISE", "2000000"),
+		},
+		"security_policy": map[string]any{
+			"version": "kosch-security-v1",
+			"authority_model": "access_and_coordination_only",
+			"fail_closed": true,
+			"never_grants": []string{
+				"evidence mutation",
+				"verdict override",
+				"capability expansion",
+				"compiler bypass",
+				"Sentinel promotion/deployment authority",
+				"integration approval",
+			},
 		},
 	})
 }
