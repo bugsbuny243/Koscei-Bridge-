@@ -76,7 +76,7 @@ func TestPersistentFundingClusterOutcomesPostgres17(t *testing.T) {
 			Relation: "created_token", VerificationStatus: status,
 			EvidenceKey: fmt.Sprintf("created-%d-%d", nonce, index), Source: "funding_cluster_outcome_test",
 			ObservedAt: baseTime.Add(time.Duration(index+2) * time.Hour),
-			Metadata: map[string]any{"actor_role": "creator_deployer", "persistent_actor_index": true},
+			Metadata:   map[string]any{"actor_role": "creator_deployer", "persistent_actor_index": true},
 		}
 	}
 	put(created(creatorA, tokenA, "verified", 1))
