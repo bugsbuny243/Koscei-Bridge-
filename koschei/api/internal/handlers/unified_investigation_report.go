@@ -24,6 +24,8 @@ type unifiedInvestigationAssembly struct {
 	OperationalMemory    services.ActorOperationalMemoryReport
 	FundingOutcomeMemory services.FundingClusterOutcomeMemory
 	IncidentCorpus       services.SecurityIncidentCorpusView
+	ActorIncidentHistory services.SecurityIncidentCorpusView
+	BehavioralSignatures services.BehavioralSignatureReport
 	Behavior             services.UnifiedRadarBehaviorReport
 	UnifiedVerdict       services.UnifiedRadarVerdict
 	Threat               services.ThreatAnticipationReport
@@ -280,11 +282,27 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	incidentCorpus, incidentCorpusErr := services.LoadSecurityIncidentCorpus(ctx, db, network, target, "", 50)
 	if incidentCorpusErr != nil {
 		incidentCorpus = services.SecurityIncidentCorpusView{
-			Network: network, Target: target, Status: "unavailable", Records: []services.SecurityIncidentCorpusRecord{},
+			Network: network, Target: target, Complete: false, Status: "unavailable", Records: []services.SecurityIncidentCorpusRecord{},
 			VerdictAuthority: false, RealWorldIdentityClaim: false, WrongdoingClaim: false,
 			Limitations: []string{"Verified incident corpus could not be read; no incident-memory claim was emitted."},
 		}
 	}
+	actorIncidentHistory := services.SecurityIncidentCorpusView{
+		Network: network, ActorWallet: creator, Complete: true, Status: "actor_unavailable",
+		Records: []services.SecurityIncidentCorpusRecord{}, VerdictAuthority: false, RealWorldIdentityClaim: false, WrongdoingClaim: false,
+		Limitations: []string{},
+	}
+	if creator != "" {
+		loaded, err := services.LoadSecurityIncidentCorpus(ctx, db, network, "", creator, 100)
+		if err != nil {
+			actorIncidentHistory.Complete = false
+			actorIncidentHistory.Status = "unavailable"
+			actorIncidentHistory.Limitations = append(actorIncidentHistory.Limitations, "Cross-token verified incident history could not be read for the current creator.")
+		} else {
+			actorIncidentHistory = loaded
+		}
+	}
+	behavioralSignatures := services.BuildBehavioralSignatureReport(target, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory)
 
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
 	if h.DB != nil {
@@ -310,6 +328,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"holder_concentration_context": holderConcentrationContext,
 		"funding_cluster_history":      fundingOutcomeMemory,
 		"verified_incident_corpus":     incidentCorpus,
+		"behavioral_signatures":        behavioralSignatures,
 		"launch_forensics":             core.LaunchForensics, "market": core.Market,
 		"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,
 		"exit_liquidity": core.ExitLiquidity, "program_security": unifiedProgramSecuritySurface(core.SourceContext),
@@ -333,6 +352,8 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"operational_memory":         operationalMemory,
 			"funding_outcome_memory":     fundingOutcomeMemory,
 			"incident_corpus":            incidentCorpus,
+			"actor_incident_history":     actorIncidentHistory,
+			"behavioral_signatures":      behavioralSignatures,
 			// Backward-compatible token live-wallet coverage retained for existing UI clients.
 			"live_wallet_evidence":     liveEvidence.WalletCoverage,
 			"rule_verdict_persistence": actorRun.RuleVerdictPersistence,
@@ -357,6 +378,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"operational_memory_can_change_grade":        false,
 			"funding_outcome_memory_can_change_grade":    false,
 			"incident_corpus_can_change_grade":           false,
+			"behavioral_signatures_can_change_grade":     false,
 		},
 	}
 	_ = h.persistDossierSourceSnapshot(ctx, report)
@@ -365,6 +387,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		ActorDossier: actorDossier, ActorTrack: actorTrack, ActorVerdict: actorVerdict,
 		CampaignGenome: campaignGenome, OperationalMemory: operationalMemory,
 		FundingOutcomeMemory: fundingOutcomeMemory, IncidentCorpus: incidentCorpus,
+		ActorIncidentHistory: actorIncidentHistory, BehavioralSignatures: behavioralSignatures,
 		Behavior: behavior, UnifiedVerdict: unifiedVerdict, Threat: threat,
 		CombinedEvidence: combinedEvidence, Modules: modules, Structural: structural,
 		Graph: graph, TradeLedger: tradeLedger, ActorStoreStatus: actorStoreStatus,
