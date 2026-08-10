@@ -5,8 +5,11 @@ import (
 	"strings"
 )
 
-func resolvedArvisProvider() string {
-	rpcURL := strings.ToLower(strings.TrimSpace(os.Getenv("SOLANA_RPC_URL")))
+// providerFromSolanaRPCURL classifies provenance from the endpoint that was
+// actually used/configured. Unknown/private endpoints deliberately collapse to
+// solana_rpc instead of being mislabeled as a commercial provider.
+func providerFromSolanaRPCURL(raw string) string {
+	rpcURL := strings.ToLower(strings.TrimSpace(raw))
 	switch {
 	case strings.Contains(rpcURL, "alchemy"):
 		return "alchemy"
@@ -21,6 +24,10 @@ func resolvedArvisProvider() string {
 	default:
 		return "unconfigured"
 	}
+}
+
+func resolvedArvisProvider() string {
+	return providerFromSolanaRPCURL(os.Getenv("SOLANA_RPC_URL"))
 }
 
 func applyResolvedArvisProvider(bundle SecurityRadarBundle) SecurityRadarBundle {
