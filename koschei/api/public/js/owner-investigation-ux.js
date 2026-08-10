@@ -5,7 +5,10 @@ window.__koscheiOwnerInvestigationUXV1=true;
 
 const text=value=>String(value??'').replace(/\s+/g,' ').trim();
 const upper=value=>text(value).toUpperCase();
+const arr=value=>Array.isArray(value)?value:[];
+const obj=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const el=(tag,className,content)=>{const node=document.createElement(tag);if(className)node.className=className;if(content!==undefined)node.textContent=content;return node;};
+const short=(value,head=8,tail=6)=>{const raw=text(value);return raw.length>head+tail+3?`${raw.slice(0,head)}…${raw.slice(-tail)}`:raw||'—';};
 
 function chipValue(card,prefix){
   const wanted=upper(prefix);
@@ -22,6 +25,11 @@ function sectionByKicker(card,label){
     const kicker=section.querySelector('.arvis-kicker');
     return kicker&&upper(kicker.textContent).includes(wanted);
   })||null;
+}
+
+function currentReport(){
+  const payload=obj(window.OwnerRadarKit?.lastScan);
+  return obj(payload.investigation_report||payload.report||payload);
 }
 
 function policyCopy(policy,materialCount,reviewCount){
@@ -83,11 +91,74 @@ function installDecisionLens(card){
   head.insertAdjacentElement('afterend',lens);
 }
 
+function installCampaignIntelligence(card){
+  if(card.dataset.campaignUx==='v1')return;
+  const report=currentReport();
+  const tempo=obj(report.campaign_tempo_fingerprint);
+  const signatures=obj(report.behavioral_signatures);
+  if(!Object.keys(tempo).length&&!Object.keys(signatures).length)return;
+  card.dataset.campaignUx='v1';
+
+  const grid=card.querySelector('.arvis-premium-grid');
+  if(!grid)return;
+  const section=el('article','arvis-premium-section full koschei-operator-intelligence koschei-ux-section-target');
+  const head=el('div','arvis-section-head');
+  const headCopy=el('div','');
+  headCopy.append(el('span','arvis-kicker','OPERATOR INTELLIGENCE'),el('h3','','Funding trajectory & recurring campaign behavior'),el('p','','Cross-wallet correlations are investigation context only. They do not identify a real-world operator or prove common control, intent, a rug, or wrongdoing.'));
+  head.appendChild(headCopy);section.appendChild(head);
+
+  const statGrid=el('div','koschei-operator-stats');
+  const stat=(label,value)=>{const item=el('div','koschei-operator-stat');item.append(el('span','',label),el('strong','',String(value??'—')));statGrid.appendChild(item);};
+  stat('Tempo paths',tempo.path_count??0);
+  stat('Distinct actors',tempo.distinct_actor_count??0);
+  stat('Distinct tokens',tempo.distinct_token_count??0);
+  stat('Funding sources',tempo.distinct_funding_source_count??0);
+  section.appendChild(statGrid);
+
+  const matches=arr(signatures.matches).filter(match=>match?.triggered===true);
+  const list=el('div','koschei-operator-list');
+  if(matches.length){
+    for(const match of matches.slice(0,8)){
+      const row=el('div','koschei-operator-row');
+      const title=el('div','koschei-operator-row__title');
+      title.append(el('strong','',text(match.signature_id||'Behavior family')),el('span','',text(match.status||match.evidence_status||'observed')));
+      row.append(title,el('b','',text(match.label||'Recurring technical behavior')),el('p','',text(match.explanation||'Evidence-backed behavior family observed.')));
+      const facts=el('div','koschei-operator-row__facts');
+      const actorCount=arr(match.actor_wallets).length,tokenCount=arr(match.targets).length,funderCount=arr(match.funding_sources).length;
+      if(actorCount)facts.appendChild(el('span','',`${actorCount} actor${actorCount===1?'':'s'}`));
+      if(tokenCount)facts.appendChild(el('span','',`${tokenCount} token${tokenCount===1?'':'s'}`));
+      if(funderCount)facts.appendChild(el('span','',`${funderCount} funder${funderCount===1?'':'s'}`));
+      facts.appendChild(el('span','',match.verdict_authority===true?'verdict authority':'watch/context only'));
+      row.appendChild(facts);list.appendChild(row);
+    }
+  }else{
+    list.appendChild(el('div','arvis-empty',tempo.available===true?'No recurring behavior family triggered for the retained campaign paths.':'No complete verified campaign-tempo path is available yet.'));
+  }
+  section.appendChild(list);
+
+  const paths=arr(tempo.paths);
+  if(paths.length){
+    const detail=document.createElement('details');detail.className='koschei-tempo-details';
+    const summary=el('summary','',`Inspect ${paths.length} verified tempo path${paths.length===1?'':'s'}`);detail.appendChild(summary);
+    const pathList=el('div','koschei-tempo-paths');
+    for(const path of paths.slice(0,12)){
+      const row=el('div','koschei-tempo-path');
+      row.append(el('b','',`${short(path.funding_source_wallet)} → ${short(path.actor_wallet)} → ${short(path.token_mint)}`),el('span','',text(path.tempo_profile||path.terminal_family||'verified path')));
+      pathList.appendChild(row);
+    }
+    detail.appendChild(pathList);section.appendChild(detail);
+  }
+
+  const ruleSection=sectionByKicker(card,'EXPLAINABLE VERDICT');
+  if(ruleSection)grid.insertBefore(section,ruleSection);else grid.appendChild(section);
+}
+
 function installEvidenceNavigator(card){
-  if(card.querySelector('.koschei-evidence-nav'))return;
+  card.querySelector('.koschei-evidence-nav')?.remove();
   const targets=[
     ['Findings','MATERIAL FINDINGS'],
     ['Funding','HOLDER CLUSTER EVIDENCE'],
+    ['Operator intel','OPERATOR INTELLIGENCE'],
     ['Token controls','TOKEN-2022 SECURITY GATE'],
     ['Exits','EXIT DESTINATIONS'],
     ['Rule trace','EXPLAINABLE VERDICT']
@@ -123,6 +194,7 @@ function installRuleDisclosure(card){
 function enhance(root=document){
   root.querySelectorAll?.('[data-arvis-premium-card]').forEach(card=>{
     installDecisionLens(card);
+    installCampaignIntelligence(card);
     installEvidenceNavigator(card);
     installRuleDisclosure(card);
   });
