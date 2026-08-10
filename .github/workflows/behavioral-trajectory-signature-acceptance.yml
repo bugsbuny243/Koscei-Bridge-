@@ -1,0 +1,63 @@
+name: Behavioral Trajectory Signature Acceptance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "koschei/api/internal/services/behavioral_signature_trajectory.go"
+      - "koschei/api/internal/services/behavioral_signature_trajectory_test.go"
+      - "koschei/api/internal/services/persistent_funding_trajectory_graph.go"
+      - "koschei/api/internal/handlers/unified_investigation_report.go"
+      - ".github/workflows/behavioral-trajectory-signature-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/services/behavioral_signature_trajectory.go"
+      - "koschei/api/internal/services/behavioral_signature_trajectory_test.go"
+      - "koschei/api/internal/services/persistent_funding_trajectory_graph.go"
+      - "koschei/api/internal/handlers/unified_investigation_report.go"
+      - ".github/workflows/behavioral-trajectory-signature-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: BEH-006 watch-only trajectory recurrence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Check touched Go formatting
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l \
+            internal/services/behavioral_signature_trajectory.go \
+            internal/services/behavioral_signature_trajectory_test.go \
+            internal/handlers/unified_investigation_report.go)"
+      - name: Download modules
+        run: go mod download
+      - name: Run BEH-006 acceptance tests
+        run: |
+          set -o pipefail
+          go test -v ./internal/services -run '^TestBehavioralSignatureTrajectory' -count=1 2>&1 | tee "${RUNNER_TEMP}/beh006.txt"
+      - name: Compile canonical token investigation package
+        run: go test ./internal/handlers -run '^$' -count=1
+      - name: Upload acceptance log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-trajectory-signature
+          path: ${{ runner.temp }}/beh006.txt
+          if-no-files-found: error
+          retention-days: 7
