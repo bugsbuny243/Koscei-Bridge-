@@ -15,9 +15,15 @@ requireText(html,'/js/owner-investigation-ux.js?v=1','owner html');
 requireText(js,'No deterministic blocking rule fired','policy explanation');
 requireText(js,'ALLOW is not a safety guarantee','allow boundary');
 requireText(js,"['Findings','MATERIAL FINDINGS']",'evidence navigator');
+requireText(js,"['Operator intel','OPERATOR INTELLIGENCE']",'operator intelligence navigator');
 requireText(js,"['Rule trace','EXPLAINABLE VERDICT']",'rule trace navigator');
 requireText(js,"section.classList.add('is-collapsed')",'rule disclosure');
+requireText(js,'campaign_tempo_fingerprint','campaign tempo source');
+requireText(js,'behavioral_signatures','behavior signature source');
+requireText(js,'Cross-wallet correlations are investigation context only','identity boundary');
+requireText(js,"match.verdict_authority===true?'verdict authority':'watch/context only'",'authority display boundary');
 requireText(css,'.koschei-decision-lens','decision lens styles');
+requireText(css,'.koschei-operator-intelligence','operator intelligence styles');
 requireText(css,'.koschei-rule-section.is-collapsed .arvis-rule:nth-child(n+5)','mobile rule compaction');
 
 const premiumIndex=html.indexOf('/js/owner-arvis-premium-suite.js?v=1');
