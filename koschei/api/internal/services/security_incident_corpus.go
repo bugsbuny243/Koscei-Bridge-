@@ -58,6 +58,7 @@ type SecurityIncidentCorpusView struct {
 	Target                 string                         `json:"target,omitempty"`
 	ActorWallet            string                         `json:"actor_wallet,omitempty"`
 	Available              bool                           `json:"available"`
+	Complete               bool                           `json:"complete"`
 	Status                 string                         `json:"status"`
 	RecordCount            int                            `json:"record_count"`
 	DistinctTargetCount    int                            `json:"distinct_target_count"`
@@ -154,12 +155,13 @@ func LoadSecurityIncidentCorpus(ctx context.Context, db *sql.DB, network, target
 		limit = 50
 	}
 	out := SecurityIncidentCorpusView{
-		Network: network, Target: target, ActorWallet: actorWallet, Status: "no_incidents",
+		Network: network, Target: target, ActorWallet: actorWallet, Complete: true, Status: "no_incidents",
 		Records: []SecurityIncidentCorpusRecord{}, VerdictAuthority: false, RealWorldIdentityClaim: false,
 		WrongdoingClaim: false, Limitations: []string{},
 	}
 	if db == nil {
 		out.Status = "database_unavailable"
+		out.Complete = false
 		out.Limitations = append(out.Limitations, "Incident corpus database is unavailable.")
 		return out, nil
 	}
@@ -189,6 +191,7 @@ func LoadSecurityIncidentCorpus(ctx context.Context, db *sql.DB, network, target
 	if err != nil {
 		if isSecurityRadarMissingRelation(err) {
 			out.Status = "schema_unavailable"
+			out.Complete = false
 			return out, nil
 		}
 		return out, err
