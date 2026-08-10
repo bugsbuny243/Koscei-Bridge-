@@ -12,26 +12,27 @@ import (
 const unifiedInvestigationSchemaVersion = "koschei-unified-investigation-v1"
 
 type unifiedInvestigationAssembly struct {
-	Report                map[string]any
-	Core                  holderIntelligenceCoreResult
-	DB                    *sql.DB
-	Store                 *services.ActorDefenseStore
-	Creator               string
-	ActorDossier          services.ActorDefenseDossier
-	ActorTrack            services.ActorDefenseTrack
-	ActorVerdict          services.ActorDefenseRuleVerdict
-	CampaignGenome        services.ActorCampaignGenome
-	OperationalMemory     services.ActorOperationalMemoryReport
-	FundingOutcomeMemory  services.FundingClusterOutcomeMemory
-	Behavior              services.UnifiedRadarBehaviorReport
-	UnifiedVerdict        services.UnifiedRadarVerdict
-	Threat                services.ThreatAnticipationReport
-	CombinedEvidence      []services.ActorDefenseEvidenceRecord
-	Modules               []map[string]any
-	Structural            map[string]any
-	Graph                 any
-	TradeLedger           map[string]any
-	ActorStoreStatus      string
+	Report               map[string]any
+	Core                 holderIntelligenceCoreResult
+	DB                   *sql.DB
+	Store                *services.ActorDefenseStore
+	Creator              string
+	ActorDossier         services.ActorDefenseDossier
+	ActorTrack           services.ActorDefenseTrack
+	ActorVerdict         services.ActorDefenseRuleVerdict
+	CampaignGenome       services.ActorCampaignGenome
+	OperationalMemory    services.ActorOperationalMemoryReport
+	FundingOutcomeMemory services.FundingClusterOutcomeMemory
+	IncidentCorpus       services.SecurityIncidentCorpusView
+	Behavior             services.UnifiedRadarBehaviorReport
+	UnifiedVerdict       services.UnifiedRadarVerdict
+	Threat               services.ThreatAnticipationReport
+	CombinedEvidence     []services.ActorDefenseEvidenceRecord
+	Modules              []map[string]any
+	Structural           map[string]any
+	Graph                any
+	TradeLedger          map[string]any
+	ActorStoreStatus     string
 }
 
 type unifiedActorInvestigationRun struct {
@@ -276,6 +277,14 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		}
 	}
 	fundingOutcomeMemory := services.LoadFundingClusterOutcomeMemory(ctx, db, core.FundingRecurrence)
+	incidentCorpus, incidentCorpusErr := services.LoadSecurityIncidentCorpus(ctx, db, network, target, "", 50)
+	if incidentCorpusErr != nil {
+		incidentCorpus = services.SecurityIncidentCorpusView{
+			Network: network, Target: target, Status: "unavailable", Records: []services.SecurityIncidentCorpusRecord{},
+			VerdictAuthority: false, RealWorldIdentityClaim: false, WrongdoingClaim: false,
+			Limitations: []string{"Verified incident corpus could not be read; no incident-memory claim was emitted."},
+		}
+	}
 
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
 	if h.DB != nil {
@@ -300,6 +309,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"holder_intelligence": core.Intelligence, "holder_cluster": core.Cluster,
 		"holder_concentration_context": holderConcentrationContext,
 		"funding_cluster_history":      fundingOutcomeMemory,
+		"verified_incident_corpus":     incidentCorpus,
 		"launch_forensics":             core.LaunchForensics, "market": core.Market,
 		"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,
 		"exit_liquidity": core.ExitLiquidity, "program_security": unifiedProgramSecuritySurface(core.SourceContext),
@@ -322,6 +332,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"campaign_genome":            campaignGenome,
 			"operational_memory":         operationalMemory,
 			"funding_outcome_memory":     fundingOutcomeMemory,
+			"incident_corpus":            incidentCorpus,
 			// Backward-compatible token live-wallet coverage retained for existing UI clients.
 			"live_wallet_evidence":     liveEvidence.WalletCoverage,
 			"rule_verdict_persistence": actorRun.RuleVerdictPersistence,
@@ -345,13 +356,15 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"campaign_genome_can_change_verdict":         false,
 			"operational_memory_can_change_grade":        false,
 			"funding_outcome_memory_can_change_grade":    false,
+			"incident_corpus_can_change_grade":           false,
 		},
 	}
 	_ = h.persistDossierSourceSnapshot(ctx, report)
 	return unifiedInvestigationAssembly{
 		Report: report, Core: core, DB: db, Store: store, Creator: creator,
 		ActorDossier: actorDossier, ActorTrack: actorTrack, ActorVerdict: actorVerdict,
-		CampaignGenome: campaignGenome, OperationalMemory: operationalMemory, FundingOutcomeMemory: fundingOutcomeMemory,
+		CampaignGenome: campaignGenome, OperationalMemory: operationalMemory,
+		FundingOutcomeMemory: fundingOutcomeMemory, IncidentCorpus: incidentCorpus,
 		Behavior: behavior, UnifiedVerdict: unifiedVerdict, Threat: threat,
 		CombinedEvidence: combinedEvidence, Modules: modules, Structural: structural,
 		Graph: graph, TradeLedger: tradeLedger, ActorStoreStatus: actorStoreStatus,
