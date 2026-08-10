@@ -197,52 +197,54 @@ func BuildCampaignTempoFingerprint(graph PersistentFundingTrajectoryGraph) Campa
 		if !creationOK || !liquidityOK || liquidAt.Before(creation.at) || terminal.at.Before(liquidAt) {
 			continue
 		}
-		funding := latestCampaignTempoFundingBefore(fundingByActor[terminal.actor], creation.at)
-		if funding == nil || creation.at.Before(funding.at) {
-			continue
-		}
+		fundings := latestCampaignTempoFundingByFunderBefore(fundingByActor[terminal.actor], creation.at)
+		for _, funding := range fundings {
+			if creation.at.Before(funding.at) {
+				continue
+			}
 
-		fundingToCreation := int64(creation.at.Sub(funding.at) / time.Second)
-		creationToLiquidity := int64(liquidAt.Sub(creation.at) / time.Second)
-		liquidityToTerminal := int64(terminal.at.Sub(liquidAt) / time.Second)
-		if fundingToCreation < 0 || creationToLiquidity < 0 || liquidityToTerminal < 0 {
-			continue
+			fundingToCreation := int64(creation.at.Sub(funding.at) / time.Second)
+			creationToLiquidity := int64(liquidAt.Sub(creation.at) / time.Second)
+			liquidityToTerminal := int64(terminal.at.Sub(liquidAt) / time.Second)
+			if fundingToCreation < 0 || creationToLiquidity < 0 || liquidityToTerminal < 0 {
+				continue
+			}
+			fundingBin := campaignTempoDurationBin(fundingToCreation)
+			liquidityBin := campaignTempoDurationBin(creationToLiquidity)
+			terminalBin := campaignTempoDurationBin(liquidityToTerminal)
+			profile := terminal.family + "|f2c=" + fundingBin + "|c2l=" + liquidityBin + "|l2t=" + terminalBin
+			refs := []string{}
+			if funding.ref != "" {
+				refs = append(refs, funding.ref)
+			}
+			if creation.ref != "" {
+				refs = append(refs, creation.ref)
+			}
+			if terminal.ref != "" {
+				refs = append(refs, terminal.ref)
+			}
+			if graph.EvidenceHashSHA256 != "" {
+				refs = append(refs, graph.EvidenceHashSHA256)
+			}
+			out.Paths = append(out.Paths, CampaignTempoPath{
+				FundingSourceWallet:             funding.funder,
+				ActorWallet:                     terminal.actor,
+				TokenMint:                       terminal.token,
+				TerminalFamily:                  terminal.family,
+				FundingObservedAt:               funding.at.UTC().Format(time.RFC3339Nano),
+				CreationObservedAt:              creation.at.UTC().Format(time.RFC3339Nano),
+				FirstLiquidityObservedAt:        liquidAt.UTC().Format(time.RFC3339Nano),
+				TerminalObservedAt:              terminal.at.UTC().Format(time.RFC3339Nano),
+				FundingToCreationSeconds:        fundingToCreation,
+				CreationToFirstLiquiditySeconds: creationToLiquidity,
+				FirstLiquidityToTerminalSeconds: liquidityToTerminal,
+				FundingToCreationBin:            fundingBin,
+				CreationToFirstLiquidityBin:     liquidityBin,
+				FirstLiquidityToTerminalBin:     terminalBin,
+				TempoProfile:                    profile,
+				EvidenceRefs:                    uniqueSortedFundingOutcomeStrings(refs),
+			})
 		}
-		fundingBin := campaignTempoDurationBin(fundingToCreation)
-		liquidityBin := campaignTempoDurationBin(creationToLiquidity)
-		terminalBin := campaignTempoDurationBin(liquidityToTerminal)
-		profile := terminal.family + "|f2c=" + fundingBin + "|c2l=" + liquidityBin + "|l2t=" + terminalBin
-		refs := []string{}
-		if funding.ref != "" {
-			refs = append(refs, funding.ref)
-		}
-		if creation.ref != "" {
-			refs = append(refs, creation.ref)
-		}
-		if terminal.ref != "" {
-			refs = append(refs, terminal.ref)
-		}
-		if graph.EvidenceHashSHA256 != "" {
-			refs = append(refs, graph.EvidenceHashSHA256)
-		}
-		out.Paths = append(out.Paths, CampaignTempoPath{
-			FundingSourceWallet:             funding.funder,
-			ActorWallet:                     terminal.actor,
-			TokenMint:                       terminal.token,
-			TerminalFamily:                  terminal.family,
-			FundingObservedAt:               funding.at.UTC().Format(time.RFC3339Nano),
-			CreationObservedAt:              creation.at.UTC().Format(time.RFC3339Nano),
-			FirstLiquidityObservedAt:        liquidAt.UTC().Format(time.RFC3339Nano),
-			TerminalObservedAt:              terminal.at.UTC().Format(time.RFC3339Nano),
-			FundingToCreationSeconds:        fundingToCreation,
-			CreationToFirstLiquiditySeconds: creationToLiquidity,
-			FirstLiquidityToTerminalSeconds: liquidityToTerminal,
-			FundingToCreationBin:            fundingBin,
-			CreationToFirstLiquidityBin:     liquidityBin,
-			FirstLiquidityToTerminalBin:     terminalBin,
-			TempoProfile:                    profile,
-			EvidenceRefs:                    uniqueSortedFundingOutcomeStrings(refs),
-		})
 	}
 
 	sort.SliceStable(out.Paths, func(i, j int) bool {
@@ -404,18 +406,29 @@ func behaviorSignatureCampaignTempoRecurrence(tempo CampaignTempoFingerprintRepo
 	return match
 }
 
-func latestCampaignTempoFundingBefore(events []campaignTempoFundingEvent, before time.Time) *campaignTempoFundingEvent {
-	var selected *campaignTempoFundingEvent
-	for i := range events {
-		if events[i].at.After(before) {
+func latestCampaignTempoFundingByFunderBefore(events []campaignTempoFundingEvent, before time.Time) []campaignTempoFundingEvent {
+	latest := map[string]campaignTempoFundingEvent{}
+	for _, event := range events {
+		funder := strings.TrimSpace(event.funder)
+		if funder == "" || event.at.After(before) {
 			continue
 		}
-		if selected == nil || events[i].at.After(selected.at) || (events[i].at.Equal(selected.at) && events[i].funder < selected.funder) {
-			copy := events[i]
-			selected = &copy
+		current, exists := latest[funder]
+		if !exists || event.at.After(current.at) || (event.at.Equal(current.at) && event.ref < current.ref) {
+			latest[funder] = event
 		}
 	}
-	return selected
+	out := make([]campaignTempoFundingEvent, 0, len(latest))
+	for _, event := range latest {
+		out = append(out, event)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].funder != out[j].funder {
+			return out[i].funder < out[j].funder
+		}
+		return out[i].at.Before(out[j].at)
+	})
+	return out
 }
 
 func campaignTempoDurationBin(seconds int64) string {
