@@ -1,5 +1,6 @@
 name: Funding Cluster Outcome Memory Acceptance
 
+# Dedicated database gate for wallet-first persistent funding trajectory evidence.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
