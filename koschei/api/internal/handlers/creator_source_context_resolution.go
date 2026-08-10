@@ -12,16 +12,31 @@ import (
 // manually submitted mint and the actor investigation pipeline. Existing
 // chain/source evidence always wins. Helius metadata and history are
 // discovery-only: they may start the actor investigation as OBSERVED evidence,
-// but cannot mark the creator relation VERIFIED without canonical RPC signer
-// and instruction verification.
+// but cannot mark the creator relation VERIFIED without canonical RPC signer,
+// mint-reference and launch-semantics verification.
 func (h *Handler) resolveCanonicalCreatorSourceContext(ctx context.Context, target, network, mode string, source map[string]any) map[string]any {
 	out := cloneCreatorSourceContext(source)
-	if creator := strings.TrimSpace(creatorIntelCleanString(out["creator_wallet"])); creator != "" {
-		out["creator_resolution_status"] = "source_context"
-		return out
-	}
 	if !unifiedLiveEvidenceAllowed(mode) {
 		out["creator_resolution_status"] = "not_requested"
+		return out
+	}
+
+	// Existing source context may already contain an externally discovered
+	// creator and create signature. Do not return early: canonical RPC must get a
+	// chance to upgrade that relation from OBSERVED to VERIFIED.
+	if creator := strings.TrimSpace(creatorIntelCleanString(out["creator_wallet"])); creator != "" {
+		signature := strings.TrimSpace(firstNonEmptyString(
+			creatorIntelCleanString(out["creation_signature"]),
+			creatorIntelCleanString(out["launch_signature"]),
+			creatorIntelCleanString(out["first_mint_signature"]),
+			creatorIntelCleanString(out["signature"]),
+		))
+		verification := h.verifyCanonicalCreatorRelation(ctx, target, network, creator, signature)
+		out = applyCanonicalCreatorVerification(out, verification)
+		if verification.Verified {
+			return out
+		}
+		out["creator_resolution_status"] = firstNonEmptyString(creatorIntelCleanString(out["creator_resolution_status"]), "source_context_observed")
 		return out
 	}
 
@@ -67,7 +82,9 @@ func (h *Handler) resolveCanonicalCreatorSourceContext(ctx context.Context, targ
 	if strings.TrimSpace(metadata.FirstMintTransaction) != "" {
 		out["first_mint_signature"] = strings.TrimSpace(metadata.FirstMintTransaction)
 	}
-	return out
+
+	verification := h.verifyCanonicalCreatorRelation(ctx, target, network, metadata.Creator, firstNonEmptyString(metadata.CreateTransaction, metadata.FirstMintTransaction))
+	return applyCanonicalCreatorVerification(out, verification)
 }
 
 func cloneCreatorSourceContext(source map[string]any) map[string]any {
