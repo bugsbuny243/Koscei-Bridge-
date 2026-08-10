@@ -44,40 +44,54 @@ jobs:
               "${BASE_URL}${path}" || true
           }
 
-          version_code="$(probe version /api/version)"
-          config_code="$(probe config /api/config)"
-          health_code="$(probe health /health)"
+          attempts=12
+          version_code="000"
+          config_code="000"
+          health_code="000"
+          for attempt in $(seq 1 "${attempts}"); do
+            version_code="$(probe version /api/version)"
+            config_code="$(probe config /api/config)"
+            health_code="$(probe health /health)"
 
-          {
-            echo "version_code=${version_code}"
-            echo "config_code=${config_code}"
-            echo "health_code=${health_code}"
-          } | tee diagnostics/result.txt
+            {
+              echo "attempt=${attempt}/${attempts}"
+              echo "version_code=${version_code}"
+              echo "config_code=${config_code}"
+              echo "health_code=${health_code}"
+            } | tee diagnostics/result.txt
 
-          if [ "${version_code}" != "200" ]; then
-            echo "TRANSPORT_FAILURE: /api/version did not reach the Railway application (HTTP ${version_code})." >&2
-            exit 11
-          fi
-          grep -Fq '"status":"ok"' diagnostics/version.body || {
-            echo 'APPLICATION_FAILURE: /api/version returned an unexpected body.' >&2
-            exit 12
-          }
+            # A reachable application that explicitly reports dependency
+            # degradation is a real health failure, not a deploy-transition 502.
+            if [ "${health_code}" = "503" ]; then
+              echo 'DATABASE_DEPENDENCY_DEGRADED: transport and application are reachable, but /health reports an unavailable dependency.' >&2
+              exit 14
+            fi
 
-          if [ "${config_code}" != "200" ]; then
-            echo "APPLICATION_CONFIG_FAILURE: /api/config returned HTTP ${config_code}." >&2
-            exit 13
-          fi
+            if [ "${version_code}" = "200" ] && [ "${config_code}" = "200" ] && [ "${health_code}" = "200" ]; then
+              grep -Fq '"status":"ok"' diagnostics/version.body || {
+                echo 'APPLICATION_FAILURE: /api/version returned an unexpected body.' >&2
+                exit 12
+              }
+              echo "PUBLIC_API_HEALTHY: proxy, application and database health checks passed on attempt ${attempt}."
+              exit 0
+            fi
 
-          if [ "${health_code}" = "503" ]; then
-            echo 'DATABASE_DEPENDENCY_DEGRADED: transport and application are reachable, but /health reports an unavailable dependency.' >&2
-            exit 14
-          fi
+            if [ "${attempt}" -lt "${attempts}" ]; then
+              echo "DEPLOY_TRANSITION_OR_TRANSPORT_RETRY: version=${version_code} config=${config_code} health=${health_code} attempt=${attempt}/${attempts}" >&2
+              sleep 5
+            fi
+          done
+
           if [ "${health_code}" != "200" ]; then
-            echo "HEALTH_TRANSPORT_FAILURE: /health returned HTTP ${health_code}." >&2
+            echo "HEALTH_TRANSPORT_FAILURE: /health returned HTTP ${health_code} after ${attempts} attempts." >&2
             exit 15
           fi
-
-          echo 'PUBLIC_API_HEALTHY: proxy, application and database health checks passed.'
+          if [ "${version_code}" != "200" ]; then
+            echo "TRANSPORT_FAILURE: /api/version did not reach the Railway application after ${attempts} attempts (HTTP ${version_code})." >&2
+            exit 11
+          fi
+          echo "APPLICATION_CONFIG_FAILURE: /api/config returned HTTP ${config_code} after ${attempts} attempts." >&2
+          exit 13
 
       - name: Upload transport diagnostics
         if: always()
