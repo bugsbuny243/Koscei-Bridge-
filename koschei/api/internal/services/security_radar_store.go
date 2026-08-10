@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const securityRadarDefaultSource = "solana_rpc"
+
 type SecurityRadarStore struct {
 	DB *sql.DB
 }
@@ -90,7 +92,7 @@ func (s *SecurityRadarStore) InsertEvent(ctx context.Context, event SecurityRada
 	event.TargetType = firstSecurityRadarString(event.TargetType, "unknown")
 	event.Network = normalizeRadarNetwork(event.Network)
 	event.EventType = firstSecurityRadarString(event.EventType, "solana_signature")
-	event.Source = firstSecurityRadarString(event.Source, "alchemy_polling")
+	event.Source = firstSecurityRadarString(event.Source, securityRadarDefaultSource)
 	if event.ModuleID == "" || event.Target == "" {
 		return "", nil
 	}
@@ -128,7 +130,7 @@ func (s *SecurityRadarStore) InsertVerdict(ctx context.Context, verdict Security
 	verdict.TargetType = firstSecurityRadarString(verdict.TargetType, "unknown")
 	verdict.Network = normalizeRadarNetwork(verdict.Network)
 	verdict.RuleVersion = firstSecurityRadarString(verdict.RuleVersion, SecurityRadarRuleVersion)
-	verdict.Source = firstSecurityRadarString(verdict.Source, "alchemy_polling")
+	verdict.Source = firstSecurityRadarString(verdict.Source, securityRadarDefaultSource)
 	if verdict.Provider == "" {
 		verdict.Provider = verdict.Source
 	}
@@ -290,8 +292,6 @@ func (s *SecurityRadarStore) latestVerdictsWindow(ctx context.Context, limit int
 		}
 		if provider, ok := item.Signals["provider"].(string); ok && provider != "" {
 			item.Provider = provider
-		} else if item.Source == "pumpportal" {
-			item.Provider = "alchemy+pumpportal"
 		} else if item.Source != "" {
 			item.Provider = item.Source
 		}
