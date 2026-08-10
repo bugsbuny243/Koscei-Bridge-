@@ -12,29 +12,32 @@ import (
 const unifiedInvestigationSchemaVersion = "koschei-unified-investigation-v1"
 
 type unifiedInvestigationAssembly struct {
-	Report               map[string]any
-	Core                 holderIntelligenceCoreResult
-	DB                   *sql.DB
-	Store                *services.ActorDefenseStore
-	Creator              string
-	ActorDossier         services.ActorDefenseDossier
-	ActorTrack           services.ActorDefenseTrack
-	ActorVerdict         services.ActorDefenseRuleVerdict
-	CampaignGenome       services.ActorCampaignGenome
-	OperationalMemory    services.ActorOperationalMemoryReport
-	FundingOutcomeMemory services.FundingClusterOutcomeMemory
-	IncidentCorpus       services.SecurityIncidentCorpusView
-	ActorIncidentHistory services.SecurityIncidentCorpusView
-	BehavioralSignatures services.BehavioralSignatureReport
-	Behavior             services.UnifiedRadarBehaviorReport
-	UnifiedVerdict       services.UnifiedRadarVerdict
-	Threat               services.ThreatAnticipationReport
-	CombinedEvidence     []services.ActorDefenseEvidenceRecord
-	Modules              []map[string]any
-	Structural           map[string]any
-	Graph                any
-	TradeLedger          map[string]any
-	ActorStoreStatus     string
+	Report                    map[string]any
+	Core                      holderIntelligenceCoreResult
+	DB                        *sql.DB
+	Store                     *services.ActorDefenseStore
+	Creator                   string
+	ActorDossier              services.ActorDefenseDossier
+	ActorTrack                services.ActorDefenseTrack
+	ActorVerdict              services.ActorDefenseRuleVerdict
+	CampaignGenome            services.ActorCampaignGenome
+	CampaignGenomeSnapshot    services.CampaignGenomeSnapshot
+	CampaignGenomePersistence string
+	CampaignGenomeMatches     services.CampaignGenomeMatchReport
+	OperationalMemory         services.ActorOperationalMemoryReport
+	FundingOutcomeMemory      services.FundingClusterOutcomeMemory
+	IncidentCorpus            services.SecurityIncidentCorpusView
+	ActorIncidentHistory      services.SecurityIncidentCorpusView
+	BehavioralSignatures      services.BehavioralSignatureReport
+	Behavior                  services.UnifiedRadarBehaviorReport
+	UnifiedVerdict            services.UnifiedRadarVerdict
+	Threat                    services.ThreatAnticipationReport
+	CombinedEvidence          []services.ActorDefenseEvidenceRecord
+	Modules                   []map[string]any
+	Structural                map[string]any
+	Graph                     any
+	TradeLedger               map[string]any
+	ActorStoreStatus          string
 }
 
 type unifiedActorInvestigationRun struct {
@@ -262,6 +265,37 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	}
 
 	campaignGenome := services.BuildActorCampaignGenome(actorDossier)
+	campaignGenomeSnapshot := services.CampaignGenomeSnapshot{}
+	campaignGenomePersistence := "not_eligible"
+	if campaignGenome.Complete {
+		if liveRequested {
+			if db == nil {
+				campaignGenomePersistence = "database_unavailable"
+			} else if snapshot, inserted, err := services.PersistCampaignGenomeSnapshot(ctx, db, campaignGenome); err != nil {
+				campaignGenomePersistence = "failed"
+			} else {
+				campaignGenomeSnapshot = snapshot
+				if inserted {
+					campaignGenomePersistence = "persisted"
+				} else {
+					campaignGenomePersistence = "already_persisted"
+				}
+			}
+		} else {
+			campaignGenomePersistence = "not_requested_stored_projection"
+		}
+	}
+	campaignGenomeMatches, campaignGenomeMatchErr := services.LoadCampaignGenomePatternMatches(ctx, db, campaignGenome, 25)
+	if campaignGenomeMatchErr != nil {
+		campaignGenomeMatches = services.CampaignGenomeMatchReport{
+			Version: services.CampaignGenomeIndexSchemaVersion, Network: network, ActorWallet: creator,
+			GenomeID: campaignGenome.GenomeID, PatternHashSHA256: campaignGenome.PatternHashSHA256,
+			Complete: false, Status: "unavailable", Matches: []services.CampaignGenomePatternMatch{},
+			VerdictAuthority: false, SameOperatorClaim: false, RealWorldIdentityClaim: false, WrongdoingClaim: false,
+			Limitations: []string{"Campaign genome pattern index could not be read; no cross-wallet genome claim was emitted."},
+		}
+	}
+
 	operationalMemory := services.ActorOperationalMemoryReport{
 		Wallet: creator, Network: network, Available: false, Status: "not_investigated",
 		Matches: []services.ActorOperationalMatch{}, GeneratedAt: now,
@@ -302,7 +336,9 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			actorIncidentHistory = loaded
 		}
 	}
-	behavioralSignatures := services.BuildBehavioralSignatureReport(target, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory)
+	behavioralSignatures := services.BuildBehavioralSignatureReportWithGenomeMatches(
+		target, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory, campaignGenomeMatches,
+	)
 
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
 	if h.DB != nil {
@@ -328,6 +364,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"holder_concentration_context": holderConcentrationContext,
 		"funding_cluster_history":      fundingOutcomeMemory,
 		"verified_incident_corpus":     incidentCorpus,
+		"campaign_genome_matches":      campaignGenomeMatches,
 		"behavioral_signatures":        behavioralSignatures,
 		"launch_forensics":             core.LaunchForensics, "market": core.Market,
 		"lp_control": core.LPControl, "jupiter_market_context": core.JupiterContext,
@@ -340,20 +377,23 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		"actor_investigation": map[string]any{
 			"wallet": creator, "dossier": actorDossier, "rule_verdict": actorVerdict,
 			"store_status": actorStoreStatus, "integration_run": actorRun,
-			"current_creator_relation":   creatorRelation,
-			"external_discovery":         externalDiscovery,
-			"funding_origin":             actorRun.FundingOrigin,
-			"funding_origin_persistence": actorRun.FundingOriginPersistence,
-			"actor_live_evidence":        actorRun.LiveEvidence,
-			"current_token_distribution": distributionRun,
-			"token_lifecycle_recurrence": actorLifecycle,
-			"exit_event_recurrence":      actorExit,
-			"campaign_genome":            campaignGenome,
-			"operational_memory":         operationalMemory,
-			"funding_outcome_memory":     fundingOutcomeMemory,
-			"incident_corpus":            incidentCorpus,
-			"actor_incident_history":     actorIncidentHistory,
-			"behavioral_signatures":      behavioralSignatures,
+			"current_creator_relation":    creatorRelation,
+			"external_discovery":          externalDiscovery,
+			"funding_origin":              actorRun.FundingOrigin,
+			"funding_origin_persistence":  actorRun.FundingOriginPersistence,
+			"actor_live_evidence":         actorRun.LiveEvidence,
+			"current_token_distribution":  distributionRun,
+			"token_lifecycle_recurrence":  actorLifecycle,
+			"exit_event_recurrence":       actorExit,
+			"campaign_genome":             campaignGenome,
+			"campaign_genome_snapshot":    campaignGenomeSnapshot,
+			"campaign_genome_persistence": campaignGenomePersistence,
+			"campaign_genome_matches":     campaignGenomeMatches,
+			"operational_memory":          operationalMemory,
+			"funding_outcome_memory":      fundingOutcomeMemory,
+			"incident_corpus":             incidentCorpus,
+			"actor_incident_history":      actorIncidentHistory,
+			"behavioral_signatures":       behavioralSignatures,
 			// Backward-compatible token live-wallet coverage retained for existing UI clients.
 			"live_wallet_evidence":     liveEvidence.WalletCoverage,
 			"rule_verdict_persistence": actorRun.RuleVerdictPersistence,
@@ -375,6 +415,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"funding_recurrence_can_change_grade":        false,
 			"exit_event_recurrence_can_change_grade":     false,
 			"campaign_genome_can_change_verdict":         false,
+			"campaign_genome_matches_can_change_grade":   false,
 			"operational_memory_can_change_grade":        false,
 			"funding_outcome_memory_can_change_grade":    false,
 			"incident_corpus_can_change_grade":           false,
@@ -385,9 +426,10 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	return unifiedInvestigationAssembly{
 		Report: report, Core: core, DB: db, Store: store, Creator: creator,
 		ActorDossier: actorDossier, ActorTrack: actorTrack, ActorVerdict: actorVerdict,
-		CampaignGenome: campaignGenome, OperationalMemory: operationalMemory,
-		FundingOutcomeMemory: fundingOutcomeMemory, IncidentCorpus: incidentCorpus,
-		ActorIncidentHistory: actorIncidentHistory, BehavioralSignatures: behavioralSignatures,
+		CampaignGenome: campaignGenome, CampaignGenomeSnapshot: campaignGenomeSnapshot,
+		CampaignGenomePersistence: campaignGenomePersistence, CampaignGenomeMatches: campaignGenomeMatches,
+		OperationalMemory: operationalMemory, FundingOutcomeMemory: fundingOutcomeMemory,
+		IncidentCorpus: incidentCorpus, ActorIncidentHistory: actorIncidentHistory, BehavioralSignatures: behavioralSignatures,
 		Behavior: behavior, UnifiedVerdict: unifiedVerdict, Threat: threat,
 		CombinedEvidence: combinedEvidence, Modules: modules, Structural: structural,
 		Graph: graph, TradeLedger: tradeLedger, ActorStoreStatus: actorStoreStatus,
