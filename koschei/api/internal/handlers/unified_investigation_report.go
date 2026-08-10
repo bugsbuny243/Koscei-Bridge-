@@ -336,8 +336,9 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			actorIncidentHistory = loaded
 		}
 	}
-	behavioralSignatures := services.BuildBehavioralSignatureReportWithGenomeMatches(
+	behavioralSignatures := services.BuildBehavioralSignatureReportWithTrajectory(
 		target, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory, campaignGenomeMatches,
+		services.LoadPersistentFundingTrajectoryGraphForBehavior(ctx, db, creator, network),
 	)
 
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdictV140(target, actorVerdict, behavior)
