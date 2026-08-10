@@ -15,44 +15,44 @@ const (
 )
 
 type transactionGuardConfirmedIncident struct {
-	IncidentKey      string   `json:"incident_key"`
-	Target           string   `json:"target"`
-	ActorWallet      string   `json:"actor_wallet"`
-	TransactionRoles []string `json:"transaction_roles"`
-	EventKind        string   `json:"event_kind"`
-	SourceRuleID     string   `json:"source_rule_id"`
-	EventSignature   string   `json:"event_signature"`
-	EventSlot        int64    `json:"event_slot"`
-	EventObservedAt  string   `json:"event_observed_at"`
-	VerdictSignature string   `json:"verdict_signature"`
-	VerdictRuleVersion string `json:"verdict_rule_version"`
-	Grade            string   `json:"grade"`
-	RiskIndex        int      `json:"risk_index"`
-	RiskLevel        string   `json:"risk_level"`
-	Verdict          string   `json:"verdict,omitempty"`
-	Recommendation   string   `json:"recommendation,omitempty"`
-	RecordHash       string   `json:"record_hash"`
-	VersionCount     int      `json:"version_count"`
-	LatestCreatedAt  string   `json:"latest_created_at"`
+	IncidentKey        string   `json:"incident_key"`
+	Target             string   `json:"target"`
+	ActorWallet        string   `json:"actor_wallet"`
+	TransactionRoles   []string `json:"transaction_roles"`
+	EventKind          string   `json:"event_kind"`
+	SourceRuleID       string   `json:"source_rule_id"`
+	EventSignature     string   `json:"event_signature"`
+	EventSlot          int64    `json:"event_slot"`
+	EventObservedAt    string   `json:"event_observed_at"`
+	VerdictSignature   string   `json:"verdict_signature"`
+	VerdictRuleVersion string   `json:"verdict_rule_version"`
+	Grade              string   `json:"grade"`
+	RiskIndex          int      `json:"risk_index"`
+	RiskLevel          string   `json:"risk_level"`
+	Verdict            string   `json:"verdict,omitempty"`
+	Recommendation     string   `json:"recommendation,omitempty"`
+	RecordHash         string   `json:"record_hash"`
+	VersionCount       int      `json:"version_count"`
+	LatestCreatedAt    string   `json:"latest_created_at"`
 }
 
 type transactionGuardConfirmedIncidentCorpus struct {
-	Version                string                              `json:"version"`
-	Network                string                              `json:"network"`
-	TransactionFingerprint string                              `json:"transaction_fingerprint"`
-	Status                 string                              `json:"status"`
-	Complete               bool                                `json:"complete"`
-	SubjectsChecked        int                                 `json:"subjects_checked"`
-	ActorsMatched          int                                 `json:"actors_matched"`
-	IncidentCount          int                                 `json:"incident_count"`
-	CriticalIncidentCount  int                                 `json:"critical_incident_count"`
+	Version                string                               `json:"version"`
+	Network                string                               `json:"network"`
+	TransactionFingerprint string                               `json:"transaction_fingerprint"`
+	Status                 string                               `json:"status"`
+	Complete               bool                                 `json:"complete"`
+	SubjectsChecked        int                                  `json:"subjects_checked"`
+	ActorsMatched          int                                  `json:"actors_matched"`
+	IncidentCount          int                                  `json:"incident_count"`
+	CriticalIncidentCount  int                                  `json:"critical_incident_count"`
 	Incidents              []transactionGuardConfirmedIncident `json:"incidents"`
-	Limitations            []string                            `json:"limitations"`
-	VerdictAuthority       bool                                `json:"verdict_authority"`
-	CausationClaim         bool                                `json:"causation_claim"`
-	RealWorldIdentityClaim bool                                `json:"real_world_identity_claim"`
-	WrongdoingClaim        bool                                `json:"wrongdoing_claim"`
-	SafetyClaim            bool                                `json:"safety_claim"`
+	Limitations            []string                             `json:"limitations"`
+	VerdictAuthority       bool                                 `json:"verdict_authority"`
+	CausationClaim         bool                                 `json:"causation_claim"`
+	RealWorldIdentityClaim bool                                 `json:"real_world_identity_claim"`
+	WrongdoingClaim        bool                                 `json:"wrongdoing_claim"`
+	SafetyClaim            bool                                 `json:"safety_claim"`
 }
 
 func (h *Handler) collectTransactionGuardConfirmedIncidentCorpus(ctx context.Context, network, fingerprint string, decoded transactionGuardDecodedTransaction, wallet string) transactionGuardConfirmedIncidentCorpus {
@@ -96,7 +96,6 @@ func (h *Handler) collectTransactionGuardConfirmedIncidentCorpus(ctx context.Con
 	}
 
 	rolesByActor := map[string][]string{}
-	canonical := map[string]string{}
 	keys := make([]string, 0, len(candidates))
 	for _, candidate := range candidates {
 		actor := strings.TrimSpace(candidate.Address)
@@ -105,9 +104,10 @@ func (h *Handler) collectTransactionGuardConfirmedIncidentCorpus(ctx context.Con
 		}
 		if _, ok := rolesByActor[actor]; !ok {
 			keys = append(keys, actor)
-			canonical[actor] = actor
 		}
-		rolesByActor[actor] = appendUniqueSortedString(rolesByActor[actor], candidate.Roles...)
+		for _, role := range candidate.Roles {
+			rolesByActor[actor] = appendUniqueSortedString(rolesByActor[actor], role)
+		}
 	}
 	if len(keys) == 0 {
 		return out
@@ -161,10 +161,7 @@ func (h *Handler) collectTransactionGuardConfirmedIncidentCorpus(ctx context.Con
 			out.Limitations = append(out.Limitations, "Verified incident corpus row decoding failed.")
 			return out
 		}
-		item.ActorWallet = canonical[item.ActorWallet]
-		if item.ActorWallet == "" {
-			item.ActorWallet = strings.TrimSpace(item.ActorWallet)
-		}
+		item.ActorWallet = strings.TrimSpace(item.ActorWallet)
 		item.TransactionRoles = append([]string{}, rolesByActor[item.ActorWallet]...)
 		item.EventObservedAt = observedAt.UTC().Format(time.RFC3339)
 		item.LatestCreatedAt = createdAt.UTC().Format(time.RFC3339)
