@@ -201,6 +201,7 @@ func unifiedRadarContractWorstGrade(grades []string) string {
 func (verdict UnifiedRadarVerdict) MarshalJSON() ([]byte, error) {
 	originalGrade := strings.TrimSpace(verdict.Grade)
 	originalVerdict := strings.TrimSpace(verdict.Verdict)
+	originalSignature := strings.TrimSpace(verdict.Signature)
 	contract := normalizeUnifiedRadarVerdictDecision(verdict)
 	decisionChanged := originalGrade != strings.TrimSpace(contract.Grade) || originalVerdict != strings.TrimSpace(contract.Verdict)
 	contract.RulesetVersion = strings.TrimSpace(contract.RulesetVersion)
@@ -217,12 +218,12 @@ func (verdict UnifiedRadarVerdict) MarshalJSON() ([]byte, error) {
 	contract.DecisionPath = nonNilStrings(contract.DecisionPath)
 	evidence := unifiedVerdictContractEvidence(contract)
 
-	// Some callers evaluate before persistence. The serialized API contract must
-	// still be self-consistent. Persistence calls Finalize... with the target and
-	// therefore stores the target-bound signature; this fallback signs the
-	// deterministic contract state itself when a target-bound signature is not yet
-	// attached to the value. A changed decision must never retain its old signature.
-	signature := strings.TrimSpace(contract.Signature)
+	// Preserve a target-bound signature previously produced by Finalize... when
+	// normalization leaves the deterministic decision unchanged. The normalizer
+	// deliberately clears Signature so stale signatures cannot survive a changed
+	// grade/verdict; callers that were never finalized receive the target-agnostic
+	// contract-state fallback below.
+	signature := originalSignature
 	if decisionChanged {
 		signature = ""
 	}
