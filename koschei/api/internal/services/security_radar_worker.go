@@ -33,7 +33,7 @@ func (w *SecurityRadarWorker) Start(ctx context.Context) {
 		log.Printf("security radar worker disabled: store database is nil")
 		return
 	}
-	log.Printf("security radar worker started provider=%s mode=%s interval=%s", SecurityRadarProvider, SecurityRadarWatchMode, w.PollEvery)
+	log.Printf("security radar worker started provider=%s mode=%s interval=%s", providerFromSolanaRPCURL(w.SolanaRPC), SecurityRadarWatchMode, w.PollEvery)
 	if err := w.PollOnce(ctx); err != nil {
 		log.Printf("security radar poll failed: %s", safeProviderError(err))
 	}
@@ -75,6 +75,8 @@ func (w *SecurityRadarWorker) PollOnce(ctx context.Context) error {
 func (w *SecurityRadarWorker) pollSource(ctx context.Context, source SecurityRadarSource) error {
 	pollCtx, cancel := context.WithTimeout(ctx, minSecurityRadarDuration(w.PollEvery, 12*time.Second))
 	defer cancel()
+	provider := providerFromSolanaRPCURL(w.SolanaRPC)
+	provenance := provider + "_polling"
 	signatures, err := SolanaGetSignaturesForAddress(pollCtx, w.SolanaRPC, source.Address, 10)
 	if err != nil {
 		return err
@@ -107,11 +109,14 @@ func (w *SecurityRadarWorker) pollSource(ctx context.Context, source SecurityRad
 			EventType:     "solana_signature",
 			Slot:          info.Slot,
 			BlockTime:     blockTime,
+			Source:        provenance,
 			Signals: map[string]any{
-				"signature":  sig,
-				"slot":       info.Slot,
-				"rpc_method": "getSignaturesForAddress",
-				"source":     source.Label,
+				"signature":    sig,
+				"slot":         info.Slot,
+				"rpc_method":   "getSignaturesForAddress",
+				"source":       source.Label,
+				"rpc_provider": provider,
+				"provenance":   provenance,
 			},
 			RawSummary: map[string]any{
 				"signature": sig,
@@ -142,6 +147,8 @@ func (w *SecurityRadarWorker) pollSource(ctx context.Context, source SecurityRad
 			RuleVersion:    verdict.RuleVersion,
 			Signed:         verdict.Signed,
 			Signature:      verdict.Signature,
+			Source:         provenance,
+			Provider:       provider,
 		})
 		if err != nil {
 			return err
