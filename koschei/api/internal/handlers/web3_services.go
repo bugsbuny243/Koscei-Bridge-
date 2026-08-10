@@ -31,21 +31,43 @@ func (h *Handler) tokenService() *web3.TokenService {
 
 func configuredRPCProviders() []web3.RPCProviderConfig {
 	providers := []web3.RPCProviderConfig{}
+	seenURLs := map[string]struct{}{}
 	add := func(name, url string, priority int) {
 		url = strings.TrimSpace(url)
-		if url != "" {
-			providers = append(providers, web3.RPCProviderConfig{Name: name, URL: url, Priority: priority, Timeout: 8 * time.Second, Cooldown: time.Minute, MaxFailures: 5})
+		if url == "" {
+			return
 		}
+		if _, exists := seenURLs[url]; exists {
+			return
+		}
+		seenURLs[url] = struct{}{}
+		providers = append(providers, web3.RPCProviderConfig{Name: name, URL: url, Priority: priority, Timeout: 8 * time.Second, Cooldown: time.Minute, MaxFailures: 5})
 	}
+	firstEnv := func(keys ...string) string {
+		for _, key := range keys {
+			if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+				return value
+			}
+		}
+		return ""
+	}
+
+	// An explicitly configured canonical RPC is sovereign infrastructure from
+	// the detector's point of view. It must win over commercial provider
+	// fallbacks. This is the slot where a Koschei-owned Solana RPC is attached.
+	add("solana_rpc", os.Getenv("SOLANA_RPC_URL"), 1)
+
 	alchemyKey := strings.TrimSpace(os.Getenv("ALCHEMY_API_KEY"))
-	alchemyURL := strings.TrimSpace(os.Getenv("SOLANA_ALCHEMY_RPC_URL"))
+	alchemyURL := firstEnv("ALCHEMY_SOLANA_RPC_URL", "SOLANA_ALCHEMY_RPC_URL")
 	if alchemyURL == "" && alchemyKey != "" {
-		alchemyURL = solanaRPCURL("solana-mainnet", alchemyKey)
+		// Build the legacy provider fallback directly. Calling the canonical
+		// resolver here would incorrectly relabel SOLANA_RPC_URL as Alchemy.
+		alchemyURL = "https://solana-mainnet.g.alchemy.com/v2/" + alchemyKey
 	}
 	add("alchemy", alchemyURL, 10)
-	add("helius", os.Getenv("SOLANA_HELIUS_RPC_URL"), 20)
-	add("quicknode", os.Getenv("SOLANA_QUICKNODE_RPC_URL"), 30)
-	add("custom", os.Getenv("SOLANA_RPC_URL"), 40)
+	add("helius", firstEnv("HELIUS_SOLANA_RPC_URL", "SOLANA_HELIUS_RPC_URL"), 20)
+	add("quicknode", firstEnv("QUICKNODE_SOLANA_RPC_URL", "SOLANA_QUICKNODE_RPC_URL"), 30)
+
 	if len(providers) == 0 {
 		add("public", "https://api.mainnet-beta.solana.com", 100)
 	}
