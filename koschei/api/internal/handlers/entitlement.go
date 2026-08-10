@@ -6,7 +6,8 @@ import (
 )
 
 // RequireActiveEntitlement is kept as a compatibility wrapper for existing
-// route wiring. Access is now granted only through verified KOSCH holdings.
+// route wiring. Access is now granted only through verified KOSCH holdings and
+// the non-authority capability policy in kosch_security_policy.go.
 func (h *Handler) RequireActiveEntitlement(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := userFromContext(r.Context())
@@ -39,5 +40,5 @@ func (h *Handler) hasTokenTierAccess(ctx context.Context, authSubject string, re
 	if !evaluation.GateEnabled || !evaluation.Configured || !evaluation.WalletVerified {
 		return false, nil
 	}
-	return tokenTierRank(evaluation.Tier) >= tokenTierRank(requiredTier), nil
+	return koschTierAuthorizes(evaluation.Tier, requiredTier), nil
 }
