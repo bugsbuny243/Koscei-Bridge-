@@ -43,6 +43,10 @@
     "081": [
       "081_actor_transaction_evidence_idempotency.sql",
       "081_defense_litesvm_execution_attempts.sql"
+    ],
+    "091": [
+      "091_security_actor_exit_events.sql",
+      "091_slot_gap_healer.sql"
     ]
   },
   "known_missing_prefixes": [

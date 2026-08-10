@@ -73,6 +73,15 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 	unifiedPersistence, unifiedHistory := h.persistUnifiedRadarVerdict(ctx, db, network, "wallet", wallet, unifiedVerdict, behavior)
 	evidenceGraph := services.BuildActorEvidenceGraph(final)
 	campaignGenome := services.BuildActorCampaignGenome(final)
+	fundingClusterMemory, fundingClusterErr := services.LoadPersistentFundingClusterHistory(ctx, db, wallet, network, 8, 25)
+	if fundingClusterErr != nil {
+		fundingClusterMemory = services.NewPersistentFundingClusterUnavailableReport(
+			wallet,
+			network,
+			"query_failed",
+			"Persistent funding-cluster memory query failed without changing the deterministic verdict.",
+		)
+	}
 	report := map[string]any{
 		"ok":                        true,
 		"schema_version":            "koschei-unified-wallet-investigation-v1",
@@ -103,6 +112,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"external_discovery":         externalDiscovery,
 			"funding_origin":             funding,
 			"funding_origin_persistence": fundingPersistence,
+			"funding_cluster_memory":     fundingClusterMemory,
 			"actor_live_evidence":        coverage,
 			"live_evidence":              coverage,
 			"evidence_graph":             evidenceGraph,
@@ -113,15 +123,16 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 		"behavior_signals":            behavior,
 		"investigation_output_policy": services.SharedInvestigationOutputPolicy(),
 		"evidence_policy": map[string]any{
-			"numeric_final_score_disabled":          true,
-			"numeric_rug_probability_disabled":      true,
-			"no_evidence_no_claim":                  true,
-			"inferred_watch_only":                   true,
-			"unverified_excluded":                   true,
-			"external_attribution_is_observed_only": true,
-			"identity_scope":                        "onchain_wallet_only",
-			"same_campaign_genome_not_identity":     true,
-			"caller_type_changes_evidence":          false,
+			"numeric_final_score_disabled":           true,
+			"numeric_rug_probability_disabled":       true,
+			"no_evidence_no_claim":                   true,
+			"inferred_watch_only":                    true,
+			"unverified_excluded":                    true,
+			"external_attribution_is_observed_only":  true,
+			"identity_scope":                         "onchain_wallet_only",
+			"same_campaign_genome_not_identity":      true,
+			"shared_funder_is_not_operator_identity": true,
+			"caller_type_changes_evidence":           false,
 		},
 	}
 	attachCanonicalWalletIntegrationCoverage(report)
@@ -143,6 +154,7 @@ func attachCanonicalWalletIntegrationCoverage(report map[string]any) {
 	external := canonicalMap(actor["external_discovery"])
 	put("created_mint_portfolio", canonicalStatusFromRaw("Created-mint portfolio discovery and RPC verification", external["created_mint_portfolio"], live, true, "actor_investigation.external_discovery.created_mint_portfolio"))
 	put("funding_origin", canonicalStatusFromRaw("Actor funding origin", actor["funding_origin"], live, true, "actor_investigation.funding_origin"))
+	put("persistent_funding_cluster_memory", canonicalStatusFromRaw("Persistent funding-cluster memory", actor["funding_cluster_memory"], live, false, "actor_investigation.funding_cluster_memory"))
 	put("actor_live_transaction_evidence", canonicalStatusFromRaw("Actor live transaction evidence", actor["actor_live_evidence"], live, true, "actor_investigation.actor_live_evidence"))
 	put("persistent_actor_dossier", canonicalStatusFromDossier(actor["dossier"], live))
 	put("actor_evidence_graph", canonicalStatusFromGraph(actor["evidence_graph"], live))

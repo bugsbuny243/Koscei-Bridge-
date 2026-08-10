@@ -1,0 +1,88 @@
+name: Funding Cluster Memory Acceptance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "koschei/api/internal/services/persistent_funding_cluster_memory.go"
+      - "koschei/api/internal/services/persistent_funding_cluster_memory_postgres_test.go"
+      - "koschei/api/internal/handlers/unified_wallet_investigation_report.go"
+      - "koschei/api/internal/services/actor_funding_origin.go"
+      - "koschei/api/internal/services/actor_defense_store.go"
+      - "koschei/api/migrations/**"
+      - ".github/workflows/funding-cluster-memory-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/services/persistent_funding_cluster_memory.go"
+      - "koschei/api/internal/services/persistent_funding_cluster_memory_postgres_test.go"
+      - "koschei/api/internal/handlers/unified_wallet_investigation_report.go"
+      - "koschei/api/internal/services/actor_funding_origin.go"
+      - "koschei/api/internal/services/actor_defense_store.go"
+      - "koschei/api/migrations/**"
+      - ".github/workflows/funding-cluster-memory-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres17:
+    name: Persistent funding-cluster memory on PostgreSQL 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_funding_memory_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_funding_memory_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Download modules
+        run: go mod download
+      - name: Apply migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            psql \
+              --host=127.0.0.1 \
+              --port=5432 \
+              --username=postgres \
+              --dbname=koschei_funding_memory_ci \
+              --set=ON_ERROR_STOP=1 \
+              --file="${migration}" >/dev/null
+          done
+      - name: Run persistent funding-cluster acceptance
+        env:
+          KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_funding_memory_ci?sslmode=disable
+        run: |
+          set -o pipefail
+          go test -v ./internal/services -run '^TestPersistentFundingClusterMemoryPostgres17$' -count=1 2>&1 | tee "${RUNNER_TEMP}/funding-cluster-memory-postgres17.txt"
+      - name: Upload acceptance log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: funding-cluster-memory-postgres17
+          path: ${{ runner.temp }}/funding-cluster-memory-postgres17.txt
+          if-no-files-found: error
+          retention-days: 7
