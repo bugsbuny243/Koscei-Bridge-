@@ -13,7 +13,9 @@ func (h *Handler) RequireAPIKeyKOSCH(next http.HandlerFunc) http.HandlerFunc {
 
 // RequireAPIKeyTokenTier binds an authenticated API key to the verified KOSCH
 // tier of its owning account. API keys are identity credentials; they never
-// bypass wallet verification or token eligibility.
+// bypass wallet verification or token eligibility. KOSCH authorization is
+// additionally constrained by kosch_security_policy.go so holdings can grant
+// access/capacity only, never evidence/verdict/security authority.
 func (h *Handler) RequireAPIKeyTokenTier(required string, next http.HandlerFunc) http.HandlerFunc {
 	required = strings.ToLower(strings.TrimSpace(required))
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +33,7 @@ func (h *Handler) RequireAPIKeyTokenTier(required string, next http.HandlerFunc)
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "kosch_access_unavailable"})
 			return
 		}
-		if !evaluation.GateEnabled || !evaluation.Configured || !evaluation.WalletVerified || tokenTierRank(evaluation.Tier) < tokenTierRank(required) {
+		if !evaluation.GateEnabled || !evaluation.Configured || !evaluation.WalletVerified || !koschTierAuthorizes(evaluation.Tier, required) {
 			writeJSON(w, http.StatusForbidden, map[string]any{
 				"error": "token_tier_required", "required_tier": required, "current_tier": evaluation.Tier,
 			})
