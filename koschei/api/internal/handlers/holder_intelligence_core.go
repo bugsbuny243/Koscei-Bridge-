@@ -60,7 +60,7 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 	roles := services.ArvisHolderRolesFromBundle(bundle)
 	distribution := radarDetailHolderDistributionFromRoles(roles)
 	if !roles.Available {
-		distribution, roles = radarDetailHolderDistribution(parent, target)
+		distribution, roles = h.radarDetailHolderDistributionTransport(parent, target, network)
 	}
 	cluster := services.ArvisHolderClusterFromBundle(bundle)
 	fundingRecurrence := services.ArvisFundingRecurrenceFromBundle(bundle)
