@@ -20,7 +20,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: public-product-smoke
+  group: public-product-smoke-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
