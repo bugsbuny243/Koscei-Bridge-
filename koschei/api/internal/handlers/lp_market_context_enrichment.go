@@ -41,6 +41,7 @@ func (h *Handler) collectCompleteLPControlEvidence(ctx context.Context, network,
 	lp = finalizeRaydiumPermanentLPLock(lp)
 	if lp.Available || lp.PoolProgram == meteoraDLMMProgram {
 		lp = attachLiquidityMovementEvidence(ctx, lp)
+		h.persistLiquidityMovementActorEvidence(ctx, network, mint, lp)
 	}
 	lp.EvidenceKeys = uniqueStrings(lp.EvidenceKeys)
 	return lp
