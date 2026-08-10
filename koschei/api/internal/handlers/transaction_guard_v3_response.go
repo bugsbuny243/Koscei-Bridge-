@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const transactionGuardV3AnalysisVersion = "v3-foundation-8"
+const transactionGuardV3AnalysisVersion = "v3-foundation-9"
 
 func applyTransactionGuardV3Decode(assessment transactionFirewallAssessment, intent *transactionGuardIntentPolicy, decoded transactionGuardDecodedTransaction, decodedFindings []transactionFirewallFinding) transactionFirewallAssessment {
 	assessment.ProgramIDs = normalizeGuardProgramList(append(assessment.ProgramIDs, decoded.ProgramIDs...))
@@ -87,6 +87,7 @@ func (h *Handler) finishTransactionGuardV3ResponseWithWitness(w http.ResponseWri
 	valueEvidence := buildTransactionGuardValueEvidence(input.Transaction, input.Wallet, decoded, cpiFlow)
 	programTrustGraph := h.collectTransactionGuardProgramTrustGraph(r.Context(), input.Network, fingerprint, decoded, cpiFlow, authoritySurface)
 	actorMemoryGraph := h.collectTransactionGuardActorMemoryGraph(r.Context(), input.Network, fingerprint, decoded, input.Wallet)
+	actorIncidentMemory := h.collectTransactionGuardActorIncidentMemory(r.Context(), input.Network, fingerprint, actorMemoryGraph)
 	originalAction := assessment.Action
 	assessment, enforcement := applyTransactionGuardEnforcementRequirementWithWitness(input, requestID, assessment, guardComplete, time.Now().UTC(), &stateWitness)
 	if originalAction == "allow" && assessment.Action != "allow" && alertID == "" {
@@ -120,6 +121,8 @@ func (h *Handler) finishTransactionGuardV3ResponseWithWitness(w http.ResponseWri
 		"program_trust_graph":                 programTrustGraph,
 		"actor_memory_graph_complete":         actorMemoryGraph.Complete,
 		"actor_memory_graph":                  actorMemoryGraph,
+		"actor_incident_memory_complete":      actorIncidentMemory.Complete,
+		"actor_incident_memory":               actorIncidentMemory,
 		"state_witness_complete":              stateWitness.Complete,
 		"state_witness":                       stateWitness,
 		"automatic_decode_complete":           decoded.Complete,
@@ -143,7 +146,7 @@ func (h *Handler) finishTransactionGuardV3ResponseWithWitness(w http.ResponseWri
 			"logs_count": len(assessment.Logs), "logs": assessment.Logs,
 		},
 		"latency_ms": time.Since(started).Milliseconds(),
-		"warning":    "Koschei does not sign, submit or custody the transaction; actor-memory matches provide retained on-chain context only and do not create identity, intent, safety or wrongdoing claims; permits authorize only the exact transaction fingerprint until expiry, and state-bound permits also bind the observed account-state witness.",
+		"warning":    "Koschei does not sign, submit or custody the transaction; actor-memory and incident-memory matches provide retained on-chain historical context only and do not create identity, intent, safety, causation or wrongdoing claims; permits authorize only the exact transaction fingerprint until expiry, and state-bound permits also bind the observed account-state witness.",
 	}
 	attachTransactionGuardEnforcementResponse(response, enforcement)
 	writeJSON(w, transactionGuardHTTPStatusWithEnforcement(assessment, enforcement), response)
