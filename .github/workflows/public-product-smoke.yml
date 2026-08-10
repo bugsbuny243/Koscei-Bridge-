@@ -203,14 +203,11 @@ jobs:
           }
           printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
 
-          case_code="$(probe case_page "/case/${case_ref}")"
-          dossier_code="$(probe dossier_page "/dossier/${case_ref}")"
-          echo "case_code=${case_code}" | tee -a diagnostics/result.txt
-          echo "dossier_code=${dossier_code}" | tee -a diagnostics/result.txt
-          [ "${case_code}" = "200" ] || { echo "PUBLIC_CASE_PAGE_FAILURE: HTTP ${case_code}." >&2; exit 28; }
-          [ "${dossier_code}" = "200" ] || { echo "PUBLIC_DOSSIER_PAGE_FAILURE: HTTP ${dossier_code}." >&2; exit 29; }
-          grep -Fq "${case_ref}" diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE: case ref missing.' >&2; exit 30; }
-          grep -Fq "${case_ref}" diagnostics/dossier_page.body || { echo 'PUBLIC_DOSSIER_PAGE_CONTRACT_FAILURE: case ref missing.' >&2; exit 31; }
+          # Published case pages may briefly traverse the Railway deploy edge even
+          # after /health is green. Retry only this bounded transport/marker probe;
+          # a persistent 5xx or missing case reference remains a hard failure.
+          wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 6
+          wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 6
           grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE: ARVIS marker missing.' >&2; exit 32; }
 
           echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, legacy mode redirects, English core, ARVIS assets, public APIs, and immutable case passed.'
