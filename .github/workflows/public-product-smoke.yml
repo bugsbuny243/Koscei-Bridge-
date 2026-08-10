@@ -54,59 +54,73 @@ jobs:
           }
 
           expect_200() {
-            local name="$1"
-            local path="$2"
-            local marker="$3"
-            local code
+            local name="$1" path="$2" marker="$3" code
             code="$(probe "${name}" "${path}")"
             echo "${name}_code=${code}" | tee -a diagnostics/result.txt
-            if [ "${code}" != "200" ]; then
+            [ "${code}" = "200" ] || {
               echo "PUBLIC_PRODUCT_FAILURE: ${path} returned HTTP ${code}." >&2
               exit 21
-            fi
+            }
             grep -Fq "${marker}" "diagnostics/${name}.body" || {
               echo "PUBLIC_PRODUCT_CONTRACT_FAILURE: ${path} is missing marker ${marker}." >&2
               exit 22
             }
           }
 
+          # Pushes race Railway's edge while a new container becomes ready. Only
+          # connection failures and gateway/service transition responses retry.
+          # A 200 with an old marker may also retry until the new deployment is
+          # visible. 4xx and application 500 responses fail immediately.
           wait_expect_200() {
-            local name="$1"
-            local path="$2"
-            local marker="$3"
-            local attempts="${4:-18}"
-            local code=""
+            local name="$1" path="$2" marker="$3" attempts="${4:-18}" code=""
             for attempt in $(seq 1 "${attempts}"); do
               code="$(probe "${name}" "${path}")"
               if [ "${code}" = "200" ] && grep -Fq "${marker}" "diagnostics/${name}.body"; then
                 echo "${name}_code=${code} deployed_attempt=${attempt}" | tee -a diagnostics/result.txt
                 return 0
               fi
-              echo "WAITING_FOR_DEPLOY: ${path} marker=${marker} attempt=${attempt}/${attempts} code=${code}" >&2
+              case "${code}" in
+                000|502|503|504)
+                  echo "WAITING_FOR_DEPLOY: ${path} attempt=${attempt}/${attempts} code=${code}" >&2
+                  ;;
+                200)
+                  echo "WAITING_FOR_DEPLOY_MARKER: ${path} marker=${marker} attempt=${attempt}/${attempts}" >&2
+                  ;;
+                *)
+                  echo "PUBLIC_PRODUCT_FAILURE: ${path} returned non-transient HTTP ${code}." >&2
+                  exit 21
+                  ;;
+              esac
               sleep 10
             done
             echo "PRODUCTION_DEPLOY_CONTRACT_FAILURE: ${path} did not expose ${marker}." >&2
             exit 36
           }
 
-          expect_200 health /health '"status":"ok"'
-          expect_200 cases_page /cases "Yayınlanmış Güvenlik Vakaları"
-          expect_200 live_page /live "Canlı SOC"
-          expect_200 login_page /login "KOSCHEI ARVIS"
-          expect_200 register_page /register "KOSCHEI ARVIS"
-          expect_200 account_page /account "KOSCHEI ARVIS"
-          expect_200 reports_page /reports "KOSCHEI ARVIS"
+          checked_page() {
+            local name="$1" path="$2" marker="$3"
+            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+              expect_200 "${name}" "${path}" "${marker}"
+            else
+              wait_expect_200 "${name}" "${path}" "${marker}" 18
+            fi
+          }
 
-          # These markers work against the currently deployed main during PRs
-          # and against the consolidated product after deployment.
-          expect_200 arvis_scan /scan "arvis-premium-contract.js"
-          expect_200 arvis_dashboard /dashboard "Security Workspace"
-          expect_200 safe_check /safe-check "Koschei ARVIS"
-          expect_200 transaction_shield /transaction-shield "Koschei ARVIS"
-          expect_200 security_radar /security-radar "Koschei ARVIS"
-          expect_200 owner_production /owner-production.html "Owner Evidence Operations"
-          expect_200 complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
-          expect_200 social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
+          checked_page health /health '"status":"ok"'
+          checked_page cases_page /cases "Yayınlanmış Güvenlik Vakaları"
+          checked_page live_page /live "Canlı SOC"
+          checked_page login_page /login "KOSCHEI ARVIS"
+          checked_page register_page /register "KOSCHEI ARVIS"
+          checked_page account_page /account "KOSCHEI ARVIS"
+          checked_page reports_page /reports "KOSCHEI ARVIS"
+          checked_page arvis_scan /scan "arvis-premium-contract.js"
+          checked_page arvis_dashboard /dashboard "Security Workspace"
+          checked_page safe_check /safe-check "Koschei ARVIS"
+          checked_page transaction_shield /transaction-shield "Koschei ARVIS"
+          checked_page security_radar /security-radar "Koschei ARVIS"
+          checked_page owner_production /owner-production.html "Owner Evidence Operations"
+          checked_page complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
+          checked_page social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
 
           for page in arvis_scan arvis_dashboard safe_check transaction_shield security_radar owner_production; do
             grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
@@ -146,49 +160,24 @@ jobs:
             wait_expect_200 transaction_shield /transaction-shield "Unified Scan Center"
             wait_expect_200 security_radar /security-radar "Unified Scan Center"
 
-            grep -Fqi 'location: /scan?mode=quick' diagnostics/safe_check.headers || {
-              echo 'SAFE_CHECK_REDIRECT_FAILURE: /safe-check does not redirect to quick mode.' >&2
-              exit 40
-            }
-            grep -Fqi 'location: /scan?mode=transaction' diagnostics/transaction_shield.headers || {
-              echo 'TRANSACTION_REDIRECT_FAILURE: /transaction-shield does not redirect to transaction mode.' >&2
-              exit 41
-            }
-            grep -Fqi 'location: /scan?mode=deep' diagnostics/security_radar.headers || {
-              echo 'RADAR_REDIRECT_FAILURE: /security-radar does not redirect to deep mode.' >&2
-              exit 42
-            }
+            grep -Fqi 'location: /scan?mode=quick' diagnostics/safe_check.headers || { echo 'SAFE_CHECK_REDIRECT_FAILURE' >&2; exit 40; }
+            grep -Fqi 'location: /scan?mode=transaction' diagnostics/transaction_shield.headers || { echo 'TRANSACTION_REDIRECT_FAILURE' >&2; exit 41; }
+            grep -Fqi 'location: /scan?mode=deep' diagnostics/security_radar.headers || { echo 'RADAR_REDIRECT_FAILURE' >&2; exit 42; }
 
             for page in landing_page login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
-              grep -Fq '<html lang="en">' "diagnostics/${page}.body" || {
-                echo "CORE_LANGUAGE_FAILURE: ${page} does not declare English after deployment." >&2
-                exit 37
-              }
-              grep -Fq 'unified-scan-navigation.js' "diagnostics/${page}.body" || {
-                echo "SCAN_NAVIGATION_FAILURE: ${page} is missing canonical navigation enforcement." >&2
-                exit 43
-              }
+              grep -Fq '<html lang="en">' "diagnostics/${page}.body" || { echo "CORE_LANGUAGE_FAILURE: ${page}" >&2; exit 37; }
+              grep -Fq 'unified-scan-navigation.js' "diagnostics/${page}.body" || { echo "SCAN_NAVIGATION_FAILURE: ${page}" >&2; exit 43; }
             done
             for page in login_page register_page; do
-              grep -Fq 'koschei-auth.js?v=33' "diagnostics/${page}.body" || {
-                echo "AUTH_FREEZE_FAILURE: ${page} lost the frozen auth client contract." >&2
-                exit 38
-              }
-              grep -Fq 'english-auth-presentation.js' "diagnostics/${page}.body" || {
-                echo "AUTH_PRESENTATION_FAILURE: ${page} is missing the English presentation layer." >&2
-                exit 39
-              }
+              grep -Fq 'koschei-auth.js?v=33' "diagnostics/${page}.body" || { echo "AUTH_FREEZE_FAILURE: ${page}" >&2; exit 38; }
+              grep -Fq 'english-auth-presentation.js' "diagnostics/${page}.body" || { echo "AUTH_PRESENTATION_FAILURE: ${page}" >&2; exit 39; }
             done
           fi
 
-          cases_api_code="$(probe cases_api '/api/public/cases?limit=100')"
-          feed_api_code="$(probe feed_api /api/public/soc/feed)"
-          echo "cases_api_code=${cases_api_code}" | tee -a diagnostics/result.txt
-          echo "feed_api_code=${feed_api_code}" | tee -a diagnostics/result.txt
-          [ "${cases_api_code}" = "200" ] || { echo "PUBLIC_CASES_API_FAILURE: HTTP ${cases_api_code}." >&2; exit 23; }
-          [ "${feed_api_code}" = "200" ] || { echo "PUBLIC_SOC_API_FAILURE: HTTP ${feed_api_code}." >&2; exit 24; }
-          grep -Fq '"ok":true' diagnostics/cases_api.body || { echo 'PUBLIC_CASES_API_CONTRACT_FAILURE: ok=true missing.' >&2; exit 25; }
-          grep -Fq '"ok":true' diagnostics/feed_api.body || { echo 'PUBLIC_SOC_API_CONTRACT_FAILURE: ok=true missing.' >&2; exit 26; }
+          # Public APIs are also allowed to traverse a short deploy transition,
+          # but their semantic contract remains hard: HTTP 200 and ok=true.
+          wait_expect_200 cases_api '/api/public/cases?limit=100' '"ok":true' 12
+          wait_expect_200 feed_api /api/public/soc/feed '"ok":true' 12
 
           case_ref="$(node - <<'NODE'
           const fs = require('fs');
@@ -202,15 +191,11 @@ jobs:
             exit 27
           }
           printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
+          wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 12
+          wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 12
+          grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE' >&2; exit 32; }
 
-          # Published case pages may briefly traverse the Railway deploy edge even
-          # after /health is green. Retry only this bounded transport/marker probe;
-          # a persistent 5xx or missing case reference remains a hard failure.
-          wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 6
-          wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 6
-          grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE: ARVIS marker missing.' >&2; exit 32; }
-
-          echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, legacy mode redirects, English core, ARVIS assets, public APIs, and immutable case passed.'
+          echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, English core, ARVIS assets, public APIs, and immutable case passed.'
 
       - name: Run full production investigation
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -261,8 +246,7 @@ jobs:
             const d = result.decision || {};
             body = [
               '<!-- koschei-production-full-scan-result -->',
-              '## Production full scan result',
-              '',
+              '## Production full scan result', '',
               `- Commit: \`${process.env.GITHUB_SHA}\``,
               `- Target: \`${result.target || 'unknown'}\``,
               `- Grade: **${d.grade || '-'}**`,
@@ -276,10 +260,8 @@ jobs:
               `- Unresolved questions: ${(result.unresolved_questions || []).length}`,
               `- Recommended actions: ${(result.recommended_actions || []).length}`,
               `- Live evidence: **${result.evidence_surfaces?.full_scan_live_evidence?.status || 'unknown'}**`,
-              `- Actor investigation: **${result.evidence_surfaces?.actor_investigation?.run_status || 'unknown'}**`,
-              '',
-              result.executive_summary || 'No executive summary was emitted.',
-              '',
+              `- Actor investigation: **${result.evidence_surfaces?.actor_investigation?.run_status || 'unknown'}**`, '',
+              result.executive_summary || 'No executive summary was emitted.', '',
               `[Actions run and 30-day evidence artifact](${runURL})`,
             ].join('\n');
           } else {
@@ -288,15 +270,10 @@ jobs:
               : 'The full-scan result file was not produced. Inspect the Actions diagnostics.';
             body = [
               '<!-- koschei-production-full-scan-result -->',
-              '## Production full scan failed',
-              '',
+              '## Production full scan failed', '',
               `- Commit: \`${process.env.GITHUB_SHA}\``,
-              `- Target: \`${process.env.KOSCHEI_FULL_SCAN_MINT || 'unknown'}\``,
-              '',
-              '```text',
-              failure,
-              '```',
-              '',
+              `- Target: \`${process.env.KOSCHEI_FULL_SCAN_MINT || 'unknown'}\``, '',
+              '```text', failure, '```', '',
               `[Actions run and diagnostics](${runURL})`,
             ].join('\n');
           }
