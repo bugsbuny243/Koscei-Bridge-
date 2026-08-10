@@ -44,8 +44,16 @@ func ArvisInvestigationCapabilities() []ArvisInvestigationCapability {
 			PrimaryModules:      []string{ModuleCreatorLinkAnalysis, ModuleRepeatActorScan},
 			CanonicalSections:   []string{"ACTOR_INVESTIGATION_ENGINE.md#1", "ACTOR_INVESTIGATION_ENGINE.md#2", "ACTOR_INVESTIGATION_ENGINE.md#6"},
 			ActorRulesetVersion: ActorDefenseRulesetVersion, UnifiedRulesetVersion: UnifiedRadarRulesetVersion,
-			EvidencePolicy:   "Creator and repeat-actor claims require persisted actor-index evidence, observed role history or transaction-backed signer evidence.",
-			NextEvidenceNeed: "Attach persistent creator/holder actor-index rows to the Repeat Actor Scan without broad recipient wallet-history scans.",
+			EvidencePolicy:   "Creator, dominant-holder and repeat-actor context is persisted in retention-independent actor memory; exact-address incident recurrence can be VERIFIED only from immutable signature/slot-backed corpus records.",
+			NextEvidenceNeed: "Increase verified creator/deployer and exit-event coverage so more actors qualify for immutable incident and campaign-genome memory without broad recipient wallet-history scans.",
+		},
+		{
+			ID: "incident_behavior_memory", Label: "Verified incident / behavioral memory", Status: ArvisCapabilityPartial,
+			PrimaryModules:      []string{ModuleRepeatActorScan, ModuleFundingClusterDetector, ModuleIntelligenceGraph},
+			CanonicalSections:   []string{"ACTOR_INVESTIGATION_ENGINE.md#3", "ACTOR_INVESTIGATION_ENGINE.md#6"},
+			ActorRulesetVersion: ActorDefenseRulesetVersion, UnifiedRulesetVersion: UnifiedRadarRulesetVersion,
+			EvidencePolicy:   "Immutable incident rows require a VERIFIED actor event with signature+slot and a Koschei-signed material final token verdict. Campaign-genome matches across wallet addresses remain technical-pattern watch signals and never identity claims.",
+			NextEvidenceNeed: "Measure precision and recurrence support for versioned KOSCH-BEH behavior families before any family becomes eligible to influence a deterministic customer grade.",
 		},
 		{
 			ID: "launch_sniper_intelligence", Label: "Launch / sniper intelligence", Status: ArvisCapabilityStrong,
@@ -91,8 +99,8 @@ func ArvisInvestigationCapabilities() []ArvisInvestigationCapability {
 			PrimaryModules:      []string{ModuleIntelligenceGraph, ModuleRepeatActorScan},
 			CanonicalSections:   []string{"ACTOR_INVESTIGATION_ENGINE.md#3", "ACTOR_INVESTIGATION_ENGINE.md#6"},
 			ActorRulesetVersion: ActorDefenseRulesetVersion, UnifiedRulesetVersion: UnifiedRadarRulesetVersion,
-			EvidencePolicy:   "Watch intelligence may surface observed or inferred follow-up needs; it must not silently enable quota-consuming background scans.",
-			NextEvidenceNeed: "Connect watchlist observations to durable actor memory without treating inferred evidence as grade input.",
+			EvidencePolicy:   "Watch intelligence may surface operational overlap, funding-outcome recurrence and cross-wallet campaign-genome similarity; these signals remain separate from grade-affecting verified rules.",
+			NextEvidenceNeed: "Accumulate enough immutable incident and genome snapshots to measure watch-signal precision, false-positive rate and recurrence support by behavior family.",
 		},
 		{
 			ID: "cross_chain_intelligence", Label: "Cross-chain intelligence", Status: ArvisCapabilitySchemaOnly,
@@ -133,7 +141,12 @@ func arvisCapabilityMaxStrengthGate(id string) []string {
 		},
 		"creator_repeat_actor_memory": {
 			"Persist creator, deployer, dominant-holder and recipient roles in durable actor-index rows.",
-			"Prove cross-token reuse with stored evidence keys and signatures, not broad recipient wallet-history scans.",
+			"Prove cross-token reuse with immutable incident references or exact stored evidence keys and signatures, not broad recipient wallet-history scans.",
+		},
+		"incident_behavior_memory": {
+			"Materialize only VERIFIED signature+slot actor events joined to signed material final token verdicts in the immutable incident corpus.",
+			"Keep cross-wallet campaign-genome and operational-overlap matches watch-only until independently verified evidence supports any stronger rule.",
+			"Version behavior families and measure precision before allowing any family to affect the unified deterministic verdict.",
 		},
 		"launch_sniper_intelligence": {
 			"Use mint-specific ATA and launch ledger evidence for initial recipient analysis.",
@@ -156,8 +169,8 @@ func arvisCapabilityMaxStrengthGate(id string) []string {
 			"Never label manipulation from a single inferred pattern without transaction-backed evidence rows.",
 		},
 		"watch_intelligence": {
-			"Connect watchlist observations to durable actor memory while preserving opt-in scanning.",
-			"Keep watch flags separate from grade-affecting verified rules.",
+			"Use immutable actor/incident/genome memory while preserving opt-in live collection and provider quotas.",
+			"Keep operational overlap, funding outcome and cross-wallet genome similarity separate from grade-affecting verified rules.",
 		},
 		"cross_chain_intelligence": {
 			"Add verified bridge, source-chain, destination-chain, stablecoin conversion and exchange/OTC evidence ingestion.",
