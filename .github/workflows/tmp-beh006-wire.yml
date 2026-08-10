@@ -1,0 +1,44 @@
+name: Temporary BEH006 wiring
+
+on:
+  push:
+    branches:
+      - feat/trajectory-recurrence-signature-v1
+    paths:
+      - ".github/workflows/tmp-beh006-wire.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/trajectory-recurrence-signature-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache: false
+      - name: Replace canonical behavior builder call
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('koschei/api/internal/handlers/unified_investigation_report.go')
+          text = path.read_text()
+          old = '''\tbehavioralSignatures := services.BuildBehavioralSignatureReportWithGenomeMatches(\n\t\ttarget, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory, campaignGenomeMatches,\n\t)'''
+          new = '''\tbehavioralSignatures := services.BuildBehavioralSignatureReportWithTrajectory(\n\t\ttarget, actorIncidentHistory, fundingOutcomeMemory, campaignGenome, operationalMemory, campaignGenomeMatches,\n\t\tservices.LoadPersistentFundingTrajectoryGraphForBehavior(ctx, db, creator, network),\n\t)'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one canonical builder call, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          gofmt -w koschei/api/internal/handlers/unified_investigation_report.go
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/handlers/unified_investigation_report.go
+          git commit -m "feat(behavior): wire trajectory recurrence into token investigation"
+          git push origin HEAD:feat/trajectory-recurrence-signature-v1
