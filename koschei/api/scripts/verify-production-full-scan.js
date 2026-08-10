@@ -7,6 +7,9 @@ const baseURL = String(process.env.BASE_URL || 'https://tradepigloball.co').repl
 const mint = String(process.env.KOSCHEI_FULL_SCAN_MINT || 'HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump').trim();
 const outputDir = path.resolve(process.env.OUTPUT_DIR || 'diagnostics');
 const timeoutMs = Number(process.env.FULL_SCAN_TIMEOUT_MS || 300000);
+const transientHTTPStatuses = new Set([502, 503, 504]);
+const transientAttempts = 5;
+const transientDelayMs = 5000;
 
 function requireObject(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label}_missing`);
@@ -36,6 +39,51 @@ function pick(value, keys) {
   return out;
 }
 
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    if (!signal) return;
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason || new Error('production_full_scan_timeout'));
+    };
+    if (signal.aborted) return abort();
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
+async function fetchProductionScan(controller) {
+  let lastError;
+  for (let attempt = 1; attempt <= transientAttempts; attempt += 1) {
+    try {
+      const response = await fetch(`${baseURL}/api/token/scan`, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+          'user-agent': 'koschei-production-full-scan-acceptance/1.1.2',
+        },
+        body: JSON.stringify({ mint, network: 'solana-mainnet' }),
+        signal: controller.signal,
+      });
+      if (!transientHTTPStatuses.has(response.status) || attempt === transientAttempts) {
+        return response;
+      }
+      const transientBody = await response.text();
+      fs.writeFileSync(path.join(outputDir, `full-scan-transient-${attempt}.body`), transientBody);
+      fs.appendFileSync(path.join(outputDir, 'full-scan-transient-retries.txt'), `attempt=${attempt} status=${response.status}\n`);
+      await sleep(transientDelayMs, controller.signal);
+    } catch (error) {
+      if (controller.signal.aborted) throw error;
+      lastError = error;
+      fs.appendFileSync(path.join(outputDir, 'full-scan-transient-retries.txt'), `attempt=${attempt} transport_error=${String(error?.message || error)}\n`);
+      if (attempt === transientAttempts) throw error;
+      await sleep(transientDelayMs, controller.signal);
+    }
+  }
+  throw lastError || new Error('production_full_scan_transport_unavailable');
+}
+
 async function main() {
   if (!mint) throw new Error('full_scan_mint_missing');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -45,16 +93,7 @@ async function main() {
   const startedAt = Date.now();
   let response;
   try {
-    response = await fetch(`${baseURL}/api/token/scan`, {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-        'user-agent': 'koschei-production-full-scan-acceptance/1.1.1',
-      },
-      body: JSON.stringify({ mint, network: 'solana-mainnet' }),
-      signal: controller.signal,
-    });
+    response = await fetchProductionScan(controller);
   } finally {
     clearTimeout(timer);
   }
