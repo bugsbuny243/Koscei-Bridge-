@@ -87,12 +87,27 @@ func (h *Handler) runHolderIntelligenceCore(parent context.Context, target, netw
 		if historyDB != nil {
 			store := services.NewSecurityRadarStore(historyDB)
 			_ = store.CaptureHolderSnapshots(parent, target, network, intelligence)
-			if found, err := store.RepeatDominantHolders(parent, intelligence, target, services.RepeatDominantObservationDays); err == nil {
+
+			// ACTOR_INVESTIGATION_ENGINE.md sections 1, 2 and 6; actor-v1.0,
+			// unified-radar-v1.0. Prefer the retention-independent actor index.
+			// Legacy 30-day snapshots remain rollback-safe fallback only while older
+			// deployments catch up with the actor-memory migration.
+			found, err := store.PersistentRepeatDominantHolders(parent, intelligence, target, network)
+			persistentMemory := err == nil
+			if err != nil {
+				found, err = store.RepeatDominantHolders(parent, intelligence, target, services.RepeatDominantObservationDays)
+				persistentMemory = false
+			}
+			if err == nil {
 				repeatDominant = found
 				if len(found) > 0 {
 					intelligence = services.ApplyRepeatDominantHolderEvidenceToHolderIntelligence(intelligence, found)
 				}
-				analysis = services.ApplyRepeatDominantHolderEvidenceToAnalysis(analysis, req, found)
+				if persistentMemory {
+					analysis = services.ApplyPersistentRepeatDominantHolderEvidenceToAnalysis(analysis, req, found)
+				} else {
+					analysis = services.ApplyRepeatDominantHolderEvidenceToAnalysis(analysis, req, found)
+				}
 				bundle = services.EvidenceBackedSecurityRadarBundle(analysis.Bundle)
 				arms = services.ArvisArmsFromBundle(bundle)
 				if len(arms) == 0 {
