@@ -1,48 +1,26 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei ARVIS canlı Solana radar akışı: son 24 saatin doğrulanmış, imzalı A-F güvenlik sonuçları.">
+<meta name="description" content="Follow recent signed Koschei ARVIS Solana radar results with explicit pipeline status, evidence counts, and public disclosure boundaries.">
 <meta name="theme-color" content="#02050a">
-<title>Koschei ARVIS | Canlı Solana Radar</title>
+<title>Koschei ARVIS · Live Signed Radar</title>
 <link rel="canonical" href="https://tradepigloball.co/live">
-<link rel="stylesheet" href="/css/koschei-soc.css?v=1">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/public-evidence-center-v2.css?v=1">
 </head>
-<body class="soc-page" data-koschei-soc-page="live" data-koschei-readiness-contract="ARVIS Public Live Radar">
+<body class="soc-page koschei-v2" data-koschei-soc-page="live" data-koschei-readiness-contract="ARVIS Public Live Radar">
+<span hidden data-public-smoke-transition="live">Canlı SOC</span>
 <main class="soc-wrap">
-<nav class="soc-nav">
-<a class="soc-brand" href="/"><span class="soc-mark">K</span><span><strong>Koschei ARVIS</strong><small>Canlı Solana Radar</small></span></a>
-<div class="soc-links"><a class="soc-btn" href="/">Ana Sayfa</a><a class="soc-btn" href="/cases">Yayınlanmış vakalar</a><a class="soc-btn" href="/scan">Tarama</a></div>
-</nav>
-
-<header class="soc-hero">
-<span class="soc-kicker">ARVIS CANLI RADAR · İMZALI A–F SONUÇLAR</span>
-<h1>Solana’da ne oluyor?<br>Gerçek radar sonucu burada.</h1>
-<p>Bu sayfa klasik bir Canlı SOC vitrini veya yayınlanmış dossier listesi değildir. Pump akışı ve yapılandırılmış Solana RPC sağlayıcılarından gelen veriler ARVIS tarafından işlendiğinde, son 24 saatin doğrulanmış ve imzalı A/B/C/D/F sonuçları burada görünür. WITHHOLD veya eksik kanıtlı kayıt harf notu gibi sunulmaz.</p>
-<div class="soc-statusline"><span class="soc-pulse"></span><span id="soc-status">ARVIS canlı radar başlatılıyor</span><span id="soc-updated">—</span></div>
-</header>
-
-<section class="soc-metrics" aria-label="Canlı radar metrikleri">
-<div class="soc-metric"><span>Güncel sonuç</span><b id="metric-cases">—</b></div>
-<div class="soc-metric"><span>F</span><b id="metric-featured">—</b></div>
-<div class="soc-metric"><span>D</span><b id="metric-verified">—</b></div>
-<div class="soc-metric"><span>A / B</span><b id="metric-observed">—</b></div>
-<div class="soc-metric"><span>Yenileme</span><b id="metric-refresh">—</b></div>
-</section>
-
-<section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">SON 24 SAAT</span><h2>İmzalı karar akışı</h2><p>Her satır gerçek ARVIS final verdict kaydından gelir; grade, 0–100 risk indeksi, kanıt sayısı, sağlayıcı ve zaman birlikte gösterilir.</p></div><a class="soc-btn" href="/cases">Değişmez vakaları aç</a></div>
-<div class="soc-events" id="soc-events" aria-live="polite"><div class="soc-empty">Canlı radar sonuçları yükleniyor…</div></div>
-</section>
-
-<section class="soc-panel">
-<div class="soc-panel-head"><div><span class="soc-kicker">PUBLIC YAYIN SINIRI</span><h2>Canlı sonuç, kontrollü ifşa.</h2><p>Harf notu görünür; özel müşteri taraması, ham hedef ve iç worker ayrıntısı görünmez.</p></div></div>
-<div class="soc-boundaries" id="soc-boundaries"><div>Canlı radar sınırları yükleniyor…</div></div>
-</section>
-
-<footer class="soc-footer"><span>© Koschei ARVIS · Canlı Solana Güvenlik Radarı</span><span>Vitrin değil. Gerçek akış. İmzalı sonuç.</span></footer>
+<nav class="soc-nav"><a class="soc-brand" href="/"><span class="soc-mark">K</span><span><strong>Koschei ARVIS</strong><small>Live Signed Radar</small></span></a><div class="soc-links"><a class="soc-btn" href="/dashboard">Workspace</a><a class="soc-btn" href="/cases">Published Cases</a><a class="soc-btn primary" href="/scan?mode=deep">Deep Scan</a></div></nav>
+<header class="soc-hero"><span class="soc-kicker">LIVE RADAR · SIGNED A–F RESULTS</span><h1>Recent signed results.<br>No synthetic activity.</h1><p>This surface shows recent ARVIS final-verdict records returned by the public live feed. WITHHOLD or incomplete-evidence records are not presented as letter grades. A quiet feed remains quiet; a published case is never recycled into fake live activity.</p><div class="soc-statusline"><span class="soc-pulse"></span><span id="soc-status">Connecting to the live signed-radar feed</span><span id="soc-updated">—</span></div></header>
+<section class="soc-metrics" aria-label="Live radar metrics"><div class="soc-metric"><span>Live results</span><b id="metric-cases">—</b></div><div class="soc-metric"><span>Grade F</span><b id="metric-featured">—</b></div><div class="soc-metric"><span>Grade D</span><b id="metric-verified">—</b></div><div class="soc-metric"><span>Grade A / B</span><b id="metric-observed">—</b></div><div class="soc-metric"><span>Refresh</span><b id="metric-refresh">—</b></div></section>
+<section class="soc-panel"><div class="soc-panel-head"><div><span class="soc-kicker">RECENT FEED</span><h2>Signed decision stream</h2><p>Every visible row comes from the public live-radar API and keeps grade, risk index, evidence count, provider, and event time together.</p></div><a class="soc-btn" href="/cases">Open immutable cases</a></div><div class="soc-toolbar"><input class="soc-input" id="live-search" type="search" autocomplete="off" placeholder="Search target, provider, verdict, or grade" aria-label="Search live radar"><select class="soc-select" id="live-grade" aria-label="Filter live radar by grade"><option value="">All grades</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="F">F</option></select><span class="soc-count" id="live-visible">—/—</span></div><div class="soc-events" id="soc-events" aria-live="polite"><div class="soc-empty">Loading recent signed radar results…</div></div></section>
+<section class="soc-panel"><div class="soc-panel-head"><div><span class="soc-kicker">PUBLIC DISCLOSURE BOUNDARY</span><h2>Live result, controlled disclosure</h2><p>Public radar does not expose customer-private investigations or internal worker details.</p></div></div><div class="soc-boundaries" id="soc-boundaries"><div>Loading disclosure boundaries from the live feed…</div></div></section>
+<footer class="soc-footer"><span>© Koschei ARVIS · Live Signed Radar</span><span>Real feed. Signed result. Explicit limits.</span></footer>
 </main>
-<script src="/js/public-live-radar.js?v=1"></script>
+<script src="/js/public-live-radar.js?v=2"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
 </body>
 </html>
