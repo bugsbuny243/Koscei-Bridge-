@@ -1,0 +1,29 @@
+name: Public Evidence Center V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/cases.html'
+      - 'koschei/api/public/live.html'
+      - 'koschei/api/public/js/public-soc.js'
+      - 'koschei/api/public/js/public-live-radar.js'
+      - 'koschei/api/public/css/public-evidence-center-v2.css'
+      - 'koschei/api/scripts/verify-public-evidence-center-v2.js'
+      - '.github/workflows/public-evidence-center-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-evidence-center:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public evidence JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/public-soc.js
+          node --check koschei/api/public/js/public-live-radar.js
+      - name: Verify public evidence center contract
+        run: node koschei/api/scripts/verify-public-evidence-center-v2.js
