@@ -6,6 +6,7 @@ window.__koscheiCustomerAccessV2=true;
 const $=id=>document.getElementById(id);
 const obj=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const text=value=>String(value??'').trim();
+const el=(tag,className,content)=>{const node=document.createElement(tag);if(className)node.className=className;if(content!==undefined)node.textContent=content;return node;};
 let currentNetwork='solana-mainnet';
 
 function setText(id,value){const node=$(id);if(node)node.textContent=value;}
@@ -33,14 +34,19 @@ async function write(path,options={}){
 function renderThresholds(access){
   const host=$('accessThresholds');if(!host)return;
   const thresholds=obj(access?.thresholds),order=['basic','pro','enterprise'],keys=[...order.filter(key=>thresholds[key]!==undefined),...Object.keys(thresholds).filter(key=>!order.includes(key)).sort()];
-  if(!keys.length){host.innerHTML='<div class="ops-empty">Tier thresholds are unavailable from the current token-access policy. No legacy threshold is guessed by the UI.</div>';return;}
-  host.innerHTML=keys.map(key=>{const value=text(thresholds[key]);return`<article class="access-threshold"><span>${key}</span><strong>${value||'—'} KOSCH</strong><small>Threshold returned by the current token-access policy.</small></article>`;}).join('');
+  host.textContent='';
+  if(!keys.length){host.appendChild(el('div','ops-empty','Tier thresholds are unavailable from the current token-access policy. No legacy threshold is guessed by the UI.'));return;}
+  for(const key of keys){
+    const card=el('article','access-threshold');
+    card.append(el('span','',key),el('strong','',`${text(thresholds[key])||'—'} KOSCH`),el('small','','Threshold returned by the current token-access policy.'));
+    host.appendChild(card);
+  }
 }
 
 function renderWallet(result){
   const unlink=$('accessUnlink'),connect=$('accessConnect');
   if(!result.ok){setText('wallet','Unavailable');setBadge('walletState','status unavailable','bad');if(unlink)unlink.hidden=true;if(connect)connect.textContent='Verify with Phantom';return {available:false,linked:false,address:''};}
-  const linked=result.data?.linked===true,address=text(result.data?.wallet_address);
+  const linked=result.data?.linked===true,address=text(result.data?.wallet_address);currentNetwork=text(result.data?.network)||currentNetwork;
   if(linked&&address){setText('wallet',address);setBadge('walletState','verified','good');if(unlink)unlink.hidden=false;if(connect)connect.textContent='Change wallet';return {available:true,linked:true,address};}
   setText('wallet','Not linked');setBadge('walletState','verification required','warn');if(unlink)unlink.hidden=true;if(connect)connect.textContent='Verify with Phantom';return {available:true,linked:false,address:''};
 }
@@ -79,7 +85,7 @@ async function load({preserveMessage=false}={}){
   setText('email',KoscheiAuth.getEmail?.()||'—');
   const [walletResult,tokenResult,premiumResult]=await Promise.all([read('/api/auth/wallet/status'),read('/api/auth/token-access'),read('/api/auth/premium-access')]);
   const wallet=renderWallet(walletResult),token=renderToken(tokenResult),premium=renderPremium(premiumResult);renderConsistency(wallet,token,premium);
-  if(!preserveMessage&&walletResult.ok&&tokenResult.ok&&premiumResult.ok){showMessage(premium.active?'Wallet and KOSCH access evidence resolved successfully.':'Access evidence resolved. Verify/hold requirements remain unsatisfied. ',premium.active?'good':'warn');}
+  if(!preserveMessage&&walletResult.ok&&tokenResult.ok&&premiumResult.ok){showMessage(premium.active?'Wallet and KOSCH access evidence resolved successfully.':'Access evidence resolved. Verify/hold requirements remain unsatisfied.',premium.active?'good':'warn');}
 }
 
 async function runButton(button,label,work){if(!button||button.disabled)return;const previous=button.textContent;button.disabled=true;button.textContent=label;try{await work();}finally{button.disabled=false;button.textContent=previous;}}
