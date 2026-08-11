@@ -16,7 +16,7 @@ requireText(html,'id="workspaceAlerts"','alerts mount');
 requireText(html,'LATEST CANONICAL INVESTIGATION','canonical history copy');
 requireText(html,'Investigation jobs','canonical history KPI copy');
 requireText(js,"read('/api/auth/premium-access')",'access source');
-requireText(js,"read('/api/v1/investigations/history')",'canonical history source');
+requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
 requireText(js,"read('/api/watchlist')",'watchlist source');
 requireText(js,"read('/api/watchlist/alerts')",'alerts source');
 requireText(js,'if(!KoscheiAuth.isLoggedIn())','signed-out privacy boundary');
@@ -35,6 +35,7 @@ requireText(css,'.workspace-alert','alert styles');
 requireText(css,'.workspace-report-card','investigation card styles');
 
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
+if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
 if(js.includes('Math.random('))throw new Error('workspace must not fabricate live metrics');
 if(/fetch\s*\(/.test(js))throw new Error('workspace account data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
 if(!html.includes('Unavailable data stays unavailable; the UI does not invent operational state.'))throw new Error('dashboard must expose the no-fake-data boundary');
