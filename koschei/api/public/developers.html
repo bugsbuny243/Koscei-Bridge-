@@ -1,67 +1,91 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei ARVIS'i Solana cüzdanlarına, dApp'lere, launchpad'lere ve güvenlik akışlarına entegre ederek kanıta dayalı imza öncesi risk kararları alın.">
-<title>Koschei ARVIS Geliştiriciler</title>
-<link rel="stylesheet" href="/css/koschei-global-shell.css?v=1">
-<style>
-:root{--line:#24eaff30;--text:#f7fbff;--muted:#9eb0c2;--green:#18ffb2;--cyan:#24eaff;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% 0,#18ffb229,transparent 34%),linear-gradient(135deg,#020409,#071522 62%,#02040a)}a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 22px));margin:auto;padding:22px 0 34px}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:22px;padding:12px 14px;border:1px solid var(--line);border-radius:24px;background:#ffffff10}.brand{font-weight:1000}.nav{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);border-radius:999px;padding:10px 13px;color:var(--muted);font-weight:850}.btn.primary{background:linear-gradient(135deg,var(--green),var(--cyan));border:0;color:#03110d}.hero,.card{border:1px solid var(--line);border-radius:28px;background:linear-gradient(145deg,#ffffff14,#071421d4);box-shadow:0 28px 90px #0008}.hero{padding:34px;margin-bottom:18px}.eyebrow{display:inline-flex;color:#bfffe8;background:#18ffb218;border:1px solid #18ffb245;border-radius:999px;padding:8px 12px;font:900 11px var(--mono);letter-spacing:.12em;text-transform:uppercase}h1{font-size:clamp(42px,7vw,74px);line-height:.95;letter-spacing:-.06em;margin:18px 0 12px}.sub{color:var(--muted);line-height:1.75;font-size:16px;max-width:820px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{padding:22px}.card h2{margin:9px 0 8px}.card p,.card li{color:var(--muted);line-height:1.65}.code{display:block;margin-top:12px;border:1px solid #ffffff16;border-radius:18px;padding:14px;background:#02070d;color:#d9fbff;font-family:var(--mono);font-size:13px;white-space:pre-wrap;overflow:auto}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#bfffe8;font:900 10px var(--mono);text-transform:uppercase}.live-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.live-grid a,.live-grid div{border:1px solid #ffffff12;border-radius:18px;padding:15px;background:#ffffff08}.live-grid b{display:block;margin-bottom:5px}.live-grid span{color:var(--muted);font-size:13px;line-height:1.5}@media(max-width:760px){.top{align-items:flex-start;flex-direction:column}.grid,.live-grid{grid-template-columns:1fr}.actions .btn{width:100%;text-align:center}.hero{padding:24px}.card{padding:18px}.card p{font-size:15px}.code{font-size:12px}}
-</style>
+<meta name="description" content="Integrate Koschei ARVIS through current production routes with explicit customer-session, KOSCH, and developer API-key boundaries.">
+<meta name="theme-color" content="#02050a">
+<title>Developers · Koschei ARVIS</title>
+<link rel="canonical" href="https://tradepigloball.co/developers">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/developers-contract-v2.css?v=1">
 </head>
-<body>
-<main class="wrap">
-<nav class="top"><a class="brand" href="/">Koschei ARVIS</a><div class="nav"></div></nav>
-<section class="hero"><span class="eyebrow">Solana'ya özel imza öncesi altyapı</span><h1>İmzadan önce tek, kanıta dayalı karar.</h1><p class="sub">Cüzdanlar, dApp'ler, launchpad'ler ve güvenlik ekipleri; ayrı token, işlem, cüzdan ve alarm sistemleri kurmamak için ARVIS'i entegre eder. Çıktı makine tarafından okunabilir: kanıt ve kural bilgileriyle birlikte izin ver, uyar, engelle veya beklet.</p><div class="actions"><a class="btn primary" href="/pilot">Entegrasyon pilotuna başla</a><a class="btn" href="/token-2022-scanner">Token-2022 tarayıcısını aç</a><a class="btn" href="/transaction-firewall">İşlem güvenliğini aç</a><a class="btn" href="/webhooks">Webhook konsolunu aç</a></div></section>
-<section class="grid">
-<article class="card"><span class="pill">Canlı · üyelik</span><h2>Token-2022 Güvenlik Tarayıcısı</h2><p>Klasik SPL Token ile Token-2022'yi ayırır; transfer, yetki, gizlilik ve uyumluluk davranışını değiştiren uzantıları değerlendirir.</p><code class="code">POST /api/token/scan
-Authorization: Bearer &lt;oturum-tokeni&gt;
-{
-  "mint": "TOKEN_MINT",
-  "network": "solana-mainnet"
-}</code></article>
-<article class="card"><span class="pill">Canlı · API anahtarı · gölge mod</span><h2>İşlem Güvenliği</h2><p>Base64 Solana işlemini imzadan önce simüle eder ve izin ver, uyar, engelle veya beklet kanıtı döndürür.</p><code class="code">POST /api/v1/shield/transaction
-X-API-Key: &lt;anahtar&gt;
-{
-  "transaction": "BASE64_TRANSACTION",
-  "encoding": "base64"
-}</code></article>
-<article class="card"><span class="pill">Canlı · üyelik</span><h2>Kalıcı İzleme Listesi</h2><p>Token hedeflerini kaydeder, doğrulanmış anlık görüntüleri karşılaştırır ve skor, yetki, arz ile yoğunluk değişikliklerinde alarm üretir.</p><code class="code">GET  /api/watchlist
-POST /api/watchlist
-POST /api/watchlist/{id}/refresh
-GET  /api/watchlist/alerts</code></article>
-<article class="card"><span class="pill">Canlı · HMAC imzalı</span><h2>Webhook Teslimatı</h2><p>Watchlist alarmlarını şifreli secret, HMAC-SHA256 imza, otomatik yeniden deneme ve dead-letter kuyruğuyla teslim eder.</p><code class="code">GET  /api/webhooks
-POST /api/webhooks
-POST /api/webhooks/{id}/test
-GET  /api/webhooks/deliveries</code></article>
-<article class="card"><span class="pill">Canlı · oturum doğrulamalı</span><h2>Radar kontrolü</h2><p>Bir Solana hedefi için kanıta dayalı ARVIS kontrolü çalıştırır.</p><code class="code">POST /api/v1/radar/check
-Authorization: Bearer &lt;oturum-tokeni&gt;
+<body class="dev-page koschei-v2">
+<main class="dev-wrap">
+<nav class="dev-nav"><a class="dev-brand" href="/"><span class="dev-mark">K</span><span><strong>Koschei ARVIS</strong><small>Contract-first developer portal</small></span></a><div class="dev-links"><a class="dev-btn" href="/docs/api">API Docs</a><a class="dev-btn" href="/pilot">Integration Pilot</a><a class="dev-btn" href="/transaction-firewall">Transaction Guard</a><a class="dev-btn" href="/scan?mode=deep">Deep Scan</a><a class="dev-btn" href="/account">API Keys</a></div></nav>
+<header class="dev-hero"><span class="dev-kicker">PRODUCTION ROUTES · EXPLICIT AUTH BOUNDARIES</span><h1>Integrate the evidence decision, not a marketing mock.</h1><p>This page documents live production surfaces already registered in the server boot chain. Browser customer sessions, verified KOSCH holder access, and server-side developer API keys are separate boundaries. Missing evidence never becomes a low-risk result, and an API key never bypasses live KOSCH eligibility.</p><div class="dev-proofline"><span class="dev-chip">Production route inventory</span><span class="dev-chip">Customer session ≠ API key</span><span class="dev-chip">API key + live KOSCH eligibility</span><span class="dev-chip warn">No evidence, no claim</span></div><div class="dev-boundary"><b>Credential boundary:</b> keep developer API keys server-side. Do not embed ARVIS API keys in public browser JavaScript, URLs, localStorage, or sessionStorage. Customer-session routes should use the existing Koschei account flow instead.</div><div class="dev-actions" style="margin-top:18px"><a class="dev-btn primary" href="/pilot">Start Integration Pilot</a><a class="dev-btn" href="/docs/api">Open API Reference</a></div></header>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">AUTHENTICATION MAP</span><h2>Choose the route family before writing code.</h2><p>The boot-chain inventory separates public surfaces, customer-session + KOSCH routes, and developer API-key + live KOSCH routes. Do not swap one credential type for another.</p></div></div><div class="dev-contract"><div><b>Public / mixed</b><span>Safe Check and selected public fundamentals. No developer API key is required for the public preflight surface.</span></div><div><b>Customer session + KOSCH</b><span>Deep Radar investigations, Token-2022 extensions, durable watchlists, webhooks, graph/exposure, and other premium account workflows.</span></div><div><b>Developer API key + live KOSCH</b><span>Server integrations such as B2B token scanning, Transaction Guard, developer preflight, address-poisoning API, and usage history.</span></div></div></section>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">PUBLIC / MIXED</span><h2>Start with public preflight when account context is unnecessary.</h2></div></div><div class="dev-grid">
+<article class="dev-card"><span class="dev-auth public">PUBLIC</span><h3>Deterministic Safe Check</h3><p>Runs the public rapid preflight. Missing decision evidence is not converted into a safe result.</p><code class="dev-code">POST /api/arvis/preflight
+Content-Type: application/json
+
 {
   "target": "SOLANA_TARGET",
-  "network": "solana-mainnet"
-}</code></article>
-<article class="card"><span class="pill">Canlı · API anahtarı</span><h2>B2B toplu tarama</h2><p>Idempotency, asenkron sonuç ve kota kontrolleriyle 20'ye kadar benzersiz hedefi destekleyen partner token tarama rotasıdır.</p><code class="code">POST /api/v1/scan/token
-X-API-Key: &lt;anahtar&gt;
-Idempotency-Key: import-42
+  "intent": "research"
+}</code><div class="dev-note">Use the customer Deep Scan or developer APIs when you need premium evidence depth, durable history, or integration credentials.</div></article>
+<article class="dev-card"><span class="dev-auth public">PUBLIC / MIXED</span><h3>Basic token scan surface</h3><p>The server boot chain exposes the current public/mixed token scan route separately from the dedicated Token-2022 extension route.</p><code class="dev-code">POST /api/token/scan</code><div class="dev-note">Do not describe this generic route as the dedicated Token-2022 extension API.</div></article>
+</div></section>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">CUSTOMER SESSION + KOSCH</span><h2>Premium account workflows use the customer session.</h2><p>These routes are tied to the account session and configured KOSCH access policy. They are not developer API-key endpoints.</p></div></div><div class="dev-grid">
+<article class="dev-card"><span class="dev-auth session">CUSTOMER SESSION + KOSCH</span><h3>Deep evidence check</h3><p>Runs an evidence-backed Radar check for a supported Solana target.</p><code class="dev-code">POST /api/v1/radar/check
+Authorization: Bearer CUSTOMER_SESSION_TOKEN
+
 {
-  "mints": ["MINT_A", "MINT_B"]
+  "target": "SOLANA_TARGET",
+  "network": "solana-mainnet",
+  "mode": "developer_test"
 }</code></article>
-<article class="card"><span class="pill">Canlı · API anahtarı</span><h2>Kullanım ve asenkron sonuçlar</h2><p>API kullanımını, ayrılan ve tüketilen çıktıları, gecikmeyi ve saklanan sonuçları döndürür.</p><code class="code">GET /api/v1/usage
+<article class="dev-card"><span class="dev-auth session">CUSTOMER SESSION + KOSCH</span><h3>Canonical investigation jobs</h3><p>Creates an asynchronous investigation that continues independently of the originating request.</p><code class="dev-code">POST /api/v1/radar/jobs
+Authorization: Bearer CUSTOMER_SESSION_TOKEN
+
+GET /api/v1/radar/jobs/{job_id}</code></article>
+<article class="dev-card"><span class="dev-auth session">CUSTOMER SESSION + KOSCH</span><h3>Token-2022 extension analysis</h3><p>This is the dedicated live Token-2022 extension/authority route.</p><code class="dev-code">POST /api/v1/token/extensions
+Authorization: Bearer CUSTOMER_SESSION_TOKEN</code><div class="dev-note">Unsupported or unresolved extension state must remain explicit.</div></article>
+<article class="dev-card"><span class="dev-auth session">CUSTOMER SESSION + KOSCH</span><h3>Watchlists and webhooks</h3><p>Durable monitoring and security delivery use the customer-session route family.</p><code class="dev-code">/api/watchlist
+POST /api/watchlist/refresh
+/api/watchlist/alerts
+
+/api/webhooks
+/api/webhooks/security-alerts
+/api/webhooks/deliveries</code><div class="dev-note">Webhook delivery transports an existing deterministic result; delivery does not create or modify a grade.</div></article>
+</div></section>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">SERVER API · API KEY + LIVE KOSCH</span><h2>Use developer keys only from trusted server-side code.</h2><p>Developer API keys are identity credentials. They remain subject to live KOSCH eligibility, per-minute rate limits, configured usage quotas, and endpoint-specific evidence rules.</p></div><a class="dev-btn" href="/account">Manage API Keys</a></div><div class="dev-grid">
+<article class="dev-card"><span class="dev-auth api">X-API-KEY + LIVE KOSCH</span><h3>B2B token scan</h3><p>Queues one or up to 20 unique Solana token targets. Idempotency is supported and results are retrieved asynchronously.</p><code class="dev-code">POST /api/v1/scan/token
+X-API-Key: ARVIS_API_KEY
+Idempotency-Key: import-42
+
+{
+  "mints": ["MINT_A", "MINT_B"],
+  "network": "solana-mainnet",
+  "include_ai": false
+}</code><div class="dev-note">The current handler caps normalized unique targets at 20 and reserves one usage credit per target. Failed batch items are refunded rather than charged as completed evidence-backed outputs.</div></article>
+<article class="dev-card"><span class="dev-auth api">X-API-KEY + LIVE KOSCH</span><h3>Transaction Guard</h3><p>Runs the evidence-first shadow simulation before signing. Possible actions are allow, warn, block, or withhold.</p><code class="dev-code">POST /api/v1/shield/transaction
+X-API-Key: ARVIS_API_KEY
+
+{
+  "transaction": "BASE64_SERIALIZED_TRANSACTION",
+  "encoding": "base64",
+  "network": "solana-mainnet"
+}</code><div class="dev-note">Provider failure, incomplete required evidence, or unresolved required execution surfaces cannot silently become allow.</div></article>
+<article class="dev-card"><span class="dev-auth api">X-API-KEY + LIVE KOSCH</span><h3>Developer preflight and recipient protection</h3><p>API-key equivalents exist for preflight and address-poisoning analysis.</p><code class="dev-code">POST /api/v1/shield/preflight
+POST /api/v1/shield/address-poisoning
+X-API-Key: ARVIS_API_KEY</code></article>
+<article class="dev-card"><span class="dev-auth api">X-API-KEY + LIVE KOSCH</span><h3>Usage and async results</h3><p>The usage API reports request status, reserved/charged credits, errors, latency, result availability, and completion metadata.</p><code class="dev-code">GET /api/v1/usage
 GET /api/v1/usage?request_id=REQUEST_ID
-X-API-Key: &lt;anahtar&gt;</code></article>
-<article class="card"><span class="pill">Sözleşme</span><h2>İmzalı karar</h2><p>Son kararlar kanıt, kural bilgileri ve imzalı durum taşır.</p><code class="code">{
-  "grade": "A-F",
-  "risk_index": 45,
-  "risk_level": "medium",
-  "evidence": [],
-  "rule_version": "arvis-live",
-  "signed": true
-}</code></article>
-</section>
-<section class="card" style="margin-top:14px"><span class="eyebrow">Neden Solana?</span><div class="live-grid"><div><b>Talimat ve hesap bağlamı</b><span>İmza öncesi analiz genel bir zincir skoru uygulamak yerine Solana işlem talimatlarını ve hesap ilişkilerini izler.</span></div><div><b>SPL ve Token-2022 davranışı</b><span>Yetki, uzantı, transfer ve uyumluluk kanıtları Solana token anlamlarına göre değerlendirilir.</span></div><div><b>Program ve likidite kanıtı</b><span>Raydium odaklı hareketler, program ilişkileri, priority fee etkisi ve normalize gözlemler tek karar sözleşmesine girer.</span></div></div></section>
-<section class="card" style="margin-top:14px"><span class="eyebrow">Canlı üretim yüzeyleri</span><div class="live-grid"><a href="/watchlist"><b>İzleme Listesi</b><span>Kalıcı hedefler ve kanıta dayalı değişiklik alarmları.</span></a><a href="/webhooks"><b>Webhook Konsolu</b><span>İmzalı teslimat, yeniden deneme geçmişi ve dead-letter kayıtları.</span></a><a href="/architecture"><b>Mimari</b><span>Aynı canlı üretim sağlık kaynağından gelen metrikler.</span></a></div></section>
+X-API-Key: ARVIS_API_KEY</code><div class="dev-note">Credits here are API usage reservation/charge metadata. Do not treat them as a separate verdict, KOSCH balance, or evidence score.</div></article>
+</div></section>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">SIGNED VERDICT TRUST RULE</span><h2>Do not integrate against a fabricated sample score.</h2><p>A consumer should treat a verdict as final only when the response contract marks it signed by the deterministic verdict engine. Inspect the evidence and limitations instead of trusting one display number.</p></div></div><ul class="dev-list"><li><code>signature metadata</code> — verify that the deterministic verdict contract marks the result signed.</li><li><code>evidence arms</code> — understand what completed, what remained unavailable, and what was only observed or bounded.</li><li><code>ruleset version + triggered rules</code> — preserve the deterministic decision context.</li><li><code>decision path + source freshness</code> — know how the result was reached and how current the evidence is.</li><li><code>limitations</code> — never convert missing or unresolved evidence into a low-risk assumption.</li></ul><div class="dev-boundary"><b>No model authority:</b> narrative or model output cannot create evidence or alter the authoritative deterministic verdict.</div></section>
+
+<section class="dev-section"><div class="dev-section-head"><div><span class="dev-kicker">NEXT STEPS</span><h2>Use the existing production contract.</h2></div></div><div class="dev-contract"><div><b>Read the API reference</b><span>Current routes and planned expansion are separated explicitly.</span><a class="dev-btn" style="margin-top:10px" href="/docs/api">API Reference</a></div><div><b>Test Transaction Guard</b><span>Operator shadow-mode UI for the current B2B transaction endpoint.</span><a class="dev-btn" style="margin-top:10px" href="/transaction-firewall">Open Guard</a></div><div><b>Run an integration pilot</b><span>Describe one measurable production-shaped Solana decision flow.</span><a class="dev-btn" style="margin-top:10px" href="/pilot">Apply</a></div></div></section>
+
+<footer class="dev-footer"><span>Koschei ARVIS · contract-first developer portal</span><nav><a href="/docs/api">API Docs</a><a href="/pilot">Pilot</a><a href="/scan?mode=deep">Deep Scan</a><a href="/account">API Keys</a></nav></footer>
 </main>
-<script src="/js/koschei-global-shell.js?v=2"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=1"></script>
 </body>
 </html>
