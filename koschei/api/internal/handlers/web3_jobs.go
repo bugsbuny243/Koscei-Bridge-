@@ -116,7 +116,11 @@ func (h *Handler) GetWeb3Job(w http.ResponseWriter, r *http.Request) {
 	}
 	id := lastCanonicalJobPathSegment(r.URL.Path)
 	if id == "" {
-		h.CustomerInvestigationHistory(w, r)
+		if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/radar/jobs" {
+			h.CustomerInvestigationHistory(w, r)
+			return
+		}
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 		return
 	}
 	job, err := h.JobStore.Get(r.Context(), id, claims.Sub)
