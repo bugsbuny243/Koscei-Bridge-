@@ -6,6 +6,7 @@ const migration=fs.readFileSync(path.join(root,'migrations','021_web3_async_jobs
 const jobTypes=fs.readFileSync(path.join(root,'internal','jobs','types.go'),'utf8');
 const store=fs.readFileSync(path.join(root,'internal','jobs','history.go'),'utf8');
 const handler=fs.readFileSync(path.join(root,'internal','handlers','customer_investigation_history.go'),'utf8');
+const jobsHandler=fs.readFileSync(path.join(root,'internal','handlers','web3_jobs.go'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
 const inventory=fs.readFileSync(path.join(root,'internal','http','route_inventory.go'),'utf8');
 const reportsHTML=fs.readFileSync(path.join(root,'public','reports.html'),'utf8');
@@ -30,6 +31,8 @@ requireText(store,'ORDER BY queued_at DESC,id DESC','canonical history ordering'
 requireText(store,'scanJob(rows)','shared job scanner contract');
 
 requireText(handler,'func (h *Handler) CustomerInvestigationHistory','customer history handler');
+requireText(handler,'func (h *Handler) CustomerInvestigationHistoryCollection','Basic-gated collection handler');
+requireText(handler,'h.RequireTokenTier("basic", h.CustomerInvestigationHistory)','Basic access-only history gate');
 requireText(handler,'h.JobStore.ListByUser(r.Context(), claims.Sub, CanonicalInvestigationJobType, 100)','canonical account history query');
 requireText(handler,'ResultAvailable bool','result availability evidence');
 requireText(handler,'if json.Unmarshal(job.ResultPayload, &result) == nil && result != nil','result payload parse boundary');
@@ -37,10 +40,14 @@ requireText(handler,'"schema_version": "koschei-customer-investigation-history-v
 requireText(handler,'"source": "web3_jobs"','durable source marker');
 requireText(handler,'"job_type": CanonicalInvestigationJobType','canonical job-type marker');
 requireText(handler,'"history": items','history collection envelope');
+forbid(handler,/EnforceScanQuota/,'history handler must not consume scan quota');
 
-requireText(server,'mux.HandleFunc("/api/v1/investigations/history", requiresDB(h, koschTierAccess("basic", method("GET", h.CustomerInvestigationHistory))))','Basic access-only history route');
-forbid(server,/\/api\/v1\/investigations\/history[^\n]*koschTier\("basic"/,'history route must not consume scan quota');
-requireText(inventory,'"GET /api/v1/investigations/history"','machine-readable history route');
+requireText(jobsHandler,'if id == "" && strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/radar/jobs" {','radar jobs collection dispatch');
+requireText(jobsHandler,'h.CustomerInvestigationHistoryCollection(w, r)','history collection delegation');
+requireText(server,'mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))','existing radar jobs GET route');
+if(server.includes('/api/v1/investigations/history'))throw new Error('server: do not add a parallel history endpoint; use the existing radar jobs collection');
+requireText(inventory,'"GET /api/v1/radar/jobs/"','machine-readable radar jobs GET route');
+if(inventory.includes('/api/v1/investigations/history'))throw new Error('inventory: parallel history endpoint must not be advertised');
 
 requireText(reportsHTML,'BASIC+ KOSCH · DURABLE CANONICAL JOB HISTORY','Vault access copy');
 requireText(reportsHTML,'reading history does not consume a scan unit','Vault read-only quota copy');
@@ -48,7 +55,7 @@ requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');
 requireText(reportsHTML,'/scan?mode=deep','Vault canonical investigation route');
 
-requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/investigations/history'",'Vault history source');
+requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'Vault history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'Vault schema gate');
 requireText(reportsJS,"data?.source!=='web3_jobs'",'Vault source gate');
 requireText(reportsJS,"data?.job_type!=='canonical_investigation'",'Vault job-type gate');
@@ -59,6 +66,7 @@ requireText(reportsJS,"if(value===null||value===undefined||value==='')return nul
 requireText(reportsJS,"state==='completed'&&item?.result_available!==true",'completed-without-result warning');
 requireText(reportsJS,"KoscheiAuth.requireAuth('/login.html')",'Vault canonical login continuation');
 if(reportsJS.includes('/api/v1/unified/reports'))throw new Error('Vault must not call dead unified-reports frontend contract');
+if(reportsJS.includes('/api/v1/investigations/history'))throw new Error('Vault must use the canonical radar jobs collection');
 forbid(reportsJS,/\.innerHTML\s*=/,'Vault API-derived innerHTML');
 forbid(reportsJS,/\bfetch\s*\(/,'Vault raw fetch');
 forbid(reportsJS,/Authorization/i,'Vault manual bearer auth');
@@ -72,7 +80,7 @@ requireText(dashboard,'Investigation History','Workspace history navigation');
 requireText(dashboard,'/js/customer-workspace-v2.js?v=2','Workspace history controller');
 if(dashboard.includes('Signed Report Vault'))throw new Error('Workspace must not advertise every durable job as a signed report');
 
-requireText(workspaceJS,"read('/api/v1/investigations/history')",'Workspace history source');
+requireText(workspaceJS,"read('/api/v1/radar/jobs/')",'Workspace history source');
 requireText(workspaceJS,"data.schema_version!=='koschei-customer-investigation-history-v1'",'Workspace history schema gate');
 requireText(workspaceJS,"data.source!=='web3_jobs'",'Workspace history source gate');
 requireText(workspaceJS,"data.job_type!=='canonical_investigation'",'Workspace canonical job-type gate');
@@ -82,6 +90,7 @@ requireText(workspaceJS,'renderLatestInvestigation(investigationHistory)','Works
 requireText(workspaceJS,'historyAvailable=Array.isArray(investigationHistory)','Workspace availability truth');
 requireText(workspaceJS,'availableSources=[accessResult.ok,historyAvailable,watchResult.ok,alertsResult.ok]','Workspace source availability truth');
 if(workspaceJS.includes('/api/v1/unified/reports'))throw new Error('Workspace must not call dead unified-reports frontend contract');
+if(workspaceJS.includes('/api/v1/investigations/history'))throw new Error('Workspace must use the canonical radar jobs collection');
 const latestStart=workspaceJS.indexOf('function renderLatestInvestigation');
 const alertsStart=workspaceJS.indexOf('function renderAlerts');
 if(latestStart<0||alertsStart<=latestStart)throw new Error('Workspace latest-investigation render boundary missing');
