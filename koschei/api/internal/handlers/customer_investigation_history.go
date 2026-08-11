@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 type customerInvestigationHistoryItem struct {
@@ -13,8 +14,8 @@ type customerInvestigationHistoryItem struct {
 	Target          string         `json:"target,omitempty"`
 	Progress        int            `json:"progress"`
 	Attempts        int            `json:"attempts"`
-	QueuedAt        any            `json:"queued_at"`
-	UpdatedAt       any            `json:"updated_at"`
+	QueuedAt        time.Time      `json:"queued_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 	ErrorCode       string         `json:"error_code,omitempty"`
 	ErrorMessage    string         `json:"error_message,omitempty"`
 	ResultAvailable bool           `json:"result_available"`
@@ -60,7 +61,8 @@ func (h *Handler) CustomerInvestigationHistory(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "source": "web3_jobs", "job_type": CanonicalInvestigationJobType,
+		"ok": true, "schema_version": "koschei-customer-investigation-history-v1",
+		"source": "web3_jobs", "job_type": CanonicalInvestigationJobType,
 		"history": items, "count": len(items),
 	})
 }
