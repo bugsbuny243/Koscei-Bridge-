@@ -1,0 +1,23 @@
+name: Canonical Deep Scan Navigation Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/js/koschei-global-shell.js'
+      - 'koschei/api/scripts/verify-canonical-deep-scan-nav.js'
+      - '.github/workflows/canonical-deep-scan-nav.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-deep-scan-nav:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check global shell JavaScript syntax
+        run: node --check koschei/api/public/js/koschei-global-shell.js
+      - name: Verify canonical deep scan navigation contract
+        run: node koschei/api/scripts/verify-canonical-deep-scan-nav.js
