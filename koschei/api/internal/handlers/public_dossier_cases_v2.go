@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const publicCaseRegistrySchemaVersion = "koschei-public-case-registry-v1"
+
 // publicDossierCaseV2 keeps the existing discovery contract and adds the
 // canonical nine-state counts. Outer JSON fields intentionally replace the old
 // catch-all unknown count from the embedded compatibility projection.
@@ -52,6 +54,7 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Koschei-Registry-Complete", strconv.FormatBool(complete))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                   true,
+		"schema_version":       publicCaseRegistrySchemaVersion,
 		"generated_at":         time.Now().UTC(),
 		"registry_status":      registryStatus,
 		"registry_complete":    complete,
