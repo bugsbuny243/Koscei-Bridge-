@@ -21,7 +21,9 @@ func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (do
 	}
 
 	var bundle dossierBundle
-	if err := json.Unmarshal(canonical, &bundle); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(canonical))
+	decoder.UseNumber()
+	if err := decoder.Decode(&bundle); err != nil {
 		return dossierBundle{}, fmt.Errorf("dossier canonical JSON is invalid: %w", err)
 	}
 	if bundle.CaseRef != caseRef {
