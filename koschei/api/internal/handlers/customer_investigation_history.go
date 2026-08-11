@@ -23,9 +23,13 @@ type customerInvestigationHistoryItem struct {
 }
 
 // CustomerInvestigationHistory lists durable canonical investigation jobs owned
-// by the authenticated account. Reading history is access-controlled but does
-// not consume a new scan unit; new scans remain metered at their creation route.
+// by the authenticated account. Reading history requires Basic KOSCH access but
+// does not consume a new scan unit; new scans remain metered at creation.
 func (h *Handler) CustomerInvestigationHistory(w http.ResponseWriter, r *http.Request) {
+	h.RequireTokenTier("basic", h.customerInvestigationHistoryRead)(w, r)
+}
+
+func (h *Handler) customerInvestigationHistoryRead(w http.ResponseWriter, r *http.Request) {
 	if h.JobStore == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "job service unavailable"})
 		return
