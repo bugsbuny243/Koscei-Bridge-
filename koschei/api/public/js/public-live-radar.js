@@ -19,7 +19,8 @@
   }
 
   function safeDate(value) {
-    const parsed = new Date(value || 0);
+    if (value === undefined || value === null || String(value).trim() === '') return '—';
+    const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? '—' : date.format(parsed);
   }
 
@@ -31,6 +32,7 @@
   }
 
   function numeric(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
@@ -57,6 +59,16 @@
 
   function normalizedGrade(item) {
     return String(item?.grade || '').trim().toUpperCase();
+  }
+
+  function derivedGradeCount(grade) {
+    return currentEvents.filter(item => normalizedGrade(item) === grade).length;
+  }
+
+  function summaryGradeCount(grades, grade) {
+    if (!Object.prototype.hasOwnProperty.call(grades, grade)) return derivedGradeCount(grade);
+    const parsed = numeric(grades[grade]);
+    return parsed === null ? null : parsed;
   }
 
   function eventRow(item) {
@@ -110,21 +122,30 @@
     eventsNode.replaceChildren(...filtered.map(eventRow));
   }
 
+  function metricValue(value) {
+    return value === null ? 'UNAVAILABLE' : number.format(value);
+  }
+
   function render(payload) {
     const summary = payload.summary || {};
     const grades = summary.grade_counts || {};
     currentEvents = Array.isArray(payload.events) ? payload.events : [];
 
     const liveResults = numeric(summary.live_results);
+    const gradeF = summaryGradeCount(grades, 'F');
+    const gradeD = summaryGradeCount(grades, 'D');
+    const gradeA = summaryGradeCount(grades, 'A');
+    const gradeB = summaryGradeCount(grades, 'B');
     setText('metric-cases', number.format(liveResults === null ? currentEvents.length : liveResults));
-    setText('metric-featured', number.format(Number(grades.F || 0)));
-    setText('metric-verified', number.format(Number(grades.D || 0)));
-    setText('metric-observed', `${number.format(Number(grades.A || 0))} / ${number.format(Number(grades.B || 0))}`);
-    setText('metric-refresh', `${Number(payload.refresh_seconds || 15)} sec`);
+    setText('metric-featured', metricValue(gradeF));
+    setText('metric-verified', metricValue(gradeD));
+    setText('metric-observed', gradeA === null || gradeB === null ? 'UNAVAILABLE' : `${number.format(gradeA)} / ${number.format(gradeB)}`);
+    const refresh = numeric(payload.refresh_seconds);
+    setText('metric-refresh', `${refresh === null ? 15 : refresh} sec`);
     renderFiltered();
 
     const boundaries = Array.isArray(payload.boundaries) ? payload.boundaries : [];
-    if (boundariesNode) boundariesNode.replaceChildren(...(boundaries.length ? boundaries.map(value => el('div', '', value)) : [el('div', '', 'No public disclosure boundary list was returned by the feed.') ]));
+    if (boundariesNode) boundariesNode.replaceChildren(...(boundaries.length ? boundaries.map(value => el('div', '', value)) : [el('div', '', 'No public disclosure boundary list was returned by the feed.')]));
     if (statusNode) statusNode.textContent = `ARVIS live radar · ${pipelineText(payload.pipeline_status)}`;
     if (updatedNode) updatedNode.textContent = `Updated: ${safeDate(payload.generated_at)}`;
   }
