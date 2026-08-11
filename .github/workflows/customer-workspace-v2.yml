@@ -1,0 +1,25 @@
+name: Customer Workspace V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/dashboard.html'
+      - 'koschei/api/public/js/customer-workspace-v2.js'
+      - 'koschei/api/public/css/customer-workspace-v2.css'
+      - 'koschei/api/scripts/verify-customer-workspace-v2.js'
+      - '.github/workflows/customer-workspace-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-workspace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check workspace JavaScript syntax
+        run: node --check koschei/api/public/js/customer-workspace-v2.js
+      - name: Verify live workspace contract
+        run: node koschei/api/scripts/verify-customer-workspace-v2.js
