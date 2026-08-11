@@ -1,0 +1,30 @@
+name: Watchlist Evidence-State V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/watchlist.html'
+      - 'koschei/api/public/js/customer-watchlist-v2.js'
+      - 'koschei/api/scripts/verify-watchlist-evidence-v2.js'
+      - 'koschei/api/internal/http/server.go'
+      - 'koschei/api/internal/http/watchlist_routes.go'
+      - 'koschei/api/internal/handlers/watchlist.go'
+      - 'koschei/api/internal/handlers/watchlist_monitor.go'
+      - 'koschei/api/migrations/046_watchlist_alerts.sql'
+      - 'docs/watchlist-alerts.md'
+      - '.github/workflows/watchlist-evidence-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watchlist-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check watchlist JavaScript syntax
+        run: node --check koschei/api/public/js/customer-watchlist-v2.js
+      - name: Verify fail-closed watchlist evidence contract
+        run: node koschei/api/scripts/verify-watchlist-evidence-v2.js
