@@ -31,12 +31,17 @@ requireText(casesJS,'currentCases(payload.cases)','case dedupe contract');
 requireText(casesJS,"setText(id, 'UNAVAILABLE')",'case degraded unavailable state');
 requireText(casesJS,"visibleNode.textContent = '—/—'",'case degraded visible count');
 requireText(casesJS,'Private scans are not automatically listed here.','private scan boundary');
+requireText(casesJS,"value === undefined || value === null || String(value).trim() === ''",'case null-safe numeric mapping');
+requireText(casesJS,"parsed === null ? '—'",'case missing proof boundary');
+requireText(casesJS,"verified === null ? 'UNAVAILABLE'",'case aggregate unavailable boundary');
 requireText(liveJS,"fetchJSON('/api/public/soc/feed')",'live feed source');
 requireText(liveJS,"setText(id, 'UNAVAILABLE')",'live degraded unavailable state');
 requireText(liveJS,"visibleNode.textContent = '—/—'",'live degraded visible count');
 requireText(liveJS,'A published case is not substituted for a live event','live/case separation');
+requireText(liveJS,"value === undefined || value === null || String(value).trim() === ''",'live null-safe numeric mapping');
 requireText(liveJS,"riskIndex === null ? '—'",'missing risk index boundary');
 requireText(liveJS,"evidenceRows === null ? '—'",'missing evidence count boundary');
+requireText(liveJS,"gradeA === null || gradeB === null ? 'UNAVAILABLE'",'missing grade summary boundary');
 
 for(const [js,label] of [[casesJS,'cases js'],[liveJS,'live js']]){
   if(/\/api\/(?:auth|watchlist|v1\/unified\/reports)/.test(js))throw new Error(`${label}: public evidence surface must not read account-private APIs`);
