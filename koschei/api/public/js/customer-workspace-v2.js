@@ -117,7 +117,7 @@ async function load(){
 
   const [accessResult,historyResultResponse,watchResult,alertsResult]=await Promise.all([
     read('/api/auth/premium-access'),
-    read('/api/v1/investigations/history'),
+    read('/api/v1/radar/jobs/'),
     read('/api/watchlist'),
     read('/api/watchlist/alerts')
   ]);
