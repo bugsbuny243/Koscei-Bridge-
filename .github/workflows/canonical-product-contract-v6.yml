@@ -1,0 +1,22 @@
+name: Canonical Product Contract V6 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/security-ecosystem.json'
+      - 'koschei/api/public/launches.html'
+      - 'koschei/api/scripts/verify-canonical-product-contract-v6.js'
+      - '.github/workflows/canonical-product-contract-v6.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-product-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify canonical product contract v6
+        run: node koschei/api/scripts/verify-canonical-product-contract-v6.js
