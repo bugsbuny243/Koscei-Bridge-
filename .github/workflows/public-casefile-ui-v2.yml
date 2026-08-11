@@ -1,0 +1,22 @@
+name: Public Casefile UI V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/css/public-casefile.css'
+      - 'koschei/api/internal/handlers/public_case_page.go'
+      - 'koschei/api/scripts/verify-public-casefile-ui-v2.js'
+      - '.github/workflows/public-casefile-ui-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  casefile-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public casefile presentation contract
+        run: node koschei/api/scripts/verify-public-casefile-ui-v2.js
