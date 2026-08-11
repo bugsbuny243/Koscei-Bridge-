@@ -111,8 +111,10 @@ func (h *Handler) RequireAPIKeyStoredTokenTier(required string, next http.Handle
 
 // DossierAccess accepts owner credentials, enterprise API keys or an enterprise
 // user session. The selected path is explicit so one credential type never falls
-// through into another authentication mechanism.
+// through into another authentication mechanism. The resulting export remains
+// private by default even when the canonical bundle itself is durable.
 func (h *Handler) DossierAccess(next http.HandlerFunc) http.HandlerFunc {
+	next = privateDossierExport(next)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if dossierOwnerCredentialPresent(r) {
 			if !h.OwnerAuth(w, r) {

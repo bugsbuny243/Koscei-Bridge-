@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
+
+const publicCaseRegistrySchemaVersion = "koschei-public-case-registry-v1"
 
 // publicDossierCaseV2 keeps the existing discovery contract and adds the
 // canonical nine-state counts. Outer JSON fields intentionally replace the old
@@ -25,69 +28,119 @@ type publicDossierCaseV2 struct {
 	StateCounts         map[string]int `json:"state_counts"`
 }
 
-// PublicDossierCasesV2 is the canonical public case projection. A corrupt
-// bundle is isolated and logged instead of blanking the complete showcase.
+type publicDossierCasesV2Load struct {
+	Cases                   []publicDossierCaseV2
+	TotalPublications       int
+	InspectedPublications   int
+	InvalidPublications     int
+	UninspectedPublications int
+}
+
+// PublicDossierCasesV2 is the canonical public case projection. A corrupt or
+// missing explicitly-public bundle is isolated from rendering, but it is never
+// hidden from registry health. A response is complete only when every public
+// publication in scope was inspected and passed immutable-bundle verification.
 func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
-	cases, err := h.loadPublicDossierCasesV2(r, limit)
+	loaded, err := h.loadPublicDossierCasesV2(r, limit)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"ok": false, "error": "public_cases_unavailable", "cases": []publicDossierCaseV2{},
 		})
 		return
 	}
+	complete := loaded.InvalidPublications == 0 && loaded.UninspectedPublications == 0
+	registryStatus := "operational"
+	switch {
+	case loaded.InvalidPublications > 0:
+		registryStatus = "degraded"
+	case loaded.UninspectedPublications > 0:
+		registryStatus = "partial"
+	}
 	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=60")
+	w.Header().Set("X-Koschei-Registry-Complete", strconv.FormatBool(complete))
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":           true,
-		"generated_at": time.Now().UTC(),
-		"count":        len(cases),
+		"ok":                       true,
+		"schema_version":           publicCaseRegistrySchemaVersion,
+		"generated_at":             time.Now().UTC(),
+		"registry_status":          registryStatus,
+		"registry_complete":        complete,
+		"total_publications":       loaded.TotalPublications,
+		"inspected_publications":   loaded.InspectedPublications,
+		"invalid_publications":     loaded.InvalidPublications,
+		"uninspected_publications": loaded.UninspectedPublications,
+		"count":                    len(loaded.Cases),
 		"publication_policy": map[string]any{
 			"deterministic_autopublish_supported":      true,
 			"owner_publication_decisions_preserved":    true,
 			"private_customer_investigations_excluded": true,
 			"identity_or_wrongdoing_claim":             false,
 			"immutable_source_bundle":                  true,
+			"canonical_bundle_hash_reverified":         true,
+			"partial_registry_declared":                true,
 		},
-		"cases": cases,
+		"cases": loaded.Cases,
 	})
 }
 
-func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) ([]publicDossierCaseV2, error) {
+func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDossierCasesV2Load, error) {
 	db := h.DBRead
 	if db == nil {
 		db = h.DB
 	}
 	if db == nil {
-		return nil, sql.ErrConnDone
+		return publicDossierCasesV2Load{}, sql.ErrConnDone
 	}
 	rows, err := db.QueryContext(r.Context(), `
-		SELECT p.case_ref,p.public_title,p.public_summary,p.featured,p.redaction_profile,p.published_at,e.canonical_bundle
+		SELECT p.case_ref,p.public_title,p.public_summary,p.featured,p.redaction_profile,p.published_at,
+		       e.canonical_bundle,e.bundle_hash,COUNT(*) OVER()
 		FROM dossier_publications p
-		JOIN dossier_exports e ON e.case_ref=p.case_ref
+		LEFT JOIN dossier_exports e ON e.case_ref=p.case_ref
 		WHERE p.status='public'
 		ORDER BY p.featured DESC,p.published_at DESC,p.case_ref
 		LIMIT $1`, limit)
 	if err != nil {
-		return nil, err
+		return publicDossierCasesV2Load{}, err
 	}
 	defer rows.Close()
-	out := []publicDossierCaseV2{}
+	loaded := publicDossierCasesV2Load{Cases: []publicDossierCaseV2{}}
 	for rows.Next() {
 		var caseRef, title, summary, profile string
 		var featured bool
-		var publishedAt time.Time
+		var publishedAt sql.NullTime
 		var canonical []byte
-		if err := rows.Scan(&caseRef, &title, &summary, &featured, &profile, &publishedAt, &canonical); err != nil {
-			return nil, err
+		var storedHash sql.NullString
+		var total int
+		if err := rows.Scan(&caseRef, &title, &summary, &featured, &profile, &publishedAt, &canonical, &storedHash, &total); err != nil {
+			return publicDossierCasesV2Load{}, err
 		}
-		var bundle dossierBundle
-		if json.Unmarshal(canonical, &bundle) != nil || bundle.CaseRef != caseRef || bundle.BundleHash == "" {
-			log.Printf("public dossier skipped: invalid immutable bundle case_ref=%s", caseRef)
+		if loaded.InspectedPublications == 0 {
+			loaded.TotalPublications = total
+		} else if loaded.TotalPublications != total {
+			return publicDossierCasesV2Load{}, fmt.Errorf("public dossier registry total changed within one result set")
+		}
+		loaded.InspectedPublications++
+		if !publishedAt.Valid || !storedHash.Valid || len(canonical) == 0 {
+			loaded.InvalidPublications++
+			log.Printf("public dossier withheld from registry: publication/export integrity incomplete case_ref=%s", caseRef)
 			continue
 		}
-		out = append(out, buildPublicDossierCaseV2(bundle, title, summary, featured, publishedAt, profile))
+		bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash.String)
+		if err != nil {
+			loaded.InvalidPublications++
+			log.Printf("public dossier withheld from registry: immutable integrity failure case_ref=%s", caseRef)
+			continue
+		}
+		loaded.Cases = append(loaded.Cases, buildPublicDossierCaseV2(bundle, title, summary, featured, publishedAt.Time, profile))
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return publicDossierCasesV2Load{}, err
+	}
+	if loaded.TotalPublications < loaded.InspectedPublications {
+		return publicDossierCasesV2Load{}, fmt.Errorf("public dossier registry count is inconsistent")
+	}
+	loaded.UninspectedPublications = loaded.TotalPublications - loaded.InspectedPublications
+	return loaded, nil
 }
 
 func buildPublicDossierCaseV2(bundle dossierBundle, title, summary string, featured bool, publishedAt time.Time, profile string) publicDossierCaseV2 {

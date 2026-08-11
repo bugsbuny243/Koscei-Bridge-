@@ -1,0 +1,57 @@
+name: Public Case Registry Integrity V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/internal/handlers/dossier_access.go'
+      - 'koschei/api/internal/handlers/dossier_export_privacy.go'
+      - 'koschei/api/internal/handlers/dossier_export_privacy_test.go'
+      - 'koschei/api/internal/handlers/dossier_integrity.go'
+      - 'koschei/api/internal/handlers/dossier_integrity_test.go'
+      - 'koschei/api/internal/handlers/dossier_page.go'
+      - 'koschei/api/internal/handlers/public_case_operational_v2.go'
+      - 'koschei/api/internal/handlers/public_dossier_cases_v2.go'
+      - 'koschei/api/public/cases.html'
+      - 'koschei/api/public/js/public-soc.js'
+      - 'koschei/api/scripts/verify-public-case-registry-integrity-v1.js'
+      - 'koschei/api/scripts/verify-public-evidence-center-v2.js'
+      - '.github/workflows/public-case-registry-integrity-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-case-registry-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Check touched Go formatting
+        shell: bash
+        run: |
+          diff="$(gofmt -d internal/handlers/dossier_access.go internal/handlers/dossier_export_privacy.go internal/handlers/dossier_export_privacy_test.go internal/handlers/dossier_integrity.go internal/handlers/dossier_integrity_test.go internal/handlers/dossier_page.go internal/handlers/public_case_operational_v2.go internal/handlers/public_dossier_cases_v2.go)"
+          if [ -n "$diff" ]; then
+            printf '%s\n' "$diff"
+            exit 1
+          fi
+      - name: Compile handler package without running tests
+        run: go test ./internal/handlers -run '^$' -count=1
+      - name: Verify exact dossier integrity behavior
+        run: go test ./internal/handlers -run '^TestVerifyStoredDossierBundle' -count=1
+      - name: Verify private dossier export metadata
+        run: go test ./internal/handlers -run '^TestPrivateDossierExportScrubsPublicDiscoveryHeaders$' -count=1
+      - name: Check public case JavaScript syntax
+        run: node --check public/js/public-soc.js
+      - name: Verify public case registry integrity contract
+        run: node scripts/verify-public-case-registry-integrity-v1.js
+      - name: Verify public evidence center regression
+        run: node scripts/verify-public-evidence-center-v2.js

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,15 +22,15 @@ func (h *Handler) PublicCaseOperationalPageV2(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var canonical []byte
-	var title, summary string
+	var storedHash, title, summary string
 	var featured bool
 	var publishedAt time.Time
 	err := h.DB.QueryRowContext(r.Context(), `
-		SELECT e.canonical_bundle,p.public_title,p.public_summary,p.featured,p.published_at
+		SELECT e.canonical_bundle,e.bundle_hash,p.public_title,p.public_summary,p.featured,p.published_at
 		FROM dossier_exports e
 		JOIN dossier_publications p ON p.case_ref=e.case_ref
 		WHERE e.case_ref=$1 AND p.status='public'`, caseRef).
-		Scan(&canonical, &title, &summary, &featured, &publishedAt)
+		Scan(&canonical, &storedHash, &title, &summary, &featured, &publishedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.NotFound(w, r)
@@ -40,8 +39,8 @@ func (h *Handler) PublicCaseOperationalPageV2(w http.ResponseWriter, r *http.Req
 		http.Error(w, "public case unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var bundle dossierBundle
-	if json.Unmarshal(canonical, &bundle) != nil || bundle.CaseRef != caseRef || bundle.BundleHash == "" {
+	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
+	if err != nil {
 		http.Error(w, "public case integrity check failed", http.StatusConflict)
 		return
 	}

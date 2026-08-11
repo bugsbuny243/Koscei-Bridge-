@@ -27,13 +27,15 @@ requireText(live,'id="live-search"','live search');
 requireText(live,'id="live-grade"','live grade filter');
 
 requireText(casesJS,"fetchJSON('/api/public/cases?limit=100')",'case registry source');
-requireText(casesJS,'currentCases(payload.cases)','case dedupe contract');
+requireText(casesJS,'const envelope = registryEnvelope(payload)','case registry envelope gate');
+requireText(casesJS,'current = currentCases(envelope.cases)','case dedupe after integrity validation');
 requireText(casesJS,"setText(id, 'UNAVAILABLE')",'case degraded unavailable state');
 requireText(casesJS,"visibleNode.textContent = '—/—'",'case degraded visible count');
 requireText(casesJS,'Private scans are not automatically listed here.','private scan boundary');
 requireText(casesJS,"value === undefined || value === null || String(value).trim() === ''",'case null-safe numeric mapping');
 requireText(casesJS,"parsed === null ? '—'",'case missing proof boundary');
 requireText(casesJS,"verified === null ? 'UNAVAILABLE'",'case aggregate unavailable boundary');
+requireText(casesJS,"if (!registryComplete) nodes.push(partialRegistryWarning())",'case partial-registry boundary');
 requireText(liveJS,"fetchJSON('/api/public/soc/feed')",'live feed source');
 requireText(liveJS,"setText(id, 'UNAVAILABLE')",'live degraded unavailable state');
 requireText(liveJS,"visibleNode.textContent = '—/—'",'live degraded visible count');
