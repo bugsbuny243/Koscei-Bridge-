@@ -1,0 +1,26 @@
+name: Customer Access V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/account.html'
+      - 'koschei/api/public/kosch-access.html'
+      - 'koschei/api/public/js/customer-access-v2.js'
+      - 'koschei/api/public/css/customer-access-v2.css'
+      - 'koschei/api/scripts/verify-customer-access-v2.js'
+      - '.github/workflows/customer-access-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-access:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check access JavaScript syntax
+        run: node --check koschei/api/public/js/customer-access-v2.js
+      - name: Verify self-custody access contract
+        run: node koschei/api/scripts/verify-customer-access-v2.js
