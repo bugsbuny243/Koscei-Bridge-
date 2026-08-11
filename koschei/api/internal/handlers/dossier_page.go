@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
+	"database/sql"
 	"html/template"
 	"net/http"
 	"strings"
@@ -25,17 +25,27 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caseRef := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/dossier/"))
-	if caseRef == "" || strings.Contains(caseRef, "/") {
+	if caseRef == "" || strings.Contains(caseRef, "/") || !publicDossierCaseRefPattern.MatchString(caseRef) {
 		http.NotFound(w, r)
 		return
 	}
 	var raw []byte
-	if h.DB.QueryRowContext(r.Context(), `SELECT canonical_bundle FROM dossier_exports WHERE case_ref=$1`, caseRef).Scan(&raw) != nil {
-		http.NotFound(w, r)
+	var storedHash string
+	err := h.DB.QueryRowContext(r.Context(), `
+		SELECT e.canonical_bundle,e.bundle_hash
+		FROM dossier_exports e
+		JOIN dossier_publications p ON p.case_ref=e.case_ref AND p.status='public'
+		WHERE e.case_ref=$1`, caseRef).Scan(&raw, &storedHash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var bundle dossierBundle
-	if json.Unmarshal(raw, &bundle) != nil {
+	bundle, err := verifyStoredDossierBundle(raw, caseRef, storedHash)
+	if err != nil {
 		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
 		return
 	}
