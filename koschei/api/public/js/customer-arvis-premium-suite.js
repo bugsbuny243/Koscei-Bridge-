@@ -8,13 +8,31 @@ const originalFetch=window.fetch.bind(window);
 const obj=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const clean=value=>String(value??'').trim();
 
+function requestURL(input){
+  if(typeof input==='string')return input;
+  if(input&&typeof input.url==='string')return input.url;
+  return '';
+}
+
+function isCustomerScanRequest(url){
+  const value=String(url||'');
+  return value.includes('/api/token/scan')||value.includes('/api/arvis/preflight')||value.includes('/api/public/transaction-simulate');
+}
+
 window.fetch=async(...args)=>{
+  const url=requestURL(args[0]);
   const response=await originalFetch(...args);
   try{
     const clone=response.clone(),type=clone.headers.get('content-type')||'';
     if(type.includes('json')){
       const data=await clone.json();
-      if(hasInvestigation(data)){latestPayload=data;queueMount();}
+      if(hasInvestigation(data)){
+        latestPayload=data;
+        queueMount();
+      }else if(isCustomerScanRequest(url)){
+        latestPayload=null;
+        clearTimeout(mountTimer);
+      }
     }
   }catch{}
   return response;
