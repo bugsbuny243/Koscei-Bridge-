@@ -126,6 +126,7 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, koschAccess rou
 func registerAccountRoutes(mux *http.ServeMux, h *handlers.Handler, koschTierAccess tierRouteGate) {
 	mux.HandleFunc("/api/account/api-keys", requiresDB(h, koschTierAccess("enterprise", h.APIKeysCollection)))
 	mux.HandleFunc("/api/account/api-keys/", requiresDB(h, koschTierAccess("enterprise", method("POST", h.RevokeAPIKey))))
+	mux.HandleFunc("/api/v1/investigations/history", requiresDB(h, koschTierAccess("basic", method("GET", h.CustomerInvestigationHistory))))
 }
 
 func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir string) {
