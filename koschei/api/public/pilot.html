@@ -1,61 +1,46 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Solana cüzdanları, dApp'ler, launchpad'ler, DeFi protokolleri ve güvenlik ekipleri için Koschei ARVIS teknik entegrasyon pilotuna başvurun.">
-<title>Koschei ARVIS · Entegrasyon Pilotu</title>
-<link rel="stylesheet" href="/css/koschei-global-shell.css?v=1">
-<style>
-:root{--line:#24eaff35;--text:#f7fbff;--muted:#9eb0c2;--green:#18ffb2;--cyan:#24eaff;--red:#ff4d6d;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 8% 0,#18ffb22a,transparent 34%),radial-gradient(circle at 90% 6%,#24eaff20,transparent 30%),linear-gradient(135deg,#020409,#071522 58%,#02040a)}a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 22px));margin:auto;padding:20px 0 60px}.surface,.card{border:1px solid var(--line);background:linear-gradient(145deg,#ffffff15,#071421d8);box-shadow:0 28px 90px #0008}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 14px;border-radius:24px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:10px;font-weight:1000}.mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;color:#03110d;background:linear-gradient(135deg,var(--green),var(--cyan))}.nav{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);border-radius:999px;padding:11px 15px;color:var(--text);font-weight:900;background:#ffffff08}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}.hero>section{padding:clamp(24px,4vw,42px);border-radius:32px}.eyebrow{display:inline-flex;padding:7px 11px;border:1px solid #18ffb244;border-radius:999px;background:#18ffb216;color:#bfffe8;font:900 11px var(--mono);letter-spacing:.12em;text-transform:uppercase}h1,h2,h3,p{margin:0}h1{margin:17px 0 14px;font-size:clamp(42px,7vw,74px);line-height:.95;letter-spacing:-.06em}h2{font-size:clamp(28px,4vw,44px);letter-spacing:-.04em;margin:8px 0 12px}.sub{color:var(--muted);font-size:16px;line-height:1.72}.outcomes{display:grid;gap:10px;margin-top:22px}.outcome{padding:15px;border:1px solid #ffffff14;border-radius:18px;background:#ffffff07}.outcome b{display:block;color:#bfffe8;margin-bottom:5px}.outcome span{color:var(--muted);font-size:13px;line-height:1.5}.form{margin-top:16px;padding:24px;border-radius:30px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.field{display:grid;gap:7px}.field.full{grid-column:1/-1}label{font-size:12px;font-weight:900;color:#dffcff}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:15px;background:#02070d;color:var(--text);padding:14px 15px;outline:none;font:inherit}textarea{min-height:150px;resize:vertical;line-height:1.55}input:focus,select:focus,textarea:focus{border-color:#18ffb277;box-shadow:0 0 0 3px #18ffb212}.help{color:var(--muted);font-size:11px;line-height:1.45}.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}.submit{border:0;border-radius:999px;min-height:50px;padding:0 24px;color:#03110d;background:linear-gradient(135deg,var(--green),var(--cyan));font:inherit;font-weight:1000;cursor:pointer}.submit:disabled{opacity:.55;cursor:not-allowed}.notice{display:none;margin-top:14px;padding:14px 16px;border-radius:15px;border:1px solid #18ffb250;background:#18ffb212;color:#dffff5;line-height:1.5}.notice.show{display:block}.notice.bad{border-color:#ff4d6d60;background:#ff4d6d14;color:#ffe3e9}.privacy{color:var(--muted);font-size:12px;line-height:1.5}.honeypot{position:absolute!important;left:-9999px!important;opacity:0!important;pointer-events:none!important}@media(max-width:820px){.hero,.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.top{align-items:flex-start;flex-direction:column}.actions{align-items:stretch;flex-direction:column}.submit{width:100%}.hero>section,.form{padding:20px}}
-</style>
+<meta name="description" content="Apply for a Koschei ARVIS Solana integration pilot using the existing bounded customer-feedback intake contract.">
+<meta name="theme-color" content="#02050a">
+<title>Integration Pilot · Koschei ARVIS</title>
+<link rel="canonical" href="https://tradepigloball.co/pilot">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/integration-pilot-v2.css?v=1">
 </head>
-<body>
-<main class="wrap">
-<nav class="top surface"><a class="brand" href="/"><span class="mark">K</span><span>Koschei ARVIS</span></a><div class="nav"><a class="btn" href="/developers">Geliştiriciler</a><a class="btn" href="/security-radar">Canlı radar</a></div></nav>
-<div class="hero">
-<section class="surface"><span class="eyebrow">Solana entegrasyon pilotu</span><h1>İmzadan önce risk kararını yerleştir.</h1><p class="sub">Bu pilot; ARVIS'i sunum demosunda değil, gerçek bir entegrasyon akışında sınamak isteyen Solana cüzdanları, dApp'ler, launchpad'ler, DeFi protokolleri ve güvenlik ekipleri içindir.</p><div class="outcomes"><div class="outcome"><b>Tek bir üretim senaryosu seç</b><span>İmza öncesi işlem kontrolü, token taraması, kalıcı watchlist veya imzalı webhook alarmı.</span></div><div class="outcome"><b>Belgelenmiş yüzeyden entegre et</b><span>Go API, TypeScript istemcisi, kararlı karar sözleşmesi ve tekrar üretilebilir örnekleri kullan.</span></div><div class="outcome"><b>Sonucu ölç</b><span>Karar gecikmesini, başarılı kontrolleri, alarm teslimatını ve incelenmiş yanlış pozitifleri takip et.</span></div></div></section>
-<section class="surface"><span class="eyebrow">Pilot kabul ölçütleri</span><h2>Gerçek Solana akışı olan ekipler için.</h2><p class="sub">Güçlü bir pilotta sorumlu bir entegrasyon sahibi, canlı veya test edilebilir ürün yüzeyi, açık bir risk kararı ve anonim teknik sonucu yayımlama izni bulunur.</p><div class="outcomes"><div class="outcome"><b>Uygun senaryolar</b><span>Cüzdan imzası, token listeleme, işlem yönlendirme, DeFi etkileşimi, launch izleme veya güvenlik operasyonları.</span></div><div class="outcome"><b>Gerekli olmayanlar</b><span>Token çıkarmak, topluluk etkinliği, ücretli tanıtım veya spekülatif yatırım hikâyesi gerekmez.</span></div><div class="outcome"><b>Ticari yol</b><span>Başarılı pilotlar çıktı bazlı API erişimine, izleme kapasitesine veya B2B entegrasyon anlaşmasına geçebilir.</span></div></div></section>
-</div>
-<section class="form surface">
-<span class="eyebrow">Başvuru</span><h2>Entegrasyonu sade bir dille anlat.</h2><p class="sub" style="margin-bottom:18px">Güçlü bir ürün sunumunun cevaplaması gereken soruları yanıtla: kim kullanacak, ne ters gidebilir, ARVIS nerede karar verecek ve başarı neye benzeyecek?</p>
-<form id="pilotForm" novalidate>
-<div class="grid">
-<label class="field">Proje veya şirket<input id="project" maxlength="120" required placeholder="Proje adı"></label>
-<label class="field">İş e-postası<input id="email" type="email" maxlength="254" required autocomplete="email" placeholder="isim@proje.com"></label>
-<label class="field">Rolünüz<input id="role" maxlength="100" required placeholder="Kurucu, geliştirici, güvenlik lideri..."></label>
-<label class="field">Entegrasyon yüzeyi<select id="surface" required><option value="">Birini seçin</option><option>Cüzdan imza öncesi akışı</option><option>dApp veya DeFi işlem akışı</option><option>Launchpad token taraması</option><option>Kalıcı watchlist ve alarmlar</option><option>Güvenlik veya araştırma operasyonları</option><option>Diğer Solana entegrasyonu</option></select></label>
-<label class="field">Ürün aşaması<select id="stage" required><option value="">Birini seçin</option><option>Canlı üretim</option><option>Herkese açık beta</option><option>Özel beta</option><option>Testnet prototipi</option></select></label>
-<label class="field">Beklenen aylık kontrol<input id="volume" maxlength="80" required placeholder="Örnek: 10.000 işlem"></label>
-<label class="field full">ARVIS hangi kararı vermeli?<textarea id="decision" maxlength="1800" required placeholder="İşlem, token, cüzdan veya izleme kararını; neyin ters gidebileceğini ve izin ver, uyar, engelle veya beklet çıktısının nerede görünmesi gerektiğini anlatın."></textarea></label>
-<label class="field full">Pilotu ne başarılı yapar?<textarea id="success" maxlength="1200" required placeholder="Örnek: ortanca karar gecikmesi, tamamlanan kontrollerin oranı, teslim edilen alarmlar, incelenen yanlış pozitifler veya entegrasyon süresi."></textarea></label>
-<div class="honeypot" aria-hidden="true"><label>Web sitesi<input id="website" tabindex="-1" autocomplete="off"></label></div>
-</div>
-<div class="actions"><span class="privacy">Seed phrase, özel anahtar, API secret veya müşteriye ait kişisel veri eklemeyin.</span><button class="submit" id="submit" type="submit">Pilot başvurusunu gönder</button></div>
-</form>
-<div id="notice" class="notice" role="status"></div>
+<body class="pilot-page koschei-v2">
+<main class="pilot-wrap">
+<nav class="pilot-nav"><a class="pilot-brand" href="/"><span class="pilot-mark">K</span><span><strong>Koschei ARVIS</strong><small>Integration Pilot</small></span></a><div class="pilot-links"><a class="pilot-btn" href="/developers">Developers</a><a class="pilot-btn" href="/scan?mode=deep">Deep Scan</a><a class="pilot-btn" href="/transaction-firewall">B2B Transaction Guard</a><a class="pilot-btn" href="/kosch">KOSCH Access</a></div></nav>
+<section class="pilot-hero">
+<article class="pilot-surface"><span class="pilot-kicker">SOLANA INTEGRATION PILOT</span><h1>Put the evidence decision into a real product flow.</h1><p>This pilot is for wallets, dApps, launchpads, DeFi protocols, and security teams that want to evaluate ARVIS in a concrete integration path—not only in a presentation demo.</p><div class="pilot-outcomes"><div class="pilot-outcome"><b>Choose one production-shaped use case</b><span>Pre-signing transaction review, token investigation, durable monitoring, or signed alert delivery.</span></div><div class="pilot-outcome"><b>Integrate a documented surface</b><span>Use the current API/client contracts and deterministic decision semantics rather than a private one-off verdict path.</span></div><div class="pilot-outcome"><b>Measure an operational result</b><span>Track decision latency, completed checks, alert delivery, reviewed false positives, or integration time.</span></div></div></article>
+<article class="pilot-surface"><span class="pilot-kicker">ACCEPTANCE SIGNALS</span><h2>Best for teams with a testable Solana flow.</h2><p>A useful pilot has a responsible integration owner, a live or reproducible product path, a clear technical decision point, and measurable success criteria.</p><div class="pilot-outcomes"><div class="pilot-outcome"><b>Good surfaces</b><span>Wallet signing, token listing, transaction routing, DeFi interaction, launch monitoring, or security operations.</span></div><div class="pilot-outcome"><b>Not required</b><span>No token launch, paid promotion, community campaign, or speculative investment story is required.</span></div><div class="pilot-outcome"><b>Commercial path</b><span>Successful pilots can move into the current KOSCH/API/monitoring operating model or a B2B integration agreement. The pilot does not invent a separate verdict engine.</span></div></div></article>
 </section>
+<section class="pilot-form-panel">
+<span class="pilot-kicker">APPLICATION</span><h2>Describe the integration plainly.</h2><p>Tell us who uses it, what can go wrong, where ARVIS should make the technical decision visible, and how the pilot will be judged.</p>
+<form id="pilotForm" class="pilot-form" novalidate>
+<div class="pilot-grid">
+<div class="pilot-field"><label for="project">Project or company</label><input class="pilot-input" id="project" maxlength="120" required placeholder="Project name"></div>
+<div class="pilot-field"><label for="email">Work email</label><input class="pilot-input" id="email" type="email" maxlength="254" required autocomplete="email" placeholder="name@project.com"></div>
+<div class="pilot-field"><label for="role">Your role</label><input class="pilot-input" id="role" maxlength="100" required placeholder="Founder, developer, security lead..."></div>
+<div class="pilot-field"><label for="surface">Integration surface</label><select class="pilot-select" id="surface" required><option value="">Choose one</option><option>Pre-signing wallet flow</option><option>dApp or DeFi transaction flow</option><option>Launchpad token investigation</option><option>Durable watchlist and alerts</option><option>Security or research operations</option><option>Other Solana integration</option></select></div>
+<div class="pilot-field"><label for="stage">Product stage</label><select class="pilot-select" id="stage" required><option value="">Choose one</option><option>Live production</option><option>Public beta</option><option>Private beta</option><option>Testnet prototype</option></select></div>
+<div class="pilot-field"><label for="volume">Expected monthly checks</label><input class="pilot-input" id="volume" maxlength="80" required placeholder="Example: 10,000 transactions"></div>
+<div class="pilot-field full"><label for="decision">What decision should ARVIS support?</label><textarea class="pilot-textarea" id="decision" maxlength="1800" required placeholder="Describe the transaction, token, wallet, or monitoring decision; what can go wrong; and where allow, warn, block, or withhold should be surfaced."></textarea><span class="pilot-help">Minimum 10 characters. Do not include secrets or customer personal data.</span></div>
+<div class="pilot-field full"><label for="success">What makes the pilot successful?</label><textarea class="pilot-textarea" id="success" maxlength="1200" required placeholder="Example: median decision latency, completed-check rate, delivered alerts, reviewed false positives, or integration time."></textarea><span class="pilot-help">Minimum 10 characters.</span></div>
+<div class="pilot-honeypot" aria-hidden="true"><label for="website">Website</label><input id="website" tabindex="-1" autocomplete="off"></div>
+</div>
+<div class="pilot-form-actions"><span class="pilot-privacy">Do not submit a seed phrase, private key, API secret, authorization token, or customer personal data. The current intake is rate-limited and uses the existing feedback storage contract.</span><button class="pilot-btn primary" id="pilotSubmit" type="submit">Submit pilot application</button></div>
+</form>
+<div id="pilotNotice" class="pilot-notice" role="status" aria-live="polite"></div>
+<div class="pilot-boundary"><b>Intake boundary:</b> this form creates a pilot application record through the existing customer-feedback pipeline. It does not provision API access, change KOSCH tier, create a customer entitlement, or alter ARVIS evidence/verdict rules.</div>
+</section>
+<footer class="pilot-footer"><span>Koschei ARVIS · Integration Pilot</span><nav><a href="/developers">Developers</a><a href="/scan?mode=deep">Deep Scan</a><a href="/transaction-firewall">Transaction Guard</a><a href="/kosch">KOSCH Access</a></nav></footer>
 </main>
-<script>
-(()=>{
-const form=document.getElementById('pilotForm'),notice=document.getElementById('notice'),submit=document.getElementById('submit');
-const value=id=>document.getElementById(id).value.trim();
-const show=(text,bad=false)=>{notice.textContent=text;notice.className='notice show'+(bad?' bad':'')};
-form.addEventListener('submit',async event=>{
-event.preventDefault();notice.className='notice';
-const project=value('project'),email=value('email'),role=value('role'),surface=value('surface'),stage=value('stage'),volume=value('volume'),decision=value('decision'),success=value('success'),website=value('website');
-if(!project||!email||!role||!surface||!stage||!volume||decision.length<10||success.length<10){show('Entegrasyonun değerlendirilebilmesi için tüm alanları doldurun.',true);return}
-const message=[`Proje: ${project}`,`Rol: ${role}`,`Entegrasyon yüzeyi: ${surface}`,`Aşama: ${stage}`,`Beklenen aylık kontrol: ${volume}`,`Verilecek karar: ${decision}`,`Başarı ölçütleri: ${success}`].join('\n');
-submit.disabled=true;submit.textContent='Gönderiliyor…';
-try{
-const response=await fetch('/api/analytics/event',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:'customer_feedback',email,path:location.href,metadata:{category:'suggestion',subject:`Pilot başvurusu — ${project}`,message,contact_email:email,page_url:location.href,website}})});
-let data={};try{data=await response.json()}catch{}
-if(!response.ok||!data.ok)throw new Error(data.message||'Pilot başvurusu kaydedilemedi.');
-show(`Pilot başvurusu alındı.${data.feedback_id?' Referans: '+data.feedback_id:''}`);form.reset();
-}catch(error){show(error.message||'Pilot başvurusu gönderilemedi.',true)}finally{submit.disabled=false;submit.textContent='Pilot başvurusunu gönder'}
-});
-})();
-</script>
-<script src="/js/koschei-global-shell.js?v=2"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=1"></script>
+<script src="/js/integration-pilot-v2.js?v=1"></script>
 </body>
 </html>
