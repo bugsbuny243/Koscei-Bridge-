@@ -1,0 +1,24 @@
+name: Recipient Shield V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/address-poisoning-shield.html'
+      - 'koschei/api/public/js/address-poisoning-shield-v2.js'
+      - 'koschei/api/scripts/verify-recipient-shield-v2.js'
+      - '.github/workflows/recipient-shield-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recipient-shield:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check recipient shield JavaScript syntax
+        run: node --check koschei/api/public/js/address-poisoning-shield-v2.js
+      - name: Verify fail-closed recipient shield contract
+        run: node koschei/api/scripts/verify-recipient-shield-v2.js
