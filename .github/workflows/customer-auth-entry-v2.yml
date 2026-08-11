@@ -1,0 +1,26 @@
+name: Customer Auth Entry V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/login.html'
+      - 'koschei/api/public/register.html'
+      - 'koschei/api/public/js/customer-auth-entry-v2.js'
+      - 'koschei/api/public/css/customer-auth-entry-v2.css'
+      - 'koschei/api/scripts/verify-customer-auth-entry-v2.js'
+      - '.github/workflows/customer-auth-entry-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-auth-entry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check auth entry JavaScript syntax
+        run: node --check koschei/api/public/js/customer-auth-entry-v2.js
+      - name: Verify secure auth entry contract
+        run: node koschei/api/scripts/verify-customer-auth-entry-v2.js
