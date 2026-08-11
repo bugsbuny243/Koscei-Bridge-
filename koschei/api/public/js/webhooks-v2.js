@@ -26,7 +26,7 @@
   function clear(element){while(element.firstChild)element.removeChild(element.firstChild);}
   function showNotice(message,bad=false){notice.textContent=message;notice.hidden=false;notice.className=`webhook-notice${bad?' bad':''}`;}
   function clearSecret(){window.clearTimeout(secretTimer);secretTimer=0;secretValue.textContent='';secretPanel.hidden=true;}
-  function revealSecret(value,title){clearSecret();if(!hasValue(value)){showNotice('The server did not return a plaintext signing secret. Nothing was exposed.',true);return;}secretTitle.textContent=title;secretValue.textContent=String(value);secretPanel.hidden=false;secretTimer=window.setTimeout(clearSecret,SECRET_VISIBLE_MS);}
+  function revealSecret(value,title){clearSecret();if(!hasValue(value)){showNotice('The server did not return a plaintext signing secret. Nothing was exposed.',true);return false;}secretTitle.textContent=title;secretValue.textContent=String(value);secretPanel.hidden=false;secretTimer=window.setTimeout(clearSecret,SECRET_VISIBLE_MS);return true;}
 
   async function api(path,options={}){
     const headers={...(options.headers||{})};
@@ -48,7 +48,8 @@
 
   function renderEndpoints(items,max){
     clear(endpointList);
-    const endpointItems=Array.isArray(items)?items:[];
+    if(!Array.isArray(items)){count.textContent='UNAVAILABLE';endpointList.append(node('div','webhook-error-box','Endpoint list unavailable. No endpoint count or capacity state is inferred.'));return;}
+    const endpointItems=items;
     const maxValue=numberOrNull(max);
     count.textContent=`${endpointItems.length} / ${maxValue===null?'UNAVAILABLE':maxValue}`;
     if(endpointItems.length===0){endpointList.append(node('div','webhook-empty','No webhook endpoints are registered for this account.'));return;}
@@ -70,8 +71,11 @@
       const actions=node('div','webhook-actions');
       if(id){
         actions.append(actionButton('Queue test','test',id,'primary'));
-        actions.append(actionButton(status==='active'?'Pause':'Activate','toggle',id));
-        actions.lastChild.dataset.nextStatus=status==='active'?'paused':'active';
+        if(status==='active'||status==='paused'){
+          const toggle=actionButton(status==='active'?'Pause':'Activate','toggle',id);
+          toggle.dataset.nextStatus=status==='active'?'paused':'active';
+          actions.append(toggle);
+        }
         actions.append(actionButton('Rotate secret','rotate',id));
         actions.append(actionButton('Delete','delete',id,'danger'));
       }
@@ -81,7 +85,8 @@
 
   function renderDeliveries(items){
     clear(deliveryList);
-    const deliveries=Array.isArray(items)?items:[];
+    if(!Array.isArray(items)){deliveryList.append(node('div','webhook-error-box','Delivery list unavailable. Missing collection evidence is not treated as an empty or delivered queue.'));return;}
+    const deliveries=items;
     if(deliveries.length===0){deliveryList.append(node('div','webhook-empty','No deliveries match this filter.'));return;}
     for(const item of deliveries){
       const id=text(item?.id,'');
@@ -126,7 +131,7 @@
     if(action==='delete'&&!window.confirm('Delete this webhook endpoint? Existing delivery history may remain as evidence.'))return;
     try{
       if(action==='test'){const data=await api(`/api/webhooks/${id}/test`,{method:'POST',body:'{}'});showNotice(`Test queued${hasValue(data?.delivery_id)?` · delivery ${data.delivery_id}`:''}.`);}
-      if(action==='toggle'){await api(`/api/webhooks/${id}`,{method:'PATCH',body:JSON.stringify({status:nextStatus})});showNotice(`Endpoint ${nextStatus}.`);}
+      if(action==='toggle'){if(nextStatus!=='active'&&nextStatus!=='paused')throw new Error('Endpoint status is unavailable; no state change was sent.');await api(`/api/webhooks/${id}`,{method:'PATCH',body:JSON.stringify({status:nextStatus})});showNotice(`Endpoint ${nextStatus}.`);}
       if(action==='rotate'){const data=await api(`/api/webhooks/${id}/rotate-secret`,{method:'POST',body:'{}'});revealSecret(data?.secret,'Signing secret rotated');}
       if(action==='delete'){await api(`/api/webhooks/${id}`,{method:'DELETE'});showNotice('Endpoint deleted.');clearSecret();}
       if(action==='retry'){await api(`/api/webhooks/deliveries/${id}/retry`,{method:'POST',body:'{}'});showNotice('Dead-letter delivery requeued.');}
@@ -135,7 +140,7 @@
   }
 
   document.addEventListener('click',event=>{const button=event.target.closest('[data-action][data-id]');if(!button)return;perform(button.dataset.action,button.dataset.id,button.dataset.nextStatus);});
-  form.addEventListener('submit',async event=>{event.preventDefault();const name=$('webhookName').value.trim();const url=$('webhookUrl').value.trim();if(!name||!url)return;submit.disabled=true;try{const data=await api('/api/webhooks',{method:'POST',body:JSON.stringify({name,url})});revealSecret(data?.secret,'Webhook created');form.reset();showNotice('Endpoint created. Store the one-time signing secret before it disappears.');await load();}catch(error){showNotice(error.message,true);}finally{submit.disabled=false;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const name=$('webhookName').value.trim();const url=$('webhookUrl').value.trim();if(!name||!url)return;submit.disabled=true;try{const data=await api('/api/webhooks',{method:'POST',body:JSON.stringify({name,url})});form.reset();if(revealSecret(data?.secret,'Webhook created'))showNotice('Endpoint created. Store the one-time signing secret before it disappears.');await load();}catch(error){showNotice(error.message,true);}finally{submit.disabled=false;}});
   copySecret.addEventListener('click',async()=>{const value=secretValue.textContent;if(!value)return;try{await navigator.clipboard.writeText(value);showNotice('Signing secret copied. It is still removed from this page after two minutes.');}catch{showNotice('Clipboard access was unavailable. Copy the secret manually before it disappears.',true);}});
   deliveryStatus.addEventListener('change',load);reload.addEventListener('click',load);
 
