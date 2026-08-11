@@ -7,7 +7,7 @@ import (
 )
 
 func registerDossierRoutes(mux *http.ServeMux, h *handlers.Handler) {
-	mux.HandleFunc("/api/v1/dossier/", requiresDB(h, h.DossierAccess(method(http.MethodPost, h.DossierExportWithAutopublishWake))))
+	mux.HandleFunc("/api/v1/dossier/", requiresDB(h, h.DossierAccess(privateDossierExport(method(http.MethodPost, h.DossierExportWithAutopublishWake)))))
 	mux.HandleFunc("/dossier/", requiresDB(h, method(http.MethodGet, h.DossierPage)))
 	mux.HandleFunc("/case/", requiresDB(h, method(http.MethodGet, h.PublicCaseOperationalPageV2)))
 	mux.HandleFunc("/api/public/cases", requiresDB(h, method(http.MethodGet, h.PublicDossierCasesV2)))
