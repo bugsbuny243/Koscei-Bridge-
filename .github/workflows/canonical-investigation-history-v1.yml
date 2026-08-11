@@ -7,6 +7,7 @@ on:
       - 'koschei/api/internal/jobs/history.go'
       - 'koschei/api/internal/handlers/customer_investigation_history.go'
       - 'koschei/api/internal/handlers/web3_jobs.go'
+      - 'koschei/api/internal/handlers/canonical_job_routes_test.go'
       - 'koschei/api/internal/http/server.go'
       - 'koschei/api/internal/http/route_inventory.go'
       - 'koschei/api/public/reports.html'
@@ -39,13 +40,15 @@ jobs:
       - name: Check touched Go formatting
         shell: bash
         run: |
-          diff="$(gofmt -d internal/jobs/history.go internal/handlers/customer_investigation_history.go internal/handlers/web3_jobs.go)"
+          diff="$(gofmt -d internal/jobs/history.go internal/handlers/customer_investigation_history.go internal/handlers/web3_jobs.go internal/handlers/canonical_job_routes_test.go)"
           if [ -n "$diff" ]; then
             printf '%s\n' "$diff"
             exit 1
           fi
       - name: Compile touched Go packages without running tests
         run: go test ./internal/jobs ./internal/handlers ./internal/http -run '^$' -count=1
+      - name: Verify collection path isolation
+        run: go test ./internal/handlers -run 'TestCanonicalHistoryCollectionPathIsIsolated|TestCanonicalJobPollPathUsesLastSegment' -count=1
       - name: Check history JavaScript syntax
         run: |
           node --check public/js/customer-reports-v2.js
