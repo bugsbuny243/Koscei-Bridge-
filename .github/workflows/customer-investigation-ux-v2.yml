@@ -1,0 +1,28 @@
+name: Customer Investigation UX V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/scan.html'
+      - 'koschei/api/public/js/customer-arvis-premium-suite.js'
+      - 'koschei/api/public/js/customer-investigation-ux-v2.js'
+      - 'koschei/api/public/css/customer-investigation-ux-v2.css'
+      - 'koschei/api/scripts/verify-customer-investigation-ux-v2.js'
+      - '.github/workflows/customer-investigation-ux-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-investigation-ux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check customer JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/customer-arvis-premium-suite.js
+          node --check koschei/api/public/js/customer-investigation-ux-v2.js
+      - name: Verify customer investigation UX v2 contract
+        run: node koschei/api/scripts/verify-customer-investigation-ux-v2.js
