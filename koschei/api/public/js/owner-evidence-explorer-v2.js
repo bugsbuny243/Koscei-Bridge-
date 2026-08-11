@@ -11,6 +11,7 @@ const lower=value=>text(value).toLowerCase();
 const short=(value,head=8,tail=6)=>{const raw=text(value);return raw.length>head+tail+3?`${raw.slice(0,head)}…${raw.slice(-tail)}`:raw||'—';};
 const el=(tag,className,content)=>{const node=document.createElement(tag);if(className)node.className=className;if(content!==undefined)node.textContent=content;return node;};
 const svg=(tag,attrs={})=>{const node=document.createElementNS(SVG_NS,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));return node;};
+let graphSequence=0;
 
 function currentReport(){
   const payload=obj(window.OwnerRadarKit?.lastScan);
@@ -37,11 +38,12 @@ function trajectoryFrom(report){
 
 function stateOf(value){
   const raw=lower(value||'unknown');
+  if(raw.includes('unverified')||raw.includes('not_verified')||raw.includes('not verified'))return'pending';
+  if(raw.includes('not_applicable'))return'na';
+  if(raw.includes('unavailable')||raw.includes('failed')||raw.includes('missing')||raw.includes('pending')||raw.includes('unresolved'))return'pending';
   if(raw.includes('verified'))return'verified';
   if(raw.includes('signed'))return'signed';
   if(raw.includes('observed')||raw.includes('watch')||raw.includes('inferred'))return'observed';
-  if(raw.includes('unavailable')||raw.includes('failed')||raw.includes('missing')||raw.includes('pending')||raw.includes('unresolved'))return'pending';
-  if(raw.includes('not_applicable'))return'na';
   return raw||'unknown';
 }
 
@@ -145,10 +147,11 @@ function renderGraph(host,graph,detailHost){
     list.forEach((node,index)=>positions.set(node.id,{x:x[column],y:88+index*92,column}));
   }
   const height=Math.max(360,150+maxRows*92);
+  const markerId=`koscheiTrajectoryArrow${++graphSequence}`;
   const canvas=svg('svg',{viewBox:`0 0 960 ${height}`,role:'img','aria-label':'Funding trajectory graph'});
   canvas.classList.add('koschei-trajectory-svg');
   const defs=svg('defs');
-  const marker=svg('marker',{id:'koscheiTrajectoryArrow',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});
+  const marker=svg('marker',{id:markerId,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});
   marker.appendChild(svg('path',{d:'M 0 0 L 10 5 L 0 10 z'}));defs.appendChild(marker);canvas.appendChild(defs);
 
   for(const [label,column] of [['FUNDING','funder'],['ACTOR','actor'],['TOKEN','token'],['OUTCOME / ARTIFACT','artifact']]){
@@ -158,7 +161,7 @@ function renderGraph(host,graph,detailHost){
   visibleEdges.forEach((edge,index)=>{
     const a=positions.get(text(edge?.source_id)),b=positions.get(text(edge?.target_id));if(!a||!b)return;
     const mid=(a.x+b.x)/2;
-    const path=svg('path',{d:`M ${a.x+68} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x-68} ${b.y}`,class:`koschei-graph-edge state-${stateOf(edge?.evidence_state)}`,'marker-end':'url(#koscheiTrajectoryArrow)','data-edge-index':index});
+    const path=svg('path',{d:`M ${a.x+68} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x-68} ${b.y}`,class:`koschei-graph-edge state-${stateOf(edge?.evidence_state)}`,'marker-end':`url(#${markerId})`,'data-edge-index':index});
     path.addEventListener('click',()=>showTrajectoryDetail(detailHost,edge));canvas.appendChild(path);
   });
 
@@ -187,7 +190,7 @@ function showTrajectoryDetail(host,item){
   if(isEdge){
     host.append(el('h4','',`${short(item.source_id)} → ${short(item.target_id)}`));
     host.append(el('p','',`${text(item.relation||item.evidence_kind||'relation')} · ${stateOf(item.evidence_state).toUpperCase()} · ${text(item.source_provider||'provider unknown')}`));
-    if(item.observed_at)host.append(el('small','',new Date(item.observed_at).toLocaleString()));
+    if(item.observed_at){const parsed=new Date(item.observed_at);host.append(el('small','',Number.isNaN(parsed.getTime())?'Time unresolved':parsed.toLocaleString()));}
     if(item.signature)host.append(el('code','',text(item.signature)));
   }else{
     host.append(el('h4','',short(item.id,14,10)));
@@ -201,7 +204,7 @@ function renderTimeline(host,graph){
   const edges=[...arr(graph.edges)].sort((a,b)=>text(a?.observed_at).localeCompare(text(b?.observed_at)));
   if(!edges.length){host.appendChild(el('div','koschei-explorer-empty','No retained trajectory events are available.'));return;}
   const list=el('div','koschei-timeline-list');
-  edges.slice(0,120).forEach((edge,index)=>{
+  edges.slice(0,120).forEach(edge=>{
     const row=el('article','koschei-timeline-row');
     row.dataset.state=stateOf(edge?.evidence_state);
     const time=el('div','koschei-timeline-time');
