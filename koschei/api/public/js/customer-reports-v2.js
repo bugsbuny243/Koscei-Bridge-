@@ -84,7 +84,7 @@ function render(){
 }
 
 async function api(){
-  const response=await KoscheiAuth.apiCall('/api/v1/investigations/history',{method:'GET'});
+  const response=await KoscheiAuth.apiCall('/api/v1/radar/jobs/',{method:'GET'});
   const raw=await response.text();let data={};
   if(raw){try{data=JSON.parse(raw);}catch{throw new Error('Investigation history returned invalid JSON.');}}
   if(!response.ok){const access=[401,402,403].includes(response.status)?'Basic KOSCH tier or higher and a verified customer session are required. ':'';throw new Error(access+text(data?.message||data?.error||`History request failed with HTTP ${response.status}`));}
