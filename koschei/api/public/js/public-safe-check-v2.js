@@ -8,16 +8,17 @@ function el(tag,className,text){const node=document.createElement(tag);if(classN
 function numeric(value){if(value===null||value===undefined||String(value).trim()==='')return null;const parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
 function decisionOf(data){const value=String(data?.decision||data?.policy||'').trim().toLowerCase();return ['allow','warn','review','block','withhold'].includes(value)?value:'withhold';}
 function levelOf(data){const value=String(data?.risk_level||'').trim().toLowerCase();return ['low','medium','high','critical'].includes(value)?value:'unknown';}
+function displayDecision(decision,score,level,limited){return decision==='allow'&&(score===null||level!=='low'||limited)?'withhold':decision;}
 function decisionLabel(value){return({allow:'PREFLIGHT CLEAR',warn:'WARNING',review:'REVIEW',block:'BLOCK',withhold:'WITHHOLD'})[value]||'WITHHOLD';}
-function tone(score,level,decision,limited){if(decision==='block'||level==='critical'||level==='high'||(score!==null&&score>=75))return'bad';if(decision==='allow'&&level==='low'&&!limited&&score!==null&&score<45)return'good';return'warn';}
+function tone(score,level,decision){if(decision==='block'||level==='critical'||level==='high'||(score!==null&&score>=75))return'bad';if(decision==='allow')return'good';return'warn';}
 function deepScanLink(value){return`/scan?mode=deep&target=${encodeURIComponent(String(value||'').trim())}`;}
 function listSection(title,items){const wrap=el('div','safety-section');wrap.append(el('h3','',title));const list=el('ul');for(const value of items){list.append(el('li','',value));}wrap.append(list);return wrap;}
 function upgrade(rawTarget,missing){const box=el('div','safety-upgrade');box.append(el('b','','Safe Check is only the rapid preflight layer.'));box.append(el('p','','Open Deep Scan for creator/deployer evidence, owner-normalized holders, liquidity control, Token-2022 extensions, threat pathways, graph relations, and complete evidence explanations.'));if(missing.length)box.append(el('p','safety-fine',`Not checked: ${missing.join(' · ')}`));const link=el('a','safety-btn','Open Deep Scan →');link.href=deepScanLink(rawTarget);box.append(link);return box;}
 function render(data,rawTarget){
-  const score=numeric(data?.score??data?.risk_index),decision=decisionOf(data),level=levelOf(data),limited=Boolean(data?.coverage_warning),kind=tone(score,level,decision,limited);
+  const score=numeric(data?.score??data?.risk_index),rawDecision=decisionOf(data),level=levelOf(data),limited=Boolean(data?.coverage_warning),decision=displayDecision(rawDecision,score,level,limited),kind=tone(score,level,decision);
   const scoreBox=el('div',`safety-score ${kind}`);scoreBox.append(el('strong','',decisionLabel(decision)));scoreBox.append(el('small','',`Rapid preflight · ${score===null?'—':score}/100`));
   const nodes=[scoreBox,el('div','safety-decision',`${decisionLabel(decision)} · ${level.toUpperCase()}`),el('p','safety-summary',data?.human_message||data?.verdict||'ARVIS preflight completed; narrative unavailable.')];
-  if(decision==='withhold')nodes.push(el('div','safety-warning','Decision authority was not present in the response. This result is withheld rather than treated as safe.'));
+  if(decision==='withhold')nodes.push(el('div','safety-warning',rawDecision==='allow'?'Preflight permission was withheld because the response did not contain the complete low-risk evidence required for a clear display.':'Decision authority was not present in the response. This result is withheld rather than treated as safe.'));
   if(limited)nodes.push(el('div','safety-warning',String(data.coverage_warning||'Coverage is incomplete.')));
   const reasons=Array.isArray(data?.reasons)?data.reasons.filter(Boolean).map(String):[];
   const steps=Array.isArray(data?.next_steps)?data.next_steps.filter(Boolean).map(String):[];
