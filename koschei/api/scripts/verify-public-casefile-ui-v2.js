@@ -10,9 +10,11 @@ function requireText(source,needle,label){
 }
 
 requireText(handler,'/css/public-casefile.css?v=1','case handler stylesheet contract');
-requireText(handler,'func (h *Handler) publicCaseHTML','case HTML renderer');
-requireText(handler,'resolvePublicCasePageRecord','canonical case resolver');
-requireText(handler,'BundleHash','immutable bundle evidence');
+requireText(handler,'func (h *Handler) PublicCasePage','public case handler');
+requireText(handler,'publicCaseHTML.Execute(w, data)','case HTML template renderer');
+requireText(handler,'buildPublicCasePageData','canonical case presentation mapper');
+requireText(handler,'bundle.CaseRef != caseRef || bundle.BundleHash == ""','immutable bundle integrity gate');
+requireText(handler,'p.status=\'public\'','explicit publication gate');
 
 requireText(css,'.case-nav{position:sticky','sticky case navigation');
 requireText(css,'.verdict-card{position:sticky','sticky verdict hierarchy');
