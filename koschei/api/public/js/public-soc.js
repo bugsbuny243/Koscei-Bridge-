@@ -17,6 +17,7 @@
   let current = [];
   let registryComplete = false;
   let invalidPublicationCount = 0;
+  let uninspectedPublicationCount = 0;
 
   function setText(id, value) {
     const node = document.getElementById(id);
@@ -96,12 +97,20 @@
     if (!isObject(payload) || payload.schema_version !== REGISTRY_SCHEMA) throw new Error('public case registry schema is unavailable or unsupported');
     if (!Array.isArray(payload.cases)) throw new Error('public case registry collection is unavailable');
     const count = nonNegativeInteger(payload.count);
+    const total = nonNegativeInteger(payload.total_publications);
+    const inspected = nonNegativeInteger(payload.inspected_publications);
     const invalid = nonNegativeInteger(payload.invalid_publications);
-    if (count === null || invalid === null || count !== payload.cases.length) throw new Error('public case registry counts are structurally inconsistent');
+    const uninspected = nonNegativeInteger(payload.uninspected_publications);
+    if ([count, total, inspected, invalid, uninspected].some(value => value === null)) throw new Error('public case registry counts are unavailable');
+    if (count !== payload.cases.length || inspected !== count + invalid || total !== inspected + uninspected) {
+      throw new Error('public case registry counts are structurally inconsistent');
+    }
     if (typeof payload.registry_complete !== 'boolean') throw new Error('public case registry completeness is unavailable');
-    const expectedStatus = payload.registry_complete ? 'operational' : 'degraded';
-    if (payload.registry_status !== expectedStatus) throw new Error('public case registry status is inconsistent');
-    if (payload.registry_complete !== (invalid === 0)) throw new Error('public case registry integrity count is inconsistent');
+    const expectedComplete = invalid === 0 && uninspected === 0;
+    const expectedStatus = invalid > 0 ? 'degraded' : uninspected > 0 ? 'partial' : 'operational';
+    if (payload.registry_complete !== expectedComplete || payload.registry_status !== expectedStatus) {
+      throw new Error('public case registry status is inconsistent');
+    }
     if (!validTimestamp(payload.generated_at)) throw new Error('public case registry timestamp is unavailable');
     const policy = payload.publication_policy;
     if (!isObject(policy) || policy.immutable_source_bundle !== true || policy.canonical_bundle_hash_reverified !== true || policy.partial_registry_declared !== true) {
@@ -115,7 +124,16 @@
       if (seen.has(item.case_ref)) throw new Error('public case registry contains a duplicate case reference');
       seen.add(item.case_ref);
     }
-    return { cases: payload.cases, complete: payload.registry_complete, invalid, generatedAt: payload.generated_at };
+    return {
+      cases: payload.cases,
+      complete: payload.registry_complete,
+      invalid,
+      uninspected,
+      total,
+      inspected,
+      generatedAt: payload.generated_at,
+      status: payload.registry_status
+    };
   }
 
   async function fetchJSON(endpoint) {
@@ -158,10 +176,11 @@
   }
 
   function partialRegistryWarning() {
-    const message = invalidPublicationCount > 0
-      ? `DEGRADED REGISTRY — ${number.format(invalidPublicationCount)} explicitly public record(s) failed immutable-bundle verification. Valid records below remain individually verifiable; aggregate totals are unavailable.`
-      : 'DEGRADED REGISTRY — Registry completeness could not be established. Valid records below remain individually verifiable; aggregate totals are unavailable.';
-    return el('div', 'soc-error', message);
+    const parts = [];
+    if (invalidPublicationCount > 0) parts.push(`${number.format(invalidPublicationCount)} explicitly public record(s) failed immutable-bundle verification`);
+    if (uninspectedPublicationCount > 0) parts.push(`${number.format(uninspectedPublicationCount)} public record(s) were outside this response's inspection limit`);
+    const detail = parts.length ? parts.join('; ') : 'registry completeness could not be established';
+    return el('div', 'soc-error', `INCOMPLETE REGISTRY — ${detail}. Valid records below remain individually verifiable; aggregate totals are unavailable.`);
   }
 
   function caseCard(item) {
@@ -216,6 +235,7 @@
     const envelope = registryEnvelope(payload);
     registryComplete = envelope.complete;
     invalidPublicationCount = envelope.invalid;
+    uninspectedPublicationCount = envelope.uninspected;
     current = currentCases(envelope.cases);
     if (registryComplete) {
       const featured = current.filter(item => item.featured === true).length;
@@ -238,6 +258,7 @@
     current = [];
     registryComplete = false;
     invalidPublicationCount = 0;
+    uninspectedPublicationCount = 0;
     empty('DEGRADED DEPENDENCY — The public evidence registry could not be verified. Blank counters must not be interpreted as safe, quiet, or empty.', 'soc-error');
     ['metric-cases', 'metric-featured', 'metric-verified', 'metric-observed'].forEach(id => setText(id, 'UNAVAILABLE'));
     setText('metric-refresh', 'retry in 60 sec');
@@ -251,10 +272,19 @@
     try {
       const payload = await fetchJSON('/api/public/cases?limit=100');
       const envelope = renderCases(payload);
-      if (statusNode) statusNode.textContent = envelope.complete ? 'Public evidence registry online' : 'DEGRADED · partial public evidence registry';
-      if (updatedNode) updatedNode.textContent = envelope.complete
-        ? `Updated: ${safeDate(envelope.generatedAt)}`
-        : `Updated: ${safeDate(envelope.generatedAt)} · ${number.format(envelope.invalid)} publication integrity failure(s)`;
+      if (statusNode) {
+        statusNode.textContent = envelope.complete
+          ? 'Public evidence registry online'
+          : envelope.status === 'degraded' ? 'DEGRADED · public evidence registry integrity failure' : 'PARTIAL · public evidence registry truncated';
+      }
+      if (updatedNode) {
+        const details = [];
+        if (envelope.invalid > 0) details.push(`${number.format(envelope.invalid)} integrity failure(s)`);
+        if (envelope.uninspected > 0) details.push(`${number.format(envelope.uninspected)} uninspected publication(s)`);
+        updatedNode.textContent = details.length
+          ? `Updated: ${safeDate(envelope.generatedAt)} · ${details.join(' · ')}`
+          : `Updated: ${safeDate(envelope.generatedAt)}`;
+      }
     } catch (error) {
       renderDegraded(error);
     } finally {
