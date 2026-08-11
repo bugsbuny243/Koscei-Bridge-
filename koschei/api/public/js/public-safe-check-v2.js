@@ -2,7 +2,7 @@
 'use strict';
 const REQUEST_TIMEOUT_MS=15000;
 const $=id=>document.getElementById(id);
-const run=$('run'),target=$('target'),intent=$('intent'),out=$('out');
+const form=$('safeForm'),run=$('run'),target=$('target'),intent=$('intent'),out=$('out');
 
 function el(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=String(text);return node;}
 function numeric(value){if(value===null||value===undefined||String(value).trim()==='')return null;const parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
@@ -29,8 +29,8 @@ function render(data,rawTarget){
   out.replaceChildren(...nodes);
 }
 async function fetchJSON(url,options={}){const controller=new AbortController();const timer=setTimeout(()=>controller.abort('koschei_api_timeout'),REQUEST_TIMEOUT_MS);try{const response=await fetch(url,{...options,signal:controller.signal});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.error||data?.message||`HTTP ${response.status}`);return data;}catch(error){if(error?.name==='AbortError')throw new Error(`Safe Check did not respond within ${REQUEST_TIMEOUT_MS/1000} seconds.`);throw error;}finally{clearTimeout(timer);}}
-run?.addEventListener('click',async()=>{
-  const value=String(target?.value||'').trim();if(!value){out.replaceChildren(el('div','safety-warning','Enter a target before running Safe Check.'));return;}
+form?.addEventListener('submit',async event=>{
+  event.preventDefault();const value=String(target?.value||'').trim();if(!value){out.replaceChildren(el('div','safety-warning','Enter a target before running Safe Check.'));target?.focus();return;}
   run.disabled=true;run.textContent='Checking…';const loading=el('div','safety-score');loading.append(el('strong','','…'));loading.append(el('small','','ARVIS deterministic preflight'));out.replaceChildren(loading);
   try{const data=await fetchJSON('/api/arvis/preflight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:value,intent:intent?.value||'research',note:'public_safe_check'})});render(data,value);}catch(error){const box=el('div','safety-error');box.append(el('b','','DEGRADED DEPENDENCY — no preflight result'));box.append(el('p','',String(error?.message||'Safe Check is unavailable.')));box.append(el('p','','Do not interpret this failure as zero risk or permission to proceed.'));out.replaceChildren(box);}finally{run.disabled=false;run.textContent='Run Safe Check';}
 });
