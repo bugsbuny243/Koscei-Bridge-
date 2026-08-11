@@ -20,6 +20,7 @@ requireText(js,"graph.verified_evidence_edge_count",'verified edge metric');
 requireText(js,"final_verdict.triggered_rules",'verdict evidence source');
 requireText(js,"capability_integration.capabilities",'coverage evidence source');
 requireText(js,"behavioral_signatures.matches",'behavior evidence source');
+requireText(js,"raw.includes('unverified')",'unverified fail-closed mapping');
 requireText(css,'.koschei-trajectory-svg','trajectory styles');
 requireText(css,'.koschei-evidence-record','evidence record styles');
 requireText(css,'.koschei-raw-payload','raw payload styles');
@@ -29,5 +30,8 @@ const ux=html.indexOf('/js/owner-investigation-ux.js?v=1');
 const explorer=html.indexOf('/js/owner-evidence-explorer-v2.js?v=1');
 if(premium<0||ux<premium||explorer<ux)throw new Error('owner html: explorer must load after premium renderer and investigation UX v1');
 
+const unverifiedIndex=js.indexOf("raw.includes('unverified')");
+const verifiedIndex=js.indexOf("raw.includes('verified')");
+if(unverifiedIndex<0||verifiedIndex<0||unverifiedIndex>verifiedIndex)throw new Error('state mapper must classify unverified before verified');
 if(/verdict_authority\s*=\s*true|grade_authority\s*=\s*true/.test(js))throw new Error('explorer must not grant verdict or grade authority');
 console.log('owner evidence explorer v2 contract: ok');
