@@ -10,7 +10,13 @@
   const number = new Intl.NumberFormat('en-US');
   const date = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'medium' });
   const REQUEST_TIMEOUT_MS = 12000;
+  const REGISTRY_SCHEMA = 'koschei-public-case-registry-v1';
+  const CASE_REF_PATTERN = /^KD1-[a-z2-7]{32}$/;
+  const BUNDLE_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
+  const ALLOWED_GRADES = new Set(['A', 'B', 'C', 'D', 'F', 'WITHHOLD']);
   let current = [];
+  let registryComplete = false;
+  let invalidPublicationCount = 0;
 
   function setText(id, value) {
     const node = document.getElementById(id);
@@ -23,11 +29,20 @@
     return Number.isNaN(parsed.getTime()) ? '—' : date.format(parsed);
   }
 
+  function validTimestamp(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return false;
+    return !Number.isNaN(new Date(value).getTime());
+  }
+
   function el(tag, className, value) {
     const node = document.createElement(tag);
     if (className) node.className = className;
     if (value !== undefined) node.textContent = String(value);
     return node;
+  }
+
+  function isObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
 
   function numeric(value) {
@@ -36,15 +51,24 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function nonNegativeInteger(value) {
+    const parsed = numeric(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  }
+
   function proof(label, value, className) {
     const box = el('div', className || '');
-    const parsed = numeric(value);
+    const parsed = nonNegativeInteger(value);
     box.append(el('span', '', label), el('b', '', parsed === null ? '—' : number.format(parsed)));
     return box;
   }
 
   function caseURL(item) {
     return `/case/${encodeURIComponent(item.case_ref || '')}`;
+  }
+
+  function rawDossierURL(item) {
+    return `/dossier/${encodeURIComponent(item.case_ref || '')}`;
   }
 
   function caseTime(item) {
@@ -55,14 +79,43 @@
   }
 
   function normalizedGrade(item) {
-    return String(item.verdict_grade || item.verdict_status || 'WITHHOLD').trim().toUpperCase() || 'WITHHOLD';
+    const grade = String(item?.verdict_grade || '').trim().toUpperCase();
+    if (grade) return ALLOWED_GRADES.has(grade) ? grade : 'UNAVAILABLE';
+    const status = String(item?.verdict_status || '').trim().toUpperCase();
+    return status === 'WITHHOLD' ? 'WITHHOLD' : 'UNAVAILABLE';
   }
 
   function aggregate(items, field) {
     if (!items.length) return 0;
-    const values = items.map(item => numeric(item?.[field]));
+    const values = items.map(item => nonNegativeInteger(item?.[field]));
     if (values.some(value => value === null)) return null;
     return values.reduce((sum, value) => sum + value, 0);
+  }
+
+  function registryEnvelope(payload) {
+    if (!isObject(payload) || payload.schema_version !== REGISTRY_SCHEMA) throw new Error('public case registry schema is unavailable or unsupported');
+    if (!Array.isArray(payload.cases)) throw new Error('public case registry collection is unavailable');
+    const count = nonNegativeInteger(payload.count);
+    const invalid = nonNegativeInteger(payload.invalid_publications);
+    if (count === null || invalid === null || count !== payload.cases.length) throw new Error('public case registry counts are structurally inconsistent');
+    if (typeof payload.registry_complete !== 'boolean') throw new Error('public case registry completeness is unavailable');
+    const expectedStatus = payload.registry_complete ? 'operational' : 'degraded';
+    if (payload.registry_status !== expectedStatus) throw new Error('public case registry status is inconsistent');
+    if (payload.registry_complete !== (invalid === 0)) throw new Error('public case registry integrity count is inconsistent');
+    if (!validTimestamp(payload.generated_at)) throw new Error('public case registry timestamp is unavailable');
+    const policy = payload.publication_policy;
+    if (!isObject(policy) || policy.immutable_source_bundle !== true || policy.canonical_bundle_hash_reverified !== true || policy.partial_registry_declared !== true) {
+      throw new Error('public case registry integrity policy is incomplete');
+    }
+    const seen = new Set();
+    for (const item of payload.cases) {
+      if (!isObject(item) || !CASE_REF_PATTERN.test(String(item.case_ref || '')) || !BUNDLE_HASH_PATTERN.test(String(item.bundle_hash || ''))) {
+        throw new Error('public case registry contains an invalid immutable case identity');
+      }
+      if (seen.has(item.case_ref)) throw new Error('public case registry contains a duplicate case reference');
+      seen.add(item.case_ref);
+    }
+    return { cases: payload.cases, complete: payload.registry_complete, invalid, generatedAt: payload.generated_at };
   }
 
   async function fetchJSON(endpoint) {
@@ -87,7 +140,7 @@
   function currentCases(items) {
     const groups = new Map();
     for (const item of Array.isArray(items) ? items : []) {
-      const key = `${item.target_kind || 'unknown'}:${item.target_id || item.case_ref || ''}`;
+      const key = `${item.target_kind || 'unavailable'}:${item.target_id || item.case_ref || ''}`;
       const group = groups.get(key) || [];
       group.push(item);
       groups.set(key, group);
@@ -104,17 +157,24 @@
     contentNode.replaceChildren(el('div', className, message));
   }
 
+  function partialRegistryWarning() {
+    const message = invalidPublicationCount > 0
+      ? `DEGRADED REGISTRY — ${number.format(invalidPublicationCount)} explicitly public record(s) failed immutable-bundle verification. Valid records below remain individually verifiable; aggregate totals are unavailable.`
+      : 'DEGRADED REGISTRY — Registry completeness could not be established. Valid records below remain individually verifiable; aggregate totals are unavailable.';
+    return el('div', 'soc-error', message);
+  }
+
   function caseCard(item) {
-    const card = el('article', `soc-card${item.featured ? ' featured' : ''}`);
+    const card = el('article', `soc-card${item.featured === true ? ' featured' : ''}`);
     const top = el('div', 'soc-card-top');
     const identity = el('div');
-    identity.append(el('span', 'soc-tag', item.target_kind || 'unknown'));
+    identity.append(el('span', 'soc-tag', item.target_kind || 'UNAVAILABLE'));
     identity.append(el('h3', '', item.title || item.case_ref || 'Published ARVIS case'));
     identity.append(el('p', '', item.summary || 'Immutable ARVIS evidence case.'));
     if (Number(item.revision_count || 1) > 1) identity.append(el('span', 'soc-tag', `${number.format(item.revision_count)} immutable revisions · latest shown`));
     top.append(identity, el('span', 'soc-tag', normalizedGrade(item)));
 
-    const ref = el('div', 'soc-case-ref', `${item.case_ref || 'case unavailable'} · ${item.target_display || item.target_id || 'target withheld'}`);
+    const ref = el('div', 'soc-case-ref', `${item.case_ref || 'case unavailable'} · ${item.target_display || item.target_id || 'target unavailable'}`);
     const proofs = el('div', 'soc-proof');
     proofs.append(
       proof('Evidence rows', item.evidence_rows),
@@ -125,7 +185,7 @@
     const hash = el('div', 'soc-hash', `Immutable bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
     const actions = el('div', 'soc-card-actions');
     const open = el('a', 'soc-btn primary', 'Open readable case'); open.href = caseURL(item);
-    const raw = el('a', 'soc-btn soc-mono', 'Raw technical record'); raw.href = item.public_url || `/dossier/${encodeURIComponent(item.case_ref || '')}`;
+    const raw = el('a', 'soc-btn soc-mono', 'Raw technical record'); raw.href = rawDossierURL(item);
     const verifier = el('span', 'soc-btn soc-mono', 'Verification path'); verifier.title = item.independent_verification_path || 'Verification path unavailable';
     actions.append(open, raw, verifier);
     card.append(top, ref, proofs, hash, actions);
@@ -141,28 +201,43 @@
       return (!wantedGrade || grade === wantedGrade) && (!query || haystack.includes(query));
     });
     if (visibleNode) visibleNode.textContent = `${filtered.length}/${current.length}`;
+    const nodes = [];
+    if (!registryComplete) nodes.push(partialRegistryWarning());
     if (!filtered.length) {
-      empty(current.length ? 'No published case matches the current filters.' : 'No explicitly published verifiable case is available yet. Private scans are not automatically listed here.');
+      nodes.push(el('div', 'soc-empty', current.length ? 'No published case matches the current filters.' : 'No explicitly published verifiable case is available yet. Private scans are not automatically listed here.'));
+      contentNode.replaceChildren(...nodes);
       return;
     }
-    contentNode.replaceChildren(...filtered.map(caseCard));
+    nodes.push(...filtered.map(caseCard));
+    contentNode.replaceChildren(...nodes);
   }
 
   function renderCases(payload) {
-    current = currentCases(payload.cases);
-    const featured = current.filter(item => item.featured).length;
-    const verified = aggregate(current, 'verified_rows');
-    const observed = aggregate(current, 'observed_rows');
-    setText('metric-cases', number.format(current.length));
-    setText('metric-featured', number.format(featured));
-    setText('metric-verified', verified === null ? 'UNAVAILABLE' : number.format(verified));
-    setText('metric-observed', observed === null ? 'UNAVAILABLE' : number.format(observed));
-    setText('metric-refresh', '60 sec');
+    const envelope = registryEnvelope(payload);
+    registryComplete = envelope.complete;
+    invalidPublicationCount = envelope.invalid;
+    current = currentCases(envelope.cases);
+    if (registryComplete) {
+      const featured = current.filter(item => item.featured === true).length;
+      const verified = aggregate(current, 'verified_rows');
+      const observed = aggregate(current, 'observed_rows');
+      setText('metric-cases', number.format(current.length));
+      setText('metric-featured', number.format(featured));
+      setText('metric-verified', verified === null ? 'UNAVAILABLE' : number.format(verified));
+      setText('metric-observed', observed === null ? 'UNAVAILABLE' : number.format(observed));
+      setText('metric-refresh', '60 sec');
+    } else {
+      ['metric-cases', 'metric-featured', 'metric-verified', 'metric-observed'].forEach(id => setText(id, 'UNAVAILABLE'));
+      setText('metric-refresh', 'retry in 60 sec');
+    }
     renderFiltered();
+    return envelope;
   }
 
   function renderDegraded(error) {
     current = [];
+    registryComplete = false;
+    invalidPublicationCount = 0;
     empty('DEGRADED DEPENDENCY — The public evidence registry could not be verified. Blank counters must not be interpreted as safe, quiet, or empty.', 'soc-error');
     ['metric-cases', 'metric-featured', 'metric-verified', 'metric-observed'].forEach(id => setText(id, 'UNAVAILABLE'));
     setText('metric-refresh', 'retry in 60 sec');
@@ -175,9 +250,11 @@
     if (statusNode) statusNode.textContent = 'Refreshing the public evidence registry';
     try {
       const payload = await fetchJSON('/api/public/cases?limit=100');
-      renderCases(payload);
-      if (statusNode) statusNode.textContent = 'Public evidence registry online';
-      if (updatedNode) updatedNode.textContent = `Updated: ${safeDate(payload.generated_at)}`;
+      const envelope = renderCases(payload);
+      if (statusNode) statusNode.textContent = envelope.complete ? 'Public evidence registry online' : 'DEGRADED · partial public evidence registry';
+      if (updatedNode) updatedNode.textContent = envelope.complete
+        ? `Updated: ${safeDate(envelope.generatedAt)}`
+        : `Updated: ${safeDate(envelope.generatedAt)} · ${number.format(envelope.invalid)} publication integrity failure(s)`;
     } catch (error) {
       renderDegraded(error);
     } finally {
