@@ -21,7 +21,7 @@ requireText(reportsHTML,'reading history does not consume a scan unit','reports 
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
 requireText(watchHTML,'Pro tier or higher','watchlist Pro tier boundary');
 
-requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/investigations/history'",'canonical investigation history source');
+requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'canonical investigation history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'history schema gate');
 requireText(reportsJS,"data?.source!=='web3_jobs'",'history durable source gate');
 requireText(reportsJS,"data?.job_type!=='canonical_investigation'",'history canonical job type gate');
@@ -31,6 +31,7 @@ requireText(reportsJS,"if(!Array.isArray(history))",'history unavailable-not-emp
 requireText(reportsJS,"setUnavailableKPIs('Canonical investigation history unavailable; no history count inferred.')",'history unavailable-not-zero KPI boundary');
 requireText(reportsJS,"KoscheiAuth.requireAuth('/login.html')",'canonical login continuation');
 if(reportsJS.includes('/api/v1/unified/reports'))throw new Error('reports js: must not call removed unified-reports frontend contract');
+if(reportsJS.includes('/api/v1/investigations/history'))throw new Error('reports js: must use canonical radar jobs history collection');
 if(reportsJS.includes('.innerHTML='))throw new Error('reports js: canonical history must use DOM/textContent rendering');
 
 requireText(watchJS,"api('/api/watchlist')",'watchlist source');
