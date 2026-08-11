@@ -16,6 +16,9 @@ func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (do
 	if len(canonical) == 0 || caseRef == "" {
 		return dossierBundle{}, fmt.Errorf("dossier integrity input is incomplete")
 	}
+	if !publicDossierCaseRefPattern.MatchString(caseRef) {
+		return dossierBundle{}, fmt.Errorf("dossier case_ref format is invalid")
+	}
 
 	var bundle dossierBundle
 	if err := json.Unmarshal(canonical, &bundle); err != nil {
