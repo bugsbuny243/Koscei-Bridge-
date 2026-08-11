@@ -1,0 +1,29 @@
+name: Enterprise Webhooks V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/webhooks.html'
+      - 'koschei/api/public/js/webhooks-v2.js'
+      - 'koschei/api/public/css/webhooks-v2.css'
+      - 'koschei/api/scripts/verify-webhooks-v2.js'
+      - 'koschei/api/internal/http/watchlist_routes.go'
+      - 'koschei/api/internal/handlers/webhooks.go'
+      - 'koschei/api/internal/webhooks/worker.go'
+      - 'docs/webhook-delivery.md'
+      - '.github/workflows/webhooks-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enterprise-webhooks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Enterprise webhook JavaScript syntax
+        run: node --check koschei/api/public/js/webhooks-v2.js
+      - name: Verify bounded Enterprise webhook contract
+        run: node koschei/api/scripts/verify-webhooks-v2.js
