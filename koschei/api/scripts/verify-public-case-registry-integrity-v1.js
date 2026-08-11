@@ -6,6 +6,8 @@ const integrity=fs.readFileSync(path.join(root,'internal','handlers','dossier_in
 const casesGo=fs.readFileSync(path.join(root,'internal','handlers','public_dossier_cases_v2.go'),'utf8');
 const dossierPage=fs.readFileSync(path.join(root,'internal','handlers','dossier_page.go'),'utf8');
 const readableCase=fs.readFileSync(path.join(root,'internal','handlers','public_case_operational_v2.go'),'utf8');
+const exportPrivacy=fs.readFileSync(path.join(root,'internal','http','dossier_export_privacy.go'),'utf8');
+const dossierRoutes=fs.readFileSync(path.join(root,'internal','http','dossier_routes.go'),'utf8');
 const casesHTML=fs.readFileSync(path.join(root,'public','cases.html'),'utf8');
 const casesJS=fs.readFileSync(path.join(root,'public','js','public-soc.js'),'utf8');
 
@@ -45,6 +47,12 @@ requireText(readableCase,"WHERE e.case_ref=$1 AND p.status='public'",'readable c
 requireText(readableCase,'SELECT e.canonical_bundle,e.bundle_hash','readable case canonical/hash source');
 requireText(readableCase,'verifyStoredDossierBundle(canonical, caseRef, storedHash)','readable case immutable verification');
 forbid(readableCase,/json\.Unmarshal\s*\(/,'readable case weak parse-only integrity check');
+
+requireText(exportPrivacy,'func privateDossierExport(next http.HandlerFunc) http.HandlerFunc','private export response wrapper');
+for(const header of ['Content-Location','Link','X-Koschei-Public-Dossier'])requireText(exportPrivacy,`w.Header().Del("${header}")`,`private export removes ${header}`);
+requireText(exportPrivacy,'w.Header().Set("Cache-Control", "private, no-store")','private export cache boundary');
+requireText(exportPrivacy,'w.Header().Set("X-Koschei-Dossier-Visibility", "private-export")','private export visibility marker');
+requireText(dossierRoutes,'h.DossierAccess(privateDossierExport(method(http.MethodPost, h.DossierExportWithAutopublishWake)))','private export wrapper is in authenticated dossier route');
 
 requireText(casesHTML,'canonical bytes, case reference, embedded bundle hash, and stored bundle hash are reverified','public integrity explanation');
 requireText(casesHTML,'Aggregate registry totals are shown only when every public publication in the response has been inspected','public aggregate boundary');
