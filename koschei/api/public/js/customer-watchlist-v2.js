@@ -107,7 +107,7 @@ async function handleAction(button){
   if(action==='delete'&&!window.confirm(`Remove ${button.dataset.watchLabel||'this target'} from monitoring?`))return;
   await runButton(button,async()=>{
     try{
-      if(action==='refresh'){const data=await api(`/api/watchlist/${encodeURIComponent(id)}/refresh`,{method:'POST',body:'{}'});if(data?.ok!==true)throw new Error('Refresh response was incomplete; no successful refresh is inferred.');status('Evidence refresh completed.','good');}
+      if(action==='refresh'){const data=await api(`/api/watchlist/${encodeURIComponent(id)}/refresh`,{method:'POST',body:'{}'});if(hasValue(data?.refresh_error))status(`Refresh request returned a degraded result: ${text(data.refresh_error)}`,'bad');else status('Refresh request returned successfully. Reloading server evidence.');}
       if(action==='toggle'){const next=button.dataset.watchNext;if(next!=='active'&&next!=='paused')throw new Error('Target status evidence is unavailable; no state change was sent.');await api(`/api/watchlist/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify({status:next})});status(`Monitoring target ${next}.`,'good');}
       if(action==='delete'){await api(`/api/watchlist/${encodeURIComponent(id)}`,{method:'DELETE'});status('Monitoring target removed.','good');}
       await load({preserveStatus:true});
