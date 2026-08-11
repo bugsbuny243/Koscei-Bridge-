@@ -1,0 +1,25 @@
+name: Chain Health V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/chain-health.html'
+      - 'koschei/api/public/js/chain-health-v2.js'
+      - 'koschei/api/public/css/chain-health-v2.css'
+      - 'koschei/api/scripts/verify-chain-health-v2.js'
+      - '.github/workflows/chain-health-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chain-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check chain health JavaScript syntax
+        run: node --check koschei/api/public/js/chain-health-v2.js
+      - name: Verify evidence-bounded chain health contract
+        run: node koschei/api/scripts/verify-chain-health-v2.js
