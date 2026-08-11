@@ -31,8 +31,7 @@ requireText(store,'ORDER BY queued_at DESC,id DESC','canonical history ordering'
 requireText(store,'scanJob(rows)','shared job scanner contract');
 
 requireText(handler,'func (h *Handler) CustomerInvestigationHistory','customer history handler');
-requireText(handler,'func (h *Handler) CustomerInvestigationHistoryCollection','Basic-gated collection handler');
-requireText(handler,'h.RequireTokenTier("basic", h.CustomerInvestigationHistory)','Basic access-only history gate');
+requireText(handler,'h.RequireTokenTier("basic", h.customerInvestigationHistoryRead)(w, r)','Basic access-only history gate');
 requireText(handler,'h.JobStore.ListByUser(r.Context(), claims.Sub, CanonicalInvestigationJobType, 100)','canonical account history query');
 requireText(handler,'ResultAvailable bool','result availability evidence');
 requireText(handler,'if json.Unmarshal(job.ResultPayload, &result) == nil && result != nil','result payload parse boundary');
@@ -42,8 +41,10 @@ requireText(handler,'"job_type": CanonicalInvestigationJobType','canonical job-t
 requireText(handler,'"history": items','history collection envelope');
 forbid(handler,/EnforceScanQuota/,'history handler must not consume scan quota');
 
-requireText(jobsHandler,'if id == "" && strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/radar/jobs" {','radar jobs collection dispatch');
-requireText(jobsHandler,'h.CustomerInvestigationHistoryCollection(w, r)','history collection delegation');
+requireText(jobsHandler,'if id == "" {','empty job-id dispatch boundary');
+requireText(jobsHandler,'if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/radar/jobs" {','radar jobs collection isolation');
+requireText(jobsHandler,'h.CustomerInvestigationHistory(w, r)','history collection delegation');
+requireText(jobsHandler,'writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})','legacy empty collection remains not found');
 requireText(server,'mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))','existing radar jobs GET route');
 if(server.includes('/api/v1/investigations/history'))throw new Error('server: do not add a parallel history endpoint; use the existing radar jobs collection');
 requireText(inventory,'"GET /api/v1/radar/jobs/"','machine-readable radar jobs GET route');
