@@ -18,7 +18,8 @@
   }
 
   function safeDate(value) {
-    const parsed = new Date(value || 0);
+    if (value === undefined || value === null || String(value).trim() === '') return '—';
+    const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? '—' : date.format(parsed);
   }
 
@@ -29,9 +30,16 @@
     return node;
   }
 
+  function numeric(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   function proof(label, value, className) {
     const box = el('div', className || '');
-    box.append(el('span', '', label), el('b', '', number.format(Number(value || 0))));
+    const parsed = numeric(value);
+    box.append(el('span', '', label), el('b', '', parsed === null ? '—' : number.format(parsed)));
     return box;
   }
 
@@ -40,12 +48,21 @@
   }
 
   function caseTime(item) {
-    const value = new Date(item.produced_at || item.published_at || 0).getTime();
+    const raw = item.produced_at || item.published_at;
+    if (!raw) return 0;
+    const value = new Date(raw).getTime();
     return Number.isFinite(value) ? value : 0;
   }
 
   function normalizedGrade(item) {
     return String(item.verdict_grade || item.verdict_status || 'WITHHOLD').trim().toUpperCase() || 'WITHHOLD';
+  }
+
+  function aggregate(items, field) {
+    if (!items.length) return 0;
+    const values = items.map(item => numeric(item?.[field]));
+    if (values.some(value => value === null)) return null;
+    return values.reduce((sum, value) => sum + value, 0);
   }
 
   async function fetchJSON(endpoint) {
@@ -134,12 +151,12 @@
   function renderCases(payload) {
     current = currentCases(payload.cases);
     const featured = current.filter(item => item.featured).length;
-    const verified = current.reduce((sum, item) => sum + Number(item.verified_rows || 0), 0);
-    const observed = current.reduce((sum, item) => sum + Number(item.observed_rows || 0), 0);
+    const verified = aggregate(current, 'verified_rows');
+    const observed = aggregate(current, 'observed_rows');
     setText('metric-cases', number.format(current.length));
     setText('metric-featured', number.format(featured));
-    setText('metric-verified', number.format(verified));
-    setText('metric-observed', number.format(observed));
+    setText('metric-verified', verified === null ? 'UNAVAILABLE' : number.format(verified));
+    setText('metric-observed', observed === null ? 'UNAVAILABLE' : number.format(observed));
     setText('metric-refresh', '60 sec');
     renderFiltered();
   }
