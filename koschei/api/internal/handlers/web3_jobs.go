@@ -116,6 +116,10 @@ func (h *Handler) GetWeb3Job(w http.ResponseWriter, r *http.Request) {
 	}
 	id := lastCanonicalJobPathSegment(r.URL.Path)
 	if id == "" {
+		if canonicalHistoryCollectionPath(r.URL.Path) {
+			h.CustomerInvestigationHistory(w, r)
+			return
+		}
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 		return
 	}
@@ -144,6 +148,10 @@ func (h *Handler) GetWeb3Job(w http.ResponseWriter, r *http.Request) {
 		resp["error_message"] = job.ErrorMessage
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func canonicalHistoryCollectionPath(path string) bool {
+	return strings.TrimSuffix(strings.TrimSpace(path), "/") == "/api/v1/radar/jobs"
 }
 
 func web3JobTypeFromPath(path string) string {

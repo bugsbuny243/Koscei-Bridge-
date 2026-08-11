@@ -33,6 +33,19 @@ func TestCanonicalJobPollPathUsesLastSegment(t *testing.T) {
 	}
 }
 
+func TestCanonicalHistoryCollectionPathIsIsolated(t *testing.T) {
+	for _, path := range []string{"/api/v1/radar/jobs", "/api/v1/radar/jobs/", " /api/v1/radar/jobs/ "} {
+		if !canonicalHistoryCollectionPath(path) {
+			t.Fatalf("canonical history collection path rejected: %q", path)
+		}
+	}
+	for _, path := range []string{"/api/jobs/", "/api/jobs", "/api/v1/radar/jobs/abc-123", "/api/owner/radar/jobs/"} {
+		if canonicalHistoryCollectionPath(path) {
+			t.Fatalf("non-canonical collection path accepted: %q", path)
+		}
+	}
+}
+
 func TestCanonicalPayloadMaxDepthIsBounded(t *testing.T) {
 	if got := canonicalPayloadMaxDepth(canonicalInvestigationJobPayload{MaxDepth: 99}); got != 3 {
 		t.Fatalf("recursive max depth escaped hard cap: %d", got)

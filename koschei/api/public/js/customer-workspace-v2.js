@@ -9,8 +9,12 @@ const obj=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const text=value=>String(value??'').trim();
 const lower=value=>text(value).toLowerCase();
+const hasValue=value=>value!==null&&value!==undefined&&String(value).trim()!=='';
+const isObject=value=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 const displayNumber=value=>Number.isFinite(Number(value))?new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(Number(value)):'—';
 const when=value=>{const parsed=new Date(value||0);return Number.isNaN(parsed.getTime())?'—':new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short'}).format(parsed);};
+const strictWhen=value=>{if(!hasValue(value))return'UNAVAILABLE';const parsed=new Date(value);return Number.isNaN(parsed.getTime())?'UNAVAILABLE':new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short'}).format(parsed);};
+const historyStates=new Set(['queued','running','completed','failed']);
 
 async function read(path){
   try{
@@ -30,7 +34,11 @@ function setKPI(id,value,detail,tone=''){
   if(small)small.textContent=detail;
 }
 
-function reportsFrom(result){return arr(result?.data?.reports).length?arr(result.data.reports):arr(obj(result?.data?.data).reports);}
+function historyFrom(result){
+  const data=result?.data;
+  if(!result?.ok||!isObject(data)||data.ok!==true||data.schema_version!=='koschei-customer-investigation-history-v1'||data.source!=='web3_jobs'||data.job_type!=='canonical_investigation'||!Array.isArray(data.history))return null;
+  return data.history;
+}
 function targetsFrom(result){return arr(result?.data?.targets);}
 function alertsFrom(result){return arr(result?.data?.alerts);}
 
@@ -42,24 +50,39 @@ function normalizedTone(value){
   const raw=lower(value);
   return ['low','medium','high','critical','warning','info'].includes(raw)?raw:'info';
 }
-
-function scanContinuation(type,target){
-  const kind=lower(type),encoded=encodeURIComponent(target);
-  if(kind==='token'||kind==='mint')return`/scan?mode=token&target=${encoded}`;
-  if(kind==='wallet')return`/scan?mode=deep&kind=wallet&target=${encoded}`;
-  if(kind==='site'||kind==='url')return`/scan?mode=deep&kind=site&target=${encoded}`;
-  return`/scan?mode=quick&target=${encoded}`;
+function historyState(value){const state=lower(value);return historyStates.has(state)?state:'unknown';}
+function historyResult(item){return item?.result_available===true&&isObject(item?.result)?item.result:null;}
+function historyDecision(item){const result=historyResult(item);if(!result)return null;const summary=isObject(result.analysis_summary)?result.analysis_summary:null;if(summary&&isObject(summary.decision))return summary.decision;if(isObject(result.final_verdict))return result.final_verdict;return null;}
+function historyEvidenceState(item){
+  if(historyState(item?.status)!=='completed')return'NOT COMPLETED';
+  const decision=historyDecision(item);if(!decision)return item?.result_available===true?'VERDICT UNAVAILABLE':'RESULT UNAVAILABLE';
+  const signed=typeof decision.signed==='boolean'?decision.signed:null,signature=text(decision.signature),ruleset=text(decision.ruleset_version);
+  if(signed===true&&signature&&ruleset)return'SIGNED';
+  if(signed===false)return'UNSIGNED';
+  if(signed===true)return'SIGNATURE INCOMPLETE';
+  return'SIGNATURE UNAVAILABLE';
 }
+function historyDecisionText(item,key){const decision=historyDecision(item);return decision&&hasValue(decision[key])?text(decision[key]):'UNAVAILABLE';}
+function historyTone(state){if(state==='completed')return'low';if(state==='failed')return'critical';if(state==='running')return'medium';if(state==='queued')return'info';return'warning';}
+function domNode(tag,className,value){const node=document.createElement(tag);if(className)node.className=className;if(value!==undefined)node.textContent=String(value);return node;}
+function clearNode(host){while(host?.firstChild)host.removeChild(host.firstChild);}
 
-function renderLatestReport(items){
-  const host=$('workspaceLatestReport');if(!host)return;
-  const latest=latestBy(items,'created_at');
-  if(!latest){host.innerHTML='<div class="workspace-command-empty">No signed report is available yet. Start at the canonical Scan Center; a durable report appears only when its evidence contract allows it.</div>';return;}
-  const target=text(latest.target_id||latest.target||''),type=text(latest.target_type||'target'),risk=normalizedTone(latest.risk_level||'info');
-  const score=latest.overall_score??latest.score??latest.risk_index;
-  const signals=obj(latest.signals),floor=signals.structural_floor;
-  const continuation=target?scanContinuation(type,target):'';
-  host.innerHTML=`<article class="workspace-report-card"><div class="workspace-report-card__top"><div><b>${esc(type.toUpperCase())} · ${esc(target||'Target unavailable')}</b><span>${esc(when(latest.created_at))}</span></div><span class="workspace-report-badge ${esc(risk)}">${esc(risk.toUpperCase())}</span></div><div class="workspace-report-meta"><div><label>Score</label><strong>${esc(score??'—')}</strong></div><div><label>Structural floor</label><strong>${esc(floor??'—')}</strong></div><div><label>Evidence</label><strong>${latest.signature||latest.signed?'SIGNED':'DURABLE'}</strong></div></div><div class="workspace-report-actions">${continuation?`<a class="primary" href="${continuation}">Re-investigate target</a>`:''}<a href="/reports">Open report vault</a></div></article>`;
+function renderLatestInvestigation(items){
+  const host=$('workspaceLatestReport');if(!host)return;clearNode(host);
+  if(!Array.isArray(items)){host.append(domNode('div','workspace-command-empty','Canonical investigation history is unavailable. Missing history is not treated as an empty vault.'));return;}
+  const latest=items[0]||null;
+  if(!latest){host.append(domNode('div','workspace-command-empty','No canonical investigation job is retained yet. Start at Deep Scan to create a metered investigation.'));return;}
+  const state=historyState(latest.status),target=text(latest.target),network=text(latest.network),evidence=historyEvidenceState(latest),verdict=historyDecisionText(latest,'verdict'),grade=historyDecisionText(latest,'grade');
+  const card=domNode('article','workspace-report-card');
+  const top=domNode('div','workspace-report-card__top'),identity=domNode('div');
+  identity.append(domNode('b','',target||'Target unavailable'),domNode('span','',`Queued ${strictWhen(latest.queued_at)} · ${network||'NETWORK UNAVAILABLE'}`));
+  top.append(identity,domNode('span',`workspace-report-badge ${historyTone(state)}`,state==='unknown'?'UNAVAILABLE':state.toUpperCase()));
+  const meta=domNode('div','workspace-report-meta');
+  for(const [label,value] of [['Verdict',verdict],['Grade',grade],['Evidence',evidence]]){const wrap=domNode('div');wrap.append(domNode('label','',label),domNode('strong','',value));meta.append(wrap);}
+  const actions=domNode('div','workspace-report-actions');
+  if(target){const reinvestigate=domNode('a','primary','Re-investigate target');reinvestigate.href=`/scan?mode=deep&target=${encodeURIComponent(target)}`;actions.append(reinvestigate);}
+  const historyLink=domNode('a','','Open investigation history');historyLink.href='/reports';actions.append(historyLink);
+  card.append(top,meta,actions);host.append(card);
 }
 
 function renderAlerts(items){
@@ -72,10 +95,10 @@ function renderAlerts(items){
 function renderSignedOut(){
   const state=$('workspaceLiveState');if(state){state.dataset.state='signed_out';state.textContent='SIGN IN FOR LIVE DATA';}
   setKPI('workspaceAccessKpi','SIGNED OUT','Account data is private.');
-  setKPI('workspaceReportsKpi','—','Sign in to read report history.');
+  setKPI('workspaceReportsKpi','—','Sign in to read canonical investigation history.');
   setKPI('workspaceWatchKpi','—','Sign in to read monitored targets.');
   setKPI('workspaceAlertsKpi','—','Sign in to read alert state.');
-  $('workspaceLatestReport').innerHTML='<div class="workspace-command-empty">Sign in to continue from your latest durable investigation.</div>';
+  const latest=$('workspaceLatestReport');clearNode(latest);latest?.append(domNode('div','workspace-command-empty','Sign in to continue from your latest canonical investigation.'));
   $('workspaceAlerts').innerHTML='<div class="workspace-command-empty">Watchlist alerts are account-scoped and are not exposed while signed out.</div>';
   const signIn=$('workspaceSignIn');if(signIn)signIn.hidden=false;
 }
@@ -92,9 +115,9 @@ async function load(){
   const email=KoscheiAuth.getEmail?.();
   const state=$('workspaceLiveState');if(state){state.dataset.state='partial';state.textContent=email?`LOADING · ${email}`:'LOADING ACCOUNT';}
 
-  const [accessResult,reportsResult,watchResult,alertsResult]=await Promise.all([
+  const [accessResult,historyResultResponse,watchResult,alertsResult]=await Promise.all([
     read('/api/auth/premium-access'),
-    read('/api/v1/unified/reports'),
+    read('/api/v1/radar/jobs/'),
     read('/api/watchlist'),
     read('/api/watchlist/alerts')
   ]);
@@ -104,8 +127,8 @@ async function load(){
   const tokenAmount=access.token_amount;
   setKPI('workspaceAccessKpi',active?tier:'INACTIVE',active?`${displayNumber(tokenAmount)} KOSCH verified`:(accessResult.ok?'Verified holder access is not active.':'Access service unavailable.'),active?'good':accessResult.ok?'warn':'bad');
 
-  const reports=reportsResult.ok?reportsFrom(reportsResult):[];
-  setKPI('workspaceReportsKpi',reportsResult.ok?String(reports.length):'—',reportsResult.ok?(reports.length?'Durable reports returned by the vault.':'No durable signed report yet.'):'Report service unavailable.',reportsResult.ok?'good':'bad');
+  const investigationHistory=historyFrom(historyResultResponse),historyAvailable=Array.isArray(investigationHistory);
+  setKPI('workspaceReportsKpi',historyAvailable?String(investigationHistory.length):'—',historyAvailable?(investigationHistory.length?'Durable canonical jobs returned by account history.':'No canonical investigation job retained yet.'):(historyResultResponse.status===401||historyResultResponse.status===402||historyResultResponse.status===403?'Basic KOSCH holder access required.':'Investigation history unavailable.'),historyAvailable?'good':historyResultResponse.status===401||historyResultResponse.status===402||historyResultResponse.status===403?'warn':'bad');
 
   const targets=watchResult.ok?targetsFrom(watchResult):[];
   const maxTargets=watchResult.data?.max_targets;
@@ -115,12 +138,12 @@ async function load(){
   const unread=alerts.filter(item=>!text(item.read_at)&&item.read!==true&&item.is_read!==true).length;
   setKPI('workspaceAlertsKpi',alertsResult.ok?String(unread):'—',alertsResult.ok?(alerts.length?`${alerts.length} recent alert record(s) returned.`:'No alert record returned.'):(alertsResult.status===402||alertsResult.status===403?'KOSCH holder access required.':'Alert service unavailable.'),alertsResult.ok&&unread===0?'good':alertsResult.ok?'warn':alertsResult.status===402||alertsResult.status===403?'warn':'bad');
 
-  renderLatestReport(reports);
+  renderLatestInvestigation(investigationHistory);
   renderAlerts(alerts);
-  const okCount=[accessResult,reportsResult,watchResult,alertsResult].filter(result=>result.ok).length;
+  const availableSources=[accessResult.ok,historyAvailable,watchResult.ok,alertsResult.ok].filter(Boolean).length;
   if(state){
-    state.dataset.state=okCount===4?'live':'partial';
-    state.textContent=okCount===4?'LIVE ACCOUNT DATA':`${okCount}/4 DATA SOURCES AVAILABLE`;
+    state.dataset.state=availableSources===4?'live':'partial';
+    state.textContent=availableSources===4?'LIVE ACCOUNT DATA':`${availableSources}/4 DATA SOURCES AVAILABLE`;
   }
 }
 

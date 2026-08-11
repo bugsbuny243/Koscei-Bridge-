@@ -20,9 +20,9 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 			"Wallet verified.",
 		},
 		"public/reports.html": {
-			"Report Vault",
-			"Signed decisions.",
-			"No signed report exists yet.",
+			"Investigation History",
+			"History without invented evidence.",
+			"SIGNED means the completed result explicitly carries",
 		},
 	}
 
