@@ -15,9 +15,10 @@ for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist ht
   requireText(html,'/css/customer-operations-v2.css?v=1',label);
 }
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=1','reports html');
-requireText(watchHTML,'/js/customer-watchlist-v2.js?v=1','watchlist html');
+requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');
 requireText(reportsHTML,'Missing service data remains unavailable','reports truth boundary');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
+requireText(watchHTML,'Pro tier or higher','watchlist Pro tier boundary');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/auth/premium-access'",'reports access source');
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/unified/reports'",'reports vault source');
@@ -34,11 +35,15 @@ requireText(watchJS,"api('/api/watchlist/alerts')",'watchlist alerts source');
 requireText(watchJS,"api('/api/watchlist/refresh?limit=5'",'bounded refresh source');
 requireText(watchJS,"target_type:'token'",'watch target contract');
 requireText(watchJS,"network:'solana-mainnet'",'watch network contract');
-requireText(watchJS,"!text(item?.read_at)",'unread alert handling');
-requireText(watchJS,"encodeURIComponent(text(item.id))",'watch id encoding');
-requireText(watchJS,"confirm(`Remove",'destructive remove confirmation');
-requireText(watchJS,"setUnavailableKPIs('Monitoring service unavailable; no count inferred.')",'watchlist unavailable-not-zero boundary');
+requireText(watchJS,"if(raw==='new')return'unread';if(raw==='read')return'read';return'unknown'",'authoritative unread alert handling');
+requireText(watchJS,"encodeURIComponent(id)",'watch id encoding');
+requireText(watchJS,"window.confirm(`Remove",'destructive remove confirmation');
+requireText(watchJS,"targets=Array.isArray(targetData?.targets)?targetData.targets:null",'watchlist unavailable-not-empty boundary');
+requireText(watchJS,"alerts=Array.isArray(alertData?.alerts)?alertData.alerts:null",'watchlist alert unavailable-not-empty boundary');
+requireText(watchJS,"setTargetKPIsUnavailable('Monitoring target collection unavailable; no target state inferred.')",'watchlist target unavailable-not-zero boundary');
+requireText(watchJS,"setAlertKPIUnavailable('Alert collection unavailable; no unread count inferred.')",'watchlist alert unavailable-not-zero boundary');
 requireText(watchJS,"load({preserveStatus:true})",'action feedback preservation');
+if(watchJS.includes('.innerHTML='))throw new Error('watchlist js: API data must use DOM/textContent rendering');
 
 for(const [js,label] of [[reportsJS,'reports js'],[watchJS,'watchlist js']]){
   if(js.includes('Math.random('))throw new Error(`${label}: must not fabricate operational metrics`);
