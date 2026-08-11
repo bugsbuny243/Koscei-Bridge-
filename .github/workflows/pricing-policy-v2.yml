@@ -1,0 +1,25 @@
+name: Pricing Policy V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/pricing.html'
+      - 'koschei/api/public/js/pricing-policy-v2.js'
+      - 'koschei/api/public/css/pricing-policy-v2.css'
+      - 'koschei/api/scripts/verify-pricing-policy-v2.js'
+      - '.github/workflows/pricing-policy-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pricing-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pricing policy JavaScript syntax
+        run: node --check koschei/api/public/js/pricing-policy-v2.js
+      - name: Verify policy-backed pricing contract
+        run: node koschei/api/scripts/verify-pricing-policy-v2.js
