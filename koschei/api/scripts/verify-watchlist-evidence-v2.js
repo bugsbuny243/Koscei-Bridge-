@@ -51,7 +51,7 @@ requireText(monitor,"WHERE status='active' AND COALESCE(next_check_at,now())<=no
 requireText(docs,'active **Pro KOSCH tier or higher**','documented Pro gate');
 requireText(docs,'metered watchlist route gate','documented watchlist metering');
 requireText(docs,'WATCHLIST_MONITOR_ENABLED','documented monitor enable gate');
-requireText(docs,'both** automatic background scanning and the watchlist monitor are explicitly enabled','documented dual background gate');
+requireText(docs,'**both** automatic background scanning and the watchlist monitor are explicitly enabled','documented dual background gate');
 
 requireText(js,'let targets=null,alerts=null,maxTargets=null;','unknown initial collections');
 requireText(js,"return allowedSeverities.has(raw)?raw:'unknown'",'unknown severity boundary');
@@ -61,11 +61,12 @@ requireText(js,'Pro KOSCH tier or higher, a verified customer session, and avail
 requireText(js,"targets=Array.isArray(targetData?.targets)?targetData.targets:null",'missing target collection boundary');
 requireText(js,"alerts=Array.isArray(alertData?.alerts)?alertData.alerts:null",'missing alert collection boundary');
 requireText(js,"maxTargets=parsedMax!==null&&parsedMax>=0?parsedMax:null",'server-owned target limit boundary');
-requireText(js,"if(targets===null||alerts===null)status('Monitoring response is incomplete.", 'incomplete collection warning');
-requireText(js,"if(targetStatus==='active'||targetStatus==='paused')",'bounded target toggle rendering');
+requireText(js,"if(targets===null||alerts===null)status('Monitoring response is incomplete.",'incomplete collection warning');
+requireText(js,"knownStatus=targetStatus==='active'||targetStatus==='paused'",'bounded target status predicate');
+requireText(js,'if(knownStatus){const toggle=actionButton','bounded target toggle rendering');
 requireText(js,"if(next!=='active'&&next!=='paused')",'bounded target toggle action');
 requireText(js,"if(!Number.isInteger(threshold)||threshold<1||threshold>100)",'explicit threshold validation');
-requireText(js,'hasValue(data?.refresh_error)','initial refresh degradation surfaced');
+requireText(js,'hasValue(data?.refresh_error)','refresh degradation surfaced');
 requireText(js,"if(!Array.isArray(data?.results))",'batch refresh collection boundary');
 requireText(js,"lower(item?.status)==='failed'",'batch refresh failed-state accounting');
 requireText(js,"!['completed','failed'].includes(lower(item?.status))",'batch refresh unknown-state accounting');
