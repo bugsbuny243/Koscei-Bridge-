@@ -16,9 +16,12 @@ func integrityFixture(t *testing.T) (dossierBundle, []byte) {
 		Target:             map[string]any{"kind": "token_mint", "id": "mint-1", "network": "solana-mainnet"},
 		Verdict:            map[string]any{"grade": "B", "status": "review"},
 		VerdictCard:        map[string]any{"signal_rows": []any{}},
-		TechnicalReport:    map[string]any{"final_verdict": map[string]any{"grade": "B"}},
-		Verification:       map[string]any{"hash_algorithm": "SHA-256"},
-		Limitations:        []string{"test boundary"},
+		TechnicalReport: map[string]any{
+			"final_verdict": map[string]any{"grade": "B"},
+			"raw_amount":    json.Number("18446744073709551615"),
+		},
+		Verification: map[string]any{"hash_algorithm": "SHA-256"},
+		Limitations:  []string{"test boundary"},
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
