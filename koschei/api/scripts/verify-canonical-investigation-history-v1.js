@@ -3,6 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const migration=fs.readFileSync(path.join(root,'migrations','021_web3_async_jobs.sql'),'utf8');
+const jobTypes=fs.readFileSync(path.join(root,'internal','jobs','types.go'),'utf8');
 const store=fs.readFileSync(path.join(root,'internal','jobs','history.go'),'utf8');
 const handler=fs.readFileSync(path.join(root,'internal','handlers','customer_investigation_history.go'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
@@ -17,8 +18,8 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 
 requireText(migration,'CREATE TABLE IF NOT EXISTS web3_jobs','durable job table');
 requireText(migration,'result_payload JSONB','durable result payload');
-requireText(migration,'CREATE INDEX IF NOT EXISTS idx_web3_jobs_user_created ON web3_jobs(user_id,queued_at DESC)','account history index');
-requireText(migration,"CHECK (status IN ('queued','running','completed','failed'))",'durable job status enum');
+requireText(migration,'CREATE INDEX IF NOT EXISTS web3_jobs_user_created_idx ON web3_jobs (user_id, queued_at DESC);','account history index');
+for(const state of ['StatusQueued    = "queued"','StatusRunning   = "running"','StatusCompleted = "completed"','StatusFailed    = "failed"'])requireText(jobTypes,state,`durable job state ${state}`);
 
 requireText(store,'func (s *Store) ListByUser(ctx context.Context, userID, jobType string, limit int) ([]Job, error)','account-scoped history method');
 requireText(store,'if userID == ""','required account scope');
