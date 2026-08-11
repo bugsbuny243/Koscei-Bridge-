@@ -11,7 +11,6 @@ import (
 // the exact byte-level representation produced by assembleDossierBundle and
 // that both embedded and database hashes commit to the dossier body.
 func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (dossierBundle, error) {
-	canonical = bytes.TrimSpace(canonical)
 	caseRef = strings.TrimSpace(caseRef)
 	storedHash = strings.TrimSpace(storedHash)
 	if len(canonical) == 0 || caseRef == "" {
@@ -31,8 +30,8 @@ func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (do
 	}
 
 	// canonical_bundle is intentionally stored as the exact json.Marshal output.
-	// Re-marshalling catches unknown top-level fields, alternate encodings and any
-	// mutation that is not the canonical dossier representation.
+	// Re-marshalling catches unknown top-level fields, alternate encodings,
+	// whitespace changes and any mutation that is not the canonical dossier.
 	reencoded, err := json.Marshal(bundle)
 	if err != nil {
 		return dossierBundle{}, fmt.Errorf("dossier canonical JSON could not be re-encoded: %w", err)
