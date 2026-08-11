@@ -12,7 +12,7 @@ Koschei Watchlist stores customer-owned Solana token targets and compares each n
 
 ## Routes
 
-All routes require a Koschei customer session and an active entitlement.
+All watchlist routes require a verified Koschei customer session and active **Pro KOSCH tier or higher**. They use the metered watchlist route gate, so scan-quota enforcement remains server-owned.
 
 ```text
 GET    /api/watchlist
@@ -24,6 +24,8 @@ POST   /api/watchlist/refresh?limit=5
 GET    /api/watchlist/alerts
 POST   /api/watchlist/alerts
 ```
+
+Webhook management is a separate Enterprise-eligibility surface; it does not change the watchlist route tier or metering contract.
 
 ## Add a target
 
@@ -37,7 +39,7 @@ POST   /api/watchlist/alerts
 }
 ```
 
-`alert_threshold` is a minimum security score. An alert is created when a previously healthy score crosses below this floor.
+`alert_threshold` is a minimum security score. An alert is created when a previously healthy score crosses below this floor. The create handler treats `0` as the server default threshold; the current web console therefore asks for an explicit value from `1` to `100` so the user does not mistake zero for a literal zero threshold.
 
 ## Current alert rules
 
@@ -53,9 +55,9 @@ The first successful scan creates the baseline and does not create an alert.
 
 ## Refresh behavior
 
-The first release refreshes targets through explicit customer actions. This is deliberate because Railway currently runs the Go API process and RPC capacity must be protected. Batch refresh is limited to ten targets per call and refreshes the oldest targets first.
+Manual refresh remains available for individual targets and bounded batches. The customer batch endpoint accepts a requested limit and clamps it to the server maximum of ten targets per call, refreshing the oldest active targets first.
 
-Each successful scan schedules the next recommended check one hour later. A later scheduler can consume `next_check_at` without changing the customer API or database contract.
+Koschei also contains a background watchlist monitor, but it runs only when **both** automatic background scanning and the watchlist monitor are explicitly enabled. `WATCHLIST_MONITOR_ENABLED` gates that worker; if the worker is disabled, manual refresh remains available. The worker claims due active targets and uses `next_check_at` without changing the customer API contract.
 
 ## Storage
 
