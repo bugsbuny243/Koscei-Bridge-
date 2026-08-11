@@ -4,6 +4,8 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const integrity=fs.readFileSync(path.join(root,'internal','handlers','dossier_integrity.go'),'utf8');
 const casesGo=fs.readFileSync(path.join(root,'internal','handlers','public_dossier_cases_v2.go'),'utf8');
+const dossierPage=fs.readFileSync(path.join(root,'internal','handlers','dossier_page.go'),'utf8');
+const readableCase=fs.readFileSync(path.join(root,'internal','handlers','public_case_operational_v2.go'),'utf8');
 const casesHTML=fs.readFileSync(path.join(root,'public','cases.html'),'utf8');
 const casesJS=fs.readFileSync(path.join(root,'public','js','public-soc.js'),'utf8');
 
@@ -30,15 +32,22 @@ requireText(casesGo,'loaded.UninspectedPublications = loaded.TotalPublications -
 requireText(casesGo,'loaded.InvalidPublications == 0 && loaded.UninspectedPublications == 0','registry completeness rule');
 requireText(casesGo,'registryStatus = "degraded"','integrity-failure state');
 requireText(casesGo,'registryStatus = "partial"','inspection-limit state');
-requireText(casesGo,'"total_publications"','total count envelope');
-requireText(casesGo,'"inspected_publications"','inspected count envelope');
-requireText(casesGo,'"invalid_publications"','invalid count envelope');
-requireText(casesGo,'"uninspected_publications"','uninspected count envelope');
-requireText(casesGo,'"canonical_bundle_hash_reverified":         true','public hash-verification policy');
-requireText(casesGo,'"partial_registry_declared":                true','partial registry policy');
+for(const field of ['total_publications','inspected_publications','invalid_publications','uninspected_publications'])requireText(casesGo,`"${field}"`,`registry envelope ${field}`);
+requireText(casesGo,'"canonical_bundle_hash_reverified"','public hash-verification policy');
+requireText(casesGo,'"partial_registry_declared"','partial registry policy');
+
+requireText(dossierPage,"JOIN dossier_publications p ON p.case_ref=e.case_ref AND p.status='public'",'raw dossier explicit-public gate');
+requireText(dossierPage,'SELECT e.canonical_bundle,e.bundle_hash','raw dossier canonical/hash source');
+requireText(dossierPage,'verifyStoredDossierBundle(raw, caseRef, storedHash)','raw dossier immutable verification');
+forbid(dossierPage,/json\.Unmarshal\s*\(/,'raw dossier weak parse-only integrity check');
+
+requireText(readableCase,"WHERE e.case_ref=$1 AND p.status='public'",'readable case explicit-public gate');
+requireText(readableCase,'SELECT e.canonical_bundle,e.bundle_hash','readable case canonical/hash source');
+requireText(readableCase,'verifyStoredDossierBundle(canonical, caseRef, storedHash)','readable case immutable verification');
+forbid(readableCase,/json\.Unmarshal\s*\(/,'readable case weak parse-only integrity check');
 
 requireText(casesHTML,'canonical bytes, case reference, embedded bundle hash, and stored bundle hash are reverified','public integrity explanation');
-requireText(casesHTML,'aggregate registry totals are shown only when every public publication in the response has been inspected','public aggregate boundary');
+requireText(casesHTML,'Aggregate registry totals are shown only when every public publication in the response has been inspected','public aggregate boundary');
 requireText(casesHTML,'fails canonical bundle or hash verification','public failure boundary');
 requireText(casesHTML,'/js/public-soc.js?v=4','case registry controller version');
 
