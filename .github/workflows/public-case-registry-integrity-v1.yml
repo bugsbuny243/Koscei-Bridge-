@@ -5,6 +5,8 @@ on:
     paths:
       - 'koschei/api/internal/handlers/dossier_integrity.go'
       - 'koschei/api/internal/handlers/dossier_integrity_test.go'
+      - 'koschei/api/internal/handlers/dossier_page.go'
+      - 'koschei/api/internal/handlers/public_case_operational_v2.go'
       - 'koschei/api/internal/handlers/public_dossier_cases_v2.go'
       - 'koschei/api/public/cases.html'
       - 'koschei/api/public/js/public-soc.js'
@@ -33,7 +35,7 @@ jobs:
       - name: Check touched Go formatting
         shell: bash
         run: |
-          diff="$(gofmt -d internal/handlers/dossier_integrity.go internal/handlers/dossier_integrity_test.go internal/handlers/public_dossier_cases_v2.go)"
+          diff="$(gofmt -d internal/handlers/dossier_integrity.go internal/handlers/dossier_integrity_test.go internal/handlers/dossier_page.go internal/handlers/public_case_operational_v2.go internal/handlers/public_dossier_cases_v2.go)"
           if [ -n "$diff" ]; then
             printf '%s\n' "$diff"
             exit 1
