@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Manage verified wallet identity and inspect evidence-complete KOSCH access using self-custody, account-scoped sources.">
+<meta name="description" content="Manage verified wallet identity, inspect evidence-complete KOSCH access, and manage Enterprise developer credentials without exposing long-lived secrets to browser storage.">
 <meta name="theme-color" content="#02050a">
 <title>Koschei ARVIS · Account Access</title>
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
 <link rel="stylesheet" href="/css/customer-operations-v2.css?v=1">
 <link rel="stylesheet" href="/css/customer-access-v2.css?v=1">
+<link rel="stylesheet" href="/css/customer-api-keys-v1.css?v=1">
 </head>
 <body class="koschei-v2" data-access-view="account">
 <main class="ops-page">
@@ -21,10 +22,12 @@
 <article class="access-section"><div class="access-section-head"><div><span>CHAIN EVIDENCE</span><h2>Official mint snapshot</h2></div></div><div class="access-metrics"><div class="access-metric"><span>Network</span><b id="network">—</b></div><div class="access-metric"><span>Checked at</span><b id="checkedAt">—</b></div><div class="access-metric"><span>Snapshot expires</span><b id="expiresAt">—</b></div><div class="access-metric"><span>Official mint</span><b class="mono" id="mint">—</b></div></div></article>
 <article class="access-section full"><div class="access-section-head"><div><span>LIVE TOKEN POLICY</span><h2>Tier thresholds from the backend</h2></div></div><div class="access-thresholds" id="accessThresholds"><div class="ops-empty">Loading current token-access thresholds…</div></div><div class="access-security-boundary"><b>No hardcoded legacy thresholds and no incomplete-state downgrade.</b> Thresholds are rendered only from the current token-access response. An HTTP 200 response with missing required access fields remains UNAVAILABLE; it is not converted into “none”, “inactive”, “not linked”, or a disabled gate.</div></article>
 <article class="access-section full"><div class="access-section-head"><div><span>ACCESS CONSISTENCY</span><h2>When does this page show ACTIVE?</h2></div></div><div class="access-security-boundary"><b>All three sources must agree.</b> Wallet-link status, token-access evaluation, and premium-access evaluation must each be structurally complete. The verified wallet address, token wallet evidence, tier, gate state, and premium state must be consistent. Missing or conflicting evidence produces UNAVAILABLE/CONFLICT rather than a clean access claim.</div></article>
+<article class="access-section full api-key-section"><div class="access-section-head"><div><span>ENTERPRISE DEVELOPER CREDENTIALS</span><h2>API keys without browser persistence</h2></div><span class="api-key-count" id="apiKeyCount">UNAVAILABLE</span></div><div class="api-key-boundary"><b>Credential boundary:</b> API-key management requires Enterprise KOSCH eligibility. Requested limits are only requests; the server applies its current tier defaults and caps, and the returned effective limits are authoritative. Raw keys are returned only at creation, never written to local/session storage, and removed from this page after two minutes.</div><div class="api-key-grid"><section class="api-key-panel"><form class="api-key-form" id="apiKeyForm"><label>Credential name<input class="api-key-input" id="apiKeyName" autocomplete="off" required placeholder="Production backend"></label><div class="api-key-row"><label>Requested monthly limit (optional)<input class="api-key-input" id="apiKeyMonthly" type="number" min="1" step="1" inputmode="numeric" placeholder="Server default"></label><label>Requested requests/minute (optional)<input class="api-key-input" id="apiKeyRPM" type="number" min="1" step="1" inputmode="numeric" placeholder="Server default"></label></div><button class="ops-btn primary" id="apiKeyCreate" type="submit">Create API key</button></form><div id="apiKeyMessage" class="api-key-message" role="status" aria-live="polite"></div><div class="api-key-secret" id="apiKeySecretPanel" hidden><b>One-time raw API key</b><p>Store this value in your server-side secret manager. Never ship it in browser JavaScript. Koschei will not show the raw key again.</p><code id="apiKeySecretValue"></code><small id="apiKeySecretMeta"></small><button class="ops-btn" id="apiKeyCopy" type="button">Copy raw key</button></div></section><section class="api-key-panel"><div class="access-section-head"><div><span>KEYRING</span><h2>Server-returned credentials</h2></div><button class="ops-btn" id="apiKeyReload" type="button">Reload keys</button></div><div class="api-key-list" id="apiKeyList" aria-live="polite"><div class="api-key-empty">Loading Enterprise credential state…</div></div></section></div></article>
 </section>
 </main>
 <script src="/js/koschei-auth.js?v=33"></script>
 <script src="/js/customer-access-v2.js?v=2"></script>
+<script src="/js/customer-api-keys-v1.js?v=1"></script>
 <script src="/js/koschei-global-shell.js?v=4"></script>
 </body>
 </html>
