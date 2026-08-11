@@ -1,0 +1,28 @@
+name: Enterprise API Keys V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/account.html'
+      - 'koschei/api/public/js/customer-api-keys-v1.js'
+      - 'koschei/api/public/css/customer-api-keys-v1.css'
+      - 'koschei/api/scripts/verify-enterprise-api-keys-v1.js'
+      - 'koschei/api/internal/http/server.go'
+      - 'koschei/api/internal/handlers/api_keys.go'
+      - 'koschei/api/internal/handlers/api_key_tier_caps.go'
+      - '.github/workflows/enterprise-api-keys-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enterprise-api-keys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check API-key controller JavaScript syntax
+        run: node --check koschei/api/public/js/customer-api-keys-v1.js
+      - name: Verify Enterprise credential lifecycle contract
+        run: node koschei/api/scripts/verify-enterprise-api-keys-v1.js
