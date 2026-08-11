@@ -8,6 +8,8 @@ on:
       - 'koschei/api/internal/handlers/customer_investigation_history.go'
       - 'koschei/api/internal/handlers/web3_jobs.go'
       - 'koschei/api/internal/handlers/canonical_job_routes_test.go'
+      - 'koschei/api/core_source_english_wave2_test.go'
+      - 'koschei/api/public_english_surfaces_v3_test.go'
       - 'koschei/api/internal/http/server.go'
       - 'koschei/api/internal/http/route_inventory.go'
       - 'koschei/api/public/reports.html'
@@ -40,7 +42,7 @@ jobs:
       - name: Check touched Go formatting
         shell: bash
         run: |
-          diff="$(gofmt -d internal/jobs/history.go internal/handlers/customer_investigation_history.go internal/handlers/web3_jobs.go internal/handlers/canonical_job_routes_test.go)"
+          diff="$(gofmt -d internal/jobs/history.go internal/handlers/customer_investigation_history.go internal/handlers/web3_jobs.go internal/handlers/canonical_job_routes_test.go core_source_english_wave2_test.go public_english_surfaces_v3_test.go)"
           if [ -n "$diff" ]; then
             printf '%s\n' "$diff"
             exit 1
