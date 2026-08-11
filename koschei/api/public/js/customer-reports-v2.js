@@ -15,7 +15,7 @@ function node(tag,className,value){const el=document.createElement(tag);if(class
 function clear(host){while(host?.firstChild)host.removeChild(host.firstChild);}
 function strictDate(value){if(!hasValue(value))return null;const date=new Date(value);return Number.isNaN(date.getTime())?null:date;}
 function when(value){const date=strictDate(value);return date?new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short'}).format(date):'UNAVAILABLE';}
-function integerOrNull(value,min=0,max=Number.MAX_SAFE_INTEGER){const parsed=Number(value);return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:null;}
+function integerOrNull(value,min=0,max=Number.MAX_SAFE_INTEGER){if(value===null||value===undefined||value==='')return null;const parsed=Number(value);return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:null;}
 function validState(value){const state=lower(value);return allowedStates.has(state)?state:'unknown';}
 function status(message,tone=''){const host=$('reportStatus');if(!host)return;host.textContent=message;host.className=`ops-status show${tone?` ${tone}`:''}`;}
 function clearStatus(){const host=$('reportStatus');if(host){host.textContent='';host.className='ops-status';}}
