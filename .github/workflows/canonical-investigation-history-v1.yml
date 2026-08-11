@@ -1,0 +1,54 @@
+name: Canonical Investigation History V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/migrations/021_web3_async_jobs.sql'
+      - 'koschei/api/internal/jobs/history.go'
+      - 'koschei/api/internal/handlers/customer_investigation_history.go'
+      - 'koschei/api/internal/http/server.go'
+      - 'koschei/api/internal/http/route_inventory.go'
+      - 'koschei/api/public/reports.html'
+      - 'koschei/api/public/dashboard.html'
+      - 'koschei/api/public/js/customer-reports-v2.js'
+      - 'koschei/api/public/js/customer-workspace-v2.js'
+      - 'koschei/api/scripts/verify-canonical-investigation-history-v1.js'
+      - 'koschei/api/scripts/verify-customer-operations-v2.js'
+      - '.github/workflows/canonical-investigation-history-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Check touched Go formatting
+        shell: bash
+        run: |
+          diff="$(gofmt -d internal/jobs/history.go internal/handlers/customer_investigation_history.go internal/http/server.go internal/http/route_inventory.go)"
+          if [ -n "$diff" ]; then
+            printf '%s\n' "$diff"
+            exit 1
+          fi
+      - name: Compile touched Go packages without running tests
+        run: go test ./internal/jobs ./internal/handlers ./internal/http -run '^$' -count=1
+      - name: Check history JavaScript syntax
+        run: |
+          node --check public/js/customer-reports-v2.js
+          node --check public/js/customer-workspace-v2.js
+      - name: Verify canonical history contract
+        run: node scripts/verify-canonical-investigation-history-v1.js
+      - name: Verify customer operations regression
+        run: node scripts/verify-customer-operations-v2.js
