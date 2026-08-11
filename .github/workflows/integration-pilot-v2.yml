@@ -1,0 +1,25 @@
+name: Integration Pilot V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/pilot.html'
+      - 'koschei/api/public/js/integration-pilot-v2.js'
+      - 'koschei/api/public/css/integration-pilot-v2.css'
+      - 'koschei/api/scripts/verify-integration-pilot-v2.js'
+      - '.github/workflows/integration-pilot-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check integration pilot JavaScript syntax
+        run: node --check koschei/api/public/js/integration-pilot-v2.js
+      - name: Verify bounded integration pilot contract
+        run: node koschei/api/scripts/verify-integration-pilot-v2.js
