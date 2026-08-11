@@ -12,28 +12,30 @@ function show(message,tone='bad'){
   node.textContent=message;node.className=`auth-message show ${tone}`;
 }
 function clear(){const node=$('authMessage');if(node){node.textContent='';node.className='auth-message';}}
-function nextPath(){return window.KoscheiAuth?.nextPath?.()||'/dashboard';}
+function nextPath(){return window.KoscheiAuth?.nextPath?.('/dashboard')||'/dashboard';}
 function setNext(){const next=nextPath();const node=$('authNext');if(node)node.textContent=next;return next;}
 function loginURL(next,email=''){
   const params=new URLSearchParams();params.set('next',next);params.set('registered','1');if(email)params.set('email',email);return`/login?${params.toString()}`;
 }
+function switchURL(next){return `${mode()==='register'?'/login':'/register'}?next=${encodeURIComponent(next)}`;}
+function validEmail(value){return value.length<=320&&value.includes('@')&&!/\s/.test(value);}
 
 async function submit(event){
   event.preventDefault();clear();
   const form=$('authForm'),button=$('authSubmit');if(!form||!button)return;
   const email=text($('authEmail')?.value),password=String($('authPassword')?.value||''),next=nextPath();
-  if(!email||!password){show('Email and password are required.');return;}
+  if(!validEmail(email)){show('Enter a valid email address.');return;}
+  if(!password){show('Password is required.');return;}
   if(mode()==='register'){
     const confirm=String($('authConfirm')?.value||'');
+    if(password.length<8){show('Password must be at least 8 characters.');return;}
     if(password!==confirm){show('Password confirmation does not match.');return;}
   }
   const previous=button.textContent;button.disabled=true;button.textContent=mode()==='register'?'Creating secure account…':'Signing in…';
   try{
     if(mode()==='register'){
       await KoscheiAuth.signUp(email,password);
-      if(KoscheiAuth.isLoggedIn?.()){
-        location.replace(next);return;
-      }
+      if(KoscheiAuth.isLoggedIn?.()){location.replace(next);return;}
       location.replace(loginURL(next,email));return;
     }
     await KoscheiAuth.signIn(email,password);
@@ -49,6 +51,7 @@ async function bootstrap(){
   if(!window.KoscheiAuth){show('Authentication client is unavailable. No session state was inferred.');return;}
   try{await KoscheiAuth.init();}catch(error){show(error?.message||'Authentication initialization failed.');return;}
   const next=setNext();
+  const switchLink=$('authSwitchLink');if(switchLink)switchLink.href=switchURL(next);
   if(KoscheiAuth.isLoggedIn?.()){location.replace(next);return;}
   const params=new URLSearchParams(location.search);
   const email=text(params.get('email'));
