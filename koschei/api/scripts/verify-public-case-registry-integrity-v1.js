@@ -6,8 +6,8 @@ const integrity=fs.readFileSync(path.join(root,'internal','handlers','dossier_in
 const casesGo=fs.readFileSync(path.join(root,'internal','handlers','public_dossier_cases_v2.go'),'utf8');
 const dossierPage=fs.readFileSync(path.join(root,'internal','handlers','dossier_page.go'),'utf8');
 const readableCase=fs.readFileSync(path.join(root,'internal','handlers','public_case_operational_v2.go'),'utf8');
-const exportPrivacy=fs.readFileSync(path.join(root,'internal','http','dossier_export_privacy.go'),'utf8');
-const dossierRoutes=fs.readFileSync(path.join(root,'internal','http','dossier_routes.go'),'utf8');
+const exportPrivacy=fs.readFileSync(path.join(root,'internal','handlers','dossier_export_privacy.go'),'utf8');
+const dossierAccess=fs.readFileSync(path.join(root,'internal','handlers','dossier_access.go'),'utf8');
 const casesHTML=fs.readFileSync(path.join(root,'public','cases.html'),'utf8');
 const casesJS=fs.readFileSync(path.join(root,'public','js','public-soc.js'),'utf8');
 
@@ -52,7 +52,9 @@ requireText(exportPrivacy,'func privateDossierExport(next http.HandlerFunc) http
 for(const header of ['Content-Location','Link','X-Koschei-Public-Dossier'])requireText(exportPrivacy,`w.Header().Del("${header}")`,`private export removes ${header}`);
 requireText(exportPrivacy,'w.Header().Set("Cache-Control", "private, no-store")','private export cache boundary');
 requireText(exportPrivacy,'w.Header().Set("X-Koschei-Dossier-Visibility", "private-export")','private export visibility marker');
-requireText(dossierRoutes,'h.DossierAccess(privateDossierExport(method(http.MethodPost, h.DossierExportWithAutopublishWake)))','private export wrapper is in authenticated dossier route');
+requireText(dossierAccess,'next = privateDossierExport(next)','privacy wrapper is inside dossier access gate');
+requireText(dossierAccess,'h.APIKeyAuth(h.RequireAPIKeyStoredTokenTier("enterprise", next))(w, r)','API-key path preserves wrapped export');
+requireText(dossierAccess,'RequireAuth(h.RequireStoredTokenTier("enterprise", next))(w, r)','session path preserves wrapped export');
 
 requireText(casesHTML,'canonical bytes, case reference, embedded bundle hash, and stored bundle hash are reverified','public integrity explanation');
 requireText(casesHTML,'Aggregate registry totals are shown only when every public publication in the response has been inspected','public aggregate boundary');
