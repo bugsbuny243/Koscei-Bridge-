@@ -26,9 +26,10 @@ forbid(html,/pozitif\s+KOSCH|positive\s+KOSCH/i,'stale positive-balance access c
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(server,'"/api/v1/token/extensions", premium.KOSCHTier("basic", h.TokenScan','dedicated Basic-tier TokenScan route');
-requireText(server,'premium.EnforceScanQuota("customer_token_scan", h.TokenScan)','premium Token-2022 scan quota');
-requireText(server,'mux.HandleFunc("/api/token/scan", method(http.MethodPost, h.TokenScan))','public compatibility TokenScan route');
+requireText(server,'koschTier := func(tier string, next http.HandlerFunc) http.HandlerFunc','central KOSCH tier gate');
+requireText(server,'h.RequireTokenTier(tier, h.EnforceScanQuota(next))','central tier + scan-quota enforcement');
+requireText(server,'mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.TokenScan))))))','dedicated Basic-tier TokenScan route');
+requireText(server,'mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))','public compatibility TokenScan route');
 
 for(const field of ['Score                     int                              `json:"score"`','RiskLevel                 string                           `json:"risk_level"`','Extensions                []tokenExtensionAssessment       `json:"extensions"`','ExtensionRiskPenalty      int                              `json:"extension_risk_penalty"`','ExtensionResolutionStatus string                           `json:"extension_resolution_status"`','ExtensionEvidenceComplete bool                             `json:"extension_evidence_complete"`','TransferBehavior          map[string]any                   `json:"transfer_behavior"`','VisibilityLimitations     []string                         `json:"visibility_limitations"`','CompatibilityWarnings     []string                         `json:"compatibility_warnings"`','FinalPolicy               string                           `json:"final_policy"`','HolderAnalysisStatus      string                           `json:"holder_analysis_status"`','VerdictWithheld           bool                             `json:"verdict_withheld"`'])requireText(scanner,field,`TokenScan response field ${field}`);
 requireText(scanner,'if holderPolicy == "withhold" {','holder evidence withhold');
