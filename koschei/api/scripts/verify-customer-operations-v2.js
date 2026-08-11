@@ -26,6 +26,8 @@ requireText(reportsJS,"signed?'SIGNED':'DURABLE'",'signature-aware evidence stat
 requireText(reportsJS,"esc(floor??'—')",'structural-floor escaping');
 requireText(reportsJS,"kind==='wallet'",'wallet continuation');
 requireText(reportsJS,"kind==='site'||kind==='url'",'site continuation');
+requireText(reportsJS,"setUnavailableKPIs('Report service unavailable; no count inferred.')",'reports unavailable-not-zero boundary');
+requireText(reportsJS,"visible.textContent='—/—'",'reports unavailable visible count');
 
 requireText(watchJS,"api('/api/watchlist')",'watchlist source');
 requireText(watchJS,"api('/api/watchlist/alerts')",'watchlist alerts source');
@@ -35,6 +37,8 @@ requireText(watchJS,"network:'solana-mainnet'",'watch network contract');
 requireText(watchJS,"!text(item?.read_at)",'unread alert handling');
 requireText(watchJS,"encodeURIComponent(text(item.id))",'watch id encoding');
 requireText(watchJS,"confirm(`Remove",'destructive remove confirmation');
+requireText(watchJS,"setUnavailableKPIs('Monitoring service unavailable; no count inferred.')",'watchlist unavailable-not-zero boundary');
+requireText(watchJS,"load({preserveStatus:true})",'action feedback preservation');
 
 for(const [js,label] of [[reportsJS,'reports js'],[watchJS,'watchlist js']]){
   if(js.includes('Math.random('))throw new Error(`${label}: must not fabricate operational metrics`);
