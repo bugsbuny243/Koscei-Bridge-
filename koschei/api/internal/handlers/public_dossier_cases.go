@@ -300,7 +300,7 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 	response := map[string]any{
 		"ok": true, "status": input.Status, "action": action, "case_ref": input.CaseRef,
 		"public_transition_integrity_verified": integrityVerified,
-		"immutable_dossier_unchanged":           true,
+		"immutable_dossier_unchanged":          true,
 	}
 	if input.Status == "public" {
 		publishedAt := time.Time{}
