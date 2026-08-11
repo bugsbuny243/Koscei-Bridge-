@@ -174,6 +174,9 @@ func (w *autopublishWorker) record(ctx context.Context, caseRef, bundleHash stri
 		return false, err
 	}
 	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, caseRef); err != nil {
+		return false, err
+	}
 
 	reasons, err := json.Marshal(decision.Reasons)
 	if err != nil {
