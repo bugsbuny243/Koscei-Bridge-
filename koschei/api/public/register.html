@@ -1,1 +1,50 @@
-<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="description" content="Koschei ARVIS hesabınızı Neon Auth ile oluşturun; derin araçlar doğrulanmış KOSCH holder access ile açılır."><title>Hesap Oluştur — Koschei ARVIS</title><link rel="canonical" href="https://tradepigloball.co/register.html"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>:root{--a:#00ff88;--b:#00ccff;--d:#ff4466;--t:#f0f0ff;--m:#8888aa;--bg:#030309}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--t);font-family:Inter,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}.card{background:#ffffff0a;border:1px solid #ffffff14;border-radius:18px;padding:36px 32px;width:100%;max-width:430px;margin:20px;box-shadow:0 30px 90px #0009}.logo,.title{text-align:center;font-weight:800}.logo{font-size:22px;color:var(--a)}.title{font-size:22px;margin:12px 0 6px}.sub{font-size:13px;color:var(--m);text-align:center;margin-bottom:22px;line-height:1.5}.form{display:grid;gap:14px}.form-group{display:grid;gap:8px}.form-label{font-size:13px;font-weight:700}.form-input{width:100%;border:1px solid #ffffff1f;border-radius:10px;background:#0005;color:var(--t);padding:12px 13px}.btn{width:100%;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--a),var(--b));color:#000;font-weight:800}.benefits{display:grid;gap:7px;padding:13px;border:1px solid #00ff8830;border-radius:12px;background:#00ff8810;color:#cffff0;font-size:12px}.alert{display:none;padding:10px;border-radius:10px}.alert.show{display:block}.alert-error{color:var(--d);border:1px solid var(--d);background:#ff446614}.alert-success{color:var(--a);border:1px solid var(--a);background:#00ff8814}.link{text-align:center;color:var(--m);font-size:13px;margin-top:16px}.link a{color:var(--a);text-decoration:none}.pill{display:table;margin:10px auto 14px;border:1px solid #00ff8840;border-radius:999px;padding:6px 10px;color:var(--a);font-size:11px;font-weight:800}</style></head><body><div class="card"><div class="logo">KOSCHEI ARVIS</div><span class="pill">NEON AUTH · SELF-CUSTODY</span><div class="title">Hesap Oluştur</div><div class="sub">Hesap ücretsiz oluşturulur. Public Safe Check açıktır; derin ürün erişimi doğrulanmış KOSCH bakiyesiyle açılır.</div><div class="alert" id="alert"></div><form class="form" id="registerForm"><div class="form-group"><label class="form-label">E-posta</label><input class="form-input" name="email" type="email" required></div><div class="form-group"><label class="form-label">Şifre</label><input class="form-input" name="password" type="password" minlength="8" required></div><div class="form-group"><label class="form-label">Şifreyi onayla</label><input class="form-input" name="confirmPassword" type="password" minlength="8" required></div><button class="btn" id="submitBtn">Hesap Oluştur</button><div class="benefits"><span>✓ Paket veya kart bilgisi gerekmez</span><span>✓ Phantom yalnız mesaj imzalar</span><span>✓ KOSCH bakiyesi ürün tier'ını otomatik açar</span></div></form><div class="link">Zaten hesabınız var mı? <a id="loginLink" href="/login.html">Giriş Yap</a></div></div><script src="/js/koschei-auth.js?v=33"></script><script>const f=document.getElementById('registerForm'),b=document.getElementById('submitBtn'),a=document.getElementById('alert'),l=document.getElementById('loginLink');function next(){return KoscheiAuth.nextPath('/dashboard')}function show(m,t='error'){a.textContent=m;a.className='alert show '+(t==='success'?'alert-success':'alert-error')}(async()=>{await KoscheiAuth.init();l.href='/login.html?next='+encodeURIComponent(next());if(KoscheiAuth.isLoggedIn()){location.replace(next());return}f.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(f)),email=String(d.email||'').trim(),p=String(d.password||''),c=String(d.confirmPassword||'');if(!email.includes('@'))return show('Geçerli e-posta girin.');if(p.length<8)return show('Şifre en az 8 karakter olmalı.');if(p!==c)return show('Şifreler eşleşmiyor.');b.disabled=true;try{await KoscheiAuth.signUp(email,p);show('Hesap oluşturuldu.','success');location.replace(next())}catch(err){show(err?.message||'Hesap oluşturulamadı.');b.disabled=false}}})();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Create a Koschei ARVIS account with the existing Neon Auth flow. Wallet verification and KOSCH holder access remain separate self-custody steps.">
+<meta name="theme-color" content="#02050a">
+<title>Create account · Koschei ARVIS</title>
+<link rel="canonical" href="https://tradepigloball.co/register">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/customer-auth-entry-v2.css?v=1">
+</head>
+<body class="auth-page koschei-v2" data-auth-mode="register">
+<main class="auth-wrap">
+<nav class="auth-nav">
+<a class="auth-brand" href="/"><span class="auth-mark">K</span><span><strong>Koschei ARVIS</strong><small>Secure account creation</small></span></a>
+<div class="auth-nav-links"><a class="auth-link" href="/scan">Scan Center</a><a class="auth-link" href="/cases">Evidence Center</a><a class="auth-link" href="/live">Live Radar</a></div>
+</nav>
+<section class="auth-shell">
+<article class="auth-story">
+<span class="auth-kicker">ACCOUNT CREATION · NO WALLET CUSTODY</span>
+<h1>Create the account.<br>Keep wallet control yours.</h1>
+<p>Registration creates only a Koschei account session. It does not connect a wallet, approve a transaction, transfer a token, or infer holder access. Those capabilities remain behind the separate self-custody verification flow.</p>
+<div class="auth-proof-grid">
+<div class="auth-proof"><span>Registration</span><b>Existing Neon Auth sign-up contract</b></div>
+<div class="auth-proof"><span>Password</span><b>Minimum 8 characters + confirmation</b></div>
+<div class="auth-proof"><span>Wallet</span><b>No seed phrase or private key requested</b></div>
+<div class="auth-proof"><span>KOSCH access</span><b>Evaluated separately after authentication</b></div>
+</div>
+<div class="auth-boundary"><b>Security boundary:</b> Registration cannot sign transactions, request wallet approvals, or grant holder access by itself.</div>
+</article>
+<aside class="auth-card" data-mode="register">
+<div class="auth-card-head"><span>NEON AUTH · ACCOUNT REGISTRATION</span><h2>Create account</h2><p>Create your account, then continue to the validated Koschei destination shown below.</p></div>
+<div class="auth-message" id="authMessage" role="status" aria-live="polite"></div>
+<form class="auth-form" id="authForm" novalidate>
+<div class="auth-field"><label for="authEmail">Email</label><input class="auth-input" id="authEmail" name="email" type="email" autocomplete="email" inputmode="email" required></div>
+<div class="auth-field"><label for="authPassword">Password</label><input class="auth-input" id="authPassword" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+<div class="auth-field auth-register-only"><label for="authConfirm">Confirm password</label><input class="auth-input" id="authConfirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+<button class="auth-submit" id="authSubmit" type="submit">Create secure account</button>
+</form>
+<div class="auth-next"><span>Continue after authentication</span><code id="authNext">/dashboard</code></div>
+<div class="auth-switch">Already have an account? <a id="authSwitchLink" href="/login">Sign in</a></div>
+<p class="auth-smallprint"><strong>Creating an account does not authorize a wallet.</strong> Wallet ownership and KOSCH access stay explicit and separate.</p>
+</aside>
+</section>
+</main>
+<script src="/js/koschei-auth.js?v=33"></script>
+<script src="/js/customer-auth-entry-v2.js?v=1"></script>
+</body>
+</html>
