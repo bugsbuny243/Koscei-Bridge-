@@ -1,0 +1,25 @@
+name: Owner Evidence Explorer V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/owner-production.html'
+      - 'koschei/api/public/js/owner-evidence-explorer-v2.js'
+      - 'koschei/api/public/css/owner-evidence-explorer-v2.css'
+      - 'koschei/api/scripts/verify-owner-evidence-explorer-v2.js'
+      - '.github/workflows/owner-evidence-explorer-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-explorer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: node --check koschei/api/public/js/owner-evidence-explorer-v2.js
+      - name: Verify Evidence Explorer v2 contract
+        run: node koschei/api/scripts/verify-owner-evidence-explorer-v2.js
