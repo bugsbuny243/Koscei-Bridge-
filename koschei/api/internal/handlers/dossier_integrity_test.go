@@ -46,6 +46,13 @@ func TestVerifyStoredDossierBundleAcceptsExactCanonicalBundle(t *testing.T) {
 	}
 }
 
+func TestVerifyStoredDossierBundleRejectsMissingStoredHash(t *testing.T) {
+	bundle, canonical := integrityFixture(t)
+	if _, err := verifyStoredDossierBundle(canonical, bundle.CaseRef, ""); err == nil {
+		t.Fatal("missing database bundle_hash was accepted")
+	}
+}
+
 func TestVerifyStoredDossierBundleRejectsMutatedBody(t *testing.T) {
 	bundle, _ := integrityFixture(t)
 	bundle.TechnicalReport = map[string]any{"mutated": true}
