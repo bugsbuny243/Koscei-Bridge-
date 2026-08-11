@@ -1,36 +1,59 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Address Poisoning Shield — Koschei ARVIS</title>
-<style>
-:root{--bg:#02070d;--panel:#07131c;--line:#24eaff33;--text:#f4fbff;--muted:#9aabb8;--green:#18ffb2;--cyan:#24eaff;--red:#ff4d6d;--amber:#ffcc66;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0,#18ffb21f,transparent 30%),radial-gradient(circle at 90% 0,#24eaff1f,transparent 28%),linear-gradient(135deg,#020409,#071522 62%,#02040a);color:var(--text);font-family:Inter,system-ui,sans-serif}.wrap{width:min(1080px,calc(100% - 24px));margin:auto;padding:18px 0 70px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px}.brand{display:flex;gap:10px;align-items:center;color:inherit;text-decoration:none}.logo{width:46px;height:46px;border:1px solid #18ffb270;border-radius:15px;display:grid;place-items:center;color:#03110d;font-weight:1000;background:linear-gradient(135deg,var(--green),var(--cyan))}.eyebrow{font:900 11px var(--mono);letter-spacing:.14em;color:#8fffe5;text-transform:uppercase}.btn{border:1px solid var(--line);border-radius:14px;padding:10px 13px;background:#ffffff0c;color:var(--text);font-weight:900;cursor:pointer;text-decoration:none}.btn.primary{border:0;background:linear-gradient(135deg,var(--green),var(--cyan));color:#02100d}.hero,.card{border:1px solid var(--line);background:linear-gradient(145deg,#081722f2,#04090ff2);border-radius:24px;box-shadow:0 24px 80px #0008}.hero{padding:24px;margin-bottom:14px}.hero h1{font-size:clamp(36px,7vw,72px);line-height:.92;letter-spacing:-.06em;margin:8px 0}.hero p{margin:0;color:#c9d8e2;line-height:1.55}.grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:12px}.card{padding:16px}.stack{display:grid;gap:12px}.field{display:grid;gap:7px}.field label{font-size:13px;font-weight:900;color:#dbe8ef}.field input,.field textarea{border:1px solid #24eaff35;background:#02070d;color:var(--text);border-radius:16px;padding:13px 14px;outline:none;font-family:var(--mono)}.field textarea{min-height:92px;resize:vertical}.notice{display:none;margin:0 0 14px;padding:13px;border-radius:16px;border:1px solid #ffcc6650;background:#ffcc6612;color:#ffe6ae}.notice.show{display:block}.pill{border:1px solid #24eaff3c;border-radius:999px;padding:7px 10px;font:900 11px var(--mono);display:inline-flex;gap:6px;align-items:center}.pill.allow{color:#bfffe9;border-color:#18ffb24d;background:#18ffb214}.pill.warn{color:#ffe6ae;border-color:#ffcc6650;background:#ffcc6612}.pill.block{color:#ffcbd4;border-color:#ff4d6d52;background:#ff4d6d18}.score{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center}.orb{width:112px;height:112px;border-radius:28px;border:1px solid #24eaff50;background:#02070d;display:grid;place-items:center;text-align:center}.orb b{font-size:44px}.orb small{display:block;color:#8fffe5;font:900 10px var(--mono)}.metric{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-top:1px solid #ffffff12}.metric:first-of-type{border-top:0}.metric span{color:var(--muted)}.muted{color:var(--muted);line-height:1.6}.list{margin:0;padding-left:20px;color:#dbe9ef;line-height:1.6}pre{white-space:pre-wrap;word-break:break-word;background:#02070d;border:1px solid #ffffff12;border-radius:16px;padding:14px;color:#dbe9ef}.small{font-size:12px}@media(max-width:850px){.grid,.score{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
-</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Check a Solana recipient against recent contact evidence and trusted addresses before sending. Koschei ARVIS Recipient Shield is read-only and never asks for wallet secrets.">
+<meta name="theme-color" content="#02050a">
+<title>Recipient Shield · Koschei ARVIS</title>
+<link rel="canonical" href="https://tradepigloball.co/address-poisoning-shield">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/public-safety-surfaces-v2.css?v=1">
 </head>
-<body>
-<main class="wrap">
-<header class="top"><a class="brand" href="/security-radar"><span class="logo">K</span><span><span class="eyebrow">KOSCHEI ARVIS</span><br><b>Address Poisoning Shield</b></span></a><a class="btn" href="/dashboard">Panel</a></header>
-<section class="hero"><div class="eyebrow">Pre-send recipient protection</div><h1>Fake adresi imzadan önce yakala.</h1><p>Cüzdanını ve göndereceğin adresi gir. ARVIS son temas grafiğini ve manuel güvenilir adreslerini kullanarak ilk/son karakter kopyalama, lookalike recipient ve address poisoning riskini kontrol eder.</p></section>
-<div id="notice" class="notice"></div>
-<section class="grid">
-<article class="card"><form id="form" class="stack"><div class="field"><label for="wallet">Senin wallet</label><input id="wallet" required placeholder="Cüzdan adresin"></div><div class="field"><label for="candidate">Gönderilecek / kontrol edilecek adres</label><input id="candidate" required placeholder="Recipient / candidate"></div><div class="field"><label for="contacts">Opsiyonel güvenilir adresler</label><textarea id="contacts" placeholder="Her satıra bir gerçek adres yazabilirsin"></textarea></div><button class="btn primary" id="run" type="submit">Kontrol Et</button><p class="muted small">Seed phrase, private key veya imza istemez. Sadece public adresleri okur.</p></form></article>
-<article class="card" id="out"><p class="muted">Sonuç burada görünecek.</p></article>
+<body class="safety-page koschei-v2">
+<main class="safety-wrap">
+<nav class="safety-nav">
+<a class="safety-brand" href="/"><span class="safety-mark">K</span><span><strong>Koschei ARVIS</strong><small>Recipient Shield</small></span></a>
+<div class="safety-links"><a class="safety-btn" href="/safe-check">Safe Check</a><a class="safety-btn" href="/transaction-shield">Transaction Shield</a><a class="safety-btn" href="/scan?mode=deep">Deep Scan</a><a class="safety-btn" href="/dashboard">Workspace</a></div>
+</nav>
+<header class="safety-hero">
+<span class="safety-kicker">PRE-SEND RECIPIENT PROTECTION · ADDRESS POISONING</span>
+<h1>Verify the full recipient before you send.</h1>
+<p>Recipient Shield compares the candidate address with recent Solana contact evidence and any trusted addresses you provide. It looks for visible prefix/suffix collisions and lookalike patterns used in address-poisoning attacks. Engine policy and signing guidance stay separate: incomplete contact evidence never becomes a green clear-send state.</p>
+<div class="safety-proofline"><span class="safety-chip">Account session required</span><span class="safety-chip">No seed phrase</span><span class="safety-chip">No private key</span><span class="safety-chip">No signature request</span><span class="safety-chip warn">Missing contact evidence ≠ safe</span></div>
+</header>
+<div id="recipientNotice" class="safety-warning recipient-notice" role="status" aria-live="polite" hidden></div>
+<section class="safety-grid">
+<article class="safety-panel">
+<span class="safety-kicker">RECIPIENT INPUT</span>
+<h2>Compare before sending.</h2>
+<p>Use the full addresses. Truncated wallet displays are exactly what poisoning attacks try to exploit.</p>
+<form class="safety-form" id="recipientForm">
+<div class="safety-field"><label for="wallet">Your wallet</label><input class="safety-input safety-mono" id="wallet" autocomplete="off" required placeholder="Your Solana wallet address"></div>
+<div class="safety-field"><label for="candidate">Candidate recipient</label><input class="safety-input safety-mono" id="candidate" autocomplete="off" required placeholder="Full recipient address to verify"></div>
+<div class="safety-field"><label for="contacts">Trusted addresses · optional</label><textarea class="safety-textarea safety-mono" id="contacts" spellcheck="false" placeholder="One trusted address per line"></textarea></div>
+<div class="safety-actions"><button class="safety-btn primary" id="recipientRun" type="submit">Check recipient</button><a class="safety-btn" href="/safe-check">Open Safe Check</a></div>
+</form>
+<div class="safety-boundary"><b>Read-only boundary:</b> Recipient Shield reads public addresses and recent contact evidence. It does not request a seed phrase, private key, wallet approval, transaction signature, or transfer authority.</div>
+<div class="safety-rules"><div class="safety-rule"><b>Prefix collision</b><span>Detects candidates that imitate the visible beginning of a known address.</span></div><div class="safety-rule"><b>Suffix collision</b><span>Checks the visible tail attackers often copy to fool shortened wallet displays.</span></div><div class="safety-rule"><b>Contact evidence</b><span>Separates collected RPC contact evidence from limited or unavailable coverage.</span></div></div>
+</article>
+<aside class="safety-panel safety-result" id="recipientResult" aria-live="polite">
+<div class="safety-score"><strong>—</strong><small>Waiting for recipient evidence</small></div>
+<div class="safety-warning"><b>Fail-closed guidance</b> A missing risk score, unknown engine policy, or incomplete RPC contact graph cannot become permission to send.</div>
+</aside>
 </section>
+<section class="safety-panel" style="margin-top:14px">
+<span class="safety-kicker">HOW TO READ THE RESULT</span>
+<h2>Policy is evidence. Sending guidance is stricter.</h2>
+<div class="safety-rules"><div class="safety-rule"><b>DO NOT SEND</b><span>Strong lookalike evidence or a blocking engine policy. Verify through a trusted out-of-band channel.</span></div><div class="safety-rule"><b>VERIFY FULL ADDRESS</b><span>Warning state, or engine ALLOW without the complete low-risk RPC contact evidence required for a clear display.</span></div><div class="safety-rule"><b>PREFLIGHT CLEAR</b><span>Displayed only when engine policy is ALLOW, risk is explicitly LOW, a real risk index exists, and RPC contact evidence was collected.</span></div></div>
+</section>
+<p class="safety-fine">Recipient Shield is technical decision support. It does not accuse a wallet owner of fraud or wrongdoing, and it does not replace independent confirmation of a material transfer destination.</p>
+<footer class="safety-footer"><span>Koschei Recipient Shield · pre-send address verification</span><nav><a href="/">Home</a><a href="/safe-check">Safe Check</a><a href="/transaction-shield">Transaction Shield</a><a href="/cases">Evidence Center</a></nav></footer>
 </main>
 <script src="/js/koschei-auth.js?v=33"></script>
-<script>
-(async()=>{
-if(window.KoscheiAuth){await KoscheiAuth.init();if(!KoscheiAuth.requireAuth('/login.html'))return}
-const $=id=>document.getElementById(id),form=$('form'),out=$('out'),notice=$('notice'),run=$('run');
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const jwt=()=>{try{return KoscheiAuth?.getJwt?.()||localStorage.getItem('koschei_jwt')||localStorage.getItem('koschei_token')||''}catch{return''}};
-function show(m){notice.textContent=m;notice.className='notice show'}
-function contacts(){return $('contacts').value.split(/\s+/).map(x=>x.trim()).filter(Boolean)}
-async function api(body){const h=new Headers({'Content-Type':'application/json'});const t=jwt();if(t)h.set('Authorization','Bearer '+t);const res=await fetch('/api/v1/address-poisoning/check',{method:'POST',credentials:'include',headers:h,body:JSON.stringify(body)});let data={};try{data=await res.json()}catch{}return{res,data}}
-function render(d){const m=(d.matches||[]).map(x=>`<li>${esc(x.signal)} — ${esc(x.known_address)} <b>+${esc(x.risk_bonus)}</b></li>`).join('')||'<li>Lookalike eşleşme bulunmadı.</li>';out.innerHTML=`<div class="score"><div class="orb"><div><b>${esc(d.risk_index||0)}</b><small>${esc(d.risk_level||'')}</small></div></div><div><span class="pill ${esc(d.policy||'warn')}">${esc((d.policy||'warn').toUpperCase())}</span><h2>${esc(d.verdict||'ARVIS decision')}</h2><p class="muted">Aday adres: <b>${esc(d.candidate)}</b></p></div></div><div class="metric"><span>Observed contacts</span><b>${esc(d.observed_contact_count||0)}</b></div><div class="metric"><span>RPC evidence</span><b>${esc(d.rpc_evidence?.collected?'collected':'limited')}</b></div><h3>Matches</h3><ul class="list">${m}</ul><h3>Evidence policy</h3><pre>${esc(JSON.stringify(d.evidence_policy||{},null,2))}</pre>`}
-form.addEventListener('submit',async e=>{e.preventDefault();notice.className='notice';run.disabled=true;out.innerHTML='<p class="muted">ARVIS recipient risk kontrol ediyor…</p>';try{const{res,data}=await api({wallet:$('wallet').value.trim(),candidate:$('candidate').value.trim(),network:'solana-mainnet',known_contacts:contacts()});if(!res.ok){show(data.message||data.error||'Kontrol tamamlanamadı.');return}render(data)}catch(err){show('ARVIS yanıtı alınamadı.')}finally{run.disabled=false}})
-})();
-</script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=1"></script>
+<script src="/js/address-poisoning-shield-v2.js?v=1"></script>
 </body>
 </html>
