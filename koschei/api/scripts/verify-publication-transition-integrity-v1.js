@@ -18,6 +18,8 @@ const loadStart=owner.indexOf('func (h *Handler) loadPublicDossierCases');
 if(ownerStart<0||loadStart<=ownerStart)throw new Error('owner publication function boundary missing');
 const ownerFn=owner.slice(ownerStart,loadStart);
 requireText(ownerFn,'tx, err := h.DB.BeginTx(r.Context(), nil)','owner publication transaction');
+requireText(ownerFn,'SELECT pg_advisory_xact_lock(hashtext($1))','owner per-case transaction serialization');
+requireText(ownerFn,'input.CaseRef); err != nil','owner advisory lock keyed by case_ref');
 requireText(ownerFn,'if input.Status == "public" {','public-only integrity branch');
 requireText(ownerFn,'SELECT canonical_bundle,bundle_hash','owner canonical + stored hash source');
 requireText(ownerFn,'FOR SHARE','owner export lock');
