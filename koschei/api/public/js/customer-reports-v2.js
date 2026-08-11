@@ -20,6 +20,10 @@ function scoreOf(item){const raw=item?.overall_score??item?.score??item?.risk_in
 function status(message,tone=''){const node=$('reportsStatus');if(!node)return;node.textContent=message;node.className=`ops-status show${tone?` ${tone}`:''}`;}
 function clearStatus(){const node=$('reportsStatus');if(node)node.className='ops-status';}
 function setKPI(id,value,detail,tone=''){const node=$(id);if(!node)return;node.dataset.tone=tone;node.querySelector('strong').textContent=value;node.querySelector('small').textContent=detail;}
+function setUnavailableKPIs(detail){
+  setKPI('reportsTotalKpi','—',detail,'bad');setKPI('reportsHighKpi','—',detail,'bad');setKPI('reportsTargetsKpi','—',detail,'bad');setKPI('reportsLatestKpi','—',detail,'bad');
+  const visible=$('reportsVisibleCount');if(visible)visible.textContent='—/—';
+}
 
 function updateKPIs(items){
   const high=items.filter(item=>['high','critical'].includes(normalizedRisk(item.risk_level))).length;
@@ -55,11 +59,11 @@ async function load(){
   const accessResponse=await KoscheiAuth.apiCall('/api/auth/premium-access',{method:'GET'}).catch(()=>null);
   const accessData=accessResponse?await accessResponse.json().catch(()=>({})):{};
   if(!accessResponse?.ok||accessData.access?.active!==true){
-    reports=[];updateKPIs(reports);$('reportsList').innerHTML='<div class="ops-empty"><b>KOSCH holder access is required.</b><br>Verify your wallet and official-mint balance before opening durable account reports.</div>';status('Durable report history is account-scoped and requires active KOSCH holder access.','bad');return;
+    reports=[];setUnavailableKPIs('Report metrics unavailable until holder access is active.');$('reportsList').innerHTML='<div class="ops-empty"><b>KOSCH holder access is required.</b><br>Verify your wallet and official-mint balance before opening durable account reports.</div>';status('Durable report history is account-scoped and requires active KOSCH holder access.','bad');return;
   }
   const response=await KoscheiAuth.apiCall('/api/v1/unified/reports',{method:'GET'}).catch(()=>null);
   const data=response?await response.json().catch(()=>({})):{};
-  if(!response?.ok){reports=[];updateKPIs(reports);$('reportsList').innerHTML='<div class="ops-empty">The report service is unavailable. No report count has been inferred.</div>';status('Report vault unavailable. Existing evidence was not replaced with a synthetic result.','bad');return;}
+  if(!response?.ok){reports=[];setUnavailableKPIs('Report service unavailable; no count inferred.');$('reportsList').innerHTML='<div class="ops-empty">The report service is unavailable. No report count has been inferred.</div>';status('Report vault unavailable. Existing evidence was not replaced with a synthetic result.','bad');return;}
   reports=arr(data.reports).length?arr(data.reports):arr(obj(data.data).reports);
   updateKPIs(reports);render();
   $('reportsAccess').textContent=`${text(accessData.access?.token_tier||'holder').toUpperCase()} ACCESS`;
