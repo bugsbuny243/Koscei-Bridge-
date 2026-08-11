@@ -1,8 +1,8 @@
 {
   "ok": true,
   "product": "Koschei ARVIS",
-  "surface": "Security Radar Ecosystem",
-  "version": "security-ecosystem-v5-incubation-boundary",
+  "surface": "Security Evidence Ecosystem",
+  "version": "security-ecosystem-v6-canonical-scan-boundary",
   "positioning": "Koschei ARVIS remains a production-independent deterministic Solana security product. Koschei Sentinel and the Koschei language mature separately in offline incubation until explicit future integration gates pass.",
   "ecosystem": {
     "contract": "/docs/koschei-ecosystem-contract-v1.md",
@@ -57,7 +57,7 @@
       "basic token fundamentals"
     ],
     "premium": [
-      "security radar",
+      "deep scan",
       "exposure reports",
       "graph",
       "watchlist",
@@ -204,10 +204,10 @@
   "customer_surfaces": [
     "/dashboard",
     "/safe-check",
-    "/security-radar",
+    "/scan?mode=deep",
     "/exposure-report",
     "/reports",
-    "/kosch-access",
+    "/kosch",
     "/api/token/scan",
     "/api/v1/risk/badge",
     "/widget.js"
