@@ -1,0 +1,25 @@
+name: Transaction Firewall V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/transaction-firewall.html'
+      - 'koschei/api/public/js/transaction-firewall-v2.js'
+      - 'koschei/api/public/css/transaction-firewall-v2.css'
+      - 'koschei/api/scripts/verify-transaction-firewall-v2.js'
+      - '.github/workflows/transaction-firewall-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transaction-firewall:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check transaction firewall JavaScript syntax
+        run: node --check koschei/api/public/js/transaction-firewall-v2.js
+      - name: Verify fail-closed B2B firewall contract
+        run: node koschei/api/scripts/verify-transaction-firewall-v2.js
