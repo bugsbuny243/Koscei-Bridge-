@@ -29,11 +29,11 @@ type publicDossierCaseV2 struct {
 }
 
 type publicDossierCasesV2Load struct {
-	Cases                    []publicDossierCaseV2
-	TotalPublications        int
-	InspectedPublications    int
-	InvalidPublications      int
-	UninspectedPublications  int
+	Cases                   []publicDossierCaseV2
+	TotalPublications       int
+	InspectedPublications   int
+	InvalidPublications     int
+	UninspectedPublications int
 }
 
 // PublicDossierCasesV2 is the canonical public case projection. A corrupt or
@@ -60,16 +60,16 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=60")
 	w.Header().Set("X-Koschei-Registry-Complete", strconv.FormatBool(complete))
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                      true,
-		"schema_version":          publicCaseRegistrySchemaVersion,
-		"generated_at":            time.Now().UTC(),
-		"registry_status":         registryStatus,
-		"registry_complete":       complete,
-		"total_publications":      loaded.TotalPublications,
-		"inspected_publications":  loaded.InspectedPublications,
-		"invalid_publications":    loaded.InvalidPublications,
+		"ok":                       true,
+		"schema_version":           publicCaseRegistrySchemaVersion,
+		"generated_at":             time.Now().UTC(),
+		"registry_status":          registryStatus,
+		"registry_complete":        complete,
+		"total_publications":       loaded.TotalPublications,
+		"inspected_publications":   loaded.InspectedPublications,
+		"invalid_publications":     loaded.InvalidPublications,
 		"uninspected_publications": loaded.UninspectedPublications,
-		"count":                   len(loaded.Cases),
+		"count":                    len(loaded.Cases),
 		"publication_policy": map[string]any{
 			"deterministic_autopublish_supported":      true,
 			"owner_publication_decisions_preserved":    true,
