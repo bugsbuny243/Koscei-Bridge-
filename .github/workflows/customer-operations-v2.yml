@@ -1,0 +1,29 @@
+name: Customer Operations V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/reports.html'
+      - 'koschei/api/public/watchlist.html'
+      - 'koschei/api/public/js/customer-reports-v2.js'
+      - 'koschei/api/public/js/customer-watchlist-v2.js'
+      - 'koschei/api/public/css/customer-operations-v2.css'
+      - 'koschei/api/scripts/verify-customer-operations-v2.js'
+      - '.github/workflows/customer-operations-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-operations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check customer operations JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/customer-reports-v2.js
+          node --check koschei/api/public/js/customer-watchlist-v2.js
+      - name: Verify reports and monitoring contracts
+        run: node koschei/api/scripts/verify-customer-operations-v2.js
