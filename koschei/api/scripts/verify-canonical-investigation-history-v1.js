@@ -42,8 +42,10 @@ requireText(handler,'"history": items','history collection envelope');
 forbid(handler,/EnforceScanQuota/,'history handler must not consume scan quota');
 
 requireText(jobsHandler,'if id == "" {','empty job-id dispatch boundary');
-requireText(jobsHandler,'if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/radar/jobs" {','radar jobs collection isolation');
+requireText(jobsHandler,'if canonicalHistoryCollectionPath(r.URL.Path) {','radar jobs collection isolation');
 requireText(jobsHandler,'h.CustomerInvestigationHistory(w, r)','history collection delegation');
+requireText(jobsHandler,'func canonicalHistoryCollectionPath(path string) bool','collection path predicate');
+requireText(jobsHandler,'return strings.TrimSuffix(strings.TrimSpace(path), "/") == "/api/v1/radar/jobs"','canonical-only collection predicate');
 requireText(jobsHandler,'writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})','legacy empty collection remains not found');
 requireText(server,'mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))','existing radar jobs GET route');
 if(server.includes('/api/v1/investigations/history'))throw new Error('server: do not add a parallel history endpoint; use the existing radar jobs collection');
