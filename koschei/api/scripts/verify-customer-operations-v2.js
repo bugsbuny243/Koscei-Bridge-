@@ -14,21 +14,24 @@ for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist ht
   requireText(html,'<html lang="en">',label);
   requireText(html,'/css/customer-operations-v2.css?v=1',label);
 }
-requireText(reportsHTML,'/js/customer-reports-v2.js?v=1','reports html');
+requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','reports html');
 requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');
-requireText(reportsHTML,'Missing service data remains unavailable','reports truth boundary');
+requireText(reportsHTML,'History without invented evidence.','reports truth boundary');
+requireText(reportsHTML,'reading history does not consume a scan unit','reports read-only quota boundary');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
 requireText(watchHTML,'Pro tier or higher','watchlist Pro tier boundary');
 
-requireText(reportsJS,"KoscheiAuth.apiCall('/api/auth/premium-access'",'reports access source');
-requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/unified/reports'",'reports vault source');
-requireText(reportsJS,"accessData.access?.active!==true",'reports access gate');
-requireText(reportsJS,"signed?'SIGNED':'DURABLE'",'signature-aware evidence state');
-requireText(reportsJS,"esc(floor??'—')",'structural-floor escaping');
-requireText(reportsJS,"kind==='wallet'",'wallet continuation');
-requireText(reportsJS,"kind==='site'||kind==='url'",'site continuation');
-requireText(reportsJS,"setUnavailableKPIs('Report service unavailable; no count inferred.')",'reports unavailable-not-zero boundary');
-requireText(reportsJS,"visible.textContent='—/—'",'reports unavailable visible count');
+requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/investigations/history'",'canonical investigation history source');
+requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'history schema gate');
+requireText(reportsJS,"data?.source!=='web3_jobs'",'history durable source gate');
+requireText(reportsJS,"data?.job_type!=='canonical_investigation'",'history canonical job type gate');
+requireText(reportsJS,"signed===true&&signature&&ruleset",'strict signature gate');
+requireText(reportsJS,"signed===true)return {kind:'incomplete',label:'SIGNATURE INCOMPLETE'}",'incomplete signature state');
+requireText(reportsJS,"if(!Array.isArray(history))",'history unavailable-not-empty boundary');
+requireText(reportsJS,"setUnavailableKPIs('Canonical investigation history unavailable; no history count inferred.')",'history unavailable-not-zero KPI boundary');
+requireText(reportsJS,"KoscheiAuth.requireAuth('/login.html')",'canonical login continuation');
+if(reportsJS.includes('/api/v1/unified/reports'))throw new Error('reports js: must not call removed unified-reports frontend contract');
+if(reportsJS.includes('.innerHTML='))throw new Error('reports js: canonical history must use DOM/textContent rendering');
 
 requireText(watchJS,"api('/api/watchlist')",'watchlist source');
 requireText(watchJS,"api('/api/watchlist/alerts')",'watchlist alerts source');
