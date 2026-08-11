@@ -12,7 +12,7 @@ function show(message,tone='bad'){
   node.textContent=message;node.className=`auth-message show ${tone}`;
 }
 function clear(){const node=$('authMessage');if(node){node.textContent='';node.className='auth-message';}}
-function nextPath(){return window.KoscheiAuth?.nextPath?.('/dashboard')||'/dashboard';}
+function nextPath(){return window.KoscheiAuth?KoscheiAuth.nextPath('/dashboard'):'/dashboard';}
 function setNext(){const next=nextPath();const node=$('authNext');if(node)node.textContent=next;return next;}
 function loginURL(next,email=''){
   const params=new URLSearchParams();params.set('next',next);params.set('registered','1');if(email)params.set('email',email);return`/login?${params.toString()}`;
