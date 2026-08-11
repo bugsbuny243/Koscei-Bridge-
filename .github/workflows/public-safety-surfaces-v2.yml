@@ -1,0 +1,29 @@
+name: Public Safety Surfaces V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/safe-check.html'
+      - 'koschei/api/public/transaction-shield.html'
+      - 'koschei/api/public/js/public-safe-check-v2.js'
+      - 'koschei/api/public/js/public-transaction-shield-v2.js'
+      - 'koschei/api/public/css/public-safety-surfaces-v2.css'
+      - 'koschei/api/scripts/verify-public-safety-surfaces-v2.js'
+      - '.github/workflows/public-safety-surfaces-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-safety-surfaces:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check safety JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/public-safe-check-v2.js
+          node --check koschei/api/public/js/public-transaction-shield-v2.js
+      - name: Verify fail-closed public safety contract
+        run: node koschei/api/scripts/verify-public-safety-surfaces-v2.js
