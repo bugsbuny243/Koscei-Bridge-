@@ -1,56 +1,43 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>İşlem Güvenliği — KOSCHEİ WEB3</title>
-<style>
-:root{--bg:#03070d;--panel:#08131fd9;--line:#24eaff2e;--text:#f5fbff;--muted:#9eb0c2;--green:#18ffb2;--cyan:#24eaff;--yellow:#ffd66b;--red:#ff5c78;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 10% 0,#18ffb21f,transparent 30%),radial-gradient(circle at 90% 0,#24eaff1c,transparent 30%),linear-gradient(135deg,#020409,#071522 62%,#02040a)}a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}.wrap{width:min(1180px,calc(100% - 22px));margin:auto;padding:22px 0 80px}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:24px;background:#ffffff0e;backdrop-filter:blur(18px)}.brand{display:flex;align-items:center;gap:10px;font-weight:1000}.mark{display:grid;place-items:center;width:40px;height:40px;border-radius:14px;color:#03110d;background:linear-gradient(135deg,var(--green),var(--cyan))}.nav{display:flex;gap:8px;flex-wrap:wrap}.nav a,.btn{border:1px solid var(--line);border-radius:999px;padding:10px 14px;color:var(--muted);font-weight:900;background:#ffffff08;cursor:pointer}.btn.primary{border:0;color:#03110d;background:linear-gradient(135deg,var(--green),var(--cyan))}.hero,.panel,.result{border:1px solid var(--line);border-radius:28px;background:linear-gradient(145deg,#ffffff12,var(--panel));box-shadow:0 30px 90px #0008}.hero{margin:18px 0;padding:30px}.eyebrow{display:inline-flex;padding:8px 12px;border-radius:999px;border:1px solid #18ffb246;background:#18ffb214;color:#c9ffeb;font:900 11px var(--mono);letter-spacing:.1em;text-transform:uppercase}.hero h1{margin:16px 0 10px;font-size:clamp(42px,7vw,72px);line-height:.95;letter-spacing:-.06em}.muted{color:var(--muted);line-height:1.65}.notice{margin-top:18px;padding:14px 16px;border:1px solid #ffd66b45;background:#ffd66b10;border-radius:18px;color:#fff0bd}.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr);gap:16px}.panel,.result{padding:22px}.stack{display:grid;gap:14px}.field{display:grid;gap:8px}.field label{font-size:13px;font-weight:900;color:#dbe8ef}.input{width:100%;border:1px solid var(--line);border-radius:17px;background:#02070da8;color:var(--text);padding:13px 14px;outline:none}.input:focus{border-color:#24eaff7a;box-shadow:0 0 0 3px #24eaff12}textarea.input{min-height:260px;resize:vertical;font:13px/1.55 var(--mono)}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.run{width:100%;min-height:52px;border:0;border-radius:17px;background:linear-gradient(135deg,var(--green),var(--cyan));color:#03110d;font-weight:1000;cursor:pointer}.run:disabled{opacity:.55;cursor:wait}.small{font-size:12px;color:var(--muted);line-height:1.55}.status{display:none;margin-top:14px;padding:13px 15px;border-radius:16px;border:1px solid var(--line);background:#ffffff08}.status.show{display:block}.status.bad{border-color:#ff5c7855;color:#ffd8df}.status.good{border-color:#18ffb255;color:#d4ffed}.result{min-height:100%}.empty{display:grid;place-items:center;min-height:360px;text-align:center;color:var(--muted)}.score{display:grid;grid-template-columns:130px 1fr;gap:16px;align-items:center}.meter{display:grid;place-items:center;width:128px;height:128px;border-radius:50%;background:conic-gradient(var(--cyan) calc(var(--score)*1%),#ffffff12 0);position:relative}.meter:after{content:"";position:absolute;inset:12px;border-radius:50%;background:#07111b}.meter strong{position:relative;z-index:1;font-size:34px}.decision{display:inline-flex;padding:8px 12px;border-radius:999px;font:1000 12px var(--mono);text-transform:uppercase;letter-spacing:.08em}.decision.allow{background:#18ffb21b;color:#bfffe7;border:1px solid #18ffb24d}.decision.warn{background:#ffd66b18;color:#ffe8a2;border:1px solid #ffd66b4b}.decision.block{background:#ff5c7818;color:#ffc1cc;border:1px solid #ff5c7854}.decision.withhold{background:#ffffff10;color:#cbd7df;border:1px solid #ffffff20}.section{margin-top:18px}.section h3{margin:0 0 10px}.list{display:grid;gap:9px}.item{border:1px solid #ffffff12;border-radius:16px;padding:12px;background:#ffffff07}.item b{display:block;margin-bottom:4px}.severity{font:900 10px var(--mono);text-transform:uppercase;letter-spacing:.08em}.severity.critical,.severity.high{color:#ff8aa0}.severity.medium{color:#ffe18a}.code{max-height:270px;overflow:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #ffffff12;border-radius:16px;background:#02060b;padding:13px;color:#cde9f4;font:12px/1.55 var(--mono)}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}.meta div{border:1px solid #ffffff10;border-radius:15px;padding:11px;background:#ffffff06}.meta span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}.meta b{word-break:break-all}@media(max-width:900px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}@media(max-width:560px){.row,.score,.meta{grid-template-columns:1fr}.meter{margin:auto}.hero,.panel,.result{padding:19px}.hero h1{font-size:43px}}
-</style>
+<meta name="description" content="Run the Koschei Transaction Guard B2B shadow simulation against a serialized Solana transaction before signing. No custody, signing, submission, or browser-persisted API key.">
+<meta name="theme-color" content="#02050a">
+<title>Transaction Guard · Koschei ARVIS</title>
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/public-safety-surfaces-v2.css?v=1">
+<link rel="stylesheet" href="/css/transaction-firewall-v2.css?v=1">
 </head>
-<body>
-<main class="wrap">
-<nav class="top"><a class="brand" href="/"><span class="mark">K</span><span>KOSCHEİ WEB3</span></a><div class="nav"><a href="/dashboard">Panel</a><a href="/security-radar">Güvenlik Radarı</a><a href="/developers">Geliştiriciler</a><a href="/account">API Anahtarları</a></div></nav>
-<section class="hero"><span class="eyebrow">Go backend · gölge mod</span><h1>İşlem Güvenliği</h1><p class="muted">İmzalamadan önce Base64 olarak serileştirilmiş Solana işlemini simüle eder; program çağrılarını, hesaplama kullanımını ve tehlikeli talimat sinyallerini gösterir.</p><div class="notice"><b>Gölge mod:</b> Koschei işlemi imzalamaz, zincire göndermez veya otomatik olarak engellemez. Sonuç yalnızca güvenlik kararı ve kanıt üretir.</div></section>
-<section class="grid">
-<article class="panel"><form id="firewallForm" class="stack"><div class="field"><label for="apiKey">Koschei API Anahtarı</label><input class="input" id="apiKey" type="password" autocomplete="off" placeholder="kch_live_..."><div class="small">Anahtar yalnızca bu tarayıcı sekmesinin sessionStorage alanında tutulur.</div></div><div class="row"><div class="field"><label for="network">Ağ</label><select class="input" id="network"><option value="solana-mainnet">Solana Mainnet</option></select></div><div class="field"><label for="encoding">Kodlama</label><select class="input" id="encoding"><option value="base64">Base64</option></select></div></div><div class="field"><label for="wallet">Cüzdan (isteğe bağlı)</label><input class="input" id="wallet" placeholder="İşlemi imzalayacak cüzdan"></div><div class="field"><label for="transaction">Serileştirilmiş İşlem</label><textarea class="input" id="transaction" required spellcheck="false" placeholder="Base64 olarak serileştirilmiş işlem..."></textarea></div><button class="run" id="runButton" type="submit">İşlemi Simüle Et</button></form><div id="status" class="status"></div></article>
-<article class="result" id="result"><div class="empty"><div><span class="eyebrow">Bekliyor</span><h2>Henüz analiz yok</h2><p>Serileştirilmiş işlemi ve API anahtarını girip simülasyonu başlatın.</p></div></div></article>
+<body class="safety-page koschei-v2">
+<main class="safety-wrap">
+<nav class="safety-nav"><a class="safety-brand" href="/"><span class="safety-mark">K</span><span><strong>Koschei ARVIS</strong><small>B2B Transaction Guard</small></span></a><div class="safety-links"><a class="safety-btn" href="/transaction-shield">Public Transaction Shield</a><a class="safety-btn" href="/scan?mode=deep">Deep Scan</a><a class="safety-btn" href="/developers">Developers</a><a class="safety-btn" href="/account">API Keys</a></div></nav>
+<header class="safety-hero"><span class="safety-kicker">B2B TRANSACTION GUARD · SHADOW MODE</span><h1>Run the policy evidence before your system signs.</h1><p>This operator surface calls the authenticated Transaction Guard endpoint with a serialized Solana transaction and an API key you enter for the current page session. Koschei simulates and evaluates the transaction but does not sign, submit, store, or automatically block it.</p><div class="safety-proofline"><span class="safety-chip">X-API-Key endpoint</span><span class="safety-chip">Read-only simulation</span><span class="safety-chip">No transaction send</span><span class="safety-chip">API key not persisted</span><span class="safety-chip warn">Missing signal ≠ safe</span></div></header>
+<section class="firewall-shell">
+<article class="safety-panel">
+<span class="safety-kicker">GUARD INPUT</span><h2>Evaluate a serialized transaction.</h2><p>The API key stays only in the form field and JavaScript call stack. This UI does not write it to localStorage, sessionStorage, cookies, or URLs.</p>
+<form class="safety-form" id="firewallForm">
+<div class="safety-field"><label for="apiKey">Koschei API key</label><input class="safety-input safety-mono" id="apiKey" type="password" autocomplete="off" required placeholder="kch_live_..."><div class="firewall-api-note"><b>Not persisted:</b> reload the page and the field is empty.</div></div>
+<div class="safety-field"><label for="network">Network</label><select class="safety-select" id="network"><option value="solana-mainnet">Solana Mainnet</option></select></div>
+<div class="safety-field"><label for="encoding">Encoding</label><select class="safety-select" id="encoding"><option value="base64">Base64</option></select></div>
+<div class="safety-field"><label for="wallet">Wallet · optional context</label><input class="safety-input safety-mono" id="wallet" autocomplete="off" placeholder="Optional signing-wallet context"></div>
+<div class="safety-field"><label for="transaction">Base64 serialized transaction</label><textarea class="safety-textarea safety-mono" id="transaction" required spellcheck="false" placeholder="AQAAAAAAAA..."></textarea></div>
+<button class="safety-btn primary" id="runButton" type="submit">Simulate transaction</button>
+</form>
+<div id="firewallStatus" class="firewall-status" role="status" aria-live="polite" hidden></div>
+<div class="safety-boundary"><b>Shadow-mode boundary:</b> no wallet connect, seed phrase, private key, transaction signature, send authority, or automatic enforcement is created by this page.</div>
+</article>
+<aside class="safety-panel firewall-result" id="firewallResult" aria-live="polite"><div class="safety-score"><strong>—</strong><small>Waiting for Transaction Guard evidence</small></div><div class="safety-warning"><b>Fail-closed presentation</b> Missing action, risk, programs, logs, compute usage, or provider evidence remains WITHHOLD / UNAVAILABLE instead of becoming zero risk or signing permission.</div></aside>
 </section>
+<section class="safety-panel" style="margin-top:14px"><span class="safety-kicker">DECISION CONTRACT</span><h2>The engine result remains visible. Signing guidance is stricter.</h2><div class="safety-rules"><div class="safety-rule"><b>ALLOW</b><span>Displayed as PREFLIGHT CLEAR only when a real risk index exists and risk level is explicitly LOW.</span></div><div class="safety-rule"><b>WARN / BLOCK</b><span>Reviewable or deterministic blocking evidence remains visible and is never softened by the UI.</span></div><div class="safety-rule"><b>WITHHOLD</b><span>Provider outage or required evidence gap. No missing signal is interpreted as safe.</span></div></div></section>
+<p class="safety-fine">Transaction Guard is technical decision support for integration operators. Keep production API keys server-side in real applications; this browser surface is an operator testing tool, not a pattern for embedding server credentials in a public frontend.</p>
+<footer class="safety-footer"><span>Koschei Transaction Guard · B2B shadow simulation</span><nav><a href="/transaction-shield">Public Shield</a><a href="/scan?mode=deep">Deep Scan</a><a href="/developers">Developers</a><a href="/docs/api">API Docs</a></nav></footer>
 </main>
-<script>
-(()=>{
-const $=id=>document.getElementById(id);
-const form=$('firewallForm'),apiKey=$('apiKey'),transaction=$('transaction'),runButton=$('runButton'),status=$('status'),result=$('result');
-const decisionLabel={allow:'İzin ver',warn:'Uyar',block:'Engelle',withhold:'Kararı beklet'};
-const riskLabel={low:'Düşük',medium:'Orta',high:'Yüksek',critical:'Kritik',unknown:'Bilinmiyor'};
-const severityLabel={low:'Düşük',medium:'Orta',high:'Yüksek',critical:'Kritik',info:'Bilgi'};
-try{apiKey.value=sessionStorage.getItem('koschei_firewall_api_key')||''}catch{}
-function escapeHTML(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
-function showStatus(message,bad=false){status.className='status show '+(bad?'bad':'good');status.textContent=message}
-function decisionClass(action){return ['allow','warn','block','withhold'].includes(action)?action:'withhold'}
-function render(data){
- const findings=Array.isArray(data.findings)?data.findings:[];
- const programs=Array.isArray(data.program_ids)?data.program_ids:[];
- const logs=Array.isArray(data.simulation?.logs)?data.simulation.logs:[];
- const score=Number(data.risk_index||0),action=decisionClass(data.action),risk=String(data.risk_level||'unknown').toLowerCase();
- result.innerHTML=`<div class="score"><div class="meter" style="--score:${Math.max(0,Math.min(100,score))}"><strong>${score}</strong></div><div><span class="decision ${action}">${escapeHTML(decisionLabel[action]||action)}</span><h2>${escapeHTML(riskLabel[risk]||data.risk_level||'Bilinmiyor')} risk</h2><p class="muted">${escapeHTML(data.summary||'Özet bulunamadı.')}</p></div></div><div class="meta"><div><span>İstek kimliği</span><b>${escapeHTML(data.request_id||'-')}</b></div><div><span>Hesaplama birimi</span><b>${escapeHTML(data.simulation?.units_consumed??0)}</b></div><div><span>Program sayısı</span><b>${programs.length}</b></div><div><span>Gecikme</span><b>${escapeHTML(data.latency_ms??0)} ms</b></div></div><section class="section"><h3>Bulgular</h3><div class="list">${findings.length?findings.map(item=>`<div class="item"><span class="severity ${escapeHTML(item.severity)}">${escapeHTML(severityLabel[String(item.severity||'').toLowerCase()]||item.severity)}</span><b>${escapeHTML(item.title)}</b><div class="small">${escapeHTML(item.evidence)}</div></div>`).join(''):'<div class="item"><b>Tehlikeli talimat sinyali bulunmadı</b><div class="small">Bu sonuç güvenlik garantisi değildir; yalnızca mevcut simülasyon kanıtını temsil eder.</div></div>'}</div></section><section class="section"><h3>Çağrılan programlar</h3><div class="code">${programs.length?programs.map(escapeHTML).join('\n'):'Program kimliği çıkarılamadı.'}</div></section><section class="section"><h3>Simülasyon kayıtları</h3><div class="code">${logs.length?logs.map(escapeHTML).join('\n'):'Kayıt bulunamadı.'}</div></section>`;
-}
-form.addEventListener('submit',async event=>{
- event.preventDefault();
- const key=apiKey.value.trim(),tx=transaction.value.trim();
- if(!key){showStatus('API anahtarı gerekli.',true);return}
- if(!tx){showStatus('Serileştirilmiş işlem gerekli.',true);return}
- try{sessionStorage.setItem('koschei_firewall_api_key',key)}catch{}
- runButton.disabled=true;runButton.textContent='Simüle ediliyor...';showStatus('Solana RPC üzerinde gölge simülasyonu başlatıldı.');
- try{
-  const response=await fetch('/api/v1/shield/transaction',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':key},body:JSON.stringify({transaction:tx,encoding:$('encoding').value,network:$('network').value,wallet:$('wallet').value.trim()})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok&&data.action!=='withhold')throw new Error(data.message||data.error||'Simülasyon tamamlanamadı.');
-  render(data);showStatus(response.ok?'Simülasyon tamamlandı.':'Karar bekletildi: RPC sonucu alınamadı.',!response.ok);
- }catch(error){showStatus(error.message||String(error),true)}finally{runButton.disabled=false;runButton.textContent='İşlemi Simüle Et'}
-});
-})();
-</script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=1"></script>
+<script src="/js/transaction-firewall-v2.js?v=1"></script>
 </body>
 </html>
