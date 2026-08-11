@@ -1,0 +1,22 @@
+name: Developers Contract V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/developers.html'
+      - 'koschei/api/public/css/developers-contract-v2.css'
+      - 'koschei/api/scripts/verify-developers-contract-v2.js'
+      - '.github/workflows/developers-contract-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  developers-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify contract-first developer portal
+        run: node koschei/api/scripts/verify-developers-contract-v2.js
