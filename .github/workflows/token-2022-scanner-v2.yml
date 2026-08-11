@@ -1,0 +1,25 @@
+name: Token-2022 Scanner V2 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/token-2022-scanner.html'
+      - 'koschei/api/public/js/token-2022-scanner-v2.js'
+      - 'koschei/api/public/css/token-2022-scanner-v2.css'
+      - 'koschei/api/scripts/verify-token-2022-scanner-v2.js'
+      - '.github/workflows/token-2022-scanner-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  token-2022-scanner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Token-2022 scanner JavaScript syntax
+        run: node --check koschei/api/public/js/token-2022-scanner-v2.js
+      - name: Verify fail-closed Token-2022 scanner contract
+        run: node koschei/api/scripts/verify-token-2022-scanner-v2.js
