@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -90,8 +91,9 @@ func (w *autopublishWorker) Start(ctx context.Context) {
 }
 
 type autopublishCandidate struct {
-	CaseRef   string
-	Canonical []byte
+	CaseRef    string
+	Canonical  []byte
+	StoredHash string
 }
 
 func (w *autopublishWorker) RunOnce(ctx context.Context) (int, error) {
@@ -119,7 +121,7 @@ func (w *autopublishWorker) RunOnce(ctx context.Context) (int, error) {
 func (w *autopublishWorker) loadCandidates(ctx context.Context) ([]autopublishCandidate, error) {
 	policyVersion := w.Thresholds.policyVersion()
 	rows, err := w.DB.QueryContext(ctx, `
-		SELECT e.case_ref, e.canonical_bundle
+		SELECT e.case_ref, e.canonical_bundle, e.bundle_hash
 		FROM dossier_exports e
 		LEFT JOIN dossier_publications p ON p.case_ref = e.case_ref
 		LEFT JOIN dossier_autopublish_decisions d
@@ -135,7 +137,7 @@ func (w *autopublishWorker) loadCandidates(ctx context.Context) ([]autopublishCa
 	out := []autopublishCandidate{}
 	for rows.Next() {
 		var candidate autopublishCandidate
-		if err := rows.Scan(&candidate.CaseRef, &candidate.Canonical); err != nil {
+		if err := rows.Scan(&candidate.CaseRef, &candidate.Canonical, &candidate.StoredHash); err != nil {
 			return nil, err
 		}
 		out = append(out, candidate)
@@ -144,26 +146,28 @@ func (w *autopublishWorker) loadCandidates(ctx context.Context) ([]autopublishCa
 }
 
 func (w *autopublishWorker) decide(ctx context.Context, candidate autopublishCandidate) (bool, error) {
-	var bundle dossierBundle
-	if err := json.Unmarshal(candidate.Canonical, &bundle); err != nil {
+	bundle, err := verifyStoredDossierBundle(candidate.Canonical, candidate.CaseRef, candidate.StoredHash)
+	if err != nil {
 		decision := autopublishDecision{
 			PolicyVersion: w.Thresholds.policyVersion(),
-			Reasons:       []string{"canonical_bundle_unparseable"},
+			Reasons:       []string{"canonical_bundle_integrity_failed"},
 			Thresholds:    w.Thresholds,
 		}
-		return w.record(ctx, candidate.CaseRef, "sha256:"+strings.Repeat("0", 64), decision)
+		bundleHash := strings.TrimSpace(candidate.StoredHash)
+		if !autopublishHashPattern.MatchString(bundleHash) {
+			bundleHash = "sha256:" + strings.Repeat("0", 64)
+		}
+		return w.record(ctx, candidate.CaseRef, bundleHash, decision)
 	}
 	decision := evaluateAutopublish(bundle, candidate.CaseRef, w.now(), w.Thresholds)
-	bundleHash := strings.TrimSpace(bundle.BundleHash)
-	if !autopublishHashPattern.MatchString(bundleHash) {
-		bundleHash = "sha256:" + strings.Repeat("0", 64)
-	}
-	return w.record(ctx, candidate.CaseRef, bundleHash, decision)
+	return w.record(ctx, candidate.CaseRef, bundle.BundleHash, decision)
 }
 
 // record is atomic. The immutable decision row is claimed first. Publication is
 // allowed only when this transaction inserted that row; a concurrent worker that
-// lost the unique-key race cannot create a second publication event.
+// lost the unique-key race cannot create a second publication event. A publish
+// decision also re-locks and re-verifies the exact stored export inside this
+// transaction so the policy decision cannot cross a mutable TOCTOU boundary.
 func (w *autopublishWorker) record(ctx context.Context, caseRef, bundleHash string, decision autopublishDecision) (bool, error) {
 	tx, err := w.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -206,6 +210,9 @@ func (w *autopublishWorker) record(ctx context.Context, caseRef, bundleHash stri
 	}
 
 	if decision.Publish {
+		if err := verifyAutopublishPublicationBundle(ctx, tx, caseRef, bundleHash); err != nil {
+			return false, err
+		}
 		publicationResult, err := tx.ExecContext(ctx, `
 			INSERT INTO dossier_publications
 				(case_ref,status,public_title,public_summary,featured,redaction_profile,published_at,published_by,created_at,updated_at)
@@ -226,12 +233,14 @@ func (w *autopublishWorker) record(ctx context.Context, caseRef, bundleHash stri
 			return false, nil
 		}
 		state, err := json.Marshal(map[string]any{
-			"status":            "public",
-			"featured":          false,
-			"public_title":      decision.Title,
-			"redaction_profile": autopublishRedactionMode,
-			"policy_version":    policyVersion,
-			"counts":            decision.Counts,
+			"status":             "public",
+			"featured":           false,
+			"public_title":       decision.Title,
+			"redaction_profile":  autopublishRedactionMode,
+			"policy_version":     policyVersion,
+			"bundle_hash":        bundleHash,
+			"integrity_verified": true,
+			"counts":             decision.Counts,
 		})
 		if err != nil {
 			return false, err
@@ -246,6 +255,26 @@ func (w *autopublishWorker) record(ctx context.Context, caseRef, bundleHash stri
 		return false, err
 	}
 	return true, nil
+}
+
+func verifyAutopublishPublicationBundle(ctx context.Context, tx *sql.Tx, caseRef, expectedHash string) error {
+	var canonical []byte
+	var storedHash string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT canonical_bundle,bundle_hash
+		FROM dossier_exports
+		WHERE case_ref=$1
+		FOR SHARE`, caseRef).Scan(&canonical, &storedHash); err != nil {
+		return err
+	}
+	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
+	if err != nil {
+		return err
+	}
+	if bundle.BundleHash != strings.TrimSpace(expectedHash) {
+		return fmt.Errorf("autopublish dossier changed after policy evaluation")
+	}
+	return nil
 }
 
 func (w *autopublishWorker) now() time.Time {
