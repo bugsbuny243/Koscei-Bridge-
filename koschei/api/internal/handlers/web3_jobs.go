@@ -116,7 +116,7 @@ func (h *Handler) GetWeb3Job(w http.ResponseWriter, r *http.Request) {
 	}
 	id := lastCanonicalJobPathSegment(r.URL.Path)
 	if id == "" {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		h.CustomerInvestigationHistory(w, r)
 		return
 	}
 	job, err := h.JobStore.Get(r.Context(), id, claims.Sub)
