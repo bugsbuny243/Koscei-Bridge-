@@ -13,9 +13,10 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(html,'<html lang="en">','developer portal language');
-requireText(html,'Production routes · explicit auth boundaries'.toUpperCase(),'developer contract heading'.toUpperCase());
+requireText(html,'PRODUCTION ROUTES · EXPLICIT AUTH BOUNDARIES','developer contract heading');
 requireText(html,'Customer session ≠ API key','auth separation');
 requireText(html,'keep developer API keys server-side','server-side API key boundary');
+requireText(html,'localStorage, or sessionStorage','explicit browser-storage warning');
 requireText(html,'/scan?mode=deep','canonical Deep Scan route');
 requireText(html,'/docs/api','API docs route');
 requireText(html,'/pilot','pilot route');
@@ -27,7 +28,8 @@ forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 forbid(html,/"grade"\s*:\s*"A-F"/,'fabricated verdict JSON grade');
 forbid(html,/"risk_index"\s*:\s*45/,'fabricated verdict JSON risk score');
-forbid(html,/localStorage|sessionStorage/i,'browser API-key storage guidance');
+forbid(html,/(?:localStorage|sessionStorage)\s*\.\s*setItem\s*\(/i,'browser API-key persistence code');
+forbid(html,/(?:localStorage|sessionStorage)\s*\[[^\]]+\]\s*=/i,'browser API-key persistence assignment');
 
 requireText(inventory,'Name: "public_and_system", Auth: "public_or_mixed"','public route group');
 requireText(inventory,'"POST /api/arvis/preflight", "POST /api/token/scan"','public preflight/token routes');
