@@ -73,14 +73,14 @@ func TestDashboardIsWorkspaceNotAnotherScanner(t *testing.T) {
 		t.Fatalf("read dashboard: %v", err)
 	}
 	text := string(body)
-	for _, required := range []string{"Workspace, not another scanner", "Open Scan Center", "Signed report vault", "Monitoring and integration"} {
+	for _, required := range []string{"Workspace, not another scanner", "Open Deep Scan", "Canonical investigation history", "Monitoring and integration"} {
 		if !strings.Contains(text, required) {
 			t.Errorf("dashboard missing workspace contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{`id="mint"`, `id="scan"`, "/api/token/scan", "data-customer-arvis-result"} {
+	for _, forbidden := range []string{`id="mint"`, `id="scan"`, "/api/token/scan", "data-customer-arvis-result", "Signed report vault"} {
 		if strings.Contains(text, forbidden) {
-			t.Errorf("dashboard still contains duplicate scan behavior %q", forbidden)
+			t.Errorf("dashboard contains duplicate or overstated scan/report behavior %q", forbidden)
 		}
 	}
 }
