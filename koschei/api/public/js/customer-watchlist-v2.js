@@ -15,6 +15,10 @@ function severity(value){const raw=lower(value);return ['info','low','warning','
 function status(message,tone=''){const node=$('watchStatus');if(!node)return;node.textContent=message;node.className=`ops-status show${tone?` ${tone}`:''}`;}
 function clearStatus(){const node=$('watchStatus');if(node)node.className='ops-status';}
 function setKPI(id,value,detail,tone=''){const node=$(id);if(!node)return;node.dataset.tone=tone;node.querySelector('strong').textContent=value;node.querySelector('small').textContent=detail;}
+function setUnavailableKPIs(detail){
+  setKPI('watchTargetsKpi','—',detail,'bad');setKPI('watchActiveKpi','—',detail,'bad');setKPI('watchUnreadKpi','—',detail,'bad');setKPI('watchCheckedKpi','—',detail,'bad');
+  const targetCount=$('watchTargetCount'),alertCount=$('watchAlertCount');if(targetCount)targetCount.textContent='—/—';if(alertCount)alertCount.textContent='—/—';
+}
 function unread(item){return !text(item?.read_at)&&item?.read!==true&&item?.is_read!==true;}
 
 async function api(path,options={}){
@@ -56,13 +60,13 @@ function renderAlerts(){
 
 function render(){updateKPIs();renderTargets();renderAlerts();}
 
-async function load(){
-  clearStatus();
+async function load({preserveStatus=false}={}){
+  if(!preserveStatus)clearStatus();
   try{
     const [targetData,alertData]=await Promise.all([api('/api/watchlist'),api('/api/watchlist/alerts')]);
     targets=arr(targetData.targets);alerts=arr(alertData.alerts);maxTargets=Number.isFinite(Number(targetData.max_targets))?Number(targetData.max_targets):null;render();
   }catch(error){
-    targets=[];alerts=[];maxTargets=null;render();status(error.message||'Monitoring data is unavailable. No target or alert count was inferred.','bad');
+    targets=[];alerts=[];maxTargets=null;setUnavailableKPIs('Monitoring service unavailable; no count inferred.');$('watchTargets').innerHTML='<div class="ops-empty">Monitored-target data is unavailable.</div>';$('watchAlerts').innerHTML='<div class="ops-empty">Alert data is unavailable.</div>';status(error.message||'Monitoring data is unavailable. No target or alert count was inferred.','bad');
   }
 }
 
@@ -79,7 +83,7 @@ async function handleAction(button){
       if(action==='refresh')await api(`/api/watchlist/${id}/refresh`,{method:'POST',body:'{}'});
       if(action==='toggle')await api(`/api/watchlist/${id}`,{method:'PATCH',body:JSON.stringify({status:button.dataset.watchNext})});
       if(action==='delete')await api(`/api/watchlist/${id}`,{method:'DELETE'});
-      status(action==='delete'?'Monitoring target removed.':'Monitoring state updated.','good');await load();
+      status(action==='delete'?'Monitoring target removed.':'Monitoring state updated.','good');await load({preserveStatus:true});
     }catch(error){status(error.message,'bad');}
   });
 }
@@ -89,11 +93,11 @@ async function bootstrap(){
   if(!KoscheiAuth.requireAuth('/login'))return;
   $('watchForm')?.addEventListener('submit',async event=>{
     event.preventDefault();const button=$('watchAddButton'),target=text($('watchTarget').value),label=text($('watchLabel').value),threshold=Number($('watchThreshold').value||50);if(!target)return;
-    await runButton(button,async()=>{try{await api('/api/watchlist',{method:'POST',body:JSON.stringify({target,target_type:'token',network:'solana-mainnet',label,alert_threshold:threshold})});$('watchTarget').value='';status('Target added to structural monitoring.','good');await load();}catch(error){status(error.message,'bad');}});
+    await runButton(button,async()=>{try{await api('/api/watchlist',{method:'POST',body:JSON.stringify({target,target_type:'token',network:'solana-mainnet',label,alert_threshold:threshold})});$('watchTarget').value='';status('Target added to structural monitoring.','good');await load({preserveStatus:true});}catch(error){status(error.message,'bad');}});
   });
-  $('watchRefreshAll')?.addEventListener('click',event=>runButton(event.currentTarget,async()=>{try{await api('/api/watchlist/refresh?limit=5',{method:'POST',body:'{}'});status('Bounded refresh requested for up to five monitored targets.','good');await load();}catch(error){status(error.message,'bad');}}));
-  $('watchMarkRead')?.addEventListener('click',event=>runButton(event.currentTarget,async()=>{try{await api('/api/watchlist/alerts',{method:'POST',body:'{}'});status('Alert records marked reviewed.','good');await load();}catch(error){status(error.message,'bad');}}));
-  $('watchReload')?.addEventListener('click',load);$('watchSearch')?.addEventListener('input',render);
+  $('watchRefreshAll')?.addEventListener('click',event=>runButton(event.currentTarget,async()=>{try{await api('/api/watchlist/refresh?limit=5',{method:'POST',body:'{}'});status('Bounded refresh requested for up to five monitored targets.','good');await load({preserveStatus:true});}catch(error){status(error.message,'bad');}}));
+  $('watchMarkRead')?.addEventListener('click',event=>runButton(event.currentTarget,async()=>{try{await api('/api/watchlist/alerts',{method:'POST',body:'{}'});status('Alert records marked reviewed.','good');await load({preserveStatus:true});}catch(error){status(error.message,'bad');}}));
+  $('watchReload')?.addEventListener('click',()=>load());$('watchSearch')?.addEventListener('input',render);
   document.addEventListener('click',event=>{const button=event.target.closest('[data-watch-action]');if(button)handleAction(button);});
   await load();
 }
