@@ -11,6 +11,7 @@ let inFlight=false;
 function value(id){return String($(id)?.value||'').trim();}
 function show(message,bad=false){if(!notice)return;notice.textContent=message;notice.className=`pilot-notice show${bad?' bad':''}`;}
 function clear(){if(!notice)return;notice.textContent='';notice.className='pilot-notice';}
+function pageURL(){return `${location.origin}${location.pathname}`;}
 function errorMessage(data,status){const code=String(data?.error||'').trim();switch(code){case'rate_limited':return'Too many pilot applications were submitted from this network. Try again later.';case'database_unavailable':return'Pilot intake is temporarily unavailable.';case'invalid_email':return'Enter a valid work email address.';case'invalid_message':return'The integration description is outside the accepted length.';case'invalid_subject':return'The pilot application title could not be accepted.';case'feedback_store_failed':return'Pilot intake could not store the application.';default:return`Pilot application could not be accepted${status?` (HTTP ${status})`:''}.`;}}
 function messageOf(fields){return[
   `Project: ${fields.project}`,
@@ -30,7 +31,7 @@ form?.addEventListener('submit',async event=>{
   const message=messageOf(fields);if(message.length>5000){show('The pilot description is too long for the current intake contract.',true);return;}
   inFlight=true;submit.disabled=true;submit.textContent='Submitting application…';
   try{
-    const data=await send({event_name:'customer_feedback',email:fields.email,path:location.pathname,metadata:{category:'suggestion',subject:`Integration pilot — ${fields.project}`.slice(0,160),message,contact_email:fields.email,page_url:location.href,website:fields.website}});
+    const data=await send({event_name:'customer_feedback',email:fields.email,path:location.pathname,metadata:{category:'suggestion',subject:`Integration pilot — ${fields.project}`.slice(0,160),message,contact_email:fields.email,page_url:pageURL(),website:fields.website}});
     show(`Pilot application received.${data.feedback_id?` Reference: ${data.feedback_id}`:''}`);form.reset();
   }catch(error){show(error?.message||'Pilot application could not be submitted.',true);}
   finally{inFlight=false;submit.disabled=false;submit.textContent='Submit pilot application';}
