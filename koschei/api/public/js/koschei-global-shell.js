@@ -86,47 +86,6 @@
     document.documentElement.lang='en';
   }
 
-  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char];});}
-  function clamp(value){return Math.max(0,Math.min(100,Math.round(Number(value)||0)));}
-  function grade(risk){return risk>=85?'F':risk>=70?'E':risk>=50?'D':risk>=35?'C':risk>=20?'B':'A';}
-  function action(risk){return risk>=85?'AVOID':risk>=65?'HIGH CAUTION':risk>=35?'CAUTION':'MONITOR';}
-  function riskClass(risk){return risk>=65?'bad':risk>=35?'warn':'good';}
-  function base58Address(value){return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(value||'').trim());}
-
-  function installLandingQuickCheck(current){
-    if(current!=='/'||document.querySelector('.hero-copy'))return;
-    var run=document.getElementById('run'),target=document.getElementById('target'),intent=document.getElementById('intent'),result=document.getElementById('result');
-    if(!run||!target||!intent||!result)return;
-    run.onclick=async function(){
-      var value=target.value.trim();
-      if(!value){result.className='result show';result.innerHTML='<div class="line">Enter a URL, token, address, or signature request first.</div>';return;}
-      run.disabled=true;run.textContent='Checking…';result.className='result show';result.innerHTML='<div class="line">ARVIS is collecting live evidence…</div>';
-      try{
-        if(base58Address(value)){
-          var tokenResponse=await fetch('/api/token/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mint:value,network:'solana-mainnet'})});
-          var tokenData=await tokenResponse.json().catch(function(){return {};});
-          if(tokenResponse.ok){
-            var risk=clamp(100-clamp(tokenData.score));
-            var findings=Array.isArray(tokenData.findings)?tokenData.findings.slice(0,3):[];
-            if(!findings.length)findings=['The live Solana scan completed without an additional authority or holder-concentration finding.'];
-            result.innerHTML='<div class="score '+riskClass(risk)+'">'+esc(grade(risk))+' · '+esc(risk)+'/100</div><b>'+esc(action(risk))+'</b><p class="sub" style="margin-top:6px">Live token scan completed.</p>'+findings.map(function(item){return '<div class="line">'+esc(item)+'</div>';}).join('')+'<div class="actions" style="margin-top:12px"><a class="btn primary" href="/scan/'+encodeURIComponent(value)+'">Open evidence result</a><a class="btn" href="/security-radar?target='+encodeURIComponent(value)+'">Run deep scan</a></div>';
-            return;
-          }
-          if(tokenResponse.status>=500)throw new Error('live_token_unavailable');
-        }
-        var response=await fetch('/api/arvis/preflight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:value,intent:intent.value,note:'landing_instant_safe_check'})});
-        var data=await response.json().catch(function(){return {};});
-        if(!response.ok)throw new Error(data.error||'preflight_failed');
-        var score=clamp(data.score||data.risk_index),level=String(data.risk_level||'unknown').toLowerCase(),decision=String(data.decision||data.policy||'review').toLowerCase();
-        var decisionLabel=decision==='blocked'||decision==='block'?'BLOCK':decision==='warn'?'WARNING':decision==='allow'?'ALLOW':'REVIEW';
-        var reasons=(Array.isArray(data.reasons)?data.reasons:[]).concat(Array.isArray(data.next_steps)?data.next_steps:[]).slice(0,5);
-        result.innerHTML='<div class="score '+riskClass(score)+'">'+esc(score)+'</div><b>'+esc(decisionLabel)+' · '+esc(level)+'</b><p class="sub" style="margin-top:6px">'+esc(data.human_message||data.verdict||'ARVIS preflight completed.')+'</p>'+reasons.map(function(item){return '<div class="line">'+esc(item)+'</div>';}).join('')+'<div class="actions" style="margin-top:12px"><a class="btn primary" href="/safe-check">Open Safe Check</a><a class="btn" href="/security-radar?target='+encodeURIComponent(value)+'">Run deep scan</a></div>';
-      }catch(error){
-        result.innerHTML='<div class="line">DEGRADED DEPENDENCY — Live security evidence is unavailable. No safe verdict was produced; do not proceed with a suspicious action and retry later.</div>';
-      }finally{run.disabled=false;run.textContent='Check with ARVIS';}
-    };
-  }
-
   function loadInvestigationShare(current){
     if(current!=='/security-radar'||window.KoscheiInvestigationShare||document.querySelector('script[data-koschei-investigation-share]'))return;
     var script=document.createElement('script');
@@ -136,15 +95,22 @@
     document.head.appendChild(script);
   }
 
+  function isActiveNavItem(href,current){
+    var mode=new URLSearchParams(location.search||'').get('mode');
+    if(href==='/scan?mode=deep')return current==='/scan'&&mode==='deep';
+    if(href==='/scan')return current==='/scan'&&mode!=='deep';
+    return current===href;
+  }
+
   ready(function(){
-    var links=[['/live','Live SOC'],['/cases','Cases'],['/scan','Token Scan'],['/transaction-shield','Transaction Shield'],['/safe-check','Safe Check'],['/security-radar','Security Radar'],['/dashboard','Workspace'],['/kosch','KOSCH']];
+    var links=[['/live','Live SOC'],['/cases','Cases'],['/scan','Token Scan'],['/transaction-shield','Transaction Shield'],['/safe-check','Safe Check'],['/scan?mode=deep','Deep Scan'],['/dashboard','Workspace'],['/kosch','KOSCH']];
     var current=(location.pathname||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';
     var existing=document.querySelector('.top .nav, header.top nav.nav, nav.top .nav');
     var nav=existing||document.createElement('nav');
     nav.className=(existing?'nav ':'')+'koschei-global-nav';
     nav.setAttribute('aria-label','Main navigation');
     while(nav.firstChild)nav.removeChild(nav.firstChild);
-    links.forEach(function(item){var anchor=document.createElement('a');anchor.href=item[0];anchor.textContent=item[1];if(current===item[0])anchor.setAttribute('aria-current','page');nav.appendChild(anchor);});
+    links.forEach(function(item){var anchor=document.createElement('a');anchor.href=item[0];anchor.textContent=item[1];if(isActiveNavItem(item[0],current))anchor.setAttribute('aria-current','page');nav.appendChild(anchor);});
     if(!existing){var top=document.querySelector('header.top,.top');if(top){nav.className+=' detached';top.parentNode.insertBefore(nav,top.nextSibling);}}
     if(current==='/dashboard'&&!document.querySelector('.koschei-safety-strip')){var strip=document.createElement('section');strip.className='koschei-safety-strip';strip.innerHTML='<div><b>Ask Koschei before buying or signing.</b><span>Scan the token mint live or simulate a Solana transaction before sending it.</span></div><span><a href="/scan">Token Scan</a> <a href="/transaction-shield">Transaction Shield</a></span>';var stripAnchor=document.querySelector('.koschei-global-nav')||document.querySelector('header.top,.top');if(stripAnchor&&stripAnchor.parentNode){stripAnchor.parentNode.insertBefore(strip,stripAnchor.nextSibling);}}
     var bottom=document.querySelector('nav.bottom');if(bottom)bottom.remove();
@@ -152,7 +118,6 @@
     if(current==='/safe-check')document.title='Safe Check — Koschei ARVIS';
     if(current==='/security-radar')document.title='Koschei ARVIS — Full Security Radar';
     translate(document.body);
-    installLandingQuickCheck(current);
     loadInvestigationShare(current);
     var observer=new MutationObserver(function(records){records.forEach(function(record){record.addedNodes.forEach(function(node){if(node.nodeType===1)translate(node);else if(node.nodeType===3&&node.parentElement){var next=translateString(node.nodeValue);if(next!==node.nodeValue)node.nodeValue=next;}});});});
     observer.observe(document.body,{childList:true,subtree:true,characterData:false});
