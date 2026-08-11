@@ -1,33 +1,27 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Chain Health — Koschei ARVIS</title>
-<link rel="stylesheet" href="/css/koschei-global-shell.css?v=2">
-<style>
-:root{--g:#18ffb2;--c:#24eaff;--r:#ff5577;--a:#ffce66;--t:#f4fbff;--m:#9aabb8;--line:#24eaff30;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--t);font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 10% 0,#18ffb222,transparent 30%),linear-gradient(135deg,#020409,#071522 60%,#02040a)}a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 22px));margin:auto;padding:18px 0 48px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.brand{display:flex;gap:10px;align-items:center;font-weight:1000}.logo{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:#02110d;background:linear-gradient(135deg,var(--g),var(--c))}.nav{display:flex;gap:8px;flex-wrap:wrap}.nav a,.btn{border:1px solid var(--line);border-radius:999px;padding:10px 13px;color:var(--m);font-weight:900;background:#ffffff08}.btn.primary{border:0;color:#02110d;background:linear-gradient(135deg,var(--g),var(--c))}.hero,.card,.table{border:1px solid var(--line);background:linear-gradient(145deg,#0a121cf0,#050a10e8);border-radius:24px;box-shadow:0 24px 80px #000a}.hero{padding:24px;margin-bottom:14px}.eyebrow{font:1000 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:#8ffcf0}.hero h1{font-size:clamp(38px,6vw,68px);line-height:.95;letter-spacing:-.06em;margin:10px 0}.muted{color:var(--m);line-height:1.65}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{padding:17px;min-height:130px}.chain{display:flex;align-items:center;justify-content:space-between;gap:10px}.dot{width:10px;height:10px;border-radius:50%;background:var(--a);box-shadow:0 0 18px #ffcc6670}.dot.ok{background:var(--g);box-shadow:0 0 18px #18ffb280}.dot.bad{background:var(--r);box-shadow:0 0 18px #ff557780}.status{margin-top:12px;color:var(--m);font:900 12px var(--mono)}.status.ok{color:var(--g)}.status.bad{color:var(--r)}.meta{font:12px var(--mono);color:var(--m);margin-top:8px}.table{margin-top:14px;padding:16px;overflow:auto}.row{display:grid;grid-template-columns:1fr 1fr 1fr 1.4fr;gap:10px;padding:10px 0;border-top:1px solid #ffffff10;font-size:12px}.row:first-child{border-top:0;color:#8ffcf0;text-transform:uppercase;font:900 11px var(--mono)}.row b{font-family:var(--mono);word-break:break-all}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}@media(max-width:820px){.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.nav,.actions{width:100%}.nav a,.btn{flex:1;text-align:center}}
-</style>
+<meta name="description" content="Inspect current Koschei ARVIS chain-provider health across configured Solana and EVM health checks without fabricating provider, status, or timing evidence.">
+<meta name="theme-color" content="#02050a">
+<title>Chain Health · Koschei ARVIS</title>
+<link rel="canonical" href="https://tradepigloball.co/chain-health">
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/chain-health-v2.css?v=1">
 </head>
-<body>
-<main class="wrap">
-<header class="top"><a class="brand" href="/"><span class="logo">K</span><span>Koschei ARVIS</span></a><nav class="nav"><a href="/dashboard">Panel</a><a href="/kosch-access">KOSCH Access</a><a href="/security-radar">Radar</a><a href="/token">Token</a></nav></header>
-<section class="hero"><div class="eyebrow">Alchemy-powered network proof</div><h1>Chain health canlı.</h1><p class="muted">Koschei ARVIS, Alchemy üzerinden desteklenen ağların RPC durumunu düzenli kontrol eder. Bu sayfa Solana, Ethereum, Base, Arbitrum, Polygon ve Optimism için anlık sağlık sinyali gösterir.</p><div class="actions"><button class="btn primary" id="refresh">Yenile</button><a class="btn" href="/dashboard">Dashboard</a></div></section>
-<section class="grid" id="cards"></section>
-<section class="table"><div class="row"><span>Chain</span><span>Network</span><span>Status</span><span>Provider / Time</span></div><div id="rows"></div></section>
+<body class="chain-page koschei-v2">
+<main class="chain-wrap">
+<nav class="chain-nav"><a class="chain-brand" href="/"><span class="chain-mark">K</span><span><strong>Koschei ARVIS</strong><small>Chain-provider health</small></span></a><div class="chain-links"><a class="chain-btn" href="/dashboard">Workspace</a><a class="chain-btn" href="/scan?mode=deep">Deep Scan</a><a class="chain-btn" href="/kosch">KOSCH Access</a><a class="chain-btn" href="/live">Live Radar</a></div></nav>
+<header class="chain-hero"><span class="chain-kicker">CONFIGURED PROVIDER HEALTH · READ-ONLY</span><h1>See what the health endpoints actually return.</h1><p>This page checks the current configured health route for Solana, Ethereum, Base, Arbitrum, Polygon, and Optimism. It does not assume every chain uses the same provider, and it does not turn missing provider/status data into a healthy signal.</p><div class="chain-proofline"><span class="chain-chip">Provider comes from API evidence</span><span class="chain-chip">Network comes from API evidence</span><span class="chain-chip">Parallel bounded checks</span><span class="chain-chip warn">Unavailable ≠ online</span></div><div class="chain-actions" style="margin-top:18px"><button class="chain-btn primary" id="chainRefresh" type="button">Refresh now</button><a class="chain-btn" href="/dashboard">Open Workspace</a></div><div id="chainSummary" class="chain-summary neutral" role="status" aria-live="polite">Waiting for current chain-provider health evidence…</div><div id="chainUpdated" class="chain-updated">UI refresh not started.</div></header>
+<section id="chainCards" class="chain-grid" aria-label="Chain health cards"></section>
+<section class="chain-table" aria-label="Chain health evidence table"><div class="chain-row chain-table-head"><span>Chain</span><span>Network</span><span>Status</span><span>Provider / UI refresh</span></div><div id="chainRows"></div></section>
+<div class="chain-boundary"><b>Evidence boundary:</b> “UI refreshed” is the browser refresh time, not a provider-signed observation timestamp. Provider, network, status, result, and error text are rendered only from the current health response. A missing response remains UNAVAILABLE.</div>
+<footer class="chain-footer"><span>Koschei ARVIS · chain-provider health</span><nav><a href="/">Home</a><a href="/scan?mode=deep">Deep Scan</a><a href="/live">Live Radar</a><a href="/kosch">KOSCH Access</a></nav></footer>
 </main>
-<script src="/js/koschei-global-shell.js?v=2"></script>
-<script>
-(function(){
-const chains=[['solana','Solana'],['ethereum','Ethereum'],['base','Base'],['arbitrum','Arbitrum'],['polygon','Polygon'],['optimism','Optimism']];
-const cards=document.getElementById('cards'),rows=document.getElementById('rows'),refresh=document.getElementById('refresh');
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function card(name,d){const ok=d&&d.ok;return `<article class="card"><div class="chain"><b>${esc(name)}</b><span class="dot ${ok?'ok':'bad'}"></span></div><div class="status ${ok?'ok':'bad'}">${ok?'Online':esc(d?.status||'unknown')}</div><div class="meta">Network: ${esc(d?.network||'—')}</div><div class="meta">Provider: ${esc(d?.provider||'Alchemy')}</div></article>`}
-function row(name,d){const ok=d&&d.ok;return `<div class="row"><b>${esc(name)}</b><span>${esc(d?.network||'—')}</span><b class="${ok?'status ok':'status bad'}">${ok?'Online':esc(d?.status||'unknown')}</b><span>${esc(d?.provider||'Alchemy')} · ${new Date().toLocaleTimeString('tr-TR')}</span></div>`}
-async function load(){refresh.textContent='Kontrol ediliyor…';refresh.disabled=true;const out=[];for(const [id,name] of chains){try{const r=await fetch('/api/web3/health?chain='+encodeURIComponent(id),{cache:'no-store'});const d=await r.json();out.push([name,d]);}catch(e){out.push([name,{ok:false,status:'error',provider:'Alchemy'}]);}}
-cards.innerHTML=out.map(x=>card(x[0],x[1])).join('');rows.innerHTML=out.map(x=>row(x[0],x[1])).join('');refresh.textContent='Yenile';refresh.disabled=false}
-refresh.onclick=load;load();setInterval(load,30000);
-})();
-</script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=1"></script>
+<script src="/js/chain-health-v2.js?v=1"></script>
 </body>
 </html>
