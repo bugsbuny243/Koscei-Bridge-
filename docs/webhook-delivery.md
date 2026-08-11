@@ -70,7 +70,7 @@ Twenty consecutive endpoint failures automatically pause the endpoint to protect
 
 ## Customer routes
 
-All routes require a customer session and active entitlement.
+All webhook-management and delivery-console routes require a verified customer session and active **Enterprise KOSCH eligibility**. Webhook management itself does not consume a scan unit; the scans and watchlist operations that create security events are metered separately by their own route contracts.
 
 ```text
 GET    /api/webhooks
