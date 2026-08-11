@@ -1,4 +1,4 @@
-name: Customer Access V2 Acceptance
+name: Customer Access Evidence Acceptance
 
 on:
   pull_request:
@@ -8,6 +8,9 @@ on:
       - 'koschei/api/public/js/customer-access-v2.js'
       - 'koschei/api/public/css/customer-access-v2.css'
       - 'koschei/api/scripts/verify-customer-access-v2.js'
+      - 'koschei/api/internal/handlers/wallet_ownership.go'
+      - 'koschei/api/internal/handlers/token_access.go'
+      - 'koschei/api/internal/handlers/premium_access_status.go'
       - '.github/workflows/customer-access-v2.yml'
   workflow_dispatch:
 
@@ -22,5 +25,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check access JavaScript syntax
         run: node --check koschei/api/public/js/customer-access-v2.js
-      - name: Verify self-custody access contract
+      - name: Verify evidence-complete self-custody access contract
         run: node koschei/api/scripts/verify-customer-access-v2.js
