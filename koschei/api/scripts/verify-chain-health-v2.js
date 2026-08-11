@@ -13,7 +13,7 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 requireText(html,'<html lang="en">','chain page language');
 requireText(html,'Provider comes from API evidence','provider evidence boundary');
 requireText(html,'Unavailable ≠ online','unavailable health boundary');
-requireText(html,'UI refresh time, not a provider-signed observation timestamp','browser-time boundary');
+requireText(html,'browser refresh time, not a provider-signed observation timestamp','browser-time boundary');
 requireText(html,'/scan?mode=deep','canonical Deep Scan route');
 requireText(html,'/kosch','canonical KOSCH route');
 requireText(html,'/js/chain-health-v2.js?v=1','external health controller');
