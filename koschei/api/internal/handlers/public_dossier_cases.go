@@ -86,7 +86,7 @@ func (h *Handler) PublicDossierCases(w http.ResponseWriter, r *http.Request) {
 		"generated_at": time.Now().UTC(),
 		"count":        len(cases),
 		"publication_policy": map[string]any{
-			"explicit_publication_required":           true,
+			"explicit_publication_required":            true,
 			"private_customer_investigations_excluded": true,
 			"identity_or_wrongdoing_claim":             false,
 			"immutable_source_bundle":                  true,
@@ -199,6 +199,10 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `SELECT pg_advisory_xact_lock(hashtext($1))`, input.CaseRef); err != nil {
+		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Publication case lock could not be acquired")
+		return
+	}
 
 	previousStatus, previousFeatured := "", false
 	previousExists := true
