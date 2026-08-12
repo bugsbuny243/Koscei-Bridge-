@@ -13,34 +13,39 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(html,'ENTERPRISE DEVELOPER CREDENTIALS','Enterprise credential section');
-requireText(html,'API-key management requires Enterprise KOSCH eligibility','Enterprise credential boundary');
-requireText(html,'Requested limits are only requests; the server applies its current tier defaults and caps','server-owned cap copy');
+requireText(html,'API-key management requires an active Enterprise SaaS entitlement','Enterprise credential boundary');
+requireText(html,'Requested limits are only requests; the server applies current plan caps','server-owned cap copy');
 requireText(html,'Raw keys are returned only at creation','one-time raw-key copy');
 requireText(html,'id="apiKeySecretPanel" hidden','hidden one-time key panel');
 requireText(html,'id="apiKeyCount">UNAVAILABLE','unknown initial key count');
 requireText(html,'/css/customer-api-keys-v1.css?v=1','credential stylesheet');
 requireText(html,'/js/customer-api-keys-v1.js?v=1','credential controller');
 requireText(html,'Never ship it in browser JavaScript','server-side secret guidance');
+forbid(html,/KOSCH eligibility|holder access/i,'token-backed Enterprise credential copy');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(server,'mux.HandleFunc("/api/account/api-keys", requiresDB(h, koschTierAccess("enterprise", h.APIKeysCollection)))','Enterprise credential collection route');
-requireText(server,'mux.HandleFunc("/api/account/api-keys/", requiresDB(h, koschTierAccess("enterprise", method("POST", h.RevokeAPIKey))))','Enterprise credential revoke route');
+requireText(server,'planTierAccess("enterprise", h.APIKeysCollection)','Enterprise credential collection route');
+requireText(server,'planTierAccess("enterprise", method("POST", h.RevokeAPIKey))','Enterprise credential revoke route');
+forbid(server,/RequireAPIKeyTokenTier|RequireTokenTier|EnforceScanQuota/,'legacy token authorization in boot chain');
 
 requireText(handler,'func (h *Handler) APIKeysCollection','credential collection handler');
 requireText(handler,'case http.MethodGet:','credential GET collection');
 requireText(handler,'h.ListAPIKeys(w, r)','credential list dispatch');
 requireText(handler,'case http.MethodPost:','credential POST collection');
 requireText(handler,'h.CreateAPIKey(w, r)','credential create dispatch');
+requireText(handler,'evaluation, evaluationErr := h.evaluatePlanAccess','SaaS entitlement lookup');
+requireText(handler,'planTierAuthorizes(plan, "enterprise")','Enterprise plan authorization');
 requireText(handler,'raw, err := newRawAPIKey()','raw credential generation');
 requireText(handler,'hash := hashAPIKey(raw)','raw credential hashing');
 requireText(handler,'INSERT INTO api_keys (auth_subject,email,name,key_prefix,key_hash','hashed credential storage');
 requireText(handler,'"key":                   raw','one-time raw credential response');
+requireText(handler,'"plan":                  plan','server-effective plan response');
 requireText(handler,'SELECT id::text,name,key_prefix,status,monthly_limit,rate_limit_per_minute,created_at,last_used_at,revoked_at FROM api_keys','prefix-only list query');
 requireText(handler,'"api_keys": items','credential list envelope');
 requireText(handler,"UPDATE api_keys SET status='revoked', revoked_at=now() WHERE id=$1 AND auth_subject=$2 AND status='active'",'active-only revoke');
-requireText(handler,'"ok": true, "message": "API anahtarı iptal edildi."','authoritative revoke ok response');
 requireText(handler,'effectiveMonthly, effectiveRPM := clampAPIKeyLimits(requestedMonthly, requestedRPM, caps)','create-time requested-limit clamp invocation');
+forbid(handler,/evaluateTokenAccess|token_tier/i,'token-backed API key creation');
 
 requireText(caps,'apiKeyCapsByTier','server-owned credential cap map');
 requireText(caps,'func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) (int, int)','server-side clamp definition');
@@ -55,15 +60,15 @@ requireText(js,'const SECRET_VISIBLE_MS=120000','bounded one-time raw-key visibi
 requireText(js,"secretValue.textContent=''",'raw key DOM removal');
 requireText(js,"if(!Array.isArray(items)){count.textContent='UNAVAILABLE'",'missing credential collection boundary');
 requireText(js,"data?.ok!==true||!Array.isArray(data?.api_keys)",'list envelope completeness boundary');
-requireText(js,"if(!key||!id||!tier||monthly===null||monthly<=0||rpm===null||rpm<=0)",'create response completeness boundary');
-requireText(js,'Server effective tier: ${tier.toUpperCase()}','server-returned effective tier display');
+requireText(js,"const key=text(data?.key,''),id=text(data?.id,''),plan=text(data?.plan,'')",'create response plan field');
+requireText(js,'Server effective plan: ${plan.toUpperCase()}','server-returned effective plan display');
 requireText(js,"if(id&&status==='active')",'active-only revoke UI');
 requireText(js,"status==='active'||status==='revoked'?status.toUpperCase():'UNAVAILABLE'",'unknown status boundary');
 requireText(js,"optionalPositiveInteger('apiKeyMonthly'",'optional requested monthly limit');
 requireText(js,"optionalPositiveInteger('apiKeyRPM'",'optional requested RPM');
 requireText(js,"data?.ok!==true)throw new Error('The revoke response was incomplete.')",'revoke response completeness');
 requireText(js,"KoscheiAuth.requireAuth('/login.html')",'canonical login continuation');
-
+forbid(js,/KOSCH eligibility|token tier/i,'token-backed API credential UI');
 forbid(js,/\bfetch\s*\(/,'raw fetch bypassing KoscheiAuth');
 forbid(js,/Authorization/i,'manual bearer header');
 forbid(js,/X-API-Key/i,'management controller must not authenticate itself with a developer credential');
@@ -80,4 +85,4 @@ for(const cap of ['1000','20000','200000','30','120','600']){
 requireText(css,'.api-key-secret','one-time raw-key styles');
 requireText(css,'.api-key-status.bad','revoked/failed credential styles');
 requireText(css,'@media(max-width:520px)','mobile credential layout');
-console.log('Enterprise credential lifecycle contract: ok');
+console.log('Enterprise SaaS credential lifecycle contract: ok');
