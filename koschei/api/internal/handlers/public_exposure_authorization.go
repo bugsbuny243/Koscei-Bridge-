@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-var errPublicExposureNotAuthorized = errors.New("public exposure is not authorized")
+var (
+	errPublicExposureNotAuthorized = errors.New("public exposure is not authorized")
+	errPublicExposureIntegrity     = errors.New("public exposure dossier integrity failed")
+)
 
 type publicExposureRecord struct {
 	Bundle            dossierBundle
@@ -69,7 +72,7 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 		return publicExposureRecord{}, err
 	}
 	if !publishedAt.Valid {
-		return publicExposureRecord{}, fmt.Errorf("public exposure publication timestamp is unavailable")
+		return publicExposureRecord{}, fmt.Errorf("%w: publication timestamp is unavailable", errPublicExposureIntegrity)
 	}
 
 	ledgerStatus, publicationAction, err := verifyPublicationLedgerReadback(
@@ -80,7 +83,7 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 	}
 	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
 	if err != nil {
-		return publicExposureRecord{}, fmt.Errorf("public exposure dossier integrity failed: %w", err)
+		return publicExposureRecord{}, fmt.Errorf("%w: %v", errPublicExposureIntegrity, err)
 	}
 	return publicExposureRecord{
 		Bundle:            bundle,
@@ -92,6 +95,14 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 		LedgerStatus:      ledgerStatus,
 		PublicationAction: publicationAction,
 	}, nil
+}
+
+func publicExposureNotAuthorized(err error) bool {
+	return errors.Is(err, errPublicExposureNotAuthorized)
+}
+
+func publicExposureIntegrityFailed(err error) bool {
+	return errors.Is(err, errPublicExposureIntegrity)
 }
 
 func applyPublicExposureHeaders(w http.ResponseWriter, record publicExposureRecord) {
