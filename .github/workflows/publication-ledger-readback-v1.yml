@@ -7,6 +7,9 @@ on:
       - 'koschei/api/internal/handlers/publication_ledger_readback.go'
       - 'koschei/api/internal/handlers/publication_ledger_readback_test.go'
       - 'koschei/api/migrations/099_dossier_publication_transition_linkage.sql'
+      - 'koschei/api/public/cases.html'
+      - 'koschei/api/public/js/public-soc.js'
+      - 'koschei/api/scripts/verify-public-case-registry-integrity-v1.js'
       - 'koschei/api/scripts/verify-publication-ledger-readback-v1.js'
       - '.github/workflows/publication-ledger-readback-v1.yml'
   workflow_dispatch:
@@ -51,5 +54,11 @@ jobs:
       - name: Test publication ledger readback
         run: go test ./internal/handlers -run '^TestVerifyPublicationLedgerReadback' -count=1
 
+      - name: Check public case JavaScript
+        run: node --check public/js/public-soc.js
+
       - name: Verify readback contract
         run: node scripts/verify-publication-ledger-readback-v1.js
+
+      - name: Verify public registry regression contract
+        run: node scripts/verify-public-case-registry-integrity-v1.js
