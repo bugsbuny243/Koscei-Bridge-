@@ -19,7 +19,8 @@ requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');
 requireText(reportsHTML,'History without invented evidence.','reports truth boundary');
 requireText(reportsHTML,'reading history does not consume a scan unit','reports read-only quota boundary');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
-requireText(watchHTML,'Pro tier or higher','watchlist Pro tier boundary');
+requireText(watchHTML,'Professional plan or higher','watchlist Professional SaaS boundary');
+if(/KOSCH tier|holder tier|Pro tier or higher/i.test(watchHTML))throw new Error('watchlist html: legacy token-tier access copy is forbidden');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'canonical investigation history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'history schema gate');
@@ -48,6 +49,7 @@ requireText(watchJS,"setTargetKPIsUnavailable('Monitoring target collection unav
 requireText(watchJS,"setAlertKPIUnavailable('Alert collection unavailable; no unread count inferred.')",'watchlist alert unavailable-not-zero boundary');
 requireText(watchJS,"load({preserveStatus:true})",'action feedback preservation');
 if(watchJS.includes('.innerHTML='))throw new Error('watchlist js: API data must use DOM/textContent rendering');
+if(/Pro KOSCH|token tier|holder tier/i.test(watchJS))throw new Error('watchlist js: legacy token-tier access messaging is forbidden');
 
 for(const [js,label] of [[reportsJS,'reports js'],[watchJS,'watchlist js']]){
   if(js.includes('Math.random('))throw new Error(`${label}: must not fabricate operational metrics`);
