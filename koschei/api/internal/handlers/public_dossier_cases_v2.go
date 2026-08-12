@@ -100,7 +100,7 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 			"immutable_source_bundle":                  true,
 			"canonical_bundle_hash_reverified":         true,
 			"publication_ledger_readback_verified":     true,
-			"publication_effective_time_event_backed": true,
+			"publication_effective_time_event_backed":  true,
 			"db_owned_publication_time_v1":             true,
 			"legacy_publication_lineage_declared":      true,
 			"transition_identifiers_public":            false,
