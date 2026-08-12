@@ -68,9 +68,9 @@ type publicSOCEvent struct {
 	Description string    `json:"description"`
 }
 
-// PublicDossierCases lists only dossiers explicitly published by an owner.
-// The immutable bundle remains the source of truth; this route exposes a small,
-// read-only discovery projection and never creates, rescans or changes a verdict.
+// PublicDossierCases lists only dossiers explicitly present in the publication
+// registry. The immutable bundle remains the source of truth; this route exposes
+// a small read-only discovery projection and never changes a verdict.
 func (h *Handler) PublicDossierCases(w http.ResponseWriter, r *http.Request) {
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
 	cases, err := h.loadPublicDossierCases(r, limit)
@@ -86,7 +86,7 @@ func (h *Handler) PublicDossierCases(w http.ResponseWriter, r *http.Request) {
 		"generated_at": time.Now().UTC(),
 		"count":        len(cases),
 		"publication_policy": map[string]any{
-			"explicit_owner_publish_required":          true,
+			"explicit_publication_required":            true,
 			"private_customer_investigations_excluded": true,
 			"identity_or_wrongdoing_claim":             false,
 			"immutable_source_bundle":                  true,
@@ -95,8 +95,8 @@ func (h *Handler) PublicDossierCases(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// PublicSOCFeed is the first public, evidence-only SOC projection. It is built
-// exclusively from explicitly published immutable dossiers and is safe to poll.
+// PublicSOCFeed is a public, evidence-only projection built exclusively from
+// explicitly published immutable dossiers and safe to poll.
 func (h *Handler) PublicSOCFeed(w http.ResponseWriter, r *http.Request) {
 	cases, err := h.loadPublicDossierCases(r, 20)
 	if err != nil {
@@ -146,7 +146,7 @@ func (h *Handler) PublicSOCFeed(w http.ResponseWriter, r *http.Request) {
 		},
 		"events": events,
 		"boundaries": []string{
-			"Only owner-published immutable dossiers appear here.",
+			"Only explicitly published, integrity-verified immutable dossiers appear here.",
 			"No private customer scan, secret, internal worker detail or real-world identity attribution is exposed.",
 			"No new event is shown when no new verifiable publication exists.",
 		},
@@ -154,7 +154,10 @@ func (h *Handler) PublicSOCFeed(w http.ResponseWriter, r *http.Request) {
 }
 
 // OwnerDossierPublication controls discovery visibility only. It never mutates
-// dossier_exports or dossier_source_snapshots.
+// dossier_exports or dossier_source_snapshots. A transition to public is allowed
+// only after the exact export is locked and integrity-verified inside the same
+// transaction. De-publication remains available even when export integrity is
+// broken so an owner can fail safe by hiding a damaged public record.
 func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.DB == nil {
 		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Dossier publication database is unavailable")
@@ -190,33 +193,17 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var canonical []byte
-	if err := h.DB.QueryRowContext(r.Context(), `SELECT canonical_bundle FROM dossier_exports WHERE case_ref=$1`, input.CaseRef).Scan(&canonical); err != nil {
-		if err == sql.ErrNoRows {
-			writeAPIError(w, http.StatusNotFound, APICodeNotFound, "Immutable dossier was not found")
-			return
-		}
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Immutable dossier could not be loaded")
-		return
-	}
-	var bundle dossierBundle
-	if json.Unmarshal(canonical, &bundle) != nil || bundle.CaseRef != input.CaseRef || bundle.BundleHash == "" {
-		writeAPIError(w, http.StatusConflict, APICodeConflict, "Immutable dossier bundle is invalid")
-		return
-	}
-	if input.PublicTitle == "" {
-		input.PublicTitle = defaultPublicDossierTitle(bundle)
-	}
-	if input.PublicSummary == "" {
-		input.PublicSummary = defaultPublicDossierSummary(bundle)
-	}
-
 	tx, err := h.DB.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Publication transaction could not start")
 		return
 	}
 	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `SELECT pg_advisory_xact_lock(hashtext($1))`, input.CaseRef); err != nil {
+		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Publication case lock could not be acquired")
+		return
+	}
+
 	previousStatus, previousFeatured := "", false
 	previousExists := true
 	if err := tx.QueryRowContext(r.Context(), `SELECT status,featured FROM dossier_publications WHERE case_ref=$1`, input.CaseRef).Scan(&previousStatus, &previousFeatured); err != nil {
@@ -227,6 +214,49 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
+
+	var bundle dossierBundle
+	integrityVerified := false
+	if input.Status == "public" {
+		var canonical []byte
+		var storedHash string
+		if err := tx.QueryRowContext(r.Context(), `
+			SELECT canonical_bundle,bundle_hash
+			FROM dossier_exports
+			WHERE case_ref=$1
+			FOR SHARE`, input.CaseRef).Scan(&canonical, &storedHash); err != nil {
+			if err == sql.ErrNoRows {
+				writeAPIError(w, http.StatusNotFound, APICodeNotFound, "Immutable dossier was not found")
+				return
+			}
+			writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Immutable dossier could not be locked")
+			return
+		}
+		verified, verifyErr := verifyStoredDossierBundle(canonical, input.CaseRef, storedHash)
+		if verifyErr != nil {
+			writeAPIError(w, http.StatusConflict, APICodeConflict, "Immutable dossier integrity verification failed")
+			return
+		}
+		bundle = verified
+		integrityVerified = true
+		if input.PublicTitle == "" {
+			input.PublicTitle = defaultPublicDossierTitle(bundle)
+		}
+		if input.PublicSummary == "" {
+			input.PublicSummary = defaultPublicDossierSummary(bundle)
+		}
+	} else if !previousExists {
+		var exists int
+		if err := tx.QueryRowContext(r.Context(), `SELECT 1 FROM dossier_exports WHERE case_ref=$1`, input.CaseRef).Scan(&exists); err != nil {
+			if err == sql.ErrNoRows {
+				writeAPIError(w, http.StatusNotFound, APICodeNotFound, "Immutable dossier was not found")
+				return
+			}
+			writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Immutable dossier existence could not be checked")
+			return
+		}
+	}
+
 	_, err = tx.ExecContext(r.Context(), `
 		INSERT INTO dossier_publications
 			(case_ref,status,public_title,public_summary,featured,redaction_profile,published_at,published_by,created_at,updated_at)
@@ -234,8 +264,8 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 			($1,$2,$3,$4,$5,$6,CASE WHEN $2='public' THEN now() ELSE NULL END,'owner',now(),now())
 		ON CONFLICT (case_ref) DO UPDATE SET
 			status=EXCLUDED.status,
-			public_title=EXCLUDED.public_title,
-			public_summary=EXCLUDED.public_summary,
+			public_title=CASE WHEN EXCLUDED.public_title<>'' THEN EXCLUDED.public_title ELSE dossier_publications.public_title END,
+			public_summary=CASE WHEN EXCLUDED.public_summary<>'' THEN EXCLUDED.public_summary ELSE dossier_publications.public_summary END,
 			featured=CASE WHEN EXCLUDED.status='public' THEN EXCLUDED.featured ELSE false END,
 			redaction_profile=EXCLUDED.redaction_profile,
 			published_at=CASE WHEN EXCLUDED.status='public' THEN COALESCE(dossier_publications.published_at,now()) ELSE dossier_publications.published_at END,
@@ -247,10 +277,15 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 		return
 	}
 	action := publicDossierPublicationAction(previousExists, previousStatus, previousFeatured, input.Status, input.Featured)
-	stateJSON, _ := json.Marshal(map[string]any{
+	state := map[string]any{
 		"status": input.Status, "featured": input.Featured,
 		"public_title": input.PublicTitle, "redaction_profile": input.RedactionProfile,
-	})
+		"public_transition_integrity_verified": integrityVerified,
+	}
+	if integrityVerified {
+		state["bundle_hash"] = bundle.BundleHash
+	}
+	stateJSON, _ := json.Marshal(state)
 	if _, err := tx.ExecContext(r.Context(), `
 		INSERT INTO dossier_publication_events (case_ref,action,actor,publication_state)
 		VALUES ($1,$2,'owner',$3::jsonb)`, input.CaseRef, action, string(stateJSON)); err != nil {
@@ -262,16 +297,17 @@ func (h *Handler) OwnerDossierPublication(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	publishedAt := time.Time{}
-	if input.Status == "public" {
-		_ = h.DB.QueryRowContext(r.Context(), `SELECT published_at FROM dossier_publications WHERE case_ref=$1`, input.CaseRef).Scan(&publishedAt)
+	response := map[string]any{
+		"ok": true, "status": input.Status, "action": action, "case_ref": input.CaseRef,
+		"public_transition_integrity_verified": integrityVerified,
+		"immutable_dossier_unchanged":          true,
 	}
-	item := buildPublicDossierCase(bundle, input.PublicTitle, input.PublicSummary, input.Featured, publishedAt, input.RedactionProfile)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "status": input.Status, "action": action,
-		"case":                        item,
-		"immutable_dossier_unchanged": true,
-	})
+	if input.Status == "public" {
+		publishedAt := time.Time{}
+		_ = h.DB.QueryRowContext(r.Context(), `SELECT published_at FROM dossier_publications WHERE case_ref=$1`, input.CaseRef).Scan(&publishedAt)
+		response["case"] = buildPublicDossierCase(bundle, input.PublicTitle, input.PublicSummary, input.Featured, publishedAt, input.RedactionProfile)
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) loadPublicDossierCases(r *http.Request, limit int) ([]publicDossierCase, error) {
@@ -283,7 +319,7 @@ func (h *Handler) loadPublicDossierCases(r *http.Request, limit int) ([]publicDo
 		return nil, sql.ErrConnDone
 	}
 	rows, err := db.QueryContext(r.Context(), `
-		SELECT p.case_ref,p.public_title,p.public_summary,p.featured,p.redaction_profile,p.published_at,e.canonical_bundle
+		SELECT p.case_ref,p.public_title,p.public_summary,p.featured,p.redaction_profile,p.published_at,e.canonical_bundle,e.bundle_hash
 		FROM dossier_publications p
 		JOIN dossier_exports e ON e.case_ref=p.case_ref
 		WHERE p.status='public'
@@ -295,16 +331,16 @@ func (h *Handler) loadPublicDossierCases(r *http.Request, limit int) ([]publicDo
 	defer rows.Close()
 	out := []publicDossierCase{}
 	for rows.Next() {
-		var caseRef, title, summary, profile string
+		var caseRef, title, summary, profile, storedHash string
 		var featured bool
 		var publishedAt time.Time
 		var canonical []byte
-		if err := rows.Scan(&caseRef, &title, &summary, &featured, &profile, &publishedAt, &canonical); err != nil {
+		if err := rows.Scan(&caseRef, &title, &summary, &featured, &profile, &publishedAt, &canonical, &storedHash); err != nil {
 			return nil, err
 		}
-		var bundle dossierBundle
-		if json.Unmarshal(canonical, &bundle) != nil || bundle.CaseRef != caseRef || bundle.BundleHash == "" {
-			return nil, sql.ErrNoRows
+		bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
+		if err != nil {
+			return nil, err
 		}
 		out = append(out, buildPublicDossierCase(bundle, title, summary, featured, publishedAt, profile))
 	}

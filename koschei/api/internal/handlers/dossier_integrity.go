@@ -13,7 +13,7 @@ import (
 func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (dossierBundle, error) {
 	caseRef = strings.TrimSpace(caseRef)
 	storedHash = strings.TrimSpace(storedHash)
-	if len(canonical) == 0 || caseRef == "" {
+	if len(canonical) == 0 || caseRef == "" || storedHash == "" {
 		return dossierBundle{}, fmt.Errorf("dossier integrity input is incomplete")
 	}
 	if !publicDossierCaseRefPattern.MatchString(caseRef) {
@@ -53,7 +53,7 @@ func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (do
 	if bundleHash != computed {
 		return dossierBundle{}, fmt.Errorf("dossier embedded bundle_hash mismatch")
 	}
-	if storedHash != "" && storedHash != computed {
+	if storedHash != computed {
 		return dossierBundle{}, fmt.Errorf("dossier stored bundle_hash mismatch")
 	}
 	return bundle, nil
