@@ -15,14 +15,18 @@ import (
 func TestApplyPublicExposureHeadersRequiresRevalidation(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	applyPublicExposureHeaders(recorder, publicExposureRecord{
-		LedgerStatus: publicationLedgerVerified,
-		PublishedBy:  "owner",
+		LedgerStatus:          publicationLedgerVerified,
+		PublicationTimeStatus: publicationTimeDBVerified,
+		PublishedBy:           "owner",
 	})
 	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=0, must-revalidate" {
 		t.Fatalf("unexpected revocable exposure cache contract: %q", got)
 	}
 	if got := recorder.Header().Get("X-Koschei-Publication-Ledger"); got != publicationLedgerVerified {
 		t.Fatalf("unexpected publication ledger header: %q", got)
+	}
+	if got := recorder.Header().Get("X-Koschei-Publication-Time"); got != publicationTimeDBVerified {
+		t.Fatalf("unexpected publication time header: %q", got)
 	}
 	if got := recorder.Header().Get("X-Koschei-Published-By"); got != "owner" {
 		t.Fatalf("unexpected publisher header: %q", got)
@@ -97,6 +101,9 @@ func TestLoadPublicExposureRecordRevokesAfterHidePostgres17(t *testing.T) {
 	}
 	if record.LedgerStatus != publicationLedgerVerified || record.PublishedBy != "owner" || record.PublicationAction != "publish" {
 		t.Fatalf("unexpected public exposure provenance: %#v", record)
+	}
+	if record.PublicationTimeStatus != publicationTimeDBVerified {
+		t.Fatalf("unexpected public exposure time provenance: %q", record.PublicationTimeStatus)
 	}
 	if record.Bundle.BundleHash != bundle.BundleHash {
 		t.Fatalf("direct exposure bundle changed: got %q want %q", record.Bundle.BundleHash, bundle.BundleHash)
