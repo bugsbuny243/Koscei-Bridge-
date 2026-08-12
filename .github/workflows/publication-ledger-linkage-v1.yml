@@ -1,0 +1,59 @@
+name: Publication Ledger Linkage V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/migrations/083_public_dossier_publications.sql'
+      - 'koschei/api/migrations/099_dossier_publication_transition_linkage.sql'
+      - 'koschei/api/internal/handlers/public_dossier_cases.go'
+      - 'koschei/api/internal/handlers/autopublish_worker.go'
+      - 'koschei/api/scripts/verify-publication-ledger-linkage-v1.js'
+      - 'koschei/api/scripts/verify-publication-ledger-linkage-postgres.sh'
+      - '.github/workflows/publication-ledger-linkage-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-ledger-linkage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koschei_ledger_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d koschei_ledger_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: koschei/api
+    env:
+      PGPASSWORD: postgres
+      KOSCHEI_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/koschei_ledger_ci?sslmode=disable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify static ledger contract
+        run: node scripts/verify-publication-ledger-linkage-v1.js
+
+      - name: Apply migrations on PostgreSQL 17
+        run: |
+          set -euo pipefail
+          for migration in $(find migrations -maxdepth 1 -type f -name '*.sql' | sort); do
+            echo "RUN ${migration}"
+            psql "${KOSCHEI_TEST_DATABASE_URL}" --set=ON_ERROR_STOP=1 --file="${migration}"
+          done
+
+      - name: Verify state-event linkage on PostgreSQL 17
+        run: bash scripts/verify-publication-ledger-linkage-postgres.sh
