@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"html/template"
 	"net/http"
 	"strings"
@@ -29,26 +28,16 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var raw []byte
-	var storedHash string
-	err := h.DB.QueryRowContext(r.Context(), `
-		SELECT e.canonical_bundle,e.bundle_hash
-		FROM dossier_exports e
-		JOIN dossier_publications p ON p.case_ref=e.case_ref AND p.status='public'
-		WHERE e.case_ref=$1`, caseRef).Scan(&raw, &storedHash)
+	record, err := loadPublicExposureRecord(r.Context(), h.DB, caseRef)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if publicExposureNotAuthorized(err) {
 			http.NotFound(w, r)
 			return
 		}
 		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	bundle, err := verifyStoredDossierBundle(raw, caseRef, storedHash)
-	if err != nil {
-		http.Error(w, "export unavailable", http.StatusServiceUnavailable)
-		return
-	}
+	bundle := record.Bundle
 	card := dossierMap(bundle.VerdictCard)
 	target := dossierMap(bundle.Target)
 	actorCase := strings.EqualFold(dossierString(target["kind"]), "wallet")
@@ -97,13 +86,13 @@ func (h *Handler) DossierPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	applyPublicExposureHeaders(w, record)
 	w.Header().Set("ETag", `"`+bundle.BundleHash+`"`)
 	// The global CSP writer normally rewrites HTML and correctly disables
 	// caching because a fresh nonce changes the response bytes. This document is
 	// deliberately byte-stable and contains no inline executable/style surface,
-	// so committing it through the writer's safe passthrough preserves the
-	// immutable ETag without weakening CSP for any other page.
+	// so committing it through the writer's safe passthrough preserves the ETag.
+	// Publication visibility remains revocable and therefore must be revalidated.
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
