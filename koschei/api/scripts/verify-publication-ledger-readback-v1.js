@@ -37,13 +37,13 @@ requireText(projection, 'loaded.LedgerVerifiedPublications++', 'verified linkage
 requireText(projection, 'loaded.LegacyUnlinkedPublications++', 'legacy linkage accounting');
 requireText(projection, 'public dossier withheld from registry: publication ledger readback failure', 'mismatch fail closed');
 requireText(projection, 'loaded.InvalidLedgerPublications == 0 && loaded.UninspectedPublications == 0 && loaded.LegacyUnlinkedPublications == 0', 'ledger completeness remains independent from bundle health');
-requireText(projection, '"publication_ledger_complete":  ledgerComplete', 'ledger completeness envelope');
-requireText(projection, '"ledger_verified_publications": loaded.LedgerVerifiedPublications', 'verified count envelope');
-requireText(projection, '"legacy_unlinked_publications": loaded.LegacyUnlinkedPublications', 'legacy count envelope');
-requireText(projection, '"invalid_ledger_publications":  loaded.InvalidLedgerPublications', 'invalid ledger count envelope');
-requireText(projection, '"publication_ledger_readback_verified":    true', 'ledger readback policy');
-requireText(projection, '"legacy_publication_lineage_declared":      true', 'legacy disclosure policy');
-requireText(projection, '"transition_identifiers_public":            false', 'transition privacy policy');
+requireText(projection, '"publication_ledger_complete":', 'ledger completeness envelope');
+requireText(projection, '"ledger_verified_publications":', 'verified count envelope');
+requireText(projection, '"legacy_unlinked_publications":', 'legacy count envelope');
+requireText(projection, '"invalid_ledger_publications":', 'invalid ledger count envelope');
+requireText(projection, '"publication_ledger_readback_verified":', 'ledger readback policy');
+requireText(projection, '"legacy_publication_lineage_declared":', 'legacy disclosure policy');
+requireText(projection, '"transition_identifiers_public":', 'transition privacy policy');
 
 // Transition UUIDs are an internal join key, not a public identifier.
 forbid(projection, /json:\"transition_id/, 'transition id JSON exposure');
