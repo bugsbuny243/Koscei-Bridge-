@@ -13,8 +13,8 @@ import (
 const publicCaseRegistrySchemaVersion = "koschei-public-case-registry-v1"
 
 // publicDossierCaseV2 keeps the existing discovery contract and adds the
-// canonical nine-state counts plus publication-ledger provenance. Transition
-// UUIDs remain internal; public readers only receive the verified lineage state.
+// canonical nine-state counts plus publication-ledger/time provenance.
+// Transition UUIDs remain internal; public readers only receive provenance state.
 type publicDossierCaseV2 struct {
 	publicDossierCase
 	WindowOpenRows          int            `json:"window_open_rows"`
@@ -29,6 +29,7 @@ type publicDossierCaseV2 struct {
 	PublishedBy             string         `json:"published_by"`
 	PublicationLedgerStatus string         `json:"publication_ledger_status"`
 	PublicationAction       string         `json:"publication_action,omitempty"`
+	PublicationTimeStatus   string         `json:"publication_time_status"`
 }
 
 type publicDossierCasesV2Load struct {
@@ -43,10 +44,9 @@ type publicDossierCasesV2Load struct {
 }
 
 // PublicDossierCasesV2 is the canonical public case projection. A corrupt or
-// missing explicitly-public bundle, or a linked publication whose immutable
-// transition event no longer matches current state, is isolated from rendering
-// and declared through registry health. Pre-linkage rows remain readable but are
-// explicitly marked legacy_unlinked instead of receiving invented provenance.
+// missing explicitly-public bundle, linked publication mismatch, or invalid
+// db-owned publication-time proof is isolated from rendering and declared
+// through registry health. Legacy publication time remains explicitly labeled.
 func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
@@ -100,6 +100,8 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 			"immutable_source_bundle":                  true,
 			"canonical_bundle_hash_reverified":         true,
 			"publication_ledger_readback_verified":     true,
+			"publication_effective_time_event_backed": true,
+			"db_owned_publication_time_v1":             true,
 			"legacy_publication_lineage_declared":      true,
 			"transition_identifiers_public":            false,
 			"partial_registry_declared":                true,
@@ -124,12 +126,21 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 		       pe.publication_state->>'status',pe.publication_state->>'published_by',
 		       pe.publication_state->>'public_title',pe.publication_state->>'public_summary',
 		       pe.publication_state->>'redaction_profile',pe.publication_state->>'featured',
+		       pt.created_at,pt.transition_id,pt.time_contract,
 		       COUNT(*) OVER()
 		FROM dossier_publications p
 		LEFT JOIN dossier_exports e ON e.case_ref=p.case_ref
 		LEFT JOIN dossier_publication_events pe ON pe.transition_id=p.transition_id
+		LEFT JOIN LATERAL (
+			SELECT pte.created_at,pte.transition_id::text AS transition_id,
+			       pte.publication_state->>'publication_time_contract' AS time_contract
+			FROM dossier_publication_events pte
+			WHERE pte.case_ref=p.case_ref AND pte.action='publish'
+			ORDER BY pte.created_at DESC,pte.id DESC
+			LIMIT 1
+		) pt ON true
 		WHERE p.status='public'
-		ORDER BY p.featured DESC,p.published_at DESC,p.case_ref
+		ORDER BY p.featured DESC,COALESCE(pt.created_at,p.published_at) DESC,p.case_ref
 		LIMIT $1`, limit)
 	if err != nil {
 		return publicDossierCasesV2Load{}, err
@@ -143,6 +154,7 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 		var canonical []byte
 		var storedHash sql.NullString
 		var readback publicationLedgerReadback
+		var timeReadback publicationEffectiveTimeReadback
 		var total int
 		if err := rows.Scan(
 			&caseRef, &title, &summary, &featured, &profile, &publishedAt, &publishedBy,
@@ -151,6 +163,7 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 			&readback.EventTransitionID, &readback.EventCaseRef, &readback.EventActor, &readback.EventAction,
 			&readback.EventStatus, &readback.EventPublishedBy, &readback.EventTitle, &readback.EventSummary,
 			&readback.EventProfile, &readback.EventFeatured,
+			&timeReadback.PublishEventAt, &timeReadback.PublishEventTransitionID, &timeReadback.PublishEventContract,
 			&total,
 		); err != nil {
 			return publicDossierCasesV2Load{}, err
@@ -183,7 +196,13 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 			continue
 		}
 
-		if !publishedAt.Valid || !storedHash.Valid || len(canonical) == 0 {
+		effectiveAt, timeStatus, err := resolvePublicationEffectiveTime(publishedAt, timeReadback)
+		if err != nil {
+			loaded.InvalidPublications++
+			log.Printf("public dossier withheld from registry: publication effective time failure case_ref=%s", caseRef)
+			continue
+		}
+		if !storedHash.Valid || len(canonical) == 0 {
 			loaded.InvalidPublications++
 			log.Printf("public dossier withheld from registry: publication/export integrity incomplete case_ref=%s", caseRef)
 			continue
@@ -195,7 +214,7 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 			continue
 		}
 		loaded.Cases = append(loaded.Cases, buildPublicDossierCaseV2(
-			bundle, title, summary, featured, publishedAt.Time, profile, publishedBy, ledgerState, publicationAction,
+			bundle, title, summary, featured, effectiveAt, profile, publishedBy, ledgerState, publicationAction, timeStatus,
 		))
 	}
 	if err := rows.Err(); err != nil {
@@ -213,7 +232,7 @@ func buildPublicDossierCaseV2(
 	title, summary string,
 	featured bool,
 	publishedAt time.Time,
-	profile, publishedBy, ledgerState, publicationAction string,
+	profile, publishedBy, ledgerState, publicationAction, timeStatus string,
 ) publicDossierCaseV2 {
 	base := buildPublicDossierCase(bundle, title, summary, featured, publishedAt, profile)
 	counts := map[string]int{
@@ -245,6 +264,7 @@ func buildPublicDossierCaseV2(
 		PublishedBy:             publishedBy,
 		PublicationLedgerStatus: ledgerState,
 		PublicationAction:       publicationAction,
+		PublicationTimeStatus:   timeStatus,
 	}
 }
 
