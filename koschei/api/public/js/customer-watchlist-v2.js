@@ -27,7 +27,7 @@ async function api(path,options={}){
   if(options.body!==undefined&&!headers['Content-Type'])headers['Content-Type']='application/json';
   const response=await KoscheiAuth.apiCall(path,{...options,headers});
   let data={};const raw=await response.text();if(raw){try{data=JSON.parse(raw);}catch{data={error:'invalid_json_response'};}}
-  if(!response.ok){const access=[401,402,403].includes(response.status)?'Pro KOSCH tier or higher, a verified customer session, and available monitoring quota are required. ':'';const error=new Error(access+text(data?.message||data?.error||`Monitoring request failed with HTTP ${response.status}`));error.status=response.status;throw error;}
+  if(!response.ok){const access=[401,402,403].includes(response.status)?'Professional SaaS plan or higher, a verified customer session, and available monitoring capacity are required. ':'';const error=new Error(access+text(data?.message||data?.error||`Monitoring request failed with HTTP ${response.status}`));error.status=response.status;throw error;}
   return data;
 }
 
