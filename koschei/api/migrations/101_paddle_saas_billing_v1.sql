@@ -7,9 +7,11 @@ ALTER TABLE IF EXISTS entitlements
 ALTER TABLE IF EXISTS entitlements
     ADD COLUMN IF NOT EXISTS external_payment_id text;
 
-CREATE UNIQUE INDEX IF NOT EXISTS entitlements_provider_external_payment_uidx
-    ON entitlements (payment_provider, external_payment_id)
-    WHERE external_payment_id IS NOT NULL AND external_payment_id <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS entitlements_paddle_external_payment_uidx
+    ON entitlements (external_payment_id)
+    WHERE payment_provider = 'paddle'
+      AND external_payment_id IS NOT NULL
+      AND external_payment_id <> '';
 
 CREATE TABLE IF NOT EXISTS paddle_billing_events (
     notification_id text PRIMARY KEY,
