@@ -13,27 +13,31 @@ type apiKeyTierCaps struct {
 }
 
 var apiKeyCapsByTier = map[string]apiKeyTierCaps{
-	"basic":      {MaxMonthly: 1000, MaxRPM: 30},
-	"pro":        {MaxMonthly: 20000, MaxRPM: 120},
-	"enterprise": {MaxMonthly: 200000, MaxRPM: 600},
+	"starter":      {MaxMonthly: 1000, MaxRPM: 30},
+	"professional": {MaxMonthly: 20000, MaxRPM: 120},
+	"enterprise":   {MaxMonthly: 200000, MaxRPM: 600},
 }
 
-func apiKeyEffectiveTier(evaluation tokenAccessEvaluation, evaluationErr error) string {
-	tier := strings.ToLower(strings.TrimSpace(evaluation.Tier))
-	if evaluationErr != nil || !evaluation.WalletVerified || tokenTierRank(tier) == 0 {
-		return "basic"
+func apiKeyEffectiveTier(evaluation planAccessEvaluation, evaluationErr error) string {
+	if evaluationErr != nil || !evaluation.Active {
+		return "none"
 	}
-	if _, ok := apiKeyCapsByTier[tier]; !ok {
-		return "basic"
+	plan := normalizePackageID(strings.ToLower(strings.TrimSpace(evaluation.Plan)))
+	if planTierRank(plan) == 0 {
+		return "none"
 	}
-	return tier
+	if _, ok := apiKeyCapsByTier[plan]; !ok {
+		return "none"
+	}
+	return plan
 }
 
 func apiKeyCapsForTier(tier string) apiKeyTierCaps {
-	if caps, ok := apiKeyCapsByTier[strings.ToLower(strings.TrimSpace(tier))]; ok {
+	plan := normalizePackageID(strings.ToLower(strings.TrimSpace(tier)))
+	if caps, ok := apiKeyCapsByTier[plan]; ok {
 		return caps
 	}
-	return apiKeyCapsByTier["basic"]
+	return apiKeyCapsByTier["starter"]
 }
 
 func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) (int, int) {
@@ -54,10 +58,9 @@ func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) 
 	return monthly, rpm
 }
 
-// APIKeyAuth intentionally avoids an RPC-backed token balance evaluation on
-// every developer request. The enterprise caps are the absolute server-side
-// ceiling for legacy or manually over-provisioned rows. Route-level KOSCH tier
-// authorization remains unchanged and continues to run separately.
+// APIKeyAuth avoids re-running billing authorization on every request. Route
+// authorization binds the owning API key to an active Enterprise entitlement;
+// these caps remain an absolute server-side ceiling for stored key limits.
 func clampAPIPrincipalToAbsoluteCaps(p apiPrincipal) apiPrincipal {
 	caps := apiKeyCapsByTier["enterprise"]
 	p.MonthlyLimit, p.RateLimitPerMinute = clampAPIKeyLimits(p.MonthlyLimit, p.RateLimitPerMinute, caps)
