@@ -48,6 +48,7 @@ type publicDossierCasesV2Load struct {
 // and declared through registry health. Pre-linkage rows remain readable but are
 // explicitly marked legacy_unlinked instead of receiving invented provenance.
 func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
 	loaded, err := h.loadPublicDossierCasesV2(r, limit)
 	if err != nil {
@@ -74,7 +75,6 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	case loaded.LegacyUnlinkedPublications > 0:
 		ledgerStatus = "legacy_mixed"
 	}
-	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=60")
 	w.Header().Set("X-Koschei-Registry-Complete", strconv.FormatBool(complete))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                           true,
@@ -109,10 +109,10 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDossierCasesV2Load, error) {
-	db := h.DBRead
-	if db == nil {
-		db = h.DB
-	}
+	// Publication visibility is revocable security state. Read it from the
+	// primary database so a lagging read replica cannot extend public exposure
+	// after an owner hide/draft transition commits.
+	db := h.DB
 	if db == nil {
 		return publicDossierCasesV2Load{}, sql.ErrConnDone
 	}
