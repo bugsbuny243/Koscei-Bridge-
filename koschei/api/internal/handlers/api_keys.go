@@ -49,9 +49,17 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	requestedMonthly := req.MonthlyLimit
 	requestedRPM := req.RateLimitPerMinute
-	evaluation, evaluationErr := h.evaluateTokenAccess(r.Context(), claims.Sub)
-	tier := apiKeyEffectiveTier(evaluation, evaluationErr)
-	caps := apiKeyCapsForTier(tier)
+	evaluation, evaluationErr := h.evaluatePlanAccess(r.Context(), claims.Sub, normalizedClaimEmail(claims))
+	plan := apiKeyEffectiveTier(evaluation, evaluationErr)
+	if evaluationErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "plan_access_unavailable"})
+		return
+	}
+	if !evaluation.Active || plan == "none" || !planTierAuthorizes(plan, "enterprise") {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "plan_tier_required", "required_plan": "enterprise", "current_plan": plan})
+		return
+	}
+	caps := apiKeyCapsForTier(plan)
 	effectiveMonthly, effectiveRPM := clampAPIKeyLimits(requestedMonthly, requestedRPM, caps)
 
 	raw, err := newRawAPIKey()
@@ -75,7 +83,7 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "api_key_created", "customer", "info", map[string]any{
 		"api_key_id":                      id,
 		"name":                            name,
-		"tier":                            tier,
+		"plan":                            plan,
 		"requested_monthly_limit":         requestedMonthly,
 		"requested_rate_limit_per_minute": requestedRPM,
 		"monthly_limit":                   effectiveMonthly,
@@ -85,7 +93,7 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		"id":                    id,
 		"name":                  name,
 		"key":                   raw,
-		"tier":                  tier,
+		"plan":                  plan,
 		"monthly_limit":         effectiveMonthly,
 		"rate_limit_per_minute": effectiveRPM,
 		"warning":               "Bu anahtar sadece şimdi gösterilir.",
