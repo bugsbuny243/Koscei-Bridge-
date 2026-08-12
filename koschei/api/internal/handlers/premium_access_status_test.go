@@ -27,8 +27,8 @@ func TestPremiumAccessDoesNotUseWalletOrHolderLabels(t *testing.T) {
 
 func TestPremiumAccessLegacyPlanAliasesRemainBillingOnly(t *testing.T) {
 	cases := map[string]string{
-		"basic": "starter",
-		"pro":   "professional",
+		"basic":  "starter",
+		"pro":    "professional",
 		"studio": "enterprise",
 	}
 	for input, want := range cases {
