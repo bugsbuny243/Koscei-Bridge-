@@ -5,6 +5,8 @@ on:
     paths:
       - "koschei/api/internal/handlers/plan_access.go"
       - "koschei/api/internal/handlers/premium_access_status.go"
+      - "koschei/api/internal/handlers/premium_access_status_test.go"
+      - "koschei/api/internal/handlers/premium_access_quota_test.go"
       - "koschei/api/internal/handlers/kosch_retirement.go"
       - "koschei/api/internal/handlers/paddle_billing.go"
       - "koschei/api/internal/handlers/paddle_billing_test.go"
@@ -19,14 +21,18 @@ on:
       - "koschei/api/public/account.html"
       - "koschei/api/public/kosch-access.html"
       - "koschei/api/public/pricing.html"
+      - "koschei/api/public/watchlist.html"
       - "koschei/api/public/js/customer-access-v2.js"
       - "koschei/api/public/js/customer-workspace-v2.js"
       - "koschei/api/public/js/customer-api-keys-v1.js"
+      - "koschei/api/public/js/customer-watchlist-v2.js"
       - "koschei/api/public/js/paddle-checkout.js"
       - "koschei/api/scripts/verify-saas-billing-kosch-decoupling-v1.js"
       - "koschei/api/scripts/verify-pricing-policy-v2.js"
       - "koschei/api/scripts/verify-customer-access-v2.js"
       - "koschei/api/scripts/verify-enterprise-api-keys-v1.js"
+      - "koschei/api/scripts/verify-watchlist-evidence-v2.js"
+      - "docs/watchlist-alerts.md"
       - ".github/workflows/saas-billing-kosch-decoupling-v1.yml"
   push:
     branches: [main]
@@ -63,6 +69,8 @@ jobs:
           files=(
             internal/handlers/plan_access.go
             internal/handlers/premium_access_status.go
+            internal/handlers/premium_access_status_test.go
+            internal/handlers/premium_access_quota_test.go
             internal/handlers/kosch_retirement.go
             internal/handlers/paddle_billing.go
             internal/handlers/paddle_billing_test.go
@@ -82,7 +90,7 @@ jobs:
       - name: Compile billing and HTTP packages
         working-directory: koschei/api
         run: |
-          go test ./internal/handlers -run '^Test(?:VerifyPaddleWebhookSignature|PaddleTransactionPriceBinding|PlanTierAuthorization|APIKey)' -count=1
+          go test ./internal/handlers -run '^Test(?:VerifyPaddleWebhookSignature|PaddleTransactionPriceBinding|PlanTierAuthorization|PremiumAccess|APIKey)' -count=1
           go test ./internal/http -run '^$' -count=1
       - name: Check browser JavaScript syntax
         working-directory: koschei/api
@@ -90,6 +98,7 @@ jobs:
           node --check public/js/customer-access-v2.js
           node --check public/js/customer-workspace-v2.js
           node --check public/js/customer-api-keys-v1.js
+          node --check public/js/customer-watchlist-v2.js
           node --check public/js/paddle-checkout.js
           node --check scripts/verify-saas-billing-kosch-decoupling-v1.js
       - name: Verify SaaS billing / KOSCH separation
@@ -99,3 +108,4 @@ jobs:
           node scripts/verify-pricing-policy-v2.js
           node scripts/verify-customer-access-v2.js
           node scripts/verify-enterprise-api-keys-v1.js
+          node scripts/verify-watchlist-evidence-v2.js
