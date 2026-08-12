@@ -5,6 +5,7 @@ const root=path.resolve(__dirname,'..');
 const integrity=fs.readFileSync(path.join(root,'internal','handlers','dossier_integrity.go'),'utf8');
 const casesGo=fs.readFileSync(path.join(root,'internal','handlers','public_dossier_cases_v2.go'),'utf8');
 const ledgerReadback=fs.readFileSync(path.join(root,'internal','handlers','publication_ledger_readback.go'),'utf8');
+const directExposure=fs.readFileSync(path.join(root,'internal','handlers','public_exposure_authorization.go'),'utf8');
 const dossierPage=fs.readFileSync(path.join(root,'internal','handlers','dossier_page.go'),'utf8');
 const readableCase=fs.readFileSync(path.join(root,'internal','handlers','public_case_operational_v2.go'),'utf8');
 const exportPrivacy=fs.readFileSync(path.join(root,'internal','handlers','dossier_export_privacy.go'),'utf8');
@@ -52,15 +53,26 @@ requireText(casesGo,'"transition_identifiers_public"','transition identifier pri
 requireText(casesGo,'"partial_registry_declared"','partial registry policy');
 forbid(casesGo,/json:\"transition_id/,'transition id JSON exposure');
 
-requireText(dossierPage,"JOIN dossier_publications p ON p.case_ref=e.case_ref AND p.status='public'",'raw dossier explicit-public gate');
-requireText(dossierPage,'SELECT e.canonical_bundle,e.bundle_hash','raw dossier canonical/hash source');
-requireText(dossierPage,'verifyStoredDossierBundle(raw, caseRef, storedHash)','raw dossier immutable verification');
-forbid(dossierPage,/json\.Unmarshal\s*\(/,'raw dossier weak parse-only integrity check');
+requireText(directExposure,'func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (publicExposureRecord, error)','shared direct exposure loader');
+requireText(directExposure,'JOIN dossier_exports e ON e.case_ref=p.case_ref','direct exposure export join');
+requireText(directExposure,'LEFT JOIN dossier_publication_events pe ON pe.transition_id=p.transition_id','direct exposure ledger join');
+requireText(directExposure,"WHERE p.case_ref=$1 AND p.status='public'",'direct exposure public authorization gate');
+requireText(directExposure,'verifyPublicationLedgerReadback(','direct exposure ledger verification');
+requireText(directExposure,'verifyStoredDossierBundle(canonical, caseRef, storedHash)','direct exposure bundle verification');
+requireText(directExposure,'fmt.Errorf("%w: publication ledger mismatch", errPublicExposureNotAuthorized)','ledger mismatch becomes unauthorized');
+requireText(directExposure,'w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")','revocable public cache contract');
+requireText(directExposure,'w.Header().Set("X-Koschei-Publication-Ledger", record.LedgerStatus)','safe ledger provenance header');
+forbid(directExposure,/X-Koschei-Transition-ID/,'transition identifier header exposure');
 
-requireText(readableCase,"WHERE e.case_ref=$1 AND p.status='public'",'readable case explicit-public gate');
-requireText(readableCase,'SELECT e.canonical_bundle,e.bundle_hash','readable case canonical/hash source');
-requireText(readableCase,'verifyStoredDossierBundle(canonical, caseRef, storedHash)','readable case immutable verification');
-forbid(readableCase,/json\.Unmarshal\s*\(/,'readable case weak parse-only integrity check');
+for(const [source,label] of [[dossierPage,'raw dossier'],[readableCase,'readable case']]){
+  requireText(source,'loadPublicExposureRecord(r.Context(), h.DB, caseRef)',`${label} shared authorization loader`);
+  requireText(source,'publicExposureNotAuthorized(err)',`${label} unauthorized fail-closed path`);
+  requireText(source,'applyPublicExposureHeaders(w, record)',`${label} revocable cache/provenance headers`);
+  forbid(source,/SELECT\s+e\.canonical_bundle/si,`${label} duplicate direct SQL authorization`);
+  forbid(source,/max-age=31536000|stale-while-revalidate=300/,`${label} stale public authorization cache`);
+  forbid(source,/json\.Unmarshal\s*\(/,`${label} weak parse-only integrity check`);
+}
+requireText(dossierPage,'w.Header().Set("ETag", `"`+bundle.BundleHash+`"`)','raw dossier immutable content ETag preserved');
 
 requireText(exportPrivacy,'func privateDossierExport(next http.HandlerFunc) http.HandlerFunc','private export response wrapper');
 for(const header of ['Content-Location','Link','X-Koschei-Public-Dossier'])requireText(exportPrivacy,`w.Header().Del("${header}")`,`private export removes ${header}`);

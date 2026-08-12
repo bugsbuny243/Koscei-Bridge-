@@ -1,16 +1,15 @@
 package handlers
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // PublicCaseOperationalPageV2 keeps the immutable bundle as the source of truth
 // but projects the registry states without collapsing six different meanings
-// into one "missing" number.
+// into one "missing" number. Public visibility is independently re-authorized
+// on every request through the publication ledger-backed exposure loader.
 func (h *Handler) PublicCaseOperationalPageV2(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.DB == nil {
 		http.NotFound(w, r)
@@ -21,37 +20,28 @@ func (h *Handler) PublicCaseOperationalPageV2(w http.ResponseWriter, r *http.Req
 		http.NotFound(w, r)
 		return
 	}
-	var canonical []byte
-	var storedHash, title, summary string
-	var featured bool
-	var publishedAt time.Time
-	err := h.DB.QueryRowContext(r.Context(), `
-		SELECT e.canonical_bundle,e.bundle_hash,p.public_title,p.public_summary,p.featured,p.published_at
-		FROM dossier_exports e
-		JOIN dossier_publications p ON p.case_ref=e.case_ref
-		WHERE e.case_ref=$1 AND p.status='public'`, caseRef).
-		Scan(&canonical, &storedHash, &title, &summary, &featured, &publishedAt)
+	record, err := loadPublicExposureRecord(r.Context(), h.DB, caseRef)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if publicExposureNotAuthorized(err) {
 			http.NotFound(w, r)
+			return
+		}
+		if publicExposureIntegrityFailed(err) {
+			http.Error(w, "public case integrity check failed", http.StatusConflict)
 			return
 		}
 		http.Error(w, "public case unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
-	if err != nil {
-		http.Error(w, "public case integrity check failed", http.StatusConflict)
-		return
-	}
+	bundle := record.Bundle
 
-	technical := buildPublicCasePageData(bundle, title, summary, featured, publishedAt)
+	technical := buildPublicCasePageData(bundle, record.Title, record.Summary, record.Featured, record.PublishedAt)
 	applyPublicCaseRegistryProjection(&technical, bundle)
 	data := buildPublicCaseOperationalPageData(technical)
 	data.Evidence = publicCaseOperationalEvidenceRows(bundle.EvidenceLog, 5)
 	data.VanityClusters = publicCaseOperationalVanityClusters(bundle.CrossTokenConnections)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	applyPublicExposureHeaders(w, record)
 	w.Header().Set("X-Robots-Tag", "index, follow")
 	if err := publicCaseOperationalHTML.Execute(w, data); err != nil {
 		http.Error(w, "public case operational render failed", http.StatusInternalServerError)
