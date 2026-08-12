@@ -17,14 +17,23 @@ function forbid(source, pattern, label) {
 
 const handlerStart = cases.indexOf('func (h *Handler) PublicDossierCasesV2');
 const loaderStart = cases.indexOf('func (h *Handler) loadPublicDossierCasesV2');
-if (handlerStart < 0 || loaderStart <= handlerStart) throw new Error('canonical public case handler boundary missing');
+const buildStart = cases.indexOf('func buildPublicDossierCaseV2');
+if (handlerStart < 0 || loaderStart <= handlerStart || buildStart <= loaderStart) throw new Error('canonical public case handler boundary missing');
 const handler = cases.slice(handlerStart, loaderStart);
+const loader = cases.slice(loaderStart, buildStart);
 requireText(handler, 'w.Header().Set("Cache-Control", "no-store")', 'revocable discovery cache policy');
 requireText(handler, 'loaded, err := h.loadPublicDossierCasesV2(r, limit)', 'canonical verified registry loader');
 if (handler.indexOf('w.Header().Set("Cache-Control", "no-store")') > handler.indexOf('h.loadPublicDossierCasesV2')) {
   throw new Error('revocable discovery cache policy must be set before database loading/error response');
 }
 forbid(handler, /stale-while-revalidate|max-age\s*=\s*[1-9]/i, 'stale publication discovery cache');
+
+requireText(loader, 'db := h.DB', 'revocation-critical primary database read');
+requireText(loader, 'Publication visibility is revocable security state.', 'primary read security rationale');
+forbid(loader, /h\.DBRead/, 'potentially lagging read replica in revocation-critical registry');
+requireText(loader, "WHERE p.status='public'", 'current publication visibility gate');
+requireText(loader, 'verifyPublicationLedgerReadback(', 'current publication ledger verification');
+requireText(loader, 'verifyStoredDossierBundle(canonical, caseRef, storedHash.String)', 'current immutable dossier verification');
 
 requireText(routes, 'mux.HandleFunc("/api/public/cases", requiresDB(h, method(http.MethodGet, h.PublicDossierCasesV2)))', 'production canonical registry route');
 requireText(routes, 'mux.HandleFunc("/api/public/soc/feed", requiresDB(h, method(http.MethodGet, h.PublicRadarLiveFeed)))', 'independent live radar route');
