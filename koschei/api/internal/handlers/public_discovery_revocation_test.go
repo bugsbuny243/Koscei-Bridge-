@@ -90,7 +90,17 @@ func TestPublicDossierCasesV2RevokesDiscoveryAfterHidePostgres17(t *testing.T) {
 		t.Fatalf("commit public discovery transition: %v", err)
 	}
 
-	h := &Handler{DB: db}
+	// A revocation-critical registry must not use DBRead. Use a deliberately
+	// closed read handle so this test fails immediately if the handler ever
+	// regresses to a potentially lagging replica.
+	closedRead, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		t.Fatalf("open read replica sentinel: %v", err)
+	}
+	if err := closedRead.Close(); err != nil {
+		t.Fatalf("close read replica sentinel: %v", err)
+	}
+	h := &Handler{DB: db, DBRead: closedRead}
 	assertRegistry := func(wantVisible bool) {
 		t.Helper()
 		req := httptest.NewRequest(http.MethodGet, "/api/public/cases?limit=100", nil)
