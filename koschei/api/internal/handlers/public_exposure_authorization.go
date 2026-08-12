@@ -109,7 +109,7 @@ func applyPublicExposureHeaders(w http.ResponseWriter, record publicExposureReco
 	w.Header().Set("X-Koschei-Publication-Ledger", record.LedgerStatus)
 	w.Header().Set("X-Koschei-Published-By", record.PublishedBy)
 	// The dossier bytes may be immutable, but public visibility is revocable.
-	// Revalidation preserves ETag efficiency without allowing a stale cache to
-	// outlive a later owner hide/draft transition.
+	// Revalidation prevents cached visibility from outliving a later owner
+	// hide/draft transition; the ETag separately identifies immutable bytes.
 	w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")
 }
