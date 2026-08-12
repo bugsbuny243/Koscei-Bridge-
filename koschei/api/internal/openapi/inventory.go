@@ -70,7 +70,6 @@ func RouteInventory(sourceDir string) ([]InventoryRoute, error) {
 							if value, ok := stringLiteral(raw); ok {
 								routes = append(routes, value)
 							}
-						}
 					}
 				}
 				for _, raw := range routes {
@@ -180,10 +179,13 @@ func normalizedInventoryAuth(inventoryAuth, path, filename string) string {
 		return "public"
 	case "owner_session":
 		return "owner_session"
-	case "customer_session_plus_kosch", "customer_session_plus_kosch_for_api_keys":
+	case "api_key_plus_enterprise_entitlement":
+		return "api_key_plus_enterprise_entitlement"
+	case "customer_session_plus_saas_entitlement",
+		"customer_session_plus_enterprise_for_api_keys",
+		"professional_or_enterprise_saas_entitlement",
+		"customer_session_or_verified_provider_webhook":
 		return authTier(path, filename)
-	case "api_key_plus_live_kosch_holder":
-		return "api_key_plus_live_kosch_holder"
 	default:
 		return authTier(path, filename)
 	}
