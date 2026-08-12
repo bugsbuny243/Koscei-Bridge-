@@ -15,6 +15,7 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(integrity,'func verifyStoredDossierBundle(canonical []byte, caseRef, storedHash string) (dossierBundle, error)','shared dossier integrity verifier');
+requireText(integrity,'len(canonical) == 0 || caseRef == "" || storedHash == ""','stored database bundle hash required');
 requireText(integrity,'publicDossierCaseRefPattern.MatchString(caseRef)','canonical case-ref format gate');
 requireText(integrity,'decoder.UseNumber()','large JSON integer preservation');
 requireText(integrity,'json.Marshal(bundle)','canonical byte re-encoding');
@@ -22,7 +23,7 @@ requireText(integrity,'bytes.Equal(canonical, reencoded)','exact canonical byte 
 requireText(integrity,'json.Marshal(bundle.dossierBody)','bundle hash scope');
 requireText(integrity,'computed := dossierSHA256(bodyBytes)','body SHA-256 recomputation');
 requireText(integrity,'bundleHash != computed','embedded bundle-hash equality');
-requireText(integrity,'storedHash != "" && storedHash != computed','database bundle-hash equality');
+requireText(integrity,'storedHash != computed','database bundle-hash equality');
 
 requireText(casesGo,'const publicCaseRegistrySchemaVersion = "koschei-public-case-registry-v1"','versioned public registry envelope');
 requireText(casesGo,'LEFT JOIN dossier_exports e ON e.case_ref=p.case_ref','missing export remains visible to integrity accounting');
