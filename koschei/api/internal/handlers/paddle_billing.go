@@ -48,10 +48,10 @@ type paddleWebhookEnvelope struct {
 }
 
 type paddleTransactionEvent struct {
-	ID          string         `json:"id"`
-	Status      string         `json:"status"`
-	CustomData  map[string]any `json:"custom_data"`
-	Items       []struct {
+	ID         string         `json:"id"`
+	Status     string         `json:"status"`
+	CustomData map[string]any `json:"custom_data"`
+	Items      []struct {
 		Price struct {
 			ID string `json:"id"`
 		} `json:"price"`
@@ -191,8 +191,6 @@ func (h *Handler) PaddleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Unknown event types are acknowledged after signature verification. They are
-	// not billing authority and therefore do not mutate entitlements.
 	if envelope.EventType != "transaction.completed" {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "ignored": true, "event_type": envelope.EventType})
 		return
