@@ -17,6 +17,7 @@
   const ALLOWED_LEDGER_STATES = new Set(['verified', 'legacy_unlinked']);
   const ALLOWED_PUBLISHERS = new Set(['owner', 'koschei-autopublish/v1']);
   const ALLOWED_PUBLICATION_ACTIONS = new Set(['publish', 'hide', 'feature', 'unfeature', 'update', 'draft']);
+  const ALLOWED_PUBLICATION_TIME_STATES = new Set(['db_verified', 'legacy_event', 'legacy_column']);
   let current = [];
   let registryComplete = false;
   let invalidPublicationCount = 0;
@@ -91,6 +92,15 @@
     return status === 'WITHHOLD' ? 'WITHHOLD' : 'UNAVAILABLE';
   }
 
+  function publicationTimeLabel(item) {
+    switch (String(item?.publication_time_status || '')) {
+      case 'db_verified': return 'DB time verified';
+      case 'legacy_event': return 'Legacy immutable event time';
+      case 'legacy_column': return 'Legacy stored time';
+      default: return 'Publication time unavailable';
+    }
+  }
+
   function aggregate(items, field) {
     if (!items.length) return 0;
     const values = items.map(item => nonNegativeInteger(item?.[field]));
@@ -137,6 +147,8 @@
       || policy.immutable_source_bundle !== true
       || policy.canonical_bundle_hash_reverified !== true
       || policy.publication_ledger_readback_verified !== true
+      || policy.publication_effective_time_event_backed !== true
+      || policy.db_owned_publication_time_v1 !== true
       || policy.legacy_publication_lineage_declared !== true
       || policy.transition_identifiers_public !== false
       || policy.partial_registry_declared !== true) {
@@ -152,6 +164,9 @@
       if (Object.prototype.hasOwnProperty.call(item, 'transition_id')) throw new Error('public case registry exposed an internal transition identifier');
       if (!ALLOWED_LEDGER_STATES.has(String(item.publication_ledger_status || ''))) throw new Error('public case registry contains an invalid publication ledger state');
       if (!ALLOWED_PUBLISHERS.has(String(item.published_by || ''))) throw new Error('public case registry contains an invalid publisher identity');
+      if (!ALLOWED_PUBLICATION_TIME_STATES.has(String(item.publication_time_status || '')) || !validTimestamp(item.published_at)) {
+        throw new Error('public case registry contains an invalid publication effective time');
+      }
       if (item.publication_ledger_status === 'verified' && !ALLOWED_PUBLICATION_ACTIONS.has(String(item.publication_action || ''))) {
         throw new Error('verified publication ledger record is missing its immutable action');
       }
@@ -234,6 +249,7 @@
     const identity = el('div');
     identity.append(el('span', 'soc-tag', item.target_kind || 'UNAVAILABLE'));
     identity.append(el('span', 'soc-tag', item.publication_ledger_status === 'verified' ? `Ledger verified · ${item.published_by}` : 'Legacy publication lineage'));
+    identity.append(el('span', 'soc-tag', publicationTimeLabel(item)));
     identity.append(el('h3', '', item.title || item.case_ref || 'Published ARVIS case'));
     identity.append(el('p', '', item.summary || 'Immutable ARVIS evidence case.'));
     if (Number(item.revision_count || 1) > 1) identity.append(el('span', 'soc-tag', `${number.format(item.revision_count)} immutable revisions · latest shown`));
@@ -247,7 +263,7 @@
       proof('Observed', item.observed_rows, 'observed'),
       proof('Unknown', item.unknown_rows, 'unknown')
     );
-    const hash = el('div', 'soc-hash', `Immutable bundle hash\n${item.bundle_hash || 'unavailable'}\nPublished ${safeDate(item.published_at)}`);
+    const hash = el('div', 'soc-hash', `Immutable bundle hash\n${item.bundle_hash || 'unavailable'}\nPublic since ${safeDate(item.published_at)} · ${publicationTimeLabel(item)}`);
     const actions = el('div', 'soc-card-actions');
     const open = el('a', 'soc-btn primary', 'Open readable case'); open.href = caseURL(item);
     const raw = el('a', 'soc-btn soc-mono', 'Raw technical record'); raw.href = rawDossierURL(item);
@@ -262,7 +278,7 @@
     const wantedGrade = String(gradeNode?.value || '').trim().toUpperCase();
     const filtered = current.filter(item => {
       const grade = normalizedGrade(item);
-      const haystack = `${item.case_ref || ''} ${item.target_kind || ''} ${item.target_id || ''} ${item.target_display || ''} ${item.title || ''} ${item.summary || ''} ${grade} ${item.publication_ledger_status || ''} ${item.published_by || ''}`.toLowerCase();
+      const haystack = `${item.case_ref || ''} ${item.target_kind || ''} ${item.target_id || ''} ${item.target_display || ''} ${item.title || ''} ${item.summary || ''} ${grade} ${item.publication_ledger_status || ''} ${item.publication_time_status || ''} ${item.published_by || ''}`.toLowerCase();
       return (!wantedGrade || grade === wantedGrade) && (!query || haystack.includes(query));
     });
     if (visibleNode) visibleNode.textContent = `${filtered.length}/${current.length}`;

@@ -83,10 +83,11 @@ requireText(dossierAccess,'h.APIKeyAuth(h.RequireAPIKeyStoredTokenTier("enterpri
 requireText(dossierAccess,'RequireAuth(h.RequireStoredTokenTier("enterprise", next))(w, r)','session path preserves wrapped export');
 
 requireText(casesHTML,'canonical bytes, case reference, embedded bundle hash, and stored bundle hash are reverified','public integrity explanation');
-requireText(casesHTML,'created before transition linkage remain visible only as explicitly declared legacy publication lineage','legacy lineage explanation');
-requireText(casesHTML,'fails bundle or linked publication-ledger verification','public failure boundary');
+requireText(casesHTML,'Cases or timestamps that predate transition/time enforcement are labeled legacy','legacy lineage explanation');
+requireText(casesHTML,'does not retroactively invent a proof that did not exist','legacy proof non-fabrication');
+requireText(casesHTML,'fails bundle, linked publication-ledger, or DB-owned publication-time verification','public failure boundary');
 requireText(casesHTML,'internal transition identifiers','transition privacy explanation');
-requireText(casesHTML,'/js/public-soc.js?v=5','case registry controller version');
+requireText(casesHTML,'/js/public-soc.js?v=6','case registry controller version');
 
 requireText(casesJS,"const REGISTRY_SCHEMA = 'koschei-public-case-registry-v1'",'frontend registry schema');
 requireText(casesJS,"const CASE_REF_PATTERN = /^KD1-[a-z2-7]{32}$/",'frontend case-ref gate');

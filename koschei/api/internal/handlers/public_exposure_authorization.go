@@ -16,21 +16,21 @@ var (
 )
 
 type publicExposureRecord struct {
-	Bundle            dossierBundle
-	Title             string
-	Summary           string
-	Featured          bool
-	PublishedAt       time.Time
-	PublishedBy       string
-	LedgerStatus      string
-	PublicationAction string
+	Bundle                dossierBundle
+	Title                 string
+	Summary               string
+	Featured              bool
+	PublishedAt           time.Time
+	PublishedBy           string
+	LedgerStatus          string
+	PublicationAction     string
+	PublicationTimeStatus string
 }
 
 // loadPublicExposureRecord reads publication authorization, its immutable ledger
-// event and the immutable dossier export in one PostgreSQL statement snapshot.
-// A linked publication whose state/event pair no longer verifies is treated as
-// not publicly authorized. Pre-linkage rows remain readable as legacy_unlinked;
-// the system never manufactures a historical transition proof for them.
+// event, effective publish-time proof and immutable dossier export in one SQL
+// statement snapshot. New db-owned time proofs must match the current state row;
+// older records remain readable only with explicit legacy time provenance.
 func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (publicExposureRecord, error) {
 	if db == nil {
 		return publicExposureRecord{}, sql.ErrConnDone
@@ -46,6 +46,7 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 	var featured bool
 	var publishedAt sql.NullTime
 	var readback publicationLedgerReadback
+	var timeReadback publicationEffectiveTimeReadback
 	err := db.QueryRowContext(ctx, `
 		SELECT e.canonical_bundle,e.bundle_hash,
 		       p.public_title,p.public_summary,p.featured,p.redaction_profile,p.published_at,p.published_by,
@@ -53,10 +54,19 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 		       pe.transition_id::text,pe.case_ref,pe.actor,pe.action,
 		       pe.publication_state->>'status',pe.publication_state->>'published_by',
 		       pe.publication_state->>'public_title',pe.publication_state->>'public_summary',
-		       pe.publication_state->>'redaction_profile',pe.publication_state->>'featured'
+		       pe.publication_state->>'redaction_profile',pe.publication_state->>'featured',
+		       pt.created_at,pt.transition_id,pt.time_contract
 		FROM dossier_publications p
 		JOIN dossier_exports e ON e.case_ref=p.case_ref
 		LEFT JOIN dossier_publication_events pe ON pe.transition_id=p.transition_id
+		LEFT JOIN LATERAL (
+			SELECT pte.created_at,pte.transition_id::text AS transition_id,
+			       pte.publication_state->>'publication_time_contract' AS time_contract
+			FROM dossier_publication_events pte
+			WHERE pte.case_ref=p.case_ref AND pte.action='publish'
+			ORDER BY pte.created_at DESC,pte.id DESC
+			LIMIT 1
+		) pt ON true
 		WHERE p.case_ref=$1 AND p.status='public'`, caseRef).Scan(
 		&canonical, &storedHash,
 		&title, &summary, &featured, &profile, &publishedAt, &publishedBy,
@@ -64,15 +74,13 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 		&readback.EventTransitionID, &readback.EventCaseRef, &readback.EventActor, &readback.EventAction,
 		&readback.EventStatus, &readback.EventPublishedBy, &readback.EventTitle, &readback.EventSummary,
 		&readback.EventProfile, &readback.EventFeatured,
+		&timeReadback.PublishEventAt, &timeReadback.PublishEventTransitionID, &timeReadback.PublishEventContract,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return publicExposureRecord{}, errPublicExposureNotAuthorized
 		}
 		return publicExposureRecord{}, err
-	}
-	if !publishedAt.Valid {
-		return publicExposureRecord{}, fmt.Errorf("%w: publication timestamp is unavailable", errPublicExposureIntegrity)
 	}
 
 	ledgerStatus, publicationAction, err := verifyPublicationLedgerReadback(
@@ -81,19 +89,24 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 	if err != nil {
 		return publicExposureRecord{}, fmt.Errorf("%w: publication ledger mismatch", errPublicExposureNotAuthorized)
 	}
+	effectiveAt, timeStatus, err := resolvePublicationEffectiveTime(publishedAt, timeReadback)
+	if err != nil {
+		return publicExposureRecord{}, fmt.Errorf("%w: publication effective time mismatch", errPublicExposureIntegrity)
+	}
 	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
 	if err != nil {
 		return publicExposureRecord{}, fmt.Errorf("%w: %v", errPublicExposureIntegrity, err)
 	}
 	return publicExposureRecord{
-		Bundle:            bundle,
-		Title:             title,
-		Summary:           summary,
-		Featured:          featured,
-		PublishedAt:       publishedAt.Time,
-		PublishedBy:       publishedBy,
-		LedgerStatus:      ledgerStatus,
-		PublicationAction: publicationAction,
+		Bundle:                bundle,
+		Title:                 title,
+		Summary:               summary,
+		Featured:              featured,
+		PublishedAt:           effectiveAt,
+		PublishedBy:           publishedBy,
+		LedgerStatus:          ledgerStatus,
+		PublicationAction:     publicationAction,
+		PublicationTimeStatus: timeStatus,
 	}, nil
 }
 
@@ -107,6 +120,7 @@ func publicExposureIntegrityFailed(err error) bool {
 
 func applyPublicExposureHeaders(w http.ResponseWriter, record publicExposureRecord) {
 	w.Header().Set("X-Koschei-Publication-Ledger", record.LedgerStatus)
+	w.Header().Set("X-Koschei-Publication-Time", record.PublicationTimeStatus)
 	w.Header().Set("X-Koschei-Published-By", record.PublishedBy)
 	// The dossier bytes may be immutable, but public visibility is revocable.
 	// Revalidation prevents cached visibility from outliving a later owner
