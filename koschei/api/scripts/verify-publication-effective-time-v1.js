@@ -12,6 +12,9 @@ const page = fs.readFileSync(path.join(root, 'public', 'cases.html'), 'utf8');
 function requireText(source, needle, label) {
   if (!source.includes(needle)) throw new Error(`${label}: missing ${needle}`);
 }
+function requirePattern(source, pattern, label) {
+  if (!pattern.test(source)) throw new Error(`${label}: missing pattern ${pattern}`);
+}
 function forbid(source, pattern, label) {
   if (pattern.test(source)) throw new Error(`${label}: forbidden pattern ${pattern}`);
 }
@@ -47,8 +50,8 @@ for (const [source, label] of [[registry, 'registry'], [exposure, 'direct exposu
 }
 requireText(registry, 'PublicationTimeStatus   string         `json:"publication_time_status"`', 'public time provenance field');
 requireText(registry, 'COALESCE(pt.created_at,p.published_at) DESC', 'registry order uses effective public time');
-requireText(registry, '"publication_effective_time_event_backed": true', 'registry effective-time policy');
-requireText(registry, '"db_owned_publication_time_v1":             true', 'registry db-owned time policy');
+requirePattern(registry, /"publication_effective_time_event_backed":\s+true/, 'registry effective-time policy');
+requirePattern(registry, /"db_owned_publication_time_v1":\s+true/, 'registry db-owned time policy');
 requireText(registry, 'public dossier withheld from registry: publication effective time failure', 'registry time mismatch fail closed');
 forbid(registry, /json:\"publish_event_transition_id|json:\"transition_id/, 'internal time/transition identifier exposure');
 
