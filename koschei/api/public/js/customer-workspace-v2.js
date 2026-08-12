@@ -42,10 +42,6 @@ function historyFrom(result){
 function targetsFrom(result){return arr(result?.data?.targets);}
 function alertsFrom(result){return arr(result?.data?.alerts);}
 
-function latestBy(items,field){
-  return [...items].sort((a,b)=>Date.parse(b?.[field]||0)-Date.parse(a?.[field]||0))[0]||null;
-}
-
 function normalizedTone(value){
   const raw=lower(value);
   return ['low','medium','high','critical','warning','info'].includes(raw)?raw:'info';
@@ -123,20 +119,20 @@ async function load(){
   ]);
 
   const access=obj(accessResult.data?.access),active=accessResult.ok&&access.active===true;
-  const tier=text(access.token_tier||'none').toUpperCase();
-  const tokenAmount=access.token_amount;
-  setKPI('workspaceAccessKpi',active?tier:'INACTIVE',active?`${displayNumber(tokenAmount)} KOSCH verified`:(accessResult.ok?'Verified holder access is not active.':'Access service unavailable.'),active?'good':accessResult.ok?'warn':'bad');
+  const plan=text(access.plan||'none').toUpperCase();
+  const remaining=access.outputs_remaining,total=access.outputs_total;
+  setKPI('workspaceAccessKpi',active?plan:'INACTIVE',active?`${displayNumber(remaining)} of ${displayNumber(total)} premium outputs remaining`:(accessResult.ok?'No active paid SaaS entitlement.':'Access service unavailable.'),active?'good':accessResult.ok?'warn':'bad');
 
   const investigationHistory=historyFrom(historyResultResponse),historyAvailable=Array.isArray(investigationHistory);
-  setKPI('workspaceReportsKpi',historyAvailable?String(investigationHistory.length):'—',historyAvailable?(investigationHistory.length?'Durable canonical jobs returned by account history.':'No canonical investigation job retained yet.'):(historyResultResponse.status===401||historyResultResponse.status===402||historyResultResponse.status===403?'Basic KOSCH holder access required.':'Investigation history unavailable.'),historyAvailable?'good':historyResultResponse.status===401||historyResultResponse.status===402||historyResultResponse.status===403?'warn':'bad');
+  setKPI('workspaceReportsKpi',historyAvailable?String(investigationHistory.length):'—',historyAvailable?(investigationHistory.length?'Durable canonical jobs returned by account history.':'No canonical investigation job retained yet.'):'Investigation history unavailable.',historyAvailable?'good':'bad');
 
   const targets=watchResult.ok?targetsFrom(watchResult):[];
   const maxTargets=watchResult.data?.max_targets;
-  setKPI('workspaceWatchKpi',watchResult.ok?`${targets.length}${Number.isFinite(Number(maxTargets))?`/${maxTargets}`:''}`:'—',watchResult.ok?(targets.length?'Targets under structural monitoring.':'No monitored target yet.'):(watchResult.status===402||watchResult.status===403?'KOSCH holder access required.':'Watchlist service unavailable.'),watchResult.ok?'good':watchResult.status===402||watchResult.status===403?'warn':'bad');
+  setKPI('workspaceWatchKpi',watchResult.ok?`${targets.length}${Number.isFinite(Number(maxTargets))?`/${maxTargets}`:''}`:'—',watchResult.ok?(targets.length?'Targets under structural monitoring.':'No monitored target yet.'):(watchResult.status===402||watchResult.status===403?'Professional plan required.':'Watchlist service unavailable.'),watchResult.ok?'good':watchResult.status===402||watchResult.status===403?'warn':'bad');
 
   const alerts=alertsResult.ok?alertsFrom(alertsResult):[];
   const unread=alerts.filter(item=>!text(item.read_at)&&item.read!==true&&item.is_read!==true).length;
-  setKPI('workspaceAlertsKpi',alertsResult.ok?String(unread):'—',alertsResult.ok?(alerts.length?`${alerts.length} recent alert record(s) returned.`:'No alert record returned.'):(alertsResult.status===402||alertsResult.status===403?'KOSCH holder access required.':'Alert service unavailable.'),alertsResult.ok&&unread===0?'good':alertsResult.ok?'warn':alertsResult.status===402||alertsResult.status===403?'warn':'bad');
+  setKPI('workspaceAlertsKpi',alertsResult.ok?String(unread):'—',alertsResult.ok?(alerts.length?`${alerts.length} recent alert record(s) returned.`:'No alert record returned.'):(alertsResult.status===402||alertsResult.status===403?'Professional plan required.':'Alert service unavailable.'),alertsResult.ok&&unread===0?'good':alertsResult.ok?'warn':alertsResult.status===402||alertsResult.status===403?'warn':'bad');
 
   renderLatestInvestigation(investigationHistory);
   renderAlerts(alerts);
