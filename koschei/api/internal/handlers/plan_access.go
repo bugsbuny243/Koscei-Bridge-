@@ -27,8 +27,21 @@ type planAccessRequestContext struct {
 
 type planAccessRequestContextKey struct{}
 
+func canonicalSaaSPlan(plan string) string {
+	switch strings.ToLower(strings.TrimSpace(plan)) {
+	case "starter", "basic":
+		return "starter"
+	case "professional", "builder", "pro":
+		return "professional"
+	case "enterprise", "studio":
+		return "enterprise"
+	default:
+		return ""
+	}
+}
+
 func planTierRank(plan string) int {
-	switch normalizePackageID(plan) {
+	switch canonicalSaaSPlan(plan) {
 	case "enterprise":
 		return 3
 	case "professional":
@@ -102,7 +115,7 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 	if err != nil {
 		return planAccessEvaluation{}, err
 	}
-	plan = normalizePackageID(plan)
+	plan = canonicalSaaSPlan(plan)
 	if planTierRank(plan) == 0 {
 		return planAccessEvaluation{Plan: "none", Source: "entitlement"}, nil
 	}
@@ -124,7 +137,7 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 }
 
 func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = normalizePackageID(required)
+	required = canonicalSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := userFromContext(r.Context())
 		if !ok {
@@ -154,7 +167,7 @@ func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.H
 }
 
 func (h *Handler) RequireAPIKeyPlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = normalizePackageID(required)
+	required = canonicalSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := apiPrincipalFromContext(r.Context())
 		if !ok {
