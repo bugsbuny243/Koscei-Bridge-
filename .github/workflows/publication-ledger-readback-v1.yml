@@ -1,0 +1,64 @@
+name: Publication Ledger Readback V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/internal/handlers/public_dossier_cases_v2.go'
+      - 'koschei/api/internal/handlers/publication_ledger_readback.go'
+      - 'koschei/api/internal/handlers/publication_ledger_readback_test.go'
+      - 'koschei/api/migrations/099_dossier_publication_transition_linkage.sql'
+      - 'koschei/api/public/cases.html'
+      - 'koschei/api/public/js/public-soc.js'
+      - 'koschei/api/scripts/verify-public-case-registry-integrity-v1.js'
+      - 'koschei/api/scripts/verify-publication-ledger-readback-v1.js'
+      - '.github/workflows/publication-ledger-readback-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-ledger-readback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: koschei/api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Verify touched Go formatting
+        run: |
+          set -euo pipefail
+          files=(
+            internal/handlers/public_dossier_cases_v2.go
+            internal/handlers/publication_ledger_readback.go
+            internal/handlers/publication_ledger_readback_test.go
+          )
+          diff -u <(cat "${files[@]}") <(gofmt "${files[@]}")
+
+      - name: Compile handlers
+        run: go test ./internal/handlers -run '^$'
+
+      - name: Test publication ledger readback
+        run: go test ./internal/handlers -run '^TestVerifyPublicationLedgerReadback' -count=1
+
+      - name: Check public case JavaScript
+        run: node --check public/js/public-soc.js
+
+      - name: Verify readback contract
+        run: node scripts/verify-publication-ledger-readback-v1.js
+
+      - name: Verify public registry regression contract
+        run: node scripts/verify-public-case-registry-integrity-v1.js
