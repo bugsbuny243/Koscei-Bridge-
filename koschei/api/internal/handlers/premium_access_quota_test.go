@@ -5,16 +5,33 @@ import (
 	"time"
 )
 
-func TestPremiumAccessReportsTierQuota(t *testing.T) {
-	reset := time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)
-	status := decidePremiumAccess(tokenAccessEvaluation{
-		GateEnabled: true, Configured: true, WalletVerified: true,
-		Tier: "pro", Amount: "250000",
-	}, scanQuotaStatus{Tier: "pro", Limit: 100, Used: 7, Remaining: 93, ResetsAt: reset})
-	if !status.Active || status.QuotaDaily != 100 || status.QuotaUsedToday != 7 || status.QuotaRemainingToday != 93 {
-		t.Fatalf("unexpected quota status: %+v", status)
+func TestPremiumAccessCarriesEntitlementCapacity(t *testing.T) {
+	expires := time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)
+	evaluation := planAccessEvaluation{
+		Active:           true,
+		Plan:             "professional",
+		OutputsTotal:     100,
+		OutputsRemaining: 93,
+		ExpiresAt:        &expires,
+		Source:           "entitlement",
 	}
-	if status.QuotaResetsAt == nil || !status.QuotaResetsAt.Equal(reset) {
-		t.Fatalf("unexpected reset: %+v", status.QuotaResetsAt)
+	if !evaluation.Active || evaluation.Source != "entitlement" {
+		t.Fatalf("unexpected entitlement state: %+v", evaluation)
+	}
+	if evaluation.OutputsTotal != 100 || evaluation.OutputsRemaining != 93 {
+		t.Fatalf("unexpected output capacity: %+v", evaluation)
+	}
+	if evaluation.ExpiresAt == nil || !evaluation.ExpiresAt.Equal(expires) {
+		t.Fatalf("unexpected expiry: %+v", evaluation.ExpiresAt)
+	}
+}
+
+func TestPremiumAccessHasNoDailyTokenQuotaAuthority(t *testing.T) {
+	evaluation := planAccessEvaluation{Active: true, Plan: "starter", OutputsTotal: 25, OutputsRemaining: 25, Source: "entitlement"}
+	if !planTierAuthorizes(evaluation.Plan, "starter") {
+		t.Fatal("active Starter entitlement did not authorize Starter access")
+	}
+	if planTierAuthorizes("kosch", "starter") {
+		t.Fatal("KOSCH label unexpectedly authorized a SaaS plan")
 	}
 }
