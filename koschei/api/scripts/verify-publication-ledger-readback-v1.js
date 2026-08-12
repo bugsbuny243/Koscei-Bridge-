@@ -56,9 +56,10 @@ requireText(casesJS, "const expectedLedgerStatus = invalidLedger > 0 ? 'degraded
 requireText(casesJS, "Object.prototype.hasOwnProperty.call(item, 'transition_id')", 'frontend transition identifier rejection');
 requireText(casesJS, "item.publication_ledger_status === 'verified' ? `Ledger verified · ${item.published_by}` : 'Legacy publication lineage'", 'case provenance label');
 requireText(casesJS, 'Koschei does not retroactively invent a publication-transition proof', 'legacy warning truth boundary');
-requireText(casesHTML, 'created before transition linkage remain visible only as explicitly declared legacy publication lineage', 'public legacy lineage explanation');
+requireText(casesHTML, 'Cases or timestamps that predate transition/time enforcement are labeled legacy', 'public legacy lineage explanation');
+requireText(casesHTML, 'does not retroactively invent a proof that did not exist', 'public legacy proof non-fabrication');
 requireText(casesHTML, 'internal transition identifiers', 'public transition identifier privacy statement');
-requireText(casesHTML, '/js/public-soc.js?v=5', 'readback-aware asset version');
+requireText(casesHTML, '/js/public-soc.js?v=6', 'readback-aware asset version');
 
 // Wave 28 remains the source of the write-side invariant used by readback.
 requireText(migration, 'DEFERRABLE INITIALLY DEFERRED', 'write-side commit-time linkage');
