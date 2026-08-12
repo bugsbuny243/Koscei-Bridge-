@@ -57,7 +57,7 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	complete := loaded.InvalidPublications == 0 && loaded.UninspectedPublications == 0
-	ledgerComplete := complete && loaded.LegacyUnlinkedPublications == 0
+	ledgerComplete := loaded.InvalidLedgerPublications == 0 && loaded.UninspectedPublications == 0 && loaded.LegacyUnlinkedPublications == 0
 	registryStatus := "operational"
 	switch {
 	case loaded.InvalidPublications > 0:
