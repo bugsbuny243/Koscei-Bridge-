@@ -109,10 +109,10 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDossierCasesV2Load, error) {
-	db := h.DBRead
-	if db == nil {
-		db = h.DB
-	}
+	// Publication visibility is revocable security state. Read it from the
+	// primary database so a lagging read replica cannot extend public exposure
+	// after an owner hide/draft transition commits.
+	db := h.DB
 	if db == nil {
 		return publicDossierCasesV2Load{}, sql.ErrConnDone
 	}
