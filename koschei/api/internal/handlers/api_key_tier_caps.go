@@ -1,7 +1,5 @@
 package handlers
 
-import "strings"
-
 const (
 	defaultAPIKeyMonthlyLimit = 1000
 	defaultAPIKeyRPM          = 60
@@ -22,7 +20,7 @@ func apiKeyEffectiveTier(evaluation planAccessEvaluation, evaluationErr error) s
 	if evaluationErr != nil || !evaluation.Active {
 		return "none"
 	}
-	plan := normalizePackageID(strings.ToLower(strings.TrimSpace(evaluation.Plan)))
+	plan := canonicalSaaSPlan(evaluation.Plan)
 	if planTierRank(plan) == 0 {
 		return "none"
 	}
@@ -33,7 +31,7 @@ func apiKeyEffectiveTier(evaluation planAccessEvaluation, evaluationErr error) s
 }
 
 func apiKeyCapsForTier(tier string) apiKeyTierCaps {
-	plan := normalizePackageID(strings.ToLower(strings.TrimSpace(tier)))
+	plan := canonicalSaaSPlan(tier)
 	if caps, ok := apiKeyCapsByTier[plan]; ok {
 		return caps
 	}
