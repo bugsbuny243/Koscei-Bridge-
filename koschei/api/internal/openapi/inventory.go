@@ -70,6 +70,7 @@ func RouteInventory(sourceDir string) ([]InventoryRoute, error) {
 							if value, ok := stringLiteral(raw); ok {
 								routes = append(routes, value)
 							}
+						}
 					}
 				}
 				for _, raw := range routes {
