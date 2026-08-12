@@ -19,7 +19,7 @@ jobs:
         with:
           ref: feat/saas-billing-kosch-decoupling-v1
           fetch-depth: 0
-      - name: Replace KOSCH-specific public smoke assumptions
+      - name: Replace KOSCH-specific public smoke target
         shell: bash
         run: |
           set -euo pipefail
@@ -27,16 +27,12 @@ jobs:
           from pathlib import Path
           path = Path('.github/workflows/public-product-smoke.yml')
           text = path.read_text()
-          old_mint = 'KOSCHEI_FULL_SCAN_MINT: HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump'
-          new_mint = 'KOSCHEI_FULL_SCAN_MINT: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-          old_marker = 'wait_expect_200 account_page /account "KOSCH Holder Access"'
-          new_marker = 'wait_expect_200 account_page /account "Account & SaaS Access"'
-          if text.count(old_mint) != 1:
-              raise SystemExit(f'expected exactly one KOSCH full-scan target, found {text.count(old_mint)}')
-          if text.count(old_marker) != 1:
-              raise SystemExit(f'expected exactly one legacy account marker, found {text.count(old_marker)}')
-          text = text.replace(old_mint, new_mint).replace(old_marker, new_marker)
-          path.write_text(text)
+          old = 'KOSCHEI_FULL_SCAN_MINT: HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump'
+          new = 'KOSCHEI_FULL_SCAN_MINT: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one KOSCH full-scan target, found {count}')
+          path.write_text(text.replace(old, new))
           PY
       - name: Commit smoke cleanup when changed
         shell: bash
@@ -51,5 +47,3 @@ jobs:
           git add .github/workflows/public-product-smoke.yml
           git commit -m "ci(smoke): remove KOSCH-specific production target"
           git push origin HEAD:feat/saas-billing-kosch-decoupling-v1
-      - name: One-shot boundary
-        run: echo "Delete this workflow immediately after the sync commit lands."
