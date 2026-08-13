@@ -1,0 +1,112 @@
+name: Sync Dead Architecture Cleanup
+
+on:
+  push:
+    branches: [cleanup/dead-architecture-purge-v1]
+    paths:
+      - ".github/workflows/sync-dead-architecture-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: cleanup/dead-architecture-purge-v1
+      - name: Apply exact cleanup rewrites
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              s = p.read_text()
+              if old not in s:
+                  raise SystemExit(f"exact cleanup source not found: {path}: {old[:120]!r}")
+              p.write_text(s.replace(old, new))
+
+          replace('koschei/api/internal/handlers/owner_operations.go',
+          '// OwnerOperationsStatus is the KOSCH-era owner dashboard contract. It avoids\n// legacy checkout, package and entitlement concepts entirely.',
+          '// OwnerOperationsStatus reports the current SaaS entitlement and security runtime.\n// Historical KOSCH telemetry is not an authorization source.')
+
+          replace('koschei/api/internal/handlers/owner_operations.go',
+          '"kosch_holders": 0, "kosch_basic": 0, "kosch_pro": 0, "kosch_enterprise": 0,',
+          '"active_saas_entitlements": 0, "saas_starter": 0, "saas_professional": 0, "saas_enterprise": 0,')
+
+          replace('koschei/api/internal/handlers/owner_operations.go',
+          '''\t\tif ownerTableExists(ctx, db, "token_access_snapshots") {\n\t\t\tlatest := `WITH latest AS (\n\t\t\t\tSELECT DISTINCT ON (auth_subject) auth_subject, tier, amount_raw\n\t\t\t\tFROM token_access_snapshots\n\t\t\t\tWHERE expires_at > now()\n\t\t\t\tORDER BY auth_subject, checked_at DESC\n\t\t\t)`\n\t\t\tsummary["kosch_holders"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier IN ('basic','pro','enterprise')`)\n\t\t\tsummary["kosch_basic"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='basic'`)\n\t\t\tsummary["kosch_pro"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='pro'`)\n\t\t\tsummary["kosch_enterprise"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='enterprise'`)\n\t\t}\n''',
+          '''\t\tif ownerTableExists(ctx, db, "entitlements") {\n\t\t\tactive := `WITH active AS (\n\t\t\t\tSELECT CASE lower(COALESCE(plan_id,''))\n\t\t\t\t  WHEN 'basic' THEN 'starter'\n\t\t\t\t  WHEN 'pro' THEN 'professional'\n\t\t\t\t  WHEN 'builder' THEN 'professional'\n\t\t\t\t  WHEN 'studio' THEN 'enterprise'\n\t\t\t\t  ELSE lower(COALESCE(plan_id,'')) END AS plan\n\t\t\t\tFROM entitlements\n\t\t\t\tWHERE status='active' AND COALESCE(plan_id,'')<>'' AND COALESCE(plan_id,'')<>'free'\n\t\t\t\t  AND (expires_at IS NULL OR expires_at>now())\n\t\t\t)`\n\t\t\tsummary["active_saas_entitlements"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan IN ('starter','professional','enterprise')`)\n\t\t\tsummary["saas_starter"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='starter'`)\n\t\t\tsummary["saas_professional"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='professional'`)\n\t\t\tsummary["saas_enterprise"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='enterprise'`)\n\t\t}\n''')
+
+          replace('koschei/api/internal/handlers/owner_operations.go',
+          '"kosch_access":    map[string]any{"status": serviceStatus(configuredKoscheiTokenGateEnabled() && configuredKoscheiTokenMint() != "", "configured", "missing")},',
+          '"saas_billing":    map[string]any{"status": serviceStatus(envSet("PADDLE_API_KEY") && envSet("PADDLE_WEBHOOK_SECRET"), "configured", "missing")},')
+
+          replace('koschei/api/internal/handlers/owner_operations.go',
+          '''\t\t"access_model": map[string]any{\n\t\t\t"free_core":         []string{"safe_check", "basic_token_scan"},\n\t\t\t"kosch_premium":     []string{"full_radar", "structural_memory", "graph", "exposure", "visual_reports", "automation"},\n\t\t\t"payment_providers": []string{},\n\t\t},''',
+          '''\t\t"access_model": map[string]any{\n\t\t\t"authorization":     "saas_entitlement",\n\t\t\t"free_core":         []string{"safe_check", "basic_token_scan"},\n\t\t\t"paid_plans":        []string{"starter", "professional", "enterprise"},\n\t\t\t"payment_providers": []string{"paddle"},\n\t\t\t"kosch_authority":   "none",\n\t\t},''')
+
+          replace('koschei/api/internal/handlers/owner_ai_chat_context.go',
+          '- Koschei uses a free-core + KOSCH-premium access model. Safe Check and basic scans are free; KOSCH unlocks full Radar depth, structural memory, graph, exposure, visual reports and automation.\n- There is no live Paddle, Shopier, card-payment or package-sale flow. Never recommend restoring one unless the owner explicitly asks for a new architecture decision.',
+          '- Koschei uses a free-core + SaaS entitlement access model. Starter, Professional and Enterprise plans authorize paid product surfaces.\n- Paddle is the billing provider for SaaS entitlements. Wallet verification is identity-only and KOSCH holdings grant no plan, quota, evidence, security or verdict authority.')
+
+          replace('koschei/api/internal/handlers/owner_ai_chat_context.go',
+          '"kosch_access":    serviceStatus(configuredKoscheiTokenGateEnabled() && configuredKoscheiTokenMint() != "", "configured", "missing"),',
+          '"saas_billing":    serviceStatus(strings.TrimSpace(os.Getenv("PADDLE_API_KEY")) != "" && strings.TrimSpace(os.Getenv("PADDLE_WEBHOOK_SECRET")) != "", "configured", "missing"),')
+
+          replace('koschei/api/internal/handlers/owner_ai_chat_context.go',
+          '''\t\tAccess: map[string]any{\n\t\t\t"model":             "free_core_kosch_premium",\n\t\t\t"free_core":         []string{"safe_check", "basic_token_scan"},\n\t\t\t"premium":           []string{"full_radar", "structural_memory", "graph", "exposure", "visual_reports", "automation"},\n\t\t\t"payment_providers": []string{},\n\t\t\t"kosch_mint":        configuredKoscheiTokenMint(),\n\t\t},''',
+          '''\t\tAccess: map[string]any{\n\t\t\t"model":             "free_core_saas_entitlement",\n\t\t\t"free_core":         []string{"safe_check", "basic_token_scan"},\n\t\t\t"paid_plans":        []string{"starter", "professional", "enterprise"},\n\t\t\t"payment_providers": []string{"paddle"},\n\t\t\t"kosch_mint":        configuredKoscheiTokenMint(),\n\t\t\t"kosch_authority":   "none",\n\t\t},''')
+
+          replace('koschei/api/internal/handlers/owner_ai_chat_context.go',
+          '''\tif ownerTableExists(ctx, h.DB, "token_access_snapshots") {\n\t\tlatest := `WITH latest AS (\n\t\t\tSELECT DISTINCT ON (auth_subject) auth_subject,tier\n\t\t\tFROM token_access_snapshots\n\t\t\tWHERE expires_at > now()\n\t\t\tORDER BY auth_subject,checked_at DESC\n\t\t)`\n\t\tsnapshot.Access["kosch_holders"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier IN ('basic','pro','enterprise')`)\n\t\tsnapshot.Access["basic"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='basic'`)\n\t\tsnapshot.Access["pro"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='pro'`)\n\t\tsnapshot.Access["enterprise"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='enterprise'`)\n\t}\n''',
+          '''\tif ownerTableExists(ctx, h.DB, "entitlements") {\n\t\tactive := `WITH active AS (\n\t\t\tSELECT CASE lower(COALESCE(plan_id,''))\n\t\t\t  WHEN 'basic' THEN 'starter' WHEN 'pro' THEN 'professional'\n\t\t\t  WHEN 'builder' THEN 'professional' WHEN 'studio' THEN 'enterprise'\n\t\t\t  ELSE lower(COALESCE(plan_id,'')) END AS plan\n\t\t\tFROM entitlements\n\t\t\tWHERE status='active' AND COALESCE(plan_id,'')<>'' AND COALESCE(plan_id,'')<>'free'\n\t\t\t  AND (expires_at IS NULL OR expires_at>now())\n\t\t)`\n\t\tsnapshot.Access["active_saas_entitlements"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan IN ('starter','professional','enterprise')`)\n\t\tsnapshot.Access["starter"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='starter'`)\n\t\tsnapshot.Access["professional"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='professional'`)\n\t\tsnapshot.Access["enterprise"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='enterprise'`)\n\t}\n''')
+
+          replace('koschei/api/scripts/verify-canonical-investigation-history-v1.js',
+          'h.RequireTokenTier("basic", h.customerInvestigationHistoryRead)(w, r)',
+          'h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)')
+          replace('koschei/api/scripts/verify-canonical-investigation-history-v1.js',
+          "'Basic access-only history gate'", "'Starter SaaS access-only history gate'")
+          replace('koschei/api/scripts/verify-canonical-investigation-history-v1.js',
+          "'BASIC+ KOSCH · DURABLE CANONICAL JOB HISTORY'", "'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY'")
+
+          replace('koschei/api/scripts/verify-public-case-registry-integrity-v1.js',
+          'h.APIKeyAuth(h.RequireAPIKeyStoredTokenTier("enterprise", next))(w, r)',
+          'h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", next))(w, r)')
+          replace('koschei/api/scripts/verify-public-case-registry-integrity-v1.js',
+          'RequireAuth(h.RequireStoredTokenTier("enterprise", next))(w, r)',
+          'RequireAuth(h.RequirePlanTier("enterprise", next))(w, r)')
+
+          replace('koschei/api/scripts/verify-token-2022-scanner-v2.js',
+          "requireText(html,'Basic tier or higher','Basic-tier access copy');",
+          "requireText(html,'Starter SaaS or higher','Starter SaaS access copy');")
+          replace('koschei/api/scripts/verify-token-2022-scanner-v2.js',
+          "requireText(html,'/kosch','canonical KOSCH route');",
+          "requireText(html,'/pricing','canonical pricing route');")
+          replace('koschei/api/scripts/verify-token-2022-scanner-v2.js',
+          "requireText(server,'koschTier := func(tier string, next http.HandlerFunc) http.HandlerFunc','central KOSCH tier gate');\nrequireText(server,'h.RequireTokenTier(tier, h.EnforceScanQuota(next))','central tier + scan-quota enforcement');\nrequireText(server,'mux.HandleFunc(\"/api/v1/token/extensions\", solana(risk(requiresDB(h, koschTier(\"basic\", method(\"POST\", h.TokenScan))))))','dedicated Basic-tier TokenScan route');",
+          "requireText(server,'planTier := func(plan string, next http.HandlerFunc) http.HandlerFunc','central SaaS plan gate');\nrequireText(server,'h.RequirePlanTier(plan, h.EnforcePlanOutput(next))','central plan + output-meter enforcement');\nrequireText(server,'mux.HandleFunc(\"/api/v1/token/extensions\", solana(risk(requiresDB(h, planTier(\"starter\", method(\"POST\", h.TokenScan))))))','dedicated Starter TokenScan route');\nforbid(server,/RequireTokenTier|EnforceScanQuota|koschTier/,'retired KOSCH authorization in boot chain');")
+
+          import subprocess
+          subprocess.run(['gofmt','-w','koschei/api/internal/handlers/owner_operations.go','koschei/api/internal/handlers/owner_ai_chat_context.go'], check=True)
+      - name: Commit exact cleanup rewrites
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "cleanup rewrites already applied"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/handlers/owner_operations.go \
+                  koschei/api/internal/handlers/owner_ai_chat_context.go \
+                  koschei/api/scripts/verify-canonical-investigation-history-v1.js \
+                  koschei/api/scripts/verify-public-case-registry-integrity-v1.js \
+                  koschei/api/scripts/verify-token-2022-scanner-v2.js
+          git commit -m "cleanup: align stale contracts with SaaS architecture"
+          git push origin HEAD:cleanup/dead-architecture-purge-v1
