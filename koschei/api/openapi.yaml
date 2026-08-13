@@ -2573,8 +2573,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/arvis": {
@@ -6882,8 +6882,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/radar/funding-corpus/warmup": {
@@ -7276,8 +7276,8 @@
           "owner"
         ],
         "x-koschei-auth-tier": "owner_session",
-        "x-koschei-inventory-auth": "",
-        "x-koschei-route-source": "boot_chain_fallback"
+        "x-koschei-inventory-auth": "owner_session",
+        "x-koschei-route-source": "route_inventory.go"
       }
     },
     "/api/owner/radar/sources": {
