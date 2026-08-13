@@ -1,28 +1,35 @@
 package services
 
 import (
+	"net/url"
 	"os"
 	"strings"
 )
 
-// providerFromSolanaRPCURL classifies provenance from the endpoint that was
+// providerFromSolanaRPCURL classifies provenance from the endpoint host that was
 // actually used/configured. Unknown/private endpoints deliberately collapse to
-// solana_rpc instead of being mislabeled as a commercial provider.
+// solana_rpc instead of being mislabeled from credentials, paths or query text.
 func providerFromSolanaRPCURL(raw string) string {
-	rpcURL := strings.ToLower(strings.TrimSpace(raw))
-	switch {
-	case strings.Contains(rpcURL, "alchemy"):
-		return "alchemy"
-	case strings.Contains(rpcURL, "helius"):
-		return "helius"
-	case strings.Contains(rpcURL, "quicknode"):
-		return "quicknode"
-	case strings.Contains(rpcURL, "triton"):
-		return "triton"
-	case rpcURL != "":
-		return "solana_rpc"
-	default:
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
 		return "unconfigured"
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "solana_rpc"
+	}
+	host := strings.ToLower(parsed.Hostname())
+	switch {
+	case strings.Contains(host, "alchemy"):
+		return "alchemy"
+	case strings.Contains(host, "helius"):
+		return "helius"
+	case strings.Contains(host, "quiknode") || strings.Contains(host, "quicknode"):
+		return "quicknode"
+	case strings.Contains(host, "triton"):
+		return "triton"
+	default:
+		return "solana_rpc"
 	}
 }
 
