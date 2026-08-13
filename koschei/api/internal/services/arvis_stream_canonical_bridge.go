@@ -12,15 +12,19 @@ import (
 
 const canonicalInvestigationJobType = "canonical_investigation"
 
-// StartArvisStreamCanonicalBridge turns trusted Radar stream observations into
-// canonical investigation jobs. It intentionally does not calculate, grade or
-// sign a final verdict: that authority belongs to the unified canonical worker.
+// StartArvisStreamCanonicalBridge converts Radar stream observations into
+// canonical investigation jobs. It does not calculate or persist a verdict.
 func StartArvisStreamCanonicalBridge(ctx context.Context, db *sql.DB) func() {
 	if db == nil || envBool("ARVIS_STREAM_VERDICT_DISABLED") {
 		return func() {}
 	}
 	bridgeCtx, cancel := context.WithCancel(ctx)
-	bridge := &arvisStreamCanonicalBridge{db: db, jobs: jobs.NewStore(db), interval: arvisStreamVerdictInterval(), batchSize: arvisStreamVerdictBatchSize()}
+	bridge := &arvisStreamCanonicalBridge{
+		db:        db,
+		jobs:      jobs.NewStore(db),
+		interval:  arvisStreamVerdictInterval(),
+		batchSize: arvisStreamVerdictBatchSize(),
+	}
 	go bridge.start(bridgeCtx)
 	return cancel
 }
@@ -74,7 +78,9 @@ func (b *arvisStreamCanonicalBridge) run(ctx context.Context) {
 	}
 	defer rows.Close()
 
-	type streamTrigger struct{ id, target, network, moduleID, signature string }
+	type streamTrigger struct {
+		id, target, network, moduleID, signature string
+	}
 	triggers := []streamTrigger{}
 	for rows.Next() {
 		var item streamTrigger
@@ -95,17 +101,17 @@ func (b *arvisStreamCanonicalBridge) run(ctx context.Context) {
 		}
 		dedupe := "arvis_stream|" + strings.TrimSpace(trigger.id)
 		payload := map[string]any{
-			"mint":            trigger.target,
-			"network":         trigger.network,
-			"mode":            "background_arvis_stream",
-			"root_target":     trigger.target,
-			"source":          "arvis_stream",
-			"source_event_id": trigger.id,
-			"source_module":   trigger.moduleID,
+			"mint":             trigger.target,
+			"network":          trigger.network,
+			"mode":             "background_arvis_stream",
+			"root_target":      trigger.target,
+			"source":           "arvis_stream",
+			"source_event_id":  trigger.id,
+			"source_module":    trigger.moduleID,
 			"source_signature": trigger.signature,
-			"depth":           0,
-			"max_depth":       1,
-			"dedupe_key":      dedupe,
+			"depth":            0,
+			"max_depth":        1,
+			"dedupe_key":       dedupe,
 		}
 		_, _, err := b.jobs.CreateUniqueActive(ctx, jobs.CreateInput{
 			Type: canonicalInvestigationJobType, Network: trigger.network, Target: trigger.target, Request: payload,
