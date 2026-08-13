@@ -12,9 +12,6 @@ import (
 
 const publicCaseRegistrySchemaVersion = "koschei-public-case-registry-v1"
 
-// publicDossierCaseV2 keeps the existing discovery contract and adds the
-// canonical nine-state counts plus publication-ledger/time provenance.
-// Transition UUIDs remain internal; public readers only receive provenance state.
 type publicDossierCaseV2 struct {
 	publicDossierCase
 	WindowOpenRows          int            `json:"window_open_rows"`
@@ -43,10 +40,6 @@ type publicDossierCasesV2Load struct {
 	InvalidLedgerPublications  int
 }
 
-// PublicDossierCasesV2 is the canonical public case projection. A corrupt or
-// missing explicitly-public bundle, linked publication mismatch, or invalid
-// db-owned publication-time proof is isolated from rendering and declared
-// through registry health. Legacy publication time remains explicitly labeled.
 func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
@@ -103,6 +96,7 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 			"publication_effective_time_event_backed":  true,
 			"db_owned_publication_time_v1":             true,
 			"legacy_publication_lineage_declared":      true,
+			"legacy_bundle_bytes_hash_verified":        true,
 			"transition_identifiers_public":            false,
 			"partial_registry_declared":                true,
 		},
@@ -111,9 +105,8 @@ func (h *Handler) PublicDossierCasesV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDossierCasesV2Load, error) {
-	// Publication visibility is revocable security state. Read it from the
-	// primary database so a lagging read replica cannot extend public exposure
-	// after an owner hide/draft transition commits.
+	// Publication visibility is revocable security state. Read it from the primary
+	// database so a hide/revocation cannot be delayed by replica lag.
 	db := h.DB
 	if db == nil {
 		return publicDossierCasesV2Load{}, sql.ErrConnDone
@@ -207,10 +200,16 @@ func (h *Handler) loadPublicDossierCasesV2(r *http.Request, limit int) (publicDo
 			log.Printf("public dossier withheld from registry: publication/export integrity incomplete case_ref=%s", caseRef)
 			continue
 		}
-		bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash.String)
+
+		var bundle dossierBundle
+		if ledgerState == publicationLedgerLegacyUnlinked {
+			bundle, err = verifyStoredLegacyDossierBundle(canonical, caseRef, storedHash.String)
+		} else {
+			bundle, err = verifyStoredDossierBundle(canonical, caseRef, storedHash.String)
+		}
 		if err != nil {
 			loaded.InvalidPublications++
-			log.Printf("public dossier withheld from registry: immutable integrity failure case_ref=%s", caseRef)
+			log.Printf("public dossier withheld from registry: immutable integrity failure case_ref=%s reason=%v", caseRef, err)
 			continue
 		}
 		loaded.Cases = append(loaded.Cases, buildPublicDossierCaseV2(
