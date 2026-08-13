@@ -21,6 +21,7 @@ func registeredAPIRoutesFromSource(t *testing.T) map[string]struct{} {
 	baseDir := filepath.Dir(currentFile)
 	files := []string{
 		"server.go",
+		"billing_routes.go",
 		"watchlist_routes.go",
 		"dossier_routes.go",
 		"defense_routes.go",
