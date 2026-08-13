@@ -41,7 +41,7 @@ func TestEvidenceGateRejectsUnsignedOutputWithoutLiveEvidence(t *testing.T) {
 	}
 }
 
-func TestEvidenceGateKeepsVerifiedLiveOutput(t *testing.T) {
+func TestEvidenceGateDoesNotPromoteEvidenceArmToFinalVerdict(t *testing.T) {
 	bundle := SecurityRadarBundle{
 		PumpSybilRadar: SecurityRadarVerdict{
 			ModuleID:       ModulePumpSybilRadar,
@@ -72,7 +72,13 @@ func TestEvidenceGateKeepsVerifiedLiveOutput(t *testing.T) {
 	if !SecurityRadarHasLiveEvidence(gated) {
 		t.Fatal("expected live evidence")
 	}
-	if !final.Signed || final.RiskIndex != 46 || final.Signature != "verified-signature" {
-		t.Fatalf("verified verdict changed unexpectedly: %#v", final)
+	if final.Signed {
+		t.Fatalf("evidence-only arm must not self-sign a final verdict: %#v", final)
+	}
+	if final.Grade != "-" || final.RiskIndex != 0 || final.RiskLevel != "unknown" || final.Signature != "" {
+		t.Fatalf("evidence-only arm leaked grade/score into final verdict: %#v", final)
+	}
+	if final.Recommendation != "evaluate_unified_rules" {
+		t.Fatalf("expected canonical unified-rules handoff, got %q", final.Recommendation)
 	}
 }
