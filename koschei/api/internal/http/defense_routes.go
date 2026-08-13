@@ -14,6 +14,7 @@ func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
 	mux.HandleFunc("/api/owner/radar/continuity", requiresDB(h, ownerOnly(h, method("GET", h.OwnerRadarContinuity))))
 	mux.HandleFunc("/api/owner/radar/provider-memory", requiresDB(h, ownerOnly(h, method("GET", h.OwnerProviderWitnessMemory))))
 	mux.HandleFunc("/api/owner/actor-memory/matches", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorOperationalMemory))))
+	mux.HandleFunc("/api/owner/actor-memory/constellation", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorConstellation))))
 
 	// Defense OS is intentionally dormant by default while Koschei is in its
 	// revenue-first product phase. Keeping registration opt-in prevents its lab,
