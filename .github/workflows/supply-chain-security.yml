@@ -58,6 +58,7 @@ jobs:
           exit-code: "0"
       - name: Upload repository SARIF
         if: ${{ always() && hashFiles('trivy-repository.sarif') != '' }}
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           sarif_file: trivy-repository.sarif
@@ -96,6 +97,7 @@ jobs:
           exit-code: "0"
       - name: Upload container SARIF
         if: ${{ always() && hashFiles('trivy-container.sarif') != '' }}
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           sarif_file: trivy-container.sarif
