@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -73,13 +71,6 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 	if tier == "free" || tier == "basic" || h == nil || h.CourtClient == nil {
 		return report
 	}
-	applied, exhausted := h.applyCourtBudget(ctx, tier)
-	if exhausted {
-		report.Status = "budget_exhausted"
-		report.TierApplied = applied
-		return report
-	}
-	tier = applied
 	if tier != "pro" && tier != "enterprise" {
 		return report
 	}
@@ -132,18 +123,31 @@ func (h *Handler) courtTier(ctx context.Context) string {
 	if tier, ok := ctx.Value(courtTierOverrideKey{}).(string); ok {
 		return normalizeCourtTier(tier)
 	}
-	if access, ok := tokenAccessRequestFromContext(ctx); ok {
-		return normalizeCourtTier(access.Evaluation.Tier)
+	if access, ok := planAccessRequestFromContext(ctx); ok {
+		return courtTierFromPlan(access.Evaluation.Plan)
 	}
 	claims, ok := userFromContext(ctx)
 	if !ok || h == nil {
 		return "free"
 	}
-	ev, err := h.evaluateTokenAccess(ctx, claims.Sub)
-	if err != nil || !ev.WalletVerified {
+	evaluation, err := h.evaluatePlanAccess(ctx, claims.Sub, normalizedClaimEmail(claims))
+	if err != nil || !evaluation.Active {
 		return "free"
 	}
-	return normalizeCourtTier(ev.Tier)
+	return courtTierFromPlan(evaluation.Plan)
+}
+
+func courtTierFromPlan(plan string) string {
+	switch canonicalSaaSPlan(plan) {
+	case "starter":
+		return "basic"
+	case "professional":
+		return "pro"
+	case "enterprise":
+		return "enterprise"
+	default:
+		return "free"
+	}
 }
 
 func normalizeCourtTier(t string) string {
@@ -195,53 +199,6 @@ func courtCaseID(in CourtReadOnlyInput) string {
 	return "ARVIS-" + strings.ToUpper(signature)
 }
 
-func (h *Handler) applyCourtBudget(ctx context.Context, tier string) (string, bool) {
-	limit := courtDailyLimit(tier)
-	if limit <= 0 {
-		return lowerCourtTier(tier), true
-	}
-	access, ok := tokenAccessRequestFromContext(ctx)
-	if !ok {
-		return tier, false
-	}
-	_, _, err := handlerScanQuotaLedger{Handler: h}.Reserve(ctx, access.AuthSubject, access.Email, "court_"+tier, limit, time.Now().UTC())
-	if errors.Is(err, errScanQuotaExceeded) {
-		return lowerCourtTier(tier), true
-	}
-	if err != nil {
-		return tier, false
-	}
-	return tier, false
-}
-
-func courtDailyLimit(tier string) int {
-	raw := os.Getenv("KOSCHEI_COURT_QUOTA_" + strings.ToUpper(tier) + "_DAILY")
-	if raw == "" {
-		if tier == "pro" {
-			return 20
-		}
-		if tier == "enterprise" {
-			return 100
-		}
-		return 0
-	}
-	v, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
-func lowerCourtTier(t string) string {
-	if t == "enterprise" {
-		return "pro"
-	}
-	if t == "pro" {
-		return "basic"
-	}
-	return "free"
-}
-
 func (h *Handler) courtScheduledReport(ctx context.Context) *CourtReport {
 	if !envBool("KOSCHEI_COURT_ENABLED", false) {
 		return nil
@@ -254,12 +211,6 @@ func (h *Handler) courtScheduledReport(ctx context.Context) *CourtReport {
 		GeneratedAt: time.Now().UTC(),
 	}
 	if tier == "free" || tier == "basic" || h.CourtClient == nil {
-		return report
-	}
-	applied, exhausted := h.applyCourtBudget(ctx, tier)
-	report.TierApplied = applied
-	if exhausted {
-		report.Status = "budget_exhausted"
 		return report
 	}
 	report.Status = "scheduled"
