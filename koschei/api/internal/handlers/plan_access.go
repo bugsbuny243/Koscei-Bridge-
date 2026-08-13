@@ -212,7 +212,7 @@ func (h *Handler) EnforcePlanOutput(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		tracker := &quotaResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		tracker := &outputResponseWriter{ResponseWriter: w, status: http.StatusOK}
 		consumeReservation := false
 		defer func() {
 			if recovered := recover(); recovered != nil {
@@ -224,7 +224,7 @@ func (h *Handler) EnforcePlanOutput(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 		next(tracker, r)
-		consumeReservation = tracker.shouldConsumeQuota()
+		consumeReservation = tracker.shouldConsumeOutput()
 	}
 }
 
