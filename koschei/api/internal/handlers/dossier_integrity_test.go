@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -33,6 +34,26 @@ func integrityFixture(t *testing.T) (dossierBundle, []byte) {
 		t.Fatalf("marshal dossier bundle: %v", err)
 	}
 	return bundle, canonical
+}
+
+func legacyIntegrityFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+	bundle, canonical := integrityFixture(t)
+	text := string(canonical)
+	prefix := `{"dossier_version":"koschei-dossier-v1","case_ref":"` + bundle.CaseRef + `"`
+	reordered := `{"case_ref":"` + bundle.CaseRef + `","dossier_version":"koschei-dossier-v1"`
+	if !strings.HasPrefix(text, prefix) {
+		t.Fatalf("fixture prefix changed: %s", text[:min(len(text), 160)])
+	}
+	text = reordered + strings.TrimPrefix(text, prefix)
+	marker := `,"bundle_hash":"` + bundle.BundleHash + `"}`
+	if !strings.HasSuffix(text, marker) {
+		t.Fatal("fixture bundle_hash is not final")
+	}
+	bodyBytes := []byte(strings.TrimSuffix(text, marker) + `}`)
+	hash := dossierSHA256(bodyBytes)
+	legacy := []byte(strings.TrimSuffix(text, marker) + `,"bundle_hash":"` + hash + `"}`)
+	return bundle.CaseRef, hash, legacy
 }
 
 func TestVerifyStoredDossierBundleAcceptsExactCanonicalBundle(t *testing.T) {
@@ -84,5 +105,35 @@ func TestVerifyStoredDossierBundleRejectsNonCanonicalBytes(t *testing.T) {
 	canonical = append([]byte(" "), canonical...)
 	if _, err := verifyStoredDossierBundle(canonical, bundle.CaseRef, bundle.BundleHash); err == nil {
 		t.Fatal("non-canonical whitespace mutation was accepted")
+	}
+}
+
+func TestVerifyStoredLegacyDossierBundleAcceptsHistoricalFieldOrderWhenExactBodyHashMatches(t *testing.T) {
+	caseRef, hash, canonical := legacyIntegrityFixture(t)
+	verified, err := verifyStoredLegacyDossierBundle(canonical, caseRef, hash)
+	if err != nil {
+		t.Fatalf("verify historical canonical bytes: %v", err)
+	}
+	if verified.CaseRef != caseRef || verified.BundleHash != hash {
+		t.Fatalf("legacy verified bundle identity changed: %#v", verified)
+	}
+	if _, err := verifyStoredDossierBundle(canonical, caseRef, hash); err == nil {
+		t.Fatal("strict current verifier unexpectedly accepted historical field order")
+	}
+}
+
+func TestVerifyStoredLegacyDossierBundleRejectsBodyMutation(t *testing.T) {
+	caseRef, hash, canonical := legacyIntegrityFixture(t)
+	canonical = []byte(strings.Replace(string(canonical), `"grade":"B"`, `"grade":"A"`, 1))
+	if _, err := verifyStoredLegacyDossierBundle(canonical, caseRef, hash); err == nil {
+		t.Fatal("legacy body mutation was accepted with stale historical hash")
+	}
+}
+
+func TestVerifyStoredLegacyDossierBundleRejectsUnknownTopLevelField(t *testing.T) {
+	caseRef, hash, canonical := legacyIntegrityFixture(t)
+	canonical = []byte(strings.Replace(string(canonical), `{"case_ref":`, `{"unexpected":true,"case_ref":`, 1))
+	if _, err := verifyStoredLegacyDossierBundle(canonical, caseRef, hash); err == nil {
+		t.Fatal("legacy unknown top-level field was accepted")
 	}
 }
