@@ -39,7 +39,7 @@ jobs:
         working-directory: koschei/api
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f0260f5c3f1f8a9ef0f9f
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version-file: koschei/api/go.mod
           cache-dependency-path: koschei/api/go.sum
