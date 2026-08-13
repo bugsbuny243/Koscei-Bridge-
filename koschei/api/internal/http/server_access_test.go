@@ -19,16 +19,17 @@ func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 	}
 	registerProductRoutes(mux, h, gate)
 
-	// Basic includes the existing three security products plus the canonical
-	// durable-job create routes and radar detail. Job reads remain authenticated
-	// but are not counted here because they do not consume a new scan quota.
-	want := []string{"basic", "basic", "basic", "basic", "basic", "basic", "pro", "pro", "pro", "pro", "pro", "pro"}
+	// Starter includes the paid investigation routes and canonical durable-job
+	// create routes. Professional covers the advanced radar surfaces. Job reads
+	// remain authenticated but are not counted here because they do not consume
+	// a new premium output.
+	want := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional"}
 	if !reflect.DeepEqual(tiers, want) {
 		t.Fatalf("route tiers=%v want=%v", tiers, want)
 	}
 
-	// A GET reaches the free route's method guard directly. A KOSCH/quota gate
-	// would have been registered through gate above and changed the tier list.
+	// A GET reaches the free route's method guard directly. A SaaS entitlement
+	// gate would have been registered through gate above and changed the tier list.
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/token/scan", nil))
 	if rr.Code != http.StatusMethodNotAllowed {
