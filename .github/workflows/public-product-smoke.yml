@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: Verify public pages, canonical Scan Center, full scan, SOC APIs and deployed registry
+    name: Verify public pages, Scan Center, SOC APIs and deployed registry readiness
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -36,6 +36,9 @@ jobs:
     steps:
       - name: Checkout smoke probes
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Verify registry smoke decision tests
+        run: node koschei/api/scripts/verify-public-registry-smoke-response.test.js
 
       - name: Probe public product
         shell: bash
@@ -67,10 +70,6 @@ jobs:
             }
           }
 
-          # Pushes race Railway's edge while a new container becomes ready. Only
-          # connection failures and gateway/service transition responses retry.
-          # A 200 with an old marker may also retry until the new deployment is
-          # visible. 4xx and application 500 responses fail immediately.
           wait_expect_200() {
             local name="$1" path="$2" marker="$3" attempts="${4:-18}" code=""
             for attempt in $(seq 1 "${attempts}"); do
@@ -174,10 +173,6 @@ jobs:
             done
           fi
 
-          # Public APIs must always remain reachable and honest about success.
-          # Pull-request code is not deployed to BASE_URL, so PRs stop at this
-          # transport/API contract. Production registry readiness remains a hard
-          # post-deploy gate on main, scheduled and manually dispatched smokes.
           wait_expect_200 cases_api '/api/public/cases?limit=100' '"ok":true' 12
           wait_expect_200 feed_api /api/public/soc/feed '"ok":true' 12
 
@@ -194,24 +189,33 @@ jobs:
           };
           process.stdout.write(`PR_PRODUCTION_REGISTRY_OBSERVED=${JSON.stringify(summary)}\n`);
           NODE
-            echo 'PR_PRODUCT_HEALTHY: production transport/pages/APIs are reachable; branch registry semantics are enforced by branch acceptance tests and post-deploy smoke.'
+            echo 'PR_PRODUCT_HEALTHY: production transport/pages/APIs are reachable; branch registry semantics passed local decision tests and are enforced post-deploy.'
           else
-            case_ref="$(node - <<'NODE'
-          const fs = require('fs');
-          const payload = JSON.parse(fs.readFileSync('diagnostics/cases_api.body', 'utf8'));
-          const item = Array.isArray(payload.cases) ? payload.cases.find(value => /^KD1-[a-z0-9]+$/i.test(String(value?.case_ref || ''))) : null;
-          if (!item) process.exit(2);
-          process.stdout.write(String(item.case_ref));
-          NODE
-            )" || {
-              echo 'PUBLIC_CASE_REGISTRY_FAILURE: no deployed published KD1 case is available.' >&2
+            if ! node koschei/api/scripts/verify-public-registry-smoke-response.js \
+              diagnostics/cases_api.body > diagnostics/public-registry-smoke.json; then
+              echo 'PUBLIC_CASE_REGISTRY_FAILURE: deployed registry is not complete, operational and verifiable.' >&2
               exit 27
-            }
-            printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
-            wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 12
-            wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 12
-            grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE' >&2; exit 32; }
-            echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, English core, ARVIS assets, public APIs, and deployed immutable case passed.'
+            fi
+
+            registry_mode="$(node -e "const r=require('./diagnostics/public-registry-smoke.json');process.stdout.write(String(r.mode||''))")"
+            case_ref="$(node -e "const r=require('./diagnostics/public-registry-smoke.json');process.stdout.write(String(r.case_ref||''))")"
+            printf '%s\n' "registry_mode=${registry_mode}" | tee -a diagnostics/result.txt
+
+            if [ "${registry_mode}" = "empty_healthy" ]; then
+              [ -z "${case_ref}" ] || { echo 'PUBLIC_CASE_REGISTRY_FAILURE: empty registry emitted a case_ref.' >&2; exit 27; }
+              echo 'PUBLIC_CASE_REGISTRY_EMPTY_HEALTHY: registry is operational, complete, fully verified, and truthfully empty.' | tee -a diagnostics/result.txt
+            elif [ "${registry_mode}" = "case" ]; then
+              [ -n "${case_ref}" ] || { echo 'PUBLIC_CASE_REGISTRY_FAILURE: verified case mode is missing case_ref.' >&2; exit 27; }
+              printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
+              wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 12
+              wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 12
+              grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE' >&2; exit 32; }
+            else
+              echo "PUBLIC_CASE_REGISTRY_FAILURE: unknown registry mode ${registry_mode}." >&2
+              exit 27
+            fi
+
+            echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, English core, ARVIS assets, SOC APIs, and deployed registry readiness passed.'
           fi
 
       - name: Run full production investigation
@@ -322,7 +326,7 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Canonical Scan Center, full scan, English core, SOC API or deployed-registry smoke failed'
+          description='Canonical Scan Center, full scan, English core, SOC API or deployed-registry readiness smoke failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
@@ -330,7 +334,7 @@ jobs:
               description='PR product smoke passed; production registry readiness is enforced post-deploy'
               target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             else
-              description='Production Scan Center, full scan, ARVIS assets, SOC APIs and deployed registry verified'
+              description='Production Scan Center, ARVIS assets, SOC APIs and deployed registry readiness verified'
               target_url="${BASE_URL}/scan"
             fi
           fi
