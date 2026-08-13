@@ -65,7 +65,7 @@ func productionRouteInventory() []routeInventoryGroup {
 			"POST /api/owner/login", "POST /api/owner/logout", "GET /api/owner/command-center", "GET /api/owner/operations",
 			"GET /api/owner/arvis", "POST /api/owner/arvis/scan", "POST /api/owner/radar/unified", "POST /api/owner/radar/jobs", "GET /api/owner/radar/jobs/",
 			"POST /api/owner/radar/funding-corpus/warmup", "GET /api/owner/creator-intelligence", "GET /api/owner/wallet-linkage", "GET /api/owner/actor-intelligence",
-			"GET /api/owner/actor-memory/matches", "GET /api/owner/radar/continuity", "GET /api/owner/radar/provider-memory",
+			"GET /api/owner/actor-memory/matches", "GET /api/owner/actor-memory/constellation", "GET /api/owner/radar/continuity", "GET /api/owner/radar/provider-memory",
 			"GET /api/owner/defense/tracks", "POST /api/owner/defense/investigate", "POST /api/owner/defense/actor-acceptance", "POST /api/owner/defense/distribution",
 			"/api/owner/radar/sources", "GET /api/owner/kosch-access", "GET /api/owner/security-events", "GET /api/owner/route-map", "/api/owner/feedback",
 			"GET /api/owner/users", "POST /api/owner/users/ban", "POST /api/owner/users/remove", "POST /api/owner/command", "POST /api/owner/brain", "/api/owner/chat", "GET /api/owner/health", "GET /api/owner/status",
