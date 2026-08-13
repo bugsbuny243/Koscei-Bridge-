@@ -80,7 +80,7 @@ func (h *Handler) applyCreditChargeTxWithReason(tx *sql.Tx, authSubject, email, 
 		  AND (
 			($1 <> '' AND p.auth_subject = $1)
 			OR ($2 <> '' AND lower(p.email) = lower($2))
-		  )
+			  )
 		ORDER BY CASE WHEN $1 <> '' AND p.auth_subject = $1 THEN 0 ELSE 1 END,
 		         p.updated_at DESC,
 		         p.created_at DESC
@@ -121,29 +121,40 @@ func (h *Handler) applyCreditChargeTxWithReason(tx *sql.Tx, authSubject, email, 
 	return errors.New("active package output required")
 }
 
-// KOSCH holder access is balance-based and does not consume legacy package
-// outputs. The method remains for existing call sites and is intentionally a
-// no-op after a successful KOSCH access check.
+// Compatibility callers no longer consume outputs here. Output reservation is
+// enforced centrally by EnforcePlanOutput for SaaS-authorized routes.
 func (h *Handler) consumePremiumOutput(authSubject, email, reason string) error {
 	return nil
 }
 
 func (h *Handler) hasActivePaidPackage(authSubject, email string) (bool, error) {
-	return false, nil
+	if h == nil || h.DB == nil {
+		return false, errors.New("database unavailable")
+	}
+	evaluation, err := h.evaluatePlanAccess(context.Background(), authSubject, email)
+	if err != nil {
+		return false, err
+	}
+	return evaluation.Active && planTierRank(evaluation.Plan) > 0, nil
 }
 
-// Existing premium handlers call this before work begins. It now verifies the
-// basic KOSCH tier instead of looking up paid packages or output balances.
+// Existing premium handlers retain this compatibility check while authority is
+// sourced exclusively from an active SaaS entitlement. KOSCH balances and token
+// tiers are intentionally not consulted.
 func (h *Handler) requirePremiumOutput(authSubject string, emails ...string) (int, error) {
 	if h == nil || h.DB == nil {
 		return 0, errors.New("database unavailable")
 	}
-	active, err := h.hasTokenTierAccess(context.Background(), authSubject, "basic")
+	email := ""
+	if len(emails) > 0 {
+		email = strings.TrimSpace(emails[0])
+	}
+	evaluation, err := h.evaluatePlanAccess(context.Background(), authSubject, email)
 	if err != nil {
 		return 0, err
 	}
-	if !active {
-		return 0, errors.New("verified KOSCH holder access required")
+	if !evaluation.Active || planTierRank(evaluation.Plan) == 0 {
+		return 0, errors.New("active SaaS plan required")
 	}
-	return 1, nil
+	return evaluation.OutputsRemaining, nil
 }
