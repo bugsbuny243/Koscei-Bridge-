@@ -4,22 +4,38 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
+func testConstellationEvidence(id, status string) []ActorConstellationEvidenceRow {
+	return []ActorConstellationEvidenceRow{
+		{ID: id + "-1", Signature: "sig-" + id + "-1", Slot: 101, Timestamp: time.Unix(100, 0).UTC(), SourceWallet: "source", DestinationWallet: "destination", Amount: "1", Asset: "SOL", Program: "system", VerificationStatus: status, Relation: "direct_sol_transfer_out"},
+		{ID: id + "-2", Signature: "sig-" + id + "-2", Slot: 102, Timestamp: time.Unix(101, 0).UTC(), SourceWallet: "source", DestinationWallet: "destination", Amount: "2", Asset: "SOL", Program: "system", VerificationStatus: status, Relation: "funded_by"},
+	}
+}
+
+func testConstellationCandidate(match ActorOperationalMatch) actorConstellationCandidate {
+	status := match.EvidenceStatus
+	if status == "" {
+		status = "observed"
+	}
+	return actorConstellationCandidate{Match: match, Evidence: testConstellationEvidence(match.Wallet, status)}
+}
+
 func TestBuildActorConstellationExpandsStrongEdgesOnly(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		switch wallet {
 		case "A":
-			return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{
-				{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified", Rules: []string{"AOM-01"}, DirectVerifiedRelations: 1},
-				{Wallet: "X", Classification: "single_operational_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-05"}},
+			return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+				testConstellationCandidate(ActorOperationalMatch{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified", Rules: []string{"AOM-01"}, DirectVerifiedRelations: 1}),
+				testConstellationCandidate(ActorOperationalMatch{Wallet: "X", Classification: "single_operational_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-05"}}),
 			}}, nil
 		case "B":
-			return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{
-				{Wallet: "C", Classification: "repeated_operational_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-03"}, SharedCounterpartCount: 2, SharedRelationCount: 2},
+			return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+				testConstellationCandidate(ActorOperationalMatch{Wallet: "C", Classification: "repeated_operational_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-03"}, SharedCounterpartCount: 2, SharedRelationCount: 2}),
 			}}, nil
 		default:
-			return ActorOperationalMemoryReport{}, nil
+			return actorConstellationLookupResult{Complete: true}, nil
 		}
 	}
 
@@ -33,9 +49,17 @@ func TestBuildActorConstellationExpandsStrongEdgesOnly(t *testing.T) {
 	if report.NodeCount != 3 || report.EdgeCount != 2 {
 		t.Fatalf("unexpected graph size: nodes=%d edges=%d", report.NodeCount, report.EdgeCount)
 	}
+	if report.Complete {
+		t.Fatal("reaching the requested depth frontier must mark the view incomplete")
+	}
 	for _, node := range report.Nodes {
 		if node.Wallet == "X" {
 			t.Fatal("weak single overlap must not be added to the constellation")
+		}
+	}
+	for _, edge := range report.Edges {
+		if len(edge.Evidence) == 0 {
+			t.Fatalf("serious edge must retain evidence rows: %#v", edge)
 		}
 	}
 	var c ActorConstellationNode
@@ -53,14 +77,14 @@ func TestBuildActorConstellationExpandsStrongEdgesOnly(t *testing.T) {
 }
 
 func TestBuildActorConstellationDoesNotTraverseBeyondDepth(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		next := map[string]string{"A": "B", "B": "C", "C": "D"}[wallet]
 		if next == "" {
-			return ActorOperationalMemoryReport{}, nil
+			return actorConstellationLookupResult{Complete: true}, nil
 		}
-		return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{{
-			Wallet: next, Classification: "repeated_funding_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-02"}, SharedFundingSourceCount: 1,
-		}}}, nil
+		return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+			testConstellationCandidate(ActorOperationalMatch{Wallet: next, Classification: "repeated_funding_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-02"}, SharedFundingSourceCount: 1}),
+		}}, nil
 	}
 
 	report, err := buildActorConstellation(context.Background(), "A", "solana-mainnet", 2, 8, 25, lookup)
@@ -70,6 +94,9 @@ func TestBuildActorConstellationDoesNotTraverseBeyondDepth(t *testing.T) {
 	if report.NodeCount != 3 {
 		t.Fatalf("depth 2 must stop at C, got nodes=%#v", report.Nodes)
 	}
+	if report.Complete {
+		t.Fatal("depth-limited frontier must not claim a complete graph")
+	}
 	for _, node := range report.Nodes {
 		if node.Wallet == "D" {
 			t.Fatal("depth cap violated")
@@ -78,14 +105,14 @@ func TestBuildActorConstellationDoesNotTraverseBeyondDepth(t *testing.T) {
 }
 
 func TestBuildActorConstellationMarksBoundedViewIncomplete(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		if wallet != "A" {
-			return ActorOperationalMemoryReport{}, nil
+			return actorConstellationLookupResult{Complete: true}, nil
 		}
-		return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{
-			{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified"},
-			{Wallet: "C", Classification: "verified_counterparty_link", EvidenceStatus: "verified"},
-			{Wallet: "D", Classification: "verified_counterparty_link", EvidenceStatus: "verified"},
+		return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified"}),
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "C", Classification: "verified_counterparty_link", EvidenceStatus: "verified"}),
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "D", Classification: "verified_counterparty_link", EvidenceStatus: "verified"}),
 		}}, nil
 	}
 
@@ -101,19 +128,19 @@ func TestBuildActorConstellationMarksBoundedViewIncomplete(t *testing.T) {
 	}
 }
 
-func TestBuildActorConstellationDeduplicatesUndirectedEdgesAndKeepsStrongerEvidence(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+func TestBuildActorConstellationDeduplicatesUndirectedEdgesAndSynchronizesPathMetadata(t *testing.T) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		switch wallet {
 		case "A":
-			return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{{
-				Wallet: "B", Classification: "repeated_funding_overlap", EvidenceStatus: "observed", SharedFundingSourceCount: 1,
-			}}}, nil
+			return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+				testConstellationCandidate(ActorOperationalMatch{Wallet: "B", Classification: "repeated_funding_overlap", EvidenceStatus: "observed", Rules: []string{"AOM-02"}, SharedFundingSourceCount: 1}),
+			}}, nil
 		case "B":
-			return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{{
-				Wallet: "A", Classification: "verified_counterparty_link", EvidenceStatus: "verified", DirectVerifiedRelations: 2,
-			}}}, nil
+			return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+				testConstellationCandidate(ActorOperationalMatch{Wallet: "A", Classification: "verified_counterparty_link", EvidenceStatus: "verified", Rules: []string{"AOM-01"}, DirectVerifiedRelations: 2}),
+			}}, nil
 		default:
-			return ActorOperationalMemoryReport{}, nil
+			return actorConstellationLookupResult{Complete: true}, nil
 		}
 	}
 
@@ -127,16 +154,21 @@ func TestBuildActorConstellationDeduplicatesUndirectedEdgesAndKeepsStrongerEvide
 	if report.Edges[0].Classification != "verified_counterparty_link" || report.Edges[0].EvidenceStatus != "verified" {
 		t.Fatalf("stronger reverse evidence should replace weaker edge: %#v", report.Edges[0])
 	}
+	for _, node := range report.Nodes {
+		if node.Wallet == "B" && (node.LinkClassification != "verified_counterparty_link" || node.EvidenceStatus != "verified") {
+			t.Fatalf("path node metadata must follow the final upgraded edge: %#v", node)
+		}
+	}
 }
 
 func TestBuildActorConstellationFailsClosedOnLookupError(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		if wallet == "B" {
-			return ActorOperationalMemoryReport{}, errors.New("database unavailable")
+			return actorConstellationLookupResult{}, errors.New("database unavailable")
 		}
-		return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{{
-			Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified",
-		}}}, nil
+		return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified", DirectVerifiedRelations: 1}),
+		}}, nil
 	}
 
 	if _, err := buildActorConstellation(context.Background(), "A", "solana-mainnet", 2, 8, 25, lookup); err == nil {
