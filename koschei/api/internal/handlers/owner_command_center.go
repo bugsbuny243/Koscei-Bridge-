@@ -33,7 +33,7 @@ func (h *Handler) OwnerCommandCenterStatus(w http.ResponseWriter, r *http.Reques
 		"database":       map[string]any{"status": serviceStatus(db != nil, "connected", "unavailable")},
 		"neon_auth":      map[string]any{"status": serviceStatus(envSet("NEON_AUTH_JWKS_URL"), "configured", "missing")},
 		"solana_rpc":     map[string]any{"status": serviceStatus(envSet("SOLANA_RPC_URL") || envSet("ALCHEMY_SOLANA_RPC_URL") || envSet("HELIUS_SOLANA_RPC_URL") || envSet("QUICKNODE_SOLANA_RPC_URL") || envSet("ALCHEMY_API_KEY"), "configured", "missing")},
-		"shopier":        map[string]any{"status": serviceStatus(envSet("SHOPIER_WEBHOOK_SECRET"), "configured", "manual")},
+		"paddle":         map[string]any{"status": serviceStatus(envSet("PADDLE_API_KEY") && envSet("PADDLE_WEBHOOK_SECRET"), "configured", "missing")},
 		"security_radar": map[string]any{"status": firstMapString(arvis, "pipeline_status"), "mode": firstOwnerEnv("KOSCHEI_SOLANA_WATCH_MODE", "stream")},
 	}
 
@@ -64,9 +64,7 @@ func (h *Handler) ownerBusinessSummary(ctx context.Context, db *sql.DB) map[stri
 		"new_users_7d":                 int64(0),
 		"active_entitlements":          int64(0),
 		"expiring_entitlements_7d":     int64(0),
-		"pending_payments":             int64(0),
-		"paid_orders_30d":              int64(0),
-		"revenue_try_cents_30d":        int64(0),
+		"paddle_events_30d":            int64(0),
 		"open_feedback":                int64(0),
 		"security_feedback":            int64(0),
 		"radar_findings_24h":           int64(0),
@@ -91,12 +89,8 @@ func (h *Handler) ownerBusinessSummary(ctx context.Context, db *sql.DB) map[stri
 		summary["active_entitlements"] = ownerCount(ctx, db, `SELECT count(*) FROM entitlements WHERE status='active' AND (expires_at IS NULL OR expires_at > now())`)
 		summary["expiring_entitlements_7d"] = ownerCount(ctx, db, `SELECT count(*) FROM entitlements WHERE status='active' AND expires_at > now() AND expires_at <= now() + interval '7 days'`)
 	}
-	if ownerTableExists(ctx, db, "payment_requests") {
-		summary["pending_payments"] = ownerCount(ctx, db, `SELECT count(*) FROM payment_requests WHERE status='pending'`)
-		summary["paid_orders_30d"] = ownerCount(ctx, db, `SELECT count(*) FROM payment_requests WHERE status='approved' AND COALESCE(reviewed_at,created_at) >= now() - interval '30 days'`)
-		var revenueTRY int64
-		_ = db.QueryRowContext(ctx, `SELECT COALESCE(sum(amount_try),0) FROM payment_requests WHERE status='approved' AND COALESCE(reviewed_at,created_at) >= now() - interval '30 days'`).Scan(&revenueTRY)
-		summary["revenue_try_cents_30d"] = revenueTRY * 100
+	if ownerTableExists(ctx, db, "paddle_billing_events") {
+		summary["paddle_events_30d"] = ownerCount(ctx, db, `SELECT count(*) FROM paddle_billing_events WHERE processed_at >= now() - interval '30 days'`)
 	}
 	if ownerTableExists(ctx, db, "customer_feedback") {
 		summary["open_feedback"] = ownerCount(ctx, db, `SELECT count(*) FROM customer_feedback WHERE status IN ('new','reviewing','planned')`)
@@ -159,16 +153,14 @@ func ownerDailyUserTrend(ctx context.Context, db *sql.DB) []map[string]any {
 
 func ownerDailyOrderTrend(ctx context.Context, db *sql.DB) []map[string]any {
 	out := make([]map[string]any, 0, 7)
-	if db == nil || !ownerTableExists(ctx, db, "payment_requests") {
+	if db == nil || !ownerTableExists(ctx, db, "paddle_billing_events") {
 		return out
 	}
 	rows, err := db.QueryContext(ctx, `
 		WITH days AS (SELECT generate_series(current_date - interval '6 days', current_date, interval '1 day')::date AS day)
-		SELECT day::text,
-		       count(p.id) FILTER (WHERE p.status='approved'),
-		       COALESCE(sum(p.amount_try * 100) FILTER (WHERE p.status='approved'),0)
+		SELECT day::text, count(p.notification_id)
 		FROM days
-		LEFT JOIN payment_requests p ON COALESCE(p.reviewed_at,p.created_at) >= day AND COALESCE(p.reviewed_at,p.created_at) < day + interval '1 day'
+		LEFT JOIN paddle_billing_events p ON p.processed_at >= day AND p.processed_at < day + interval '1 day'
 		GROUP BY day ORDER BY day
 	`)
 	if err != nil {
@@ -177,14 +169,13 @@ func ownerDailyOrderTrend(ctx context.Context, db *sql.DB) []map[string]any {
 	defer rows.Close()
 	for rows.Next() {
 		var day string
-		var count, revenue int64
-		if rows.Scan(&day, &count, &revenue) == nil {
-			out = append(out, map[string]any{"date": day, "count": count, "revenue_try_cents": revenue})
+		var count int64
+		if rows.Scan(&day, &count) == nil {
+			out = append(out, map[string]any{"date": day, "count": count})
 		}
 	}
 	return out
 }
-
 func ownerActionQueue(summary map[string]any, serviceMap map[string]any, arvis map[string]any) []map[string]any {
 	actions := []map[string]any{}
 	add := func(priority, kind, title, detail, tab string, count int64) {
@@ -197,7 +188,6 @@ func ownerActionQueue(summary map[string]any, serviceMap map[string]any, arvis m
 	add("high", "arvis_exhausted", "Arvıs tükenmiş iş kuyruğu", "Yeniden deneme hakkı tükenen radar işleri owner incelemesi bekliyor.", "arvis", mapInt64(arvis, "processing_exhausted"))
 	add("critical", "security_feedback", "Güvenlik geri bildirimleri", "Müşteriler güvenlik kategorisinde yeni bildirim gönderdi.", "feedback", mapInt64(summary, "security_feedback"))
 	add("high", "security_events", "Kritik güvenlik olayları", "Son 24 saatte yüksek önem seviyesinde güvenlik olayı oluştu.", "security", mapInt64(summary, "critical_security_events_24h"))
-	add("high", "pending_payment", "Bekleyen ödeme onayları", "Shopier ödeme talepleri owner incelemesi bekliyor.", "revenue", mapInt64(summary, "pending_payments"))
 	add("medium", "feedback", "Yanıt bekleyen müşteri geri bildirimleri", "Yeni, incelenen veya planlanan geri bildirim kayıtları var.", "feedback", mapInt64(summary, "open_feedback"))
 	add("medium", "expiring_entitlement", "Yakında bitecek paketler", "Önümüzdeki 7 gün içinde süresi dolacak aktif paketler var.", "customers", mapInt64(summary, "expiring_entitlements_7d"))
 	add("medium", "failed_jobs", "Başarısız işler", "Son 24 saatte başarısız uygulama işleri oluştu.", "system", mapInt64(summary, "failed_jobs_24h"))

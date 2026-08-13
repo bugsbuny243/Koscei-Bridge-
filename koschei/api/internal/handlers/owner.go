@@ -276,16 +276,6 @@ func (h *Handler) OwnerRemoveUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": "removed"})
 }
 
-func (h *Handler) OwnerPaymentRequests(w http.ResponseWriter, r *http.Request) {
-	h.OwnerPaymentRequestsList(w, r)
-}
-func (h *Handler) OwnerApprovePayment(w http.ResponseWriter, r *http.Request) {
-	h.OwnerApprovePaymentRequest(w, r)
-}
-func (h *Handler) OwnerRejectPayment(w http.ResponseWriter, r *http.Request) {
-	h.OwnerRejectPaymentRequest(w, r)
-}
-
 func (h *Handler) OwnerCommand(w http.ResponseWriter, r *http.Request) {
 	if !h.ownerAuth(w, r) {
 		return
@@ -403,9 +393,6 @@ func (h *Handler) routeOwnerBrainCommand(ctx context.Context, message string) (s
 		email := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(cmd, "kullanıcı ara"), "kullanici ara"))
 		result := h.ownerSearchUser(ctx, email)
 		return "user_search", result, "Kullanıcı arama sonucu hazır.", true
-	case strings.Contains(cmd, "bekleyen ödeme") || strings.Contains(cmd, "bekleyen odeme"):
-		result := h.ownerPendingPayments(ctx)
-		return "pending_payments", result, "Bekleyen ödemeler listelendi.", true
 	case strings.Contains(cmd, "paddle") && strings.Contains(cmd, "durum"):
 		return "paddle_status", envConfiguredResult([]string{"PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "PADDLE_ENV"}, false), "Paddle yapılandırma durumu hazır.", true
 	case strings.Contains(cmd, "openai") && strings.Contains(cmd, "durum"):
@@ -435,9 +422,6 @@ func (h *Handler) ownerRecentErrors(ctx context.Context) map[string]any {
 	if ownerTableExists(ctx, h.DB, "web3_jobs") {
 		result["failed_web3_jobs"] = ownerQueryRows(ctx, h.DB, `SELECT queued_at, updated_at, email, job_type, status, error_code, error_message FROM web3_jobs WHERE updated_at >= now() - interval '24 hours' AND lower(status) IN ('failed','error') ORDER BY updated_at DESC LIMIT 50`, []string{"queued_at", "updated_at", "email", "job_type", "status", "error_code", "error_message"})
 	}
-	if ownerTableExists(ctx, h.DB, "payment_requests") {
-		result["failed_payments"] = ownerQueryRows(ctx, h.DB, `SELECT created_at, reviewed_at, email, product_id, amount_try, currency, status FROM payment_requests WHERE created_at >= now() - interval '24 hours' AND lower(status) IN ('failed','rejected','error') ORDER BY created_at DESC LIMIT 50`, []string{"created_at", "reviewed_at", "email", "product_id", "amount_try", "currency", "status"})
-	}
 	return result
 }
 
@@ -458,14 +442,6 @@ func (h *Handler) ownerSearchUser(ctx context.Context, email string) map[string]
 		}
 	}
 	return result
-}
-
-func (h *Handler) ownerPendingPayments(ctx context.Context) map[string]any {
-	if !ownerTableExists(ctx, h.DB, "payment_requests") {
-		return map[string]any{"payment_requests": []map[string]any{}, "table_exists": false}
-	}
-	rows := ownerQueryRows(ctx, h.DB, `SELECT id::text, email, COALESCE(full_name,''), COALESCE(product_id,''), COALESCE(amount_try,0), COALESCE(currency,'TRY'), status, created_at FROM payment_requests WHERE status='pending' ORDER BY created_at DESC LIMIT 100`, []string{"id", "email", "full_name", "product_id", "amount_try", "currency", "status", "created_at"})
-	return map[string]any{"payment_requests": rows, "count": len(rows), "table_exists": true}
 }
 
 func configuredStatus(keys ...string) string {
