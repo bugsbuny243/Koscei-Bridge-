@@ -86,29 +86,29 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 	maxDepth, fanout, nodeCap = normalizeActorConstellationBounds(maxDepth, fanout, nodeCap)
 
 	out := ActorConstellationReport{
-		Version: ActorConstellationVersion,
-		SeedWallet: wallet,
-		Network: network,
-		Status: "no_constellation_observed",
-		Complete: true,
-		MaxDepth: maxDepth,
-		Fanout: fanout,
-		NodeCap: nodeCap,
-		Nodes: []ActorConstellationNode{{Wallet: wallet, Hop: 0, Rules: []string{}}},
-		Edges: []ActorConstellationEdge{},
+		Version:     ActorConstellationVersion,
+		SeedWallet:  wallet,
+		Network:     network,
+		Status:      "no_constellation_observed",
+		Complete:    true,
+		MaxDepth:    maxDepth,
+		Fanout:      fanout,
+		NodeCap:     nodeCap,
+		Nodes:       []ActorConstellationNode{{Wallet: wallet, Hop: 0, Rules: []string{}}},
+		Edges:       []ActorConstellationEdge{},
 		GeneratedAt: time.Now().UTC(),
 		Policy: map[string]any{
-			"real_world_identity_claim": false,
-			"same_operator_claim": false,
-			"wrongdoing_claim": false,
-			"transitive_identity_claim": false,
-			"grade_authority": false,
-			"verdict_authority": false,
-			"guard_block_authority": false,
+			"real_world_identity_claim":         false,
+			"same_operator_claim":               false,
+			"wrongdoing_claim":                  false,
+			"transitive_identity_claim":         false,
+			"grade_authority":                   false,
+			"verdict_authority":                 false,
+			"guard_block_authority":             false,
 			"weak_single_observation_expansion": false,
-			"shortest_hop_path_preserved": true,
-			"bounded_graph": true,
-			"ruleset": ActorConstellationVersion,
+			"shortest_hop_path_preserved":       true,
+			"bounded_graph":                     true,
+			"ruleset":                           ActorConstellationVersion,
 		},
 		Limitations: []string{},
 	}
@@ -158,12 +158,12 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 			hop := current.Hop + 1
 			visited[candidate] = hop
 			out.Nodes = append(out.Nodes, ActorConstellationNode{
-				Wallet: candidate,
-				Hop: hop,
-				ViaWallet: current.Wallet,
+				Wallet:             candidate,
+				Hop:                hop,
+				ViaWallet:          current.Wallet,
 				LinkClassification: match.Classification,
-				EvidenceStatus: match.EvidenceStatus,
-				Rules: append([]string(nil), match.Rules...),
+				EvidenceStatus:     match.EvidenceStatus,
+				Rules:              append([]string(nil), match.Rules...),
 			})
 			queue = append(queue, actorConstellationQueueItem{Wallet: candidate, Hop: hop})
 		}
@@ -232,16 +232,16 @@ func actorConstellationExpansionEligible(classification string) bool {
 func actorConstellationEdgeFromMatch(from, to string, match ActorOperationalMatch) ActorConstellationEdge {
 	from, to = canonicalActorConstellationPair(from, to)
 	return ActorConstellationEdge{
-		FromWallet: from,
-		ToWallet: to,
-		Classification: strings.TrimSpace(match.Classification),
-		EvidenceStatus: strings.TrimSpace(match.EvidenceStatus),
-		Rules: append([]string(nil), match.Rules...),
-		DirectVerifiedRelations: match.DirectVerifiedRelations,
-		SharedCounterpartCount: match.SharedCounterpartCount,
-		SharedRelationCount: match.SharedRelationCount,
+		FromWallet:               from,
+		ToWallet:                 to,
+		Classification:           strings.TrimSpace(match.Classification),
+		EvidenceStatus:           strings.TrimSpace(match.EvidenceStatus),
+		Rules:                    append([]string(nil), match.Rules...),
+		DirectVerifiedRelations:  match.DirectVerifiedRelations,
+		SharedCounterpartCount:   match.SharedCounterpartCount,
+		SharedRelationCount:      match.SharedRelationCount,
 		SharedFundingSourceCount: match.SharedFundingSourceCount,
-		VerifiedOverlapCount: match.VerifiedOverlapCount,
+		VerifiedOverlapCount:     match.VerifiedOverlapCount,
 	}
 }
 
