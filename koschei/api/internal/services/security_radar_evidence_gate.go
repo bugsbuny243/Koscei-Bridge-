@@ -55,21 +55,16 @@ func EvidenceBackedSecurityRadarBundle(bundle SecurityRadarBundle) SecurityRadar
 	return applyResolvedArvisProvider(bundle)
 }
 
+// EvidenceBackedFinalSecurityRadarVerdict is a compatibility projection only.
+// Evidence arms may prove facts, but they are never allowed to mint, sign or
+// promote a final verdict. EvaluateUnifiedRadarVerdict is the sole grade-bearing
+// decision authority for Radar.
 func EvidenceBackedFinalSecurityRadarVerdict(bundle SecurityRadarBundle) SecurityRadarFinalVerdict {
 	bundle = EvidenceBackedSecurityRadarBundle(bundle)
 	if !SecurityRadarHasLiveEvidence(bundle) {
 		return SecurityRadarFinalVerdict{Grade: "-", RiskIndex: 0, RiskLevel: "unknown", Verdict: SecurityRadarInsufficientEvidenceMessage, Recommendation: "insufficient_evidence", RuleVersion: SecurityRadarRuleVersion, Signed: false, Signature: ""}
 	}
-	if arms := ArvisArmsFromBundle(bundle); len(arms) > 0 {
-		for _, arm := range arms {
-			if arm.ModuleID == ModuleFinalVerdictEngine {
-				return finalVerdictFromArm(arm)
-			}
-		}
-	}
-	final := FinalSecurityRadarVerdict(bundle)
-	final.Signed = true
-	return final
+	return arvisCompatibilityFinal()
 }
 
 func insufficientEvidenceVerdict(verdict SecurityRadarVerdict) SecurityRadarVerdict {
