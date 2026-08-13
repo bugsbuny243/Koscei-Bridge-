@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 const (
@@ -75,59 +74,54 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 		directCap = actorConstellationDirectEvidenceCap
 	}
 	directRows, err := s.DB.QueryContext(ctx, `
-		WITH eligible AS (
-			SELECT id::text,
-			       actor_wallet,
-			       counterpart_id,
-			       relation,
-			       verification_status,
-			       COALESCE(signature,''),
-			       COALESCE(slot,0),
-			       last_observed_at,
-			       source_wallet,
-			       destination_wallet,
-			       CASE WHEN token_amount>0 THEN token_amount::text ELSE amount_native::text END AS amount,
-			       CASE WHEN token_amount>0 AND btrim(COALESCE(token_mint,''))<>'' THEN token_mint ELSE 'SOL' END AS asset,
-			       program,
-			       count(*) OVER() AS total_rows
-			FROM security_actor_evidence
-			WHERE network=$2
-			  AND counterpart_kind='wallet'
-			  AND verification_status IN ('verified','observed')
-			  AND relation IN (
-			      'direct_sol_transfer_in','direct_sol_transfer_out',
-			      'direct_token_transfer_in','direct_token_transfer_out',
-			      'funded_by','funding_origin','funded_creator'
-			  )
-			  AND (
-			      (actor_wallet=$1 AND counterpart_id<>$1) OR
-			      (counterpart_id=$1 AND actor_wallet<>$1)
-			  )
-			ORDER BY (verification_status='verified') DESC,last_observed_at DESC,id DESC
-			LIMIT $3
-		)
-		SELECT id,actor_wallet,counterpart_id,relation,verification_status,
-		       signature,slot,last_observed_at,source_wallet,destination_wallet,
-		       amount,asset,program,total_rows
-		FROM eligible
-	`, wallet, network, directCap)
+		SELECT id::text,
+		       actor_wallet,
+		       counterpart_id,
+		       relation,
+		       verification_status,
+		       COALESCE(signature,''),
+		       COALESCE(slot,0),
+		       last_observed_at,
+		       source_wallet,
+		       destination_wallet,
+		       CASE WHEN token_amount>0 THEN token_amount::text ELSE amount_native::text END AS amount,
+		       CASE WHEN token_amount>0 AND btrim(COALESCE(token_mint,''))<>'' THEN token_mint ELSE 'SOL' END AS asset,
+		       program
+		FROM security_actor_evidence
+		WHERE network=$2
+		  AND counterpart_kind='wallet'
+		  AND verification_status IN ('verified','observed')
+		  AND relation IN (
+		      'direct_sol_transfer_in','direct_sol_transfer_out',
+		      'direct_token_transfer_in','direct_token_transfer_out',
+		      'funded_by','funding_origin','funded_creator'
+		  )
+		  AND (
+		      (actor_wallet=$1 AND counterpart_id<>$1) OR
+		      (counterpart_id=$1 AND actor_wallet<>$1)
+		  )
+		ORDER BY (verification_status='verified') DESC,last_observed_at DESC,id DESC
+		LIMIT $3
+	`, wallet, network, directCap+1)
 	if err != nil {
 		return actorConstellationLookupResult{}, err
 	}
+	directSeen := 0
 	for directRows.Next() {
+		directSeen++
+		if directSeen > directCap {
+			complete = false
+			continue
+		}
 		var evidence ActorConstellationEvidenceRow
 		var actorWallet, counterpart string
-		var total int64
 		if err := directRows.Scan(
 			&evidence.ID, &actorWallet, &counterpart, &evidence.Relation, &evidence.VerificationStatus,
 			&evidence.Signature, &evidence.Slot, &evidence.Timestamp, &evidence.SourceWallet, &evidence.DestinationWallet,
-			&evidence.Amount, &evidence.Asset, &evidence.Program, &total,
+			&evidence.Amount, &evidence.Asset, &evidence.Program,
 		); err != nil {
 			directRows.Close()
 			return actorConstellationLookupResult{}, err
-		}
-		if total > int64(directCap) {
-			complete = false
 		}
 		candidate := counterpart
 		if strings.TrimSpace(actorWallet) != wallet {
@@ -158,6 +152,31 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 	if subjectCap > actorConstellationSharedSubjectCap {
 		subjectCap = actorConstellationSharedSubjectCap
 	}
+	var boundedSubjectRows int
+	if err := s.DB.QueryRowContext(ctx, `
+		SELECT count(*) FROM (
+			SELECT 1
+			FROM security_actor_evidence
+			WHERE network=$2
+			  AND actor_wallet=$1
+			  AND counterpart_kind='wallet'
+			  AND verification_status IN ('verified','observed')
+			  AND relation IN ('funded_by','funding_origin','initial_token_recipient','creator_recipient_in_window')
+			  AND COALESCE(signature,'')<>''
+			  AND COALESCE(slot,0)>0
+			  AND btrim(source_wallet)<>''
+			  AND btrim(destination_wallet)<>''
+			  AND btrim(program)<>''
+			ORDER BY last_observed_at DESC,id DESC
+			LIMIT $3
+		) bounded_subject
+	`, wallet, network, subjectCap+1).Scan(&boundedSubjectRows); err != nil {
+		return actorConstellationLookupResult{}, err
+	}
+	if boundedSubjectRows > subjectCap {
+		complete = false
+	}
+
 	sharedRows, err := s.DB.QueryContext(ctx, `
 		WITH subject AS (
 			SELECT id::text,
@@ -172,8 +191,7 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 			       destination_wallet,
 			       CASE WHEN token_amount>0 THEN token_amount::text ELSE amount_native::text END AS amount,
 			       CASE WHEN token_amount>0 AND btrim(COALESCE(token_mint,''))<>'' THEN token_mint ELSE 'SOL' END AS asset,
-			       program,
-			       count(*) OVER() AS total_subject_rows
+			       program
 			FROM security_actor_evidence
 			WHERE network=$2
 			  AND actor_wallet=$1
@@ -195,8 +213,6 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 		       c.candidate_status,
 		       s.token_mint,
 		       c.candidate_token_mint,
-		       s.total_subject_rows,
-		       c.total_candidate_rows,
 		       s.id,s.signature,s.slot,s.last_observed_at,s.source_wallet,s.destination_wallet,s.amount,s.asset,s.program,
 		       c.id,c.signature,c.slot,c.last_observed_at,c.source_wallet,c.destination_wallet,c.amount,c.asset,c.program
 		FROM subject s
@@ -212,8 +228,7 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 			       destination_wallet,
 			       CASE WHEN token_amount>0 THEN token_amount::text ELSE amount_native::text END AS amount,
 			       CASE WHEN token_amount>0 AND btrim(COALESCE(token_mint,''))<>'' THEN token_mint ELSE 'SOL' END AS asset,
-			       program,
-			       count(*) OVER() AS total_candidate_rows
+			       program
 			FROM security_actor_evidence c
 			WHERE c.network=$2
 			  AND c.actor_wallet<>$1
@@ -231,17 +246,17 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 			ORDER BY c.last_observed_at DESC,c.id DESC
 			LIMIT $4
 		) c ON true
-	`, wallet, network, subjectCap, actorConstellationCandidatesPerSubjectCap)
+	`, wallet, network, subjectCap, actorConstellationCandidatesPerSubjectCap+1)
 	if err != nil {
 		return actorConstellationLookupResult{}, err
 	}
+	candidateRowsPerSubject := map[string]int{}
 	for sharedRows.Next() {
 		var candidate, counterpart, relation, subjectStatus, candidateStatus, subjectToken, candidateToken string
-		var totalSubject, totalCandidate int64
 		var subjectEvidence, candidateEvidence ActorConstellationEvidenceRow
 		if err := sharedRows.Scan(
 			&candidate, &counterpart, &relation, &subjectStatus, &candidateStatus,
-			&subjectToken, &candidateToken, &totalSubject, &totalCandidate,
+			&subjectToken, &candidateToken,
 			&subjectEvidence.ID, &subjectEvidence.Signature, &subjectEvidence.Slot, &subjectEvidence.Timestamp,
 			&subjectEvidence.SourceWallet, &subjectEvidence.DestinationWallet, &subjectEvidence.Amount, &subjectEvidence.Asset, &subjectEvidence.Program,
 			&candidateEvidence.ID, &candidateEvidence.Signature, &candidateEvidence.Slot, &candidateEvidence.Timestamp,
@@ -250,8 +265,10 @@ func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.
 			sharedRows.Close()
 			return actorConstellationLookupResult{}, err
 		}
-		if totalSubject > int64(subjectCap) || totalCandidate > actorConstellationCandidatesPerSubjectCap {
+		candidateRowsPerSubject[subjectEvidence.ID]++
+		if candidateRowsPerSubject[subjectEvidence.ID] > actorConstellationCandidatesPerSubjectCap {
 			complete = false
+			continue
 		}
 		candidate = strings.TrimSpace(candidate)
 		if candidate == "" || candidate == wallet {
@@ -367,5 +384,3 @@ func actorConstellationEvidenceSupports(classification string, evidence []ActorC
 	}
 	return complete >= 2
 }
-
-var _ = time.Time{}
