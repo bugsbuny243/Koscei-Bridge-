@@ -18,12 +18,12 @@ func TestGlobalShellProducesEnglishNavigationAndMessages(t *testing.T) {
 		"['/scan','Token Scan']",
 		"['/transaction-shield','Transaction Shield']",
 		"['/safe-check','Safe Check']",
-		"['/security-radar','Security Radar']",
+		"['/scan?mode=deep','Deep Scan']",
 		"['/dashboard','Workspace']",
 		"nav.setAttribute('aria-label','Main navigation')",
 		"document.documentElement.lang='en'",
 		"The evidence service did not respond within",
-		"DEGRADED DEPENDENCY — Live security evidence is unavailable.",
+		"DEGRADED DEPENDENCY — The evidence service did not respond within",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("global shell missing English contract %q", required)
