@@ -1,0 +1,77 @@
+name: Sync Billing Cleanup
+
+on:
+  push:
+    branches: [cleanup/dead-architecture-purge-v1]
+    paths:
+      - ".github/workflows/sync-billing-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: cleanup/dead-architecture-purge-v1
+      - name: Remove manual-payment owner surfaces
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f"source not found: {path}: {old[:100]!r}")
+              p.write_text(s.replace(old,new))
+
+          owner='koschei/api/internal/handlers/owner.go'
+          replace(owner,
+          '''func (h *Handler) OwnerPaymentRequests(w http.ResponseWriter, r *http.Request) {\n\th.OwnerPaymentRequestsList(w, r)\n}\nfunc (h *Handler) OwnerApprovePayment(w http.ResponseWriter, r *http.Request) {\n\th.OwnerApprovePaymentRequest(w, r)\n}\nfunc (h *Handler) OwnerRejectPayment(w http.ResponseWriter, r *http.Request) {\n\th.OwnerRejectPaymentRequest(w, r)\n}\n\n''','')
+          replace(owner,
+          '''\tcase strings.Contains(cmd, "bekleyen ödeme") || strings.Contains(cmd, "bekleyen odeme"):\n\t\tresult := h.ownerPendingPayments(ctx)\n\t\treturn "pending_payments", result, "Bekleyen ödemeler listelendi.", true\n''','')
+          replace(owner,
+          '''\tif ownerTableExists(ctx, h.DB, "payment_requests") {\n\t\tresult["failed_payments"] = ownerQueryRows(ctx, h.DB, `SELECT created_at, reviewed_at, email, product_id, amount_try, currency, status FROM payment_requests WHERE created_at >= now() - interval '24 hours' AND lower(status) IN ('failed','rejected','error') ORDER BY created_at DESC LIMIT 50`, []string{"created_at", "reviewed_at", "email", "product_id", "amount_try", "currency", "status"})\n\t}\n''','')
+          start='func (h *Handler) ownerPendingPayments(ctx context.Context) map[string]any {'
+          s=Path(owner).read_text(); i=s.find(start)
+          if i<0: raise SystemExit('ownerPendingPayments start not found')
+          j=s.find('\nfunc configuredStatus(',i)
+          if j<0: raise SystemExit('ownerPendingPayments end not found')
+          Path(owner).write_text(s[:i]+s[j+1:])
+
+          cmd='koschei/api/internal/handlers/owner_command_center.go'
+          replace(cmd,
+          '"shopier":        map[string]any{"status": serviceStatus(envSet("SHOPIER_WEBHOOK_SECRET"), "configured", "manual")},',
+          '"paddle":         map[string]any{"status": serviceStatus(envSet("PADDLE_API_KEY") && envSet("PADDLE_WEBHOOK_SECRET"), "configured", "missing")},')
+          replace(cmd,
+          '''\t\t"pending_payments":             int64(0),\n\t\t"paid_orders_30d":              int64(0),\n\t\t"revenue_try_cents_30d":        int64(0),''',
+          '''\t\t"paddle_events_30d":            int64(0),''')
+          replace(cmd,
+          '''\tif ownerTableExists(ctx, db, "payment_requests") {\n\t\tsummary["pending_payments"] = ownerCount(ctx, db, `SELECT count(*) FROM payment_requests WHERE status='pending'`)\n\t\tsummary["paid_orders_30d"] = ownerCount(ctx, db, `SELECT count(*) FROM payment_requests WHERE status='approved' AND COALESCE(reviewed_at,created_at) >= now() - interval '30 days'`)\n\t\tvar revenueTRY int64\n\t\t_ = db.QueryRowContext(ctx, `SELECT COALESCE(sum(amount_try),0) FROM payment_requests WHERE status='approved' AND COALESCE(reviewed_at,created_at) >= now() - interval '30 days'`).Scan(&revenueTRY)\n\t\tsummary["revenue_try_cents_30d"] = revenueTRY * 100\n\t}\n''',
+          '''\tif ownerTableExists(ctx, db, "paddle_billing_events") {\n\t\tsummary["paddle_events_30d"] = ownerCount(ctx, db, `SELECT count(*) FROM paddle_billing_events WHERE processed_at >= now() - interval '30 days'`)\n\t}\n''')
+          start='func ownerDailyOrderTrend(ctx context.Context, db *sql.DB) []map[string]any {'
+          s=Path(cmd).read_text(); i=s.find(start)
+          if i<0: raise SystemExit('order trend start missing')
+          j=s.find('\nfunc ownerActionQueue(',i)
+          if j<0: raise SystemExit('order trend end missing')
+          replacement='''func ownerDailyOrderTrend(ctx context.Context, db *sql.DB) []map[string]any {\n\tout := make([]map[string]any, 0, 7)\n\tif db == nil || !ownerTableExists(ctx, db, "paddle_billing_events") {\n\t\treturn out\n\t}\n\trows, err := db.QueryContext(ctx, `\n\t\tWITH days AS (SELECT generate_series(current_date - interval '6 days', current_date, interval '1 day')::date AS day)\n\t\tSELECT day::text, count(p.notification_id)\n\t\tFROM days\n\t\tLEFT JOIN paddle_billing_events p ON p.processed_at >= day AND p.processed_at < day + interval '1 day'\n\t\tGROUP BY day ORDER BY day\n\t`)\n\tif err != nil { return out }\n\tdefer rows.Close()\n\tfor rows.Next() {\n\t\tvar day string; var count int64\n\t\tif rows.Scan(&day,&count)==nil { out=append(out,map[string]any{"date":day,"count":count}) }\n\t}\n\treturn out\n}\n'''
+          Path(cmd).write_text(s[:i]+replacement+s[j+1:])
+          replace(cmd,
+          '''\tadd("high", "pending_payment", "Bekleyen ödeme onayları", "Shopier ödeme talepleri owner incelemesi bekliyor.", "revenue", mapInt64(summary, "pending_payments"))\n''','')
+
+          import subprocess
+          subprocess.run(['gofmt','-w',owner,cmd],check=True)
+      - name: Commit billing cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/handlers/owner.go koschei/api/internal/handlers/owner_command_center.go
+          git commit -m "cleanup(billing): remove manual-payment owner runtime"
+          git push origin HEAD:cleanup/dead-architecture-purge-v1
