@@ -31,7 +31,7 @@ requireText(store,'ORDER BY queued_at DESC,id DESC','canonical history ordering'
 requireText(store,'scanJob(rows)','shared job scanner contract');
 
 requireText(handler,'func (h *Handler) CustomerInvestigationHistory','customer history handler');
-requireText(handler,'h.RequireTokenTier("basic", h.customerInvestigationHistoryRead)(w, r)','Basic access-only history gate');
+requireText(handler,'h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)','Starter SaaS access-only history gate');
 requireText(handler,'h.JobStore.ListByUser(r.Context(), claims.Sub, CanonicalInvestigationJobType, 100)','canonical account history query');
 requireText(handler,'ResultAvailable bool','result availability evidence');
 requireText(handler,'if json.Unmarshal(job.ResultPayload, &result) == nil && result != nil','result payload parse boundary');
@@ -52,7 +52,7 @@ if(server.includes('/api/v1/investigations/history'))throw new Error('server: do
 requireText(inventory,'"GET /api/v1/radar/jobs/"','machine-readable radar jobs GET route');
 if(inventory.includes('/api/v1/investigations/history'))throw new Error('inventory: parallel history endpoint must not be advertised');
 
-requireText(reportsHTML,'BASIC+ KOSCH · DURABLE CANONICAL JOB HISTORY','Vault access copy');
+requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','Vault access copy');
 requireText(reportsHTML,'reading history does not consume a scan unit','Vault read-only quota copy');
 requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');

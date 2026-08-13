@@ -11,8 +11,8 @@ import (
 	"koschei/api/internal/services"
 )
 
-// OwnerOperationsStatus is the KOSCH-era owner dashboard contract. It avoids
-// legacy checkout, package and entitlement concepts entirely.
+// OwnerOperationsStatus reports the current SaaS entitlement and security runtime.
+// Historical KOSCH telemetry is not an authorization source.
 func (h *Handler) OwnerOperationsStatus(w http.ResponseWriter, r *http.Request) {
 	db := h.DBRead
 	if db == nil {
@@ -21,7 +21,7 @@ func (h *Handler) OwnerOperationsStatus(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	summary := map[string]any{
 		"total_users": 0, "active_users": 0, "verified_wallets": 0,
-		"kosch_holders": 0, "kosch_basic": 0, "kosch_pro": 0, "kosch_enterprise": 0,
+		"active_saas_entitlements": 0, "saas_starter": 0, "saas_professional": 0, "saas_enterprise": 0,
 		"radar_verdicts_24h": 0, "high_risk_24h": 0, "security_events_24h": 0,
 		"open_feedback": 0,
 	}
@@ -33,17 +33,22 @@ func (h *Handler) OwnerOperationsStatus(w http.ResponseWriter, r *http.Request) 
 		if ownerTableExists(ctx, db, "verified_wallet_links") {
 			summary["verified_wallets"] = ownerCount(ctx, db, `SELECT count(DISTINCT auth_subject) FROM verified_wallet_links WHERE status='active'`)
 		}
-		if ownerTableExists(ctx, db, "token_access_snapshots") {
-			latest := `WITH latest AS (
-				SELECT DISTINCT ON (auth_subject) auth_subject, tier, amount_raw
-				FROM token_access_snapshots
-				WHERE expires_at > now()
-				ORDER BY auth_subject, checked_at DESC
+		if ownerTableExists(ctx, db, "entitlements") {
+			active := `WITH active AS (
+				SELECT CASE lower(COALESCE(plan_id,''))
+				  WHEN 'basic' THEN 'starter'
+				  WHEN 'pro' THEN 'professional'
+				  WHEN 'builder' THEN 'professional'
+				  WHEN 'studio' THEN 'enterprise'
+				  ELSE lower(COALESCE(plan_id,'')) END AS plan
+				FROM entitlements
+				WHERE status='active' AND COALESCE(plan_id,'')<>'' AND COALESCE(plan_id,'')<>'free'
+				  AND (expires_at IS NULL OR expires_at>now())
 			)`
-			summary["kosch_holders"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier IN ('basic','pro','enterprise')`)
-			summary["kosch_basic"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='basic'`)
-			summary["kosch_pro"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='pro'`)
-			summary["kosch_enterprise"] = ownerCount(ctx, db, latest+` SELECT count(*) FROM latest WHERE tier='enterprise'`)
+			summary["active_saas_entitlements"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan IN ('starter','professional','enterprise')`)
+			summary["saas_starter"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='starter'`)
+			summary["saas_professional"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='professional'`)
+			summary["saas_enterprise"] = ownerCount(ctx, db, active+` SELECT count(*) FROM active WHERE plan='enterprise'`)
 		}
 		if ownerTableExists(ctx, db, "security_radar_verdicts") {
 			summary["radar_verdicts_24h"] = ownerCount(ctx, db, `SELECT count(*) FROM security_radar_verdicts WHERE module_id='final_verdict_engine' AND signed=true AND created_at >= now()-interval '24 hours'`)
@@ -84,7 +89,7 @@ func (h *Handler) OwnerOperationsStatus(w http.ResponseWriter, r *http.Request) 
 		"neon_auth":       map[string]any{"status": serviceStatus(envSet("NEON_AUTH_JWKS_URL"), "configured", "missing")},
 		"solana_rpc":      map[string]any{"status": serviceStatus(envSet("SOLANA_RPC_URL") || envSet("ALCHEMY_SOLANA_RPC_URL") || envSet("HELIUS_SOLANA_RPC_URL") || envSet("QUICKNODE_SOLANA_RPC_URL") || envSet("ALCHEMY_API_KEY"), "configured", "missing")},
 		"security_radar":  map[string]any{"status": radarStatus},
-		"kosch_access":    map[string]any{"status": serviceStatus(configuredKoscheiTokenGateEnabled() && configuredKoscheiTokenMint() != "", "configured", "missing")},
+		"saas_billing":    map[string]any{"status": serviceStatus(envSet("PADDLE_API_KEY") && envSet("PADDLE_WEBHOOK_SECRET"), "configured", "missing")},
 		"visual_renderer": map[string]any{"status": "ready", "mode": "client_canvas_png"},
 		"owner_brain":     map[string]any{"status": serviceStatus(aiProviderConfigured(), "configured", "missing")},
 	}
@@ -92,9 +97,11 @@ func (h *Handler) OwnerOperationsStatus(w http.ResponseWriter, r *http.Request) 
 		"ok": true, "generated_at": time.Now().UTC(), "summary": summary,
 		"services": servicesMap, "radar": radar,
 		"access_model": map[string]any{
+			"authorization":     "saas_entitlement",
 			"free_core":         []string{"safe_check", "basic_token_scan"},
-			"kosch_premium":     []string{"full_radar", "structural_memory", "graph", "exposure", "visual_reports", "automation"},
-			"payment_providers": []string{},
+			"paid_plans":        []string{"starter", "professional", "enterprise"},
+			"payment_providers": []string{"paddle"},
+			"kosch_authority":   "none",
 		},
 	})
 }

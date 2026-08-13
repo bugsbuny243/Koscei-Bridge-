@@ -16,8 +16,8 @@ Rules:
 - Answer in Turkish unless the owner explicitly asks for another language.
 - Speak naturally, directly and conversationally. Be concise, but explain important risks.
 - Use the supplied operational snapshot and deterministic Radar result as the source of truth.
-- Koschei uses a free-core + KOSCH-premium access model. Safe Check and basic scans are free; KOSCH unlocks full Radar depth, structural memory, graph, exposure, visual reports and automation.
-- There is no live Paddle, Shopier, card-payment or package-sale flow. Never recommend restoring one unless the owner explicitly asks for a new architecture decision.
+- Koschei uses a free-core + SaaS entitlement access model. Starter, Professional and Enterprise plans authorize paid product surfaces.
+- Paddle is the billing provider for SaaS entitlements. Wallet verification is identity-only and KOSCH holdings grant no plan, quota, evidence, security or verdict authority.
 - Clearly distinguish verified facts, estimates and suggestions.
 - Never claim that an action was executed unless the snapshot or deterministic result proves it.
 - Never reveal, reconstruct or request API keys, private keys, tokens, passwords, database URLs or service-account secrets.
@@ -44,16 +44,17 @@ func (h *Handler) buildOwnerChatSnapshot(ctx context.Context) ownerChatSnapshot 
 			"ai_provider":     ownerAIProviderStatus(),
 			"neon_auth":       configuredStatus("NEON_AUTH_JWKS_URL"),
 			"solana_rpc":      configuredStatusAny("SOLANA_RPC_URL", "ALCHEMY_SOLANA_RPC_URL", "HELIUS_SOLANA_RPC_URL", "QUICKNODE_SOLANA_RPC_URL", "ALCHEMY_API_KEY"),
-			"kosch_access":    serviceStatus(configuredKoscheiTokenGateEnabled() && configuredKoscheiTokenMint() != "", "configured", "missing"),
+			"saas_billing":    serviceStatus(strings.TrimSpace(os.Getenv("PADDLE_API_KEY")) != "" && strings.TrimSpace(os.Getenv("PADDLE_WEBHOOK_SECRET")) != "", "configured", "missing"),
 			"visual_renderer": "client_canvas_png_ready",
 		},
 		Business: map[string]any{},
 		Access: map[string]any{
-			"model":             "free_core_kosch_premium",
+			"model":             "free_core_saas_entitlement",
 			"free_core":         []string{"safe_check", "basic_token_scan"},
-			"premium":           []string{"full_radar", "structural_memory", "graph", "exposure", "visual_reports", "automation"},
-			"payment_providers": []string{},
+			"paid_plans":        []string{"starter", "professional", "enterprise"},
+			"payment_providers": []string{"paddle"},
 			"kosch_mint":        configuredKoscheiTokenMint(),
+			"kosch_authority":   "none",
 		},
 		Radar: map[string]any{},
 	}
@@ -65,17 +66,20 @@ func (h *Handler) buildOwnerChatSnapshot(ctx context.Context) ownerChatSnapshot 
 	if ownerTableExists(ctx, h.DB, "verified_wallet_links") {
 		snapshot.Access["verified_wallets"] = ownerCount(ctx, h.DB, `SELECT count(DISTINCT auth_subject) FROM verified_wallet_links WHERE status='active'`)
 	}
-	if ownerTableExists(ctx, h.DB, "token_access_snapshots") {
-		latest := `WITH latest AS (
-			SELECT DISTINCT ON (auth_subject) auth_subject,tier
-			FROM token_access_snapshots
-			WHERE expires_at > now()
-			ORDER BY auth_subject,checked_at DESC
+	if ownerTableExists(ctx, h.DB, "entitlements") {
+		active := `WITH active AS (
+			SELECT CASE lower(COALESCE(plan_id,''))
+			  WHEN 'basic' THEN 'starter' WHEN 'pro' THEN 'professional'
+			  WHEN 'builder' THEN 'professional' WHEN 'studio' THEN 'enterprise'
+			  ELSE lower(COALESCE(plan_id,'')) END AS plan
+			FROM entitlements
+			WHERE status='active' AND COALESCE(plan_id,'')<>'' AND COALESCE(plan_id,'')<>'free'
+			  AND (expires_at IS NULL OR expires_at>now())
 		)`
-		snapshot.Access["kosch_holders"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier IN ('basic','pro','enterprise')`)
-		snapshot.Access["basic"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='basic'`)
-		snapshot.Access["pro"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='pro'`)
-		snapshot.Access["enterprise"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='enterprise'`)
+		snapshot.Access["active_saas_entitlements"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan IN ('starter','professional','enterprise')`)
+		snapshot.Access["starter"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='starter'`)
+		snapshot.Access["professional"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='professional'`)
+		snapshot.Access["enterprise"] = ownerCount(ctx, h.DB, active+` SELECT count(*) FROM active WHERE plan='enterprise'`)
 	}
 	if ownerTableExists(ctx, h.DB, "customer_feedback") {
 		snapshot.Business["open_feedback"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM customer_feedback WHERE status IN ('new','reviewing','planned')`)

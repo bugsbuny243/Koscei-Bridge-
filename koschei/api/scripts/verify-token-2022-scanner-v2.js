@@ -13,11 +13,11 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(html,'<html lang="en">','Token-2022 scanner language');
-requireText(html,'Basic tier or higher','Basic-tier access copy');
+requireText(html,'Starter SaaS or higher','Starter SaaS access copy');
 requireText(html,'Dedicated /api/v1/token/extensions','dedicated route copy');
 requireText(html,'Unresolved extension state → WITHHOLD','withhold policy copy');
 requireText(html,'/scan?mode=deep','canonical Deep Scan route');
-requireText(html,'/kosch','canonical KOSCH route');
+requireText(html,'/pricing','canonical pricing route');
 requireText(html,'/js/koschei-auth.js?v=33','frozen auth client');
 requireText(html,'/js/token-2022-scanner-v2.js?v=1','external Token-2022 controller');
 if(html.includes('/security-radar'))throw new Error('Token-2022 scanner must not advertise legacy security-radar');
@@ -26,9 +26,10 @@ forbid(html,/pozitif\s+KOSCH|positive\s+KOSCH/i,'stale positive-balance access c
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(server,'koschTier := func(tier string, next http.HandlerFunc) http.HandlerFunc','central KOSCH tier gate');
-requireText(server,'h.RequireTokenTier(tier, h.EnforceScanQuota(next))','central tier + scan-quota enforcement');
-requireText(server,'mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.TokenScan))))))','dedicated Basic-tier TokenScan route');
+requireText(server,'planTier := func(plan string, next http.HandlerFunc) http.HandlerFunc','central SaaS plan gate');
+requireText(server,'h.RequirePlanTier(plan, h.EnforcePlanOutput(next))','central plan + output-meter enforcement');
+requireText(server,'mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, planTier("starter", method("POST", h.TokenScan))))))','dedicated Starter TokenScan route');
+forbid(server,/RequireTokenTier|EnforceScanQuota|koschTier/,'retired KOSCH authorization in boot chain');
 requireText(server,'mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))','public compatibility TokenScan route');
 
 for(const field of ['Score                     int                              `json:"score"`','RiskLevel                 string                           `json:"risk_level"`','Extensions                []tokenExtensionAssessment       `json:"extensions"`','ExtensionRiskPenalty      int                              `json:"extension_risk_penalty"`','ExtensionResolutionStatus string                           `json:"extension_resolution_status"`','ExtensionEvidenceComplete bool                             `json:"extension_evidence_complete"`','TransferBehavior          map[string]any                   `json:"transfer_behavior"`','VisibilityLimitations     []string                         `json:"visibility_limitations"`','CompatibilityWarnings     []string                         `json:"compatibility_warnings"`','FinalPolicy               string                           `json:"final_policy"`','HolderAnalysisStatus      string                           `json:"holder_analysis_status"`','VerdictWithheld           bool                             `json:"verdict_withheld"`'])requireText(scanner,field,`TokenScan response field ${field}`);
