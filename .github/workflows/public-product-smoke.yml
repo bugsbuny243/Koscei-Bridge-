@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: Verify public pages, canonical Scan Center, full scan, SOC APIs and published case
+    name: Verify public pages, canonical Scan Center, full scan, SOC APIs and deployed registry
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -174,28 +174,45 @@ jobs:
             done
           fi
 
-          # Public APIs are also allowed to traverse a short deploy transition,
-          # but their semantic contract remains hard: HTTP 200 and ok=true.
+          # Public APIs must always remain reachable and honest about success.
+          # Pull-request code is not deployed to BASE_URL, so PRs stop at this
+          # transport/API contract. Production registry readiness remains a hard
+          # post-deploy gate on main, scheduled and manually dispatched smokes.
           wait_expect_200 cases_api '/api/public/cases?limit=100' '"ok":true' 12
           wait_expect_200 feed_api /api/public/soc/feed '"ok":true' 12
 
-          case_ref="$(node - <<'NODE'
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            node - <<'NODE' | tee -a diagnostics/result.txt
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('diagnostics/cases_api.body', 'utf8'));
+          const summary = {
+            registry_status: payload.registry_status || 'unknown',
+            registry_complete: payload.registry_complete === true,
+            total_publications: Number(payload.total_publications || 0),
+            invalid_publications: Number(payload.invalid_publications || 0),
+            uninspected_publications: Number(payload.uninspected_publications || 0),
+          };
+          process.stdout.write(`PR_PRODUCTION_REGISTRY_OBSERVED=${JSON.stringify(summary)}\n`);
+          NODE
+            echo 'PR_PRODUCT_HEALTHY: production transport/pages/APIs are reachable; branch registry semantics are enforced by branch acceptance tests and post-deploy smoke.'
+          else
+            case_ref="$(node - <<'NODE'
           const fs = require('fs');
           const payload = JSON.parse(fs.readFileSync('diagnostics/cases_api.body', 'utf8'));
           const item = Array.isArray(payload.cases) ? payload.cases.find(value => /^KD1-[a-z0-9]+$/i.test(String(value?.case_ref || ''))) : null;
           if (!item) process.exit(2);
           process.stdout.write(String(item.case_ref));
           NODE
-          )" || {
-            echo 'PUBLIC_CASE_REGISTRY_FAILURE: no published KD1 case is available.' >&2
-            exit 27
-          }
-          printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
-          wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 12
-          wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 12
-          grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE' >&2; exit 32; }
-
-          echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, English core, ARVIS assets, public APIs, and immutable case passed.'
+            )" || {
+              echo 'PUBLIC_CASE_REGISTRY_FAILURE: no deployed published KD1 case is available.' >&2
+              exit 27
+            }
+            printf '%s\n' "case_ref=${case_ref}" | tee -a diagnostics/result.txt
+            wait_expect_200 case_page "/case/${case_ref}" "${case_ref}" 12
+            wait_expect_200 dossier_page "/dossier/${case_ref}" "${case_ref}" 12
+            grep -Fq 'Koschei ARVIS' diagnostics/case_page.body || { echo 'PUBLIC_CASE_PAGE_CONTRACT_FAILURE' >&2; exit 32; }
+            echo 'PUBLIC_PRODUCT_HEALTHY: canonical Scan Center, English core, ARVIS assets, public APIs, and deployed immutable case passed.'
+          fi
 
       - name: Run full production investigation
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -305,12 +322,17 @@ jobs:
         run: |
           set -euo pipefail
           state=failure
-          description='Canonical Scan Center, full scan, English core, SOC API or published-case smoke failed'
+          description='Canonical Scan Center, full scan, English core, SOC API or deployed-registry smoke failed'
           target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${JOB_STATUS}" = success ]; then
             state=success
-            description='Production Scan Center, full scan, ARVIS assets, SOC APIs and immutable case verified'
-            target_url="${BASE_URL}/scan"
+            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+              description='PR product smoke passed; production registry readiness is enforced post-deploy'
+              target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            else
+              description='Production Scan Center, full scan, ARVIS assets, SOC APIs and deployed registry verified'
+              target_url="${BASE_URL}/scan"
+            fi
           fi
           export STATE="${state}" DESCRIPTION="${description}" TARGET_URL="${target_url}"
           payload="$(node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"koschei/public-product",description:process.env.DESCRIPTION.slice(0,140),target_url:process.env.TARGET_URL}))')"

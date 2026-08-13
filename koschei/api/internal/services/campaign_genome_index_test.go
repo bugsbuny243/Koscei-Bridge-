@@ -7,21 +7,21 @@ import (
 
 func TestCampaignGenomeSnapshotIdentityIgnoresObservationTime(t *testing.T) {
 	genome := ActorCampaignGenome{
-		Version: ActorCampaignGenomeVersion,
+		Version:     ActorCampaignGenomeVersion,
 		ActorWallet: "Actor11111111111111111111111111111111111111",
-		Network: "solana-mainnet",
-		Status: "verified_supported", Complete: true,
-		GenomeID: "KCG1-0123456789ABCDEF",
-		PatternHashSHA256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Network:     "solana-mainnet",
+		Status:      "verified_supported", Complete: true,
+		GenomeID:           "KCG1-0123456789ABCDEF",
+		PatternHashSHA256:  "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		EvidenceHashSHA256: "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-		DescriptorCount: 2, VerifiedDescriptorCount: 1, ObservedDescriptorCount: 1,
+		DescriptorCount:    2, VerifiedDescriptorCount: 1, ObservedDescriptorCount: 1,
 		VerifiedSignatureBacked: 1,
 		Descriptors: []ActorCampaignGenomeDescriptor{
 			{Kind: "relation", Value: "created_token", EvidenceStatus: "verified", SignatureBacked: true, GradeEligible: true},
 			{Kind: "recurrence", Value: "creator_deployer_multi_token", EvidenceStatus: "observed", GradeEligible: true},
 		},
 		WatchDescriptors: []ActorCampaignGenomeDescriptor{},
-		Policy: map[string]any{"same_genome_is_not_same_person": true},
+		Policy:           map[string]any{"same_genome_is_not_same_person": true},
 	}
 	first, err := campaignGenomeSnapshotFromGenome(genome, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -59,8 +59,8 @@ func TestCampaignGenomeMatchReportDoesNotClaimOperatorIdentity(t *testing.T) {
 	genome := ActorCampaignGenome{
 		Version: ActorCampaignGenomeVersion, ActorWallet: "actor", Network: "solana-mainnet",
 		Status: "verified_supported", Complete: true, GenomeID: "KCG1-TEST",
-		PatternHashSHA256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-		EvidenceHashSHA256: "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+		PatternHashSHA256:       "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		EvidenceHashSHA256:      "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 		VerifiedSignatureBacked: 1,
 	}
 	out, err := LoadCampaignGenomePatternMatches(t.Context(), nil, genome, 25)

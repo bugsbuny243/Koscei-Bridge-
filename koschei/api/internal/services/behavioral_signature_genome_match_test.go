@@ -6,7 +6,7 @@ func TestBehavioralSignatureGenomeMatchIsWatchOnly(t *testing.T) {
 	genome := ActorCampaignGenome{
 		Version: ActorCampaignGenomeVersion, ActorWallet: "CurrentActor", Network: "solana-mainnet",
 		Status: "verified_supported", Complete: true, GenomeID: "KCG1-CURRENT",
-		PatternHashSHA256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		PatternHashSHA256:       "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		VerifiedSignatureBacked: 1,
 	}
 	matches := CampaignGenomeMatchReport{

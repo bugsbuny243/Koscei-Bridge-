@@ -37,22 +37,22 @@ type transactionGuardConfirmedIncident struct {
 }
 
 type transactionGuardConfirmedIncidentCorpus struct {
-	Version                string                               `json:"version"`
-	Network                string                               `json:"network"`
-	TransactionFingerprint string                               `json:"transaction_fingerprint"`
-	Status                 string                               `json:"status"`
-	Complete               bool                                 `json:"complete"`
-	SubjectsChecked        int                                  `json:"subjects_checked"`
-	ActorsMatched          int                                  `json:"actors_matched"`
-	IncidentCount          int                                  `json:"incident_count"`
-	CriticalIncidentCount  int                                  `json:"critical_incident_count"`
+	Version                string                              `json:"version"`
+	Network                string                              `json:"network"`
+	TransactionFingerprint string                              `json:"transaction_fingerprint"`
+	Status                 string                              `json:"status"`
+	Complete               bool                                `json:"complete"`
+	SubjectsChecked        int                                 `json:"subjects_checked"`
+	ActorsMatched          int                                 `json:"actors_matched"`
+	IncidentCount          int                                 `json:"incident_count"`
+	CriticalIncidentCount  int                                 `json:"critical_incident_count"`
 	Incidents              []transactionGuardConfirmedIncident `json:"incidents"`
-	Limitations            []string                             `json:"limitations"`
-	VerdictAuthority       bool                                 `json:"verdict_authority"`
-	CausationClaim         bool                                 `json:"causation_claim"`
-	RealWorldIdentityClaim bool                                 `json:"real_world_identity_claim"`
-	WrongdoingClaim        bool                                 `json:"wrongdoing_claim"`
-	SafetyClaim            bool                                 `json:"safety_claim"`
+	Limitations            []string                            `json:"limitations"`
+	VerdictAuthority       bool                                `json:"verdict_authority"`
+	CausationClaim         bool                                `json:"causation_claim"`
+	RealWorldIdentityClaim bool                                `json:"real_world_identity_claim"`
+	WrongdoingClaim        bool                                `json:"wrongdoing_claim"`
+	SafetyClaim            bool                                `json:"safety_claim"`
 }
 
 func (h *Handler) collectTransactionGuardConfirmedIncidentCorpus(ctx context.Context, network, fingerprint string, decoded transactionGuardDecodedTransaction, wallet string) transactionGuardConfirmedIncidentCorpus {

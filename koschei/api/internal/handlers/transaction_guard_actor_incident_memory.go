@@ -31,14 +31,14 @@ type transactionGuardActorIncidentVerdict struct {
 }
 
 type transactionGuardActorIncidentToken struct {
-	TokenMint          string                                  `json:"token_mint"`
-	ActorSubjects      []string                                `json:"actor_subjects"`
-	ActorEvidenceCount int                                     `json:"actor_evidence_count"`
-	SignedVerdictCount int                                     `json:"signed_verdict_count"`
-	HighestRiskLevel   string                                  `json:"highest_risk_level,omitempty"`
-	HighestRiskIndex   int                                     `json:"highest_risk_index"`
+	TokenMint           string                                 `json:"token_mint"`
+	ActorSubjects       []string                               `json:"actor_subjects"`
+	ActorEvidenceCount  int                                    `json:"actor_evidence_count"`
+	SignedVerdictCount  int                                    `json:"signed_verdict_count"`
+	HighestRiskLevel    string                                 `json:"highest_risk_level,omitempty"`
+	HighestRiskIndex    int                                    `json:"highest_risk_index"`
 	MaterialRiskHistory bool                                   `json:"material_risk_history"`
-	Verdicts           []transactionGuardActorIncidentVerdict `json:"verdicts"`
+	Verdicts            []transactionGuardActorIncidentVerdict `json:"verdicts"`
 }
 
 type transactionGuardActorIncidentMemory struct {
@@ -61,23 +61,23 @@ type transactionGuardActorIncidentMemory struct {
 }
 
 type transactionGuardActorIncidentVerdictRow struct {
-	TokenMint       string
-	ModuleID        string
-	RiskIndex       int
-	RiskLevel       string
-	Grade           string
-	Verdict         string
-	Recommendation  string
-	Evidence        []string
-	Source          string
-	ObservedAt      time.Time
+	TokenMint      string
+	ModuleID       string
+	RiskIndex      int
+	RiskLevel      string
+	Grade          string
+	Verdict        string
+	Recommendation string
+	Evidence       []string
+	Source         string
+	ObservedAt     time.Time
 }
 
 // collectTransactionGuardActorIncidentMemory joins two already-persistent
 // Koschei evidence stores without making an identity or wrongdoing inference:
 //
-//   exact transaction subject -> security_actor_evidence -> token mint
-//   token mint -> signed security_radar_verdicts history
+//	exact transaction subject -> security_actor_evidence -> token mint
+//	token mint -> signed security_radar_verdicts history
 //
 // The result is pre-signing historical context only. It never emits a finding,
 // score, grade or Guard action and therefore cannot block a transaction by itself.

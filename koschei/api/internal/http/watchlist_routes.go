@@ -13,11 +13,13 @@ func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered
 	mux.HandleFunc("/api/public/scan-history", method(http.MethodGet, h.PublicScanHistory))
 	mux.HandleFunc("/api/public/transaction-simulate", requireRuntimeFeature(featureSolana, method(http.MethodPost, h.PublicTransactionSimulate)))
 
+	// Wallet verification remains an identity primitive. It is intentionally
+	// independent from paid-plan authorization and never grants SaaS access.
 	mux.HandleFunc("/api/auth/wallet/challenge", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.CreateWalletChallenge))))
 	mux.HandleFunc("/api/auth/wallet/verify", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.VerifyWalletChallenge))))
 	mux.HandleFunc("/api/auth/wallet/status", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.WalletLinkStatus))))
 	mux.HandleFunc("/api/auth/wallet/unlink", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.UnlinkWallet))))
-	mux.HandleFunc("/api/auth/token-access", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.TokenAccessStatus))))
+	mux.HandleFunc("/api/auth/token-access", handlers.RequireAuth(method(http.MethodGet, h.RetiredTokenAccessStatus)))
 	mux.HandleFunc("/api/auth/premium-access", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.PremiumAccessStatus))))
 
 	// Watchlist alerts enqueue webhook deliveries through a PostgreSQL AFTER
@@ -29,7 +31,7 @@ func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered
 	mux.HandleFunc("/api/watchlist/", requiresDB(h, proMetered(wakeWebhookDeliveryAfterWatchlistPost(h.WatchlistItem))))
 
 	// Webhook management requires Enterprise eligibility but does not consume a
-	// scan unit. The scans that produce webhook events are metered separately.
+	// scan output. The analyses that produce webhook events are metered separately.
 	mux.HandleFunc("/api/webhooks/security-alerts", requiresDB(h, enterprise(h.SecurityAlertWebhookSubscription)))
 	mux.HandleFunc("/api/webhooks/deliveries", requiresDB(h, enterprise(h.WebhookDeliveries)))
 	mux.HandleFunc("/api/webhooks/deliveries/", requiresDB(h, enterprise(h.WebhookDeliveryItem)))

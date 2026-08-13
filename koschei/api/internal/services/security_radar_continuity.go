@@ -83,7 +83,7 @@ func LoadSecurityRadarContinuity(ctx context.Context, db *sql.DB) (SecurityRadar
 
 func summarizeSecurityRadarContinuity(items []SecurityRadarContinuitySource) SecurityRadarContinuityReport {
 	out := SecurityRadarContinuityReport{
-		Status: "unavailable",
+		Status:  "unavailable",
 		Sources: append([]SecurityRadarContinuitySource{}, items...),
 		Policy: map[string]any{
 			"live_head_never_advances_recovery_watermark": true,

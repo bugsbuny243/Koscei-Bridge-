@@ -226,9 +226,9 @@ func campaignGenomeSnapshotFromGenome(genome ActorCampaignGenome, observedAt tim
 		DescriptorCount: genome.DescriptorCount, VerifiedDescriptorCount: genome.VerifiedDescriptorCount,
 		ObservedDescriptorCount: genome.ObservedDescriptorCount, VerifiedSignatureBackedCount: genome.VerifiedSignatureBacked,
 		WatchDescriptorCount: genome.WatchDescriptorCount,
-		Descriptors: append([]ActorCampaignGenomeDescriptor{}, genome.Descriptors...),
-		WatchDescriptors: append([]ActorCampaignGenomeDescriptor{}, genome.WatchDescriptors...),
-		Policy: cloneCampaignGenomePolicy(genome.Policy), ObservedAt: observedAt.UTC(),
+		Descriptors:          append([]ActorCampaignGenomeDescriptor{}, genome.Descriptors...),
+		WatchDescriptors:     append([]ActorCampaignGenomeDescriptor{}, genome.WatchDescriptors...),
+		Policy:               cloneCampaignGenomePolicy(genome.Policy), ObservedAt: observedAt.UTC(),
 	}
 	if snapshot.GenomeVersion == "" {
 		snapshot.GenomeVersion = ActorCampaignGenomeVersion

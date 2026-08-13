@@ -35,14 +35,14 @@ func TestSecurityIncidentCorpusPostgres17(t *testing.T) {
 	defer func() { _ = tx.Rollback() }()
 
 	const (
-		network = "solana-mainnet"
-		targetA = "IncidentCorpusTargetA1111111111111111111111111111"
-		actorA  = "IncidentCorpusActorA11111111111111111111111111111"
-		eventA  = "incident-corpus-event-signature-a"
+		network  = "solana-mainnet"
+		targetA  = "IncidentCorpusTargetA1111111111111111111111111111"
+		actorA   = "IncidentCorpusActorA11111111111111111111111111111"
+		eventA   = "incident-corpus-event-signature-a"
 		verdictA = "incident-corpus-verdict-signature-a"
-		targetB = "IncidentCorpusTargetB1111111111111111111111111111"
-		actorB  = "IncidentCorpusActorB11111111111111111111111111111"
-		eventB  = "incident-corpus-event-signature-b"
+		targetB  = "IncidentCorpusTargetB1111111111111111111111111111"
+		actorB   = "IncidentCorpusActorB11111111111111111111111111111"
+		eventB   = "incident-corpus-event-signature-b"
 		verdictB = "incident-corpus-verdict-signature-b"
 	)
 

@@ -196,7 +196,11 @@ func classifyPumpPortalProviderNotice(payload []byte) (string, bool) {
 	if (tradeRelated || authRelated) && failure {
 		return "trade_subscription_rejected", true
 	}
-	ack := strings.Contains(text, "success") || strings.Contains(text, "subscribed") || strings.Contains(text, "subscription") || strings.Contains(text, "acknowledg")
+
+	// Only explicit acknowledgement language may advance runtime state. A generic
+	// provider sentence such as "subscription successful" is informational and
+	// does not prove which requested subscription was actually acknowledged.
+	ack := strings.Contains(text, "subscribed") || strings.Contains(text, "acknowledged") || strings.Contains(text, "acknowledgement")
 	if ack {
 		return "subscription_acknowledged", true
 	}

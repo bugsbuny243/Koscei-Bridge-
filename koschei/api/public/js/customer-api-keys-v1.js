@@ -29,10 +29,10 @@
   function clearSecret(){window.clearTimeout(secretTimer);secretTimer=0;secretValue.textContent='';secretMeta.textContent='';secretPanel.hidden=true;}
   function revealSecret(data){
     clearSecret();
-    const key=text(data?.key,''),id=text(data?.id,''),tier=text(data?.tier,''),monthly=integerOrNull(data?.monthly_limit),rpm=integerOrNull(data?.rate_limit_per_minute);
-    if(!key||!id||!tier||monthly===null||monthly<=0||rpm===null||rpm<=0){showMessage('The create request returned incomplete credential evidence. A key may have been created, but no raw key is treated as usable unless the one-time response is complete. Reload the list and revoke any unexpected row.','bad');return false;}
+    const key=text(data?.key,''),id=text(data?.id,''),plan=text(data?.plan,''),monthly=integerOrNull(data?.monthly_limit),rpm=integerOrNull(data?.rate_limit_per_minute);
+    if(!key||!id||!plan||monthly===null||monthly<=0||rpm===null||rpm<=0){showMessage('The create request returned incomplete credential evidence. A key may have been created, but no raw key is treated as usable unless the one-time response is complete. Reload the list and revoke any unexpected row.','bad');return false;}
     secretValue.textContent=key;
-    secretMeta.textContent=`Server effective tier: ${tier.toUpperCase()} · monthly limit: ${monthly} · rate limit: ${rpm}/min`;
+    secretMeta.textContent=`Server effective plan: ${plan.toUpperCase()} · monthly limit: ${monthly} · rate limit: ${rpm}/min`;
     secretPanel.hidden=false;
     secretTimer=window.setTimeout(clearSecret,SECRET_VISIBLE_MS);
     return true;
@@ -44,7 +44,7 @@
     const response=await KoscheiAuth.apiCall(path,{...options,headers});
     const raw=await response.text();let data={};
     if(raw){try{data=JSON.parse(raw);}catch{throw new Error('The credential service returned invalid JSON.');}}
-    if(!response.ok){const enterprise=[401,402,403].includes(response.status)?'Enterprise KOSCH eligibility and a verified customer session are required for API-key management. ':'';throw new Error(enterprise+text(data?.message||data?.error,`Credential request failed with HTTP ${response.status}`));}
+    if(!response.ok){const enterprise=[401,402,403].includes(response.status)?'An active Enterprise SaaS entitlement and verified customer session are required for API-key management. ':'';throw new Error(enterprise+text(data?.message||data?.error,`Credential request failed with HTTP ${response.status}`));}
     return data;
   }
 

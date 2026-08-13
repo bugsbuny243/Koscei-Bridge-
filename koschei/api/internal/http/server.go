@@ -62,33 +62,36 @@ func NewServer(db *sql.DB, dbInitError string, adminPassword string, corsOrigin 
 	h := &handlers.Handler{DB: db, DBRead: config.dbRead, AdminPassword: adminPassword, Limiter: handlers.NewLimiter(), DBInitError: dbInitError, Cache: config.cache, SolanaRPC: config.solanaRPC, JobStore: config.jobStore, JobQueue: config.jobQueue, CourtClient: handlers.NewCourtNarrativeClientFromEnv()}
 	mux := http.NewServeMux()
 
-	koschTierAccess := func(tier string, next http.HandlerFunc) http.HandlerFunc {
-		return handlers.RequireAuth(h.RequireTokenTier(tier, next))
+	planTierAccess := func(plan string, next http.HandlerFunc) http.HandlerFunc {
+		return handlers.RequireAuth(h.RequirePlanTier(plan, next))
 	}
-	koschTier := func(tier string, next http.HandlerFunc) http.HandlerFunc {
-		return handlers.RequireAuth(h.RequireTokenTier(tier, h.EnforceScanQuota(next)))
+	planTier := func(plan string, next http.HandlerFunc) http.HandlerFunc {
+		return handlers.RequireAuth(h.RequirePlanTier(plan, h.EnforcePlanOutput(next)))
 	}
-	koschAccess := func(next http.HandlerFunc) http.HandlerFunc { return koschTier("basic", next) }
+	planAccess := func(next http.HandlerFunc) http.HandlerFunc { return planTier("starter", next) }
 	apiKeyEnterprise := func(next http.HandlerFunc) http.HandlerFunc {
-		return h.APIKeyAuth(h.RequireAPIKeyTokenTier("enterprise", h.APIRateLimit(next)))
+		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", h.APIRateLimit(next)))
 	}
+	// Developer APIs already have API-key monthly/RPM accounting. Do not charge
+	// the customer entitlement output ledger a second time for the same request.
 	apiKeyEnterpriseMetered := func(next http.HandlerFunc) http.HandlerFunc {
-		return h.APIKeyAuth(h.RequireAPIKeyTokenTier("enterprise", h.EnforceScanQuota(h.APIRateLimit(next))))
+		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", h.APIRateLimit(next)))
 	}
 
-	registerCoreRoutes(mux, h, koschAccess)
-	registerAccountRoutes(mux, h, koschTierAccess)
+	registerCoreRoutes(mux, h, planAccess)
+	registerAccountRoutes(mux, h, planTierAccess)
 	registerOwnerRoutes(mux, h, staticDir)
 	registerDefenseOSRoutes(mux, h)
-	registerProductRoutes(mux, h, koschTier)
+	registerProductRoutes(mux, h, planTier)
 	registerDeveloperAPIRoutes(mux, h, apiKeyEnterprise, apiKeyEnterpriseMetered)
 	registerDossierRoutes(mux, h)
-	registerWatchlistRoutes(mux, h, func(next http.HandlerFunc) http.HandlerFunc { return koschTier("pro", next) }, func(next http.HandlerFunc) http.HandlerFunc { return koschTierAccess("enterprise", next) })
+	registerBillingRoutes(mux, h)
+	registerWatchlistRoutes(mux, h, func(next http.HandlerFunc) http.HandlerFunc { return planTier("professional", next) }, func(next http.HandlerFunc) http.HandlerFunc { return planTierAccess("enterprise", next) })
 	registerStatic(mux, staticDir)
 	return securityHeaders(cors(apiReadiness(db, mux), corsOrigin))
 }
 
-func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, koschAccess routeGate) {
+func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, planAccess routeGate) {
 	mux.HandleFunc("/health", h.Health)
 	mux.HandleFunc("/api/config", method("GET", h.Config))
 	mux.HandleFunc("/api/auth/provision", method("POST", h.Provision))
@@ -105,7 +108,7 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, koschAccess rou
 	}))
 	mux.HandleFunc("/api/version", method("GET", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"app": runtimecfg.Load().AppName, "status": "ok", "access": "free-core-kosch-tier-quota"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"app": runtimecfg.Load().AppName, "status": "ok", "access": "free-core-saas-entitlement"})
 	}))
 	mux.HandleFunc("/api/auth/register", method("POST", h.Register))
 	mux.HandleFunc("/api/auth/login", method("POST", h.Login))
@@ -117,15 +120,15 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, koschAccess rou
 	mux.HandleFunc("/api/public/impact", method("GET", h.PublicImpact))
 	mux.HandleFunc("/api/public/metrics", method("GET", h.GetPublicMetrics))
 	mux.HandleFunc("/api/agent/health", requiresDB(h, method("GET", h.AgentTool)))
-	mux.HandleFunc("/api/agent/wallet-score", requiresDB(h, koschAccess(method("POST", h.AgentTool))))
-	mux.HandleFunc("/api/agent/risk-summary", requiresDB(h, koschAccess(method("POST", h.AgentTool))))
-	mux.HandleFunc("/api/agent/metadata-template", requiresDB(h, koschAccess(method("POST", h.AgentTool))))
-	mux.HandleFunc("/api/agent/chain-health", requiresDB(h, koschAccess(method("POST", h.AgentTool))))
+	mux.HandleFunc("/api/agent/wallet-score", requiresDB(h, planAccess(method("POST", h.AgentTool))))
+	mux.HandleFunc("/api/agent/risk-summary", requiresDB(h, planAccess(method("POST", h.AgentTool))))
+	mux.HandleFunc("/api/agent/metadata-template", requiresDB(h, planAccess(method("POST", h.AgentTool))))
+	mux.HandleFunc("/api/agent/chain-health", requiresDB(h, planAccess(method("POST", h.AgentTool))))
 }
 
-func registerAccountRoutes(mux *http.ServeMux, h *handlers.Handler, koschTierAccess tierRouteGate) {
-	mux.HandleFunc("/api/account/api-keys", requiresDB(h, koschTierAccess("enterprise", h.APIKeysCollection)))
-	mux.HandleFunc("/api/account/api-keys/", requiresDB(h, koschTierAccess("enterprise", method("POST", h.RevokeAPIKey))))
+func registerAccountRoutes(mux *http.ServeMux, h *handlers.Handler, planTierAccess tierRouteGate) {
+	mux.HandleFunc("/api/account/api-keys", requiresDB(h, planTierAccess("enterprise", h.APIKeysCollection)))
+	mux.HandleFunc("/api/account/api-keys/", requiresDB(h, planTierAccess("enterprise", method("POST", h.RevokeAPIKey))))
 }
 
 func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir string) {
@@ -147,7 +150,7 @@ func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir stri
 	mux.HandleFunc("/api/owner/defense/actor-acceptance", requiresDB(h, ownerOnly(h, method("POST", h.OwnerActorAcceptance))))
 	mux.HandleFunc("/api/owner/defense/distribution", requiresDB(h, ownerOnly(h, method("POST", h.OwnerActorDistributionInvestigation))))
 	mux.HandleFunc("/api/owner/radar/sources", requiresDB(h, ownerOnly(h, h.OwnerRadarSources)))
-	mux.HandleFunc("/api/owner/kosch-access", requiresDB(h, ownerOnly(h, method("GET", h.OwnerKOSCHAccessV2))))
+	mux.HandleFunc("/api/owner/kosch-access", ownerOnly(h, method("GET", h.OwnerRetiredKOSCHAccess)))
 	mux.HandleFunc("/api/owner/security-events", requiresDB(h, ownerOnly(h, method("GET", h.OwnerSecurityEvents))))
 	mux.HandleFunc("/api/owner/route-map", ownerOnly(h, method("GET", ownerRouteMap)))
 	mux.HandleFunc("/api/owner/feedback", requiresDB(h, ownerOnly(h, h.OwnerFeedback)))
@@ -163,26 +166,26 @@ func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir stri
 	mux.HandleFunc("/owner.html", ownerPageHandler(staticDir))
 }
 
-func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, koschTier tierRouteGate) {
+func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier tierRouteGate) {
 	solana := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureSolana, next) }
 	risk := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureRiskScanner, next) }
 	badge := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featurePublicBadge, next) }
 	mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))
 	mux.HandleFunc("/api/v1/risk/badge", solana(badge(method("GET", h.SecurityRiskBadge))))
-	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.TokenScan))))))
-	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, koschTier("basic", method("POST", h.AddressPoisoningCheck)))))
-	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, koschTier("basic", method("POST", h.SecurityRadarCheckWithAlerts)))))
-	mux.HandleFunc("/api/v1/radar/jobs", solana(requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job)))))
+	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, planTier("starter", method("POST", h.TokenScan))))))
+	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, planTier("starter", method("POST", h.AddressPoisoningCheck)))))
+	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, planTier("starter", method("POST", h.SecurityRadarCheckWithAlerts)))))
+	mux.HandleFunc("/api/v1/radar/jobs", solana(requiresDB(h, planTier("starter", method("POST", h.CreateWeb3Job)))))
 	mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
-	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, koschTier("basic", method("POST", h.CreateWeb3Job))))))
+	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, planTier("starter", method("POST", h.CreateWeb3Job))))))
 	mux.HandleFunc("/api/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
-	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, koschTier("basic", method("GET", h.SecurityRadarDetailV3)))))
-	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarFeed)))))
-	mux.HandleFunc("/api/v1/radar/creator-intelligence", solana(requiresDB(h, koschTier("pro", method("GET", h.OwnerCreatorIntelligence)))))
-	mux.HandleFunc("/api/v1/radar/actor-intelligence", solana(requiresDB(h, koschTier("pro", method("GET", h.OwnerActorSecurityIntelligence)))))
-	mux.HandleFunc("/api/v1/radar/graph", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarGraph)))))
-	mux.HandleFunc("/api/v1/radar/exposure", solana(requiresDB(h, koschTier("pro", method("GET", h.SecurityRadarExposureReport)))))
-	mux.HandleFunc("/api/v1/radar/court", solana(requiresDB(h, koschTier("pro", method("POST", h.SecurityRadarCourt)))))
+	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, planTier("starter", method("GET", h.SecurityRadarDetailV3)))))
+	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarFeed)))))
+	mux.HandleFunc("/api/v1/radar/creator-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerCreatorIntelligence)))))
+	mux.HandleFunc("/api/v1/radar/actor-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerActorSecurityIntelligence)))))
+	mux.HandleFunc("/api/v1/radar/graph", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarGraph)))))
+	mux.HandleFunc("/api/v1/radar/exposure", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarExposureReport)))))
+	mux.HandleFunc("/api/v1/radar/court", solana(requiresDB(h, planTier("professional", method("POST", h.SecurityRadarCourt)))))
 }
 
 func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, enterprise routeGate, enterpriseMetered routeGate) {

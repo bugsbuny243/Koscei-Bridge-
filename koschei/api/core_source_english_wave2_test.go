@@ -12,12 +12,13 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 			"Evidence-backed Web3 investigation system",
 			"It does not guess intent.",
 			"EVIDENCE BOUNDARY",
-			"signed_verdicts_total",
+			"id=\"verdicts\"",
 		},
 		"public/account.html": {
-			"KOSCH Holder Access",
+			"Account & SaaS Access",
 			"Verify with Phantom",
-			"Wallet verified.",
+			"Identity only.",
+			"Current paid plan",
 		},
 		"public/reports.html": {
 			"Investigation History",

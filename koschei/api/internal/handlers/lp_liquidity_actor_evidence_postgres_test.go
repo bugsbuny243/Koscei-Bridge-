@@ -121,7 +121,7 @@ func TestLiquidityMovementActorEvidencePostgres17(t *testing.T) {
 		SELECT event_kind,evidence_state,source_rule_id
 		FROM security_actor_exit_events
 		WHERE network=$1 AND actor_wallet=$2 AND target=$3 AND signature=$4
-		ORDER BY created_at DESC
+		ORDER BY observed_at DESC,slot DESC
 		LIMIT 1`, network, creator, target, lp.LiquidityMovements[0].Signature).Scan(&eventKind, &evidenceState, &sourceRuleID); err != nil {
 		t.Fatal(err)
 	}

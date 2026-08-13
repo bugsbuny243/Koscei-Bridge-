@@ -235,12 +235,12 @@ func pumpPortalInboxEventKey(event PumpPortalEvent) string {
 		Slot      int64  `json:"slot"`
 		BlockTime string `json:"block_time"`
 	}{
-		Mint: strings.TrimSpace(resolvePumpPortalMint(event)),
-		Type: strings.TrimSpace(pumpPortalEventType(event)),
+		Mint:    strings.TrimSpace(resolvePumpPortalMint(event)),
+		Type:    strings.TrimSpace(pumpPortalEventType(event)),
 		Creator: strings.TrimSpace(event.Creator),
-		Trader: strings.TrimSpace(event.Trader),
-		TxType: strings.TrimSpace(event.TxType),
-		Slot: event.Slot,
+		Trader:  strings.TrimSpace(event.Trader),
+		TxType:  strings.TrimSpace(event.TxType),
+		Slot:    event.Slot,
 	}
 	if !event.BlockTime.IsZero() {
 		identity.BlockTime = event.BlockTime.UTC().Format(time.RFC3339Nano)

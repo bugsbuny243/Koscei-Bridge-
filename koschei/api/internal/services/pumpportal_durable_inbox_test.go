@@ -16,7 +16,7 @@ func TestPumpPortalInboxEventKeySignaturelessIsDeterministic(t *testing.T) {
 	event := PumpPortalEvent{
 		Mint: "Mint111111111111111111111111111111111111",
 		Type: "create", Creator: "creator", TxType: "create", Slot: 42,
-		BlockTime: time.Unix(1_700_000_000, 0).UTC(),
+		BlockTime:  time.Unix(1_700_000_000, 0).UTC(),
 		ReceivedAt: time.Now().UTC(),
 	}
 	first := pumpPortalInboxEventKey(event)

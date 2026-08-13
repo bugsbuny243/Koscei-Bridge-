@@ -39,7 +39,7 @@ func TestCampaignGenomeIndexPostgres17(t *testing.T) {
 				{Kind: "relation", Value: "created_token", EvidenceStatus: "verified", SignatureBacked: true, GradeEligible: true},
 			},
 			WatchDescriptors: []ActorCampaignGenomeDescriptor{},
-			Policy: map[string]any{"same_genome_is_not_same_person": true},
+			Policy:           map[string]any{"same_genome_is_not_same_person": true},
 		}
 	}
 	firstGenome := genome(

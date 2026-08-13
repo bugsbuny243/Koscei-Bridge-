@@ -10,18 +10,18 @@ import (
 )
 
 type ActorOperationalMatch struct {
-	Wallet                    string   `json:"wallet"`
-	Classification            string   `json:"classification"`
-	EvidenceStatus            string   `json:"evidence_status"`
-	Rules                     []string `json:"rules"`
-	DirectVerifiedRelations   int      `json:"direct_verified_relations"`
-	DirectObservedRelations   int      `json:"direct_observed_relations"`
-	SharedCounterpartCount    int      `json:"shared_counterpart_count"`
-	SharedRelationCount       int      `json:"shared_relation_count"`
-	SubjectTokenContexts      int      `json:"subject_token_contexts"`
-	CandidateTokenContexts    int      `json:"candidate_token_contexts"`
-	SharedFundingSourceCount  int      `json:"shared_funding_source_count"`
-	VerifiedOverlapCount      int      `json:"verified_overlap_count"`
+	Wallet                   string   `json:"wallet"`
+	Classification           string   `json:"classification"`
+	EvidenceStatus           string   `json:"evidence_status"`
+	Rules                    []string `json:"rules"`
+	DirectVerifiedRelations  int      `json:"direct_verified_relations"`
+	DirectObservedRelations  int      `json:"direct_observed_relations"`
+	SharedCounterpartCount   int      `json:"shared_counterpart_count"`
+	SharedRelationCount      int      `json:"shared_relation_count"`
+	SubjectTokenContexts     int      `json:"subject_token_contexts"`
+	CandidateTokenContexts   int      `json:"candidate_token_contexts"`
+	SharedFundingSourceCount int      `json:"shared_funding_source_count"`
+	VerifiedOverlapCount     int      `json:"verified_overlap_count"`
 }
 
 type ActorOperationalMemoryReport struct {
@@ -121,7 +121,7 @@ func (s *ActorDefenseStore) LoadOperationalMemoryMatches(ctx context.Context, wa
 			"single_shared_cex_or_service_is_not_a_match":  true,
 			"observed_overlap_cannot_change_grade_alone":   true,
 			"verified_direct_link_proves_interaction_only": true,
-			"ruleset":                                      "koschei-actor-operational-memory-v1",
+			"ruleset": "koschei-actor-operational-memory-v1",
 		},
 	}, nil
 }
@@ -224,14 +224,14 @@ func (s *ActorDefenseStore) loadSharedOperationalOverlaps(ctx context.Context, w
 func classifyActorOperationalMatch(stats actorOperationalMatchStats) ActorOperationalMatch {
 	out := ActorOperationalMatch{
 		Wallet: stats.Wallet, Classification: "none", EvidenceStatus: "unverified", Rules: []string{},
-		DirectVerifiedRelations: stats.DirectVerifiedRelations,
-		DirectObservedRelations: stats.DirectObservedRelations,
-		SharedCounterpartCount: stats.SharedCounterpartCount,
-		SharedRelationCount: stats.SharedRelationCount,
-		SubjectTokenContexts: stats.SubjectTokenContexts,
-		CandidateTokenContexts: stats.CandidateTokenContexts,
+		DirectVerifiedRelations:  stats.DirectVerifiedRelations,
+		DirectObservedRelations:  stats.DirectObservedRelations,
+		SharedCounterpartCount:   stats.SharedCounterpartCount,
+		SharedRelationCount:      stats.SharedRelationCount,
+		SubjectTokenContexts:     stats.SubjectTokenContexts,
+		CandidateTokenContexts:   stats.CandidateTokenContexts,
 		SharedFundingSourceCount: stats.SharedFundingSourceCount,
-		VerifiedOverlapCount: stats.VerifiedOverlapCount,
+		VerifiedOverlapCount:     stats.VerifiedOverlapCount,
 	}
 	if stats.DirectVerifiedRelations > 0 {
 		out.Rules = append(out.Rules, "AOM-01")

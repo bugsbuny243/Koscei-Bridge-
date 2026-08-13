@@ -4,11 +4,11 @@ import "testing"
 
 func TestAugmentThreatAnticipationOperationalMemoryIsWatchOnly(t *testing.T) {
 	base := ThreatAnticipationReport{
-		Status:         "evidence_backed_pathway_analysis",
+		Status:          "evidence_backed_pathway_analysis",
 		PrimaryExposure: "existing primary exposure",
-		Pathways:       []ThreatPathway{},
-		Scenarios:      []ThreatScenario{},
-		EvidencePolicy: map[string]bool{"deterministic_verdict_remains_authoritative": true},
+		Pathways:        []ThreatPathway{},
+		Scenarios:       []ThreatScenario{},
+		EvidencePolicy:  map[string]bool{"deterministic_verdict_remains_authoritative": true},
 	}
 	memory := ActorOperationalMemoryReport{
 		Available: true,

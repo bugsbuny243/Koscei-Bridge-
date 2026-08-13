@@ -18,8 +18,11 @@ func TestResolveCanonicalCreatorSourceContextKeepsExistingCreator(t *testing.T) 
 	if got := creatorIntelCleanString(out["creator_wallet"]); got != creator {
 		t.Fatalf("existing creator changed: %q", got)
 	}
-	if got := creatorIntelCleanString(out["creator_resolution_status"]); got != "source_context" {
+	if got := creatorIntelCleanString(out["creator_resolution_status"]); got != "source_context_observed" {
 		t.Fatalf("unexpected existing-source status: %q", got)
+	}
+	if verified, _ := out["creator_relation_verified"].(bool); verified {
+		t.Fatal("source-declared creator remained VERIFIED without canonical RPC signer proof")
 	}
 }
 

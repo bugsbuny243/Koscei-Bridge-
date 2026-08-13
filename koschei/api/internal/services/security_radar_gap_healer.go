@@ -16,13 +16,13 @@ import (
 )
 
 type securityRadarGapHealer struct {
-	Store       *SecurityRadarStore
-	RPCURL      string
-	Network     string
-	PollEvery   time.Duration
-	PageSize    int
-	MaxPages    int
-	HTTPClient  *http.Client
+	Store      *SecurityRadarStore
+	RPCURL     string
+	Network    string
+	PollEvery  time.Duration
+	PageSize   int
+	MaxPages   int
+	HTTPClient *http.Client
 }
 
 type securityRadarReplayCursor struct {
@@ -339,13 +339,13 @@ func (h *securityRadarGapHealer) persistReplayEntries(ctx context.Context, sourc
 			ProgramID:       source.ProgramID,
 			EvidenceQuality: "replay_signature_observed",
 			Decoded: map[string]any{
-				"source":                source.Label,
-				"module_id":             source.ModuleID,
-				"program_id":            source.ProgramID,
-				"rpc_method":            "getSignaturesForAddress",
-				"recovery_mode":         "independent_watermark_replay",
-				"confirmation_status":   entry.ConfirmationStatus,
-				"requires_enrichment":   true,
+				"source":              source.Label,
+				"module_id":           source.ModuleID,
+				"program_id":          source.ProgramID,
+				"rpc_method":          "getSignaturesForAddress",
+				"recovery_mode":       "independent_watermark_replay",
+				"confirmation_status": entry.ConfirmationStatus,
+				"requires_enrichment": true,
 			},
 			RawEvent: map[string]any{
 				"signature": signature,

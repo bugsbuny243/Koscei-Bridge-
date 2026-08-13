@@ -32,16 +32,16 @@ type transactionGuardActorMemoryEvidence struct {
 }
 
 type transactionGuardActorMemorySubject struct {
-	Address        string                                `json:"address"`
-	TransactionRoles []string                            `json:"transaction_roles"`
-	Matched        bool                                  `json:"matched"`
-	EvidenceCount  int                                   `json:"evidence_count"`
-	VerifiedCount  int                                   `json:"verified_count"`
-	ObservedCount  int                                   `json:"observed_count"`
-	ActorRoles     []string                              `json:"actor_roles"`
-	Relations      []string                              `json:"relations"`
-	TokenMints     []string                              `json:"token_mints"`
-	Evidence       []transactionGuardActorMemoryEvidence `json:"evidence"`
+	Address          string                                `json:"address"`
+	TransactionRoles []string                              `json:"transaction_roles"`
+	Matched          bool                                  `json:"matched"`
+	EvidenceCount    int                                   `json:"evidence_count"`
+	VerifiedCount    int                                   `json:"verified_count"`
+	ObservedCount    int                                   `json:"observed_count"`
+	ActorRoles       []string                              `json:"actor_roles"`
+	Relations        []string                              `json:"relations"`
+	TokenMints       []string                              `json:"token_mints"`
+	Evidence         []transactionGuardActorMemoryEvidence `json:"evidence"`
 }
 
 type transactionGuardActorMemoryGraph struct {

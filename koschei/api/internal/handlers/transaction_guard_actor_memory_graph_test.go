@@ -8,12 +8,12 @@ import (
 
 func TestTransactionGuardActorMemoryCandidatesIncludeAuthorityAndTokenOwners(t *testing.T) {
 	const (
-		wallet = "7YWHMfk9JZe0LM2B9S1yXWBHLDvTw3pAUJ2g7MzoFj3d"
-		owner  = "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump"
+		wallet   = "7YWHMfk9JZe0LM2B9S1yXWBHLDvTw3pAUJ2g7MzoFj3d"
+		owner    = "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump"
 		delegate = "yHCxqFDSWNSVQpBmx6GBbMUAZrxD7VuXPWgqvha6PRe"
 	)
 	decoded := transactionGuardDecodedTransaction{
-		TokenOperations: []transactionGuardDecodedTokenOperation{{Kind: "approve", Delegate: delegate, Authority: owner}},
+		TokenOperations:  []transactionGuardDecodedTokenOperation{{Kind: "approve", Delegate: delegate, Authority: owner}},
 		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Accounts: []transactionGuardAutomaticBalanceDelta{{PreTokenOwner: owner, PostTokenOwner: owner}}},
 	}
 	candidates := transactionGuardActorMemoryCandidates(decoded, wallet)

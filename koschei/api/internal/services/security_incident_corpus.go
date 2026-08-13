@@ -242,7 +242,7 @@ func LoadSecurityIncidentCorpus(ctx context.Context, db *sql.DB, network, target
 func securityIncidentCorpusRecordFromCandidate(network, target string, candidate securityIncidentCorpusCandidate) (SecurityIncidentCorpusRecord, error) {
 	record := SecurityIncidentCorpusRecord{
 		SchemaVersion: SecurityIncidentCorpusSchemaVersion,
-		Network: normalizeRadarNetwork(network), Target: strings.TrimSpace(target),
+		Network:       normalizeRadarNetwork(network), Target: strings.TrimSpace(target),
 		ActorWallet: strings.TrimSpace(candidate.ActorWallet), EventKind: strings.TrimSpace(candidate.EventKind),
 		SourceRuleID: strings.TrimSpace(candidate.SourceRuleID), EventSignature: strings.TrimSpace(candidate.EventSignature),
 		EventSlot: candidate.EventSlot, EventObservedAt: candidate.EventObservedAt.UTC(),
@@ -250,7 +250,7 @@ func securityIncidentCorpusRecordFromCandidate(network, target string, candidate
 		VerdictUpdatedAt: candidate.VerdictUpdatedAt.UTC(), VerdictRuleVersion: strings.TrimSpace(candidate.VerdictRuleVersion),
 		Grade: strings.TrimSpace(candidate.Grade), RiskIndex: candidate.RiskIndex,
 		RiskLevel: securityIncidentMaterialRiskLevel(candidate.RiskLevel, candidate.RiskIndex),
-		Verdict: strings.TrimSpace(candidate.Verdict), Recommendation: strings.TrimSpace(candidate.Recommendation),
+		Verdict:   strings.TrimSpace(candidate.Verdict), Recommendation: strings.TrimSpace(candidate.Recommendation),
 		Evidence: []string{}, Signals: map[string]any{}, VerdictSource: strings.TrimSpace(candidate.VerdictSource),
 	}
 	if record.ActorWallet == "" || record.Target == "" || record.EventKind == "" || record.SourceRuleID == "" || record.EventSignature == "" || record.EventSlot <= 0 || record.VerdictID == "" || record.VerdictSignature == "" || record.VerdictRuleVersion == "" {

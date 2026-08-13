@@ -12,7 +12,7 @@ Koschei Watchlist stores customer-owned Solana token targets and compares each n
 
 ## Routes
 
-All watchlist routes require a verified Koschei customer session and active **Pro KOSCH tier or higher**. They use the metered watchlist route gate, so scan-quota enforcement remains server-owned.
+All watchlist routes require a verified Koschei customer session and active **Professional SaaS plan or higher**. They use the metered watchlist route gate, so paid output-capacity enforcement remains server-owned and token holdings are not an authorization input.
 
 ```text
 GET    /api/watchlist
@@ -25,7 +25,7 @@ GET    /api/watchlist/alerts
 POST   /api/watchlist/alerts
 ```
 
-Webhook management is a separate Enterprise-eligibility surface; it does not change the watchlist route tier or metering contract.
+Webhook management is a separate Enterprise-entitlement surface; it does not change the watchlist route tier or metering contract.
 
 ## Add a target
 
@@ -74,4 +74,4 @@ Koschei also contains a background watchlist monitor, but it runs only when **bo
 
 ## Compatibility
 
-The feature is additive. Existing scanners, Radar, Transaction Firewall, authentication, entitlement and payment flows are unchanged.
+The feature remains account-scoped and additive to the evidence engine. Wallet identity can coexist with the account, but paid watchlist authorization is based only on the active SaaS entitlement. KOSCH holder balances and legacy token tiers do not grant or upgrade watchlist access.

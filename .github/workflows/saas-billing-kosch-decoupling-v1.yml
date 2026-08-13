@@ -1,0 +1,111 @@
+name: SaaS Billing KOSCH Decoupling V1
+
+on:
+  pull_request:
+    paths:
+      - "koschei/api/internal/handlers/plan_access.go"
+      - "koschei/api/internal/handlers/premium_access_status.go"
+      - "koschei/api/internal/handlers/premium_access_status_test.go"
+      - "koschei/api/internal/handlers/premium_access_quota_test.go"
+      - "koschei/api/internal/handlers/kosch_retirement.go"
+      - "koschei/api/internal/handlers/paddle_billing.go"
+      - "koschei/api/internal/handlers/paddle_billing_test.go"
+      - "koschei/api/internal/handlers/api_keys.go"
+      - "koschei/api/internal/handlers/api_key_tier_caps.go"
+      - "koschei/api/internal/handlers/api_key_tier_caps_test.go"
+      - "koschei/api/internal/http/server.go"
+      - "koschei/api/internal/http/watchlist_routes.go"
+      - "koschei/api/internal/http/billing_routes.go"
+      - "koschei/api/internal/http/route_inventory.go"
+      - "koschei/api/migrations/101_paddle_saas_billing_v1.sql"
+      - "koschei/api/public/account.html"
+      - "koschei/api/public/kosch-access.html"
+      - "koschei/api/public/pricing.html"
+      - "koschei/api/public/watchlist.html"
+      - "koschei/api/public/js/customer-access-v2.js"
+      - "koschei/api/public/js/customer-workspace-v2.js"
+      - "koschei/api/public/js/customer-api-keys-v1.js"
+      - "koschei/api/public/js/customer-watchlist-v2.js"
+      - "koschei/api/public/js/paddle-checkout.js"
+      - "koschei/api/scripts/verify-saas-billing-kosch-decoupling-v1.js"
+      - "koschei/api/scripts/verify-pricing-policy-v2.js"
+      - "koschei/api/scripts/verify-customer-access-v2.js"
+      - "koschei/api/scripts/verify-enterprise-api-keys-v1.js"
+      - "koschei/api/scripts/verify-watchlist-evidence-v2.js"
+      - "docs/watchlist-alerts.md"
+      - ".github/workflows/saas-billing-kosch-decoupling-v1.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/internal/handlers/plan_access.go"
+      - "koschei/api/internal/handlers/paddle_billing.go"
+      - "koschei/api/internal/http/server.go"
+      - "koschei/api/internal/http/billing_routes.go"
+      - "koschei/api/migrations/101_paddle_saas_billing_v1.sql"
+      - "koschei/api/public/pricing.html"
+      - "koschei/api/scripts/verify-saas-billing-kosch-decoupling-v1.js"
+      - ".github/workflows/saas-billing-kosch-decoupling-v1.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Download Go modules
+        working-directory: koschei/api
+        run: go mod download
+      - name: Check touched Go formatting
+        working-directory: koschei/api
+        run: |
+          set -euo pipefail
+          files=(
+            internal/handlers/plan_access.go
+            internal/handlers/premium_access_status.go
+            internal/handlers/premium_access_status_test.go
+            internal/handlers/premium_access_quota_test.go
+            internal/handlers/kosch_retirement.go
+            internal/handlers/paddle_billing.go
+            internal/handlers/paddle_billing_test.go
+            internal/handlers/api_keys.go
+            internal/handlers/api_key_tier_caps.go
+            internal/handlers/api_key_tier_caps_test.go
+            internal/http/server.go
+            internal/http/watchlist_routes.go
+            internal/http/billing_routes.go
+            internal/http/route_inventory.go
+          )
+          diff="$(gofmt -d "${files[@]}")"
+          if [ -n "${diff}" ]; then
+            printf '%s\n' "${diff}"
+            exit 1
+          fi
+      - name: Compile billing and HTTP packages
+        working-directory: koschei/api
+        run: |
+          go test ./internal/handlers -run '^Test(?:VerifyPaddleWebhookSignature|PaddleTransactionPriceBinding|PlanTierAuthorization|PremiumAccess|APIKey)' -count=1
+          go test ./internal/http -run '^$' -count=1
+      - name: Check browser JavaScript syntax
+        working-directory: koschei/api
+        run: |
+          node --check public/js/customer-access-v2.js
+          node --check public/js/customer-workspace-v2.js
+          node --check public/js/customer-api-keys-v1.js
+          node --check public/js/customer-watchlist-v2.js
+          node --check public/js/paddle-checkout.js
+          node --check scripts/verify-saas-billing-kosch-decoupling-v1.js
+      - name: Verify SaaS billing / KOSCH separation
+        working-directory: koschei/api
+        run: |
+          node scripts/verify-saas-billing-kosch-decoupling-v1.js
+          node scripts/verify-pricing-policy-v2.js
+          node scripts/verify-customer-access-v2.js
+          node scripts/verify-enterprise-api-keys-v1.js
+          node scripts/verify-watchlist-evidence-v2.js
