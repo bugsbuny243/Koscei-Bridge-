@@ -27,10 +27,6 @@ type publicExposureRecord struct {
 	PublicationTimeStatus string
 }
 
-// loadPublicExposureRecord reads publication authorization, its immutable ledger
-// event, effective publish-time proof and immutable dossier export in one SQL
-// statement snapshot. New db-owned time proofs must match the current state row;
-// older records remain readable only with explicit legacy time provenance.
 func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (publicExposureRecord, error) {
 	if db == nil {
 		return publicExposureRecord{}, sql.ErrConnDone
@@ -93,7 +89,13 @@ func loadPublicExposureRecord(ctx context.Context, db *sql.DB, caseRef string) (
 	if err != nil {
 		return publicExposureRecord{}, fmt.Errorf("%w: publication effective time mismatch", errPublicExposureIntegrity)
 	}
-	bundle, err := verifyStoredDossierBundle(canonical, caseRef, storedHash)
+
+	var bundle dossierBundle
+	if ledgerStatus == publicationLedgerLegacyUnlinked {
+		bundle, err = verifyStoredLegacyDossierBundle(canonical, caseRef, storedHash)
+	} else {
+		bundle, err = verifyStoredDossierBundle(canonical, caseRef, storedHash)
+	}
 	if err != nil {
 		return publicExposureRecord{}, fmt.Errorf("%w: %v", errPublicExposureIntegrity, err)
 	}
@@ -122,8 +124,5 @@ func applyPublicExposureHeaders(w http.ResponseWriter, record publicExposureReco
 	w.Header().Set("X-Koschei-Publication-Ledger", record.LedgerStatus)
 	w.Header().Set("X-Koschei-Publication-Time", record.PublicationTimeStatus)
 	w.Header().Set("X-Koschei-Published-By", record.PublishedBy)
-	// The dossier bytes may be immutable, but public visibility is revocable.
-	// Revalidation prevents cached visibility from outliving a later owner
-	// hide/draft transition; the ETag separately identifies immutable bytes.
 	w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")
 }
