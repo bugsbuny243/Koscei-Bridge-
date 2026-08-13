@@ -53,7 +53,7 @@ requireText(inventory,'"GET /api/v1/radar/jobs/"','machine-readable radar jobs G
 if(inventory.includes('/api/v1/investigations/history'))throw new Error('inventory: parallel history endpoint must not be advertised');
 
 requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','Vault access copy');
-requireText(reportsHTML,'reading history does not consume a scan unit','Vault read-only quota copy');
+requireText(reportsHTML,'reading history does not consume an output','Vault read-only quota copy');
 requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');
 requireText(reportsHTML,'/scan?mode=deep','Vault canonical investigation route');
