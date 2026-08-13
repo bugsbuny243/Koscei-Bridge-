@@ -44,13 +44,17 @@ func StartSecurityRadarWatcher(ctx context.Context, db *sql.DB, _ *web3.SolanaRP
 		return stopDatabaseWorkers
 	}
 	stopHeartbeat := StartArvisRadarHeartbeat(ctx, db)
-	stopStreamVerdicts := StartArvisStreamVerdictWorker(ctx, db)
+	// Stream observations are evidence/trigger inputs only. The retired stream
+	// verdict worker attempted to manufacture a final_verdict_engine arm even
+	// though ARVIS arms are evidence-only. Route those observations into the
+	// canonical investigation worker instead.
+	stopStreamCanonicalBridge := StartArvisStreamCanonicalBridge(ctx, db)
 	stopStreamRecovery := StartArvisStreamRecovery(ctx, db)
 	stopGapHealer := StartSecurityRadarGapHealerIfEnabled(ctx, db)
 	stopAll := func() {
 		stopGapHealer()
 		stopStreamRecovery()
-		stopStreamVerdicts()
+		stopStreamCanonicalBridge()
 		stopHeartbeat()
 		stopDatabaseWorkers()
 	}
