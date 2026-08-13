@@ -6,7 +6,6 @@ func TestOwnerActionQueueRoutesCriticalWork(t *testing.T) {
 	summary := map[string]any{
 		"security_feedback":            int64(2),
 		"critical_security_events_24h": int64(3),
-		"pending_payments":             int64(4),
 		"open_feedback":                int64(5),
 		"expiring_entitlements_7d":     int64(6),
 		"failed_jobs_24h":              int64(7),
@@ -21,7 +20,6 @@ func TestOwnerActionQueueRoutesCriticalWork(t *testing.T) {
 	assertOwnerAction(t, actions, "arvis_failure", "critical", "arvis", 8)
 	assertOwnerAction(t, actions, "security_feedback", "critical", "feedback", 2)
 	assertOwnerAction(t, actions, "security_events", "high", "security", 3)
-	assertOwnerAction(t, actions, "pending_payment", "high", "revenue", 4)
 	assertOwnerAction(t, actions, "expiring_entitlement", "medium", "customers", 6)
 	assertOwnerAction(t, actions, "failed_jobs", "medium", "system", 7)
 	assertOwnerAction(t, actions, "service", "medium", "system", 1)
@@ -33,7 +31,6 @@ func TestOwnerActionQueueOmitsHealthyAndZeroItems(t *testing.T) {
 		map[string]any{
 			"database": map[string]string{"status": "connected"},
 			"paddle":   map[string]any{"status": "configured"},
-			"shopier":  map[string]any{"status": "manual"},
 		},
 		map[string]any{},
 	)
