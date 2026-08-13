@@ -25,13 +25,13 @@ type actorConstellationLookupResult struct {
 }
 
 type actorConstellationCandidateStats struct {
-	stats            actorOperationalMatchStats
-	counterparts     map[string]struct{}
-	relations        map[string]struct{}
-	subjectTokens    map[string]struct{}
-	candidateTokens  map[string]struct{}
-	fundingSources   map[string]struct{}
-	evidenceByID     map[string]ActorConstellationEvidenceRow
+	stats           actorOperationalMatchStats
+	counterparts    map[string]struct{}
+	relations       map[string]struct{}
+	subjectTokens   map[string]struct{}
+	candidateTokens map[string]struct{}
+	fundingSources  map[string]struct{}
+	evidenceByID    map[string]ActorConstellationEvidenceRow
 }
 
 func (s *ActorDefenseStore) loadBoundedActorConstellationCandidates(ctx context.Context, wallet, network string, limit int) (actorConstellationLookupResult, error) {
