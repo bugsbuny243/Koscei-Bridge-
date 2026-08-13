@@ -38,6 +38,13 @@ func maxInt(a, b int) int {
 	return b
 }
 
+// normalizePackageID is retained as a narrow compatibility name for stored
+// plan aliases and older callers. The canonical authority is the SaaS plan
+// vocabulary, not a package/payment product catalog.
+func normalizePackageID(value string) string {
+	return canonicalSaaSPlan(value)
+}
+
 func normalizePlanTier(planTier string) string {
-	return normalizePackageID(planTier)
+	return canonicalSaaSPlan(planTier)
 }
