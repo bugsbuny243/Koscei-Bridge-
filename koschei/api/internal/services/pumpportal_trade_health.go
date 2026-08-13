@@ -18,7 +18,7 @@ type PumpPortalTradeStreamHealth struct {
 	Trades15m          int64                          `json:"trades_15m"`
 	DistinctMints15m   int64                          `json:"distinct_mints_15m"`
 	DistinctTraders15m int64                          `json:"distinct_traders_15m"`
-	LastTradeAt        *time.Time                      `json:"last_trade_at,omitempty"`
+	LastTradeAt        *time.Time                     `json:"last_trade_at,omitempty"`
 	Limitations        []string                       `json:"limitations"`
 	Policy             map[string]any                 `json:"policy"`
 }

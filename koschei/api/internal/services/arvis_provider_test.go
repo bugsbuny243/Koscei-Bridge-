@@ -4,7 +4,7 @@ import "testing"
 
 func TestProviderFromSolanaRPCURLPreservesActualProvenance(t *testing.T) {
 	cases := map[string]string{
-		"https://solana-mainnet.g.alchemy.com/v2/key": "alchemy",
+		"https://solana-mainnet.g.alchemy.com/v2/key":     "alchemy",
 		"https://mainnet.helius-rpc.com/?api-key=x":       "helius",
 		"https://example.solana-mainnet.quiknode.pro/key": "quicknode",
 		"https://rpc.triton.one":                          "triton",

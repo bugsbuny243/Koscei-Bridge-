@@ -121,9 +121,9 @@ func (h *Handler) OwnerKOSCHAccessV2(w http.ResponseWriter, r *http.Request) {
 			"enterprise": tokenTierThresholdEnv("KOSCHEI_TOKEN_TIER_ENTERPRISE", "2000000"),
 		},
 		"security_policy": map[string]any{
-			"version": "kosch-security-v1",
+			"version":         "kosch-security-v1",
 			"authority_model": "access_and_coordination_only",
-			"fail_closed": true,
+			"fail_closed":     true,
 			"never_grants": []string{
 				"evidence mutation",
 				"verdict override",

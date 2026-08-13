@@ -261,7 +261,7 @@ func buildDocument(routes []Route, inventory []InventoryRoute) Document {
 				"sessionBearer":   map[string]any{"type": "http", "scheme": "bearer", "bearerFormat": "session"},
 				"ownerSession":    map[string]any{"type": "apiKey", "in": "cookie", "name": "koschei_owner_session"},
 				"developerAPIKey": map[string]any{"type": "apiKey", "in": "header", "name": "X-API-Key"},
-				"paddleSignature":  map[string]any{"type": "apiKey", "in": "header", "name": "Paddle-Signature"},
+				"paddleSignature": map[string]any{"type": "apiKey", "in": "header", "name": "Paddle-Signature"},
 			},
 			"schemas": schemas(),
 		},

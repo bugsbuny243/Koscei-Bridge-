@@ -9,11 +9,11 @@ import (
 
 func TestLiquidityMovementActorEvidenceCreatorRemovalIsStrictVerifiedEvidence(t *testing.T) {
 	lp := services.LPControlEvidence{
-		TokenMint:    "TokenMint111",
-		PoolAddress:  "Pool111",
-		PoolProgram:  "Program111",
+		TokenMint:     "TokenMint111",
+		PoolAddress:   "Pool111",
+		PoolProgram:   "Program111",
 		CreatorWallet: "Creator111",
-		ObservedAt:   time.Date(2026, 8, 10, 12, 0, 0, 0, time.UTC),
+		ObservedAt:    time.Date(2026, 8, 10, 12, 0, 0, 0, time.UTC),
 	}
 	movement := services.LiquidityMovementEvidence{
 		Kind:               "remove_liquidity",

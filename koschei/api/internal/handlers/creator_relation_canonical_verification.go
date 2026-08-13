@@ -120,15 +120,15 @@ func canonicalTokenBalancesMentionMint(meta map[string]any, mint string) bool {
 func applyCanonicalCreatorVerification(source map[string]any, verification canonicalCreatorRelationVerification) map[string]any {
 	out := cloneCreatorSourceContext(source)
 	out["canonical_creator_verification"] = map[string]any{
-		"verified": verification.Verified,
-		"status": verification.Status,
-		"signature": verification.Signature,
-		"slot": verification.Slot,
-		"creator_signer": verification.CreatorSigner,
-		"mint_referenced": verification.MintReferenced,
-		"launch_like": verification.LaunchLike,
+		"verified":          verification.Verified,
+		"status":            verification.Status,
+		"signature":         verification.Signature,
+		"slot":              verification.Slot,
+		"creator_signer":    verification.CreatorSigner,
+		"mint_referenced":   verification.MintReferenced,
+		"launch_like":       verification.LaunchLike,
 		"instruction_types": append([]string{}, verification.InstructionTypes...),
-		"limitations": append([]string{}, verification.Limitations...),
+		"limitations":       append([]string{}, verification.Limitations...),
 	}
 	if !verification.Verified {
 		return out

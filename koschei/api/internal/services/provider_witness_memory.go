@@ -14,33 +14,33 @@ import (
 const ProviderWitnessMemoryRuleset = "koschei-provider-witness-memory-v1"
 
 type ProviderWitnessMemory struct {
-	Network             string    `json:"network"`
-	Method              string    `json:"method"`
-	Provider            string    `json:"provider"`
-	Observations        int64     `json:"observations"`
-	QuorumAgreements    int64     `json:"quorum_agreements"`
-	QuorumDisagreements int64     `json:"quorum_disagreements"`
-	ConflictObservations int64    `json:"conflict_observations"`
-	UnavailableCount    int64     `json:"unavailable_count"`
-	MalformedCount      int64     `json:"malformed_count"`
-	RateLimitedCount    int64     `json:"rate_limited_count"`
-	LastWitnessStatus   string    `json:"last_witness_status"`
-	LastErrorClass      string    `json:"last_error_class,omitempty"`
-	LastValueHash       string    `json:"last_value_hash,omitempty"`
-	LastContextSlot     int64     `json:"last_context_slot"`
-	TrustState          string    `json:"trust_state"`
-	FirstObservedAt     time.Time `json:"first_observed_at"`
-	LastObservedAt      time.Time `json:"last_observed_at"`
+	Network              string    `json:"network"`
+	Method               string    `json:"method"`
+	Provider             string    `json:"provider"`
+	Observations         int64     `json:"observations"`
+	QuorumAgreements     int64     `json:"quorum_agreements"`
+	QuorumDisagreements  int64     `json:"quorum_disagreements"`
+	ConflictObservations int64     `json:"conflict_observations"`
+	UnavailableCount     int64     `json:"unavailable_count"`
+	MalformedCount       int64     `json:"malformed_count"`
+	RateLimitedCount     int64     `json:"rate_limited_count"`
+	LastWitnessStatus    string    `json:"last_witness_status"`
+	LastErrorClass       string    `json:"last_error_class,omitempty"`
+	LastValueHash        string    `json:"last_value_hash,omitempty"`
+	LastContextSlot      int64     `json:"last_context_slot"`
+	TrustState           string    `json:"trust_state"`
+	FirstObservedAt      time.Time `json:"first_observed_at"`
+	LastObservedAt       time.Time `json:"last_observed_at"`
 }
 
 type ProviderWitnessMemoryReport struct {
-	Available   bool                    `json:"available"`
-	Network     string                  `json:"network"`
-	Status      string                  `json:"status"`
-	ProviderCount int                   `json:"provider_count"`
-	Providers   []ProviderWitnessMemory `json:"providers"`
-	GeneratedAt time.Time               `json:"generated_at"`
-	Policy      map[string]any          `json:"policy"`
+	Available     bool                    `json:"available"`
+	Network       string                  `json:"network"`
+	Status        string                  `json:"status"`
+	ProviderCount int                     `json:"provider_count"`
+	Providers     []ProviderWitnessMemory `json:"providers"`
+	GeneratedAt   time.Time               `json:"generated_at"`
+	Policy        map[string]any          `json:"policy"`
 }
 
 type providerWitnessObservation struct {
@@ -269,9 +269,9 @@ func LoadProviderWitnessMemory(ctx context.Context, db *sql.DB, network, method 
 
 func providerWitnessMemoryPolicy() map[string]any {
 	return map[string]any{
-		"ruleset":                                ProviderWitnessMemoryRuleset,
-		"numeric_trust_score_disabled":            true,
-		"conflict_does_not_assign_fault":           true,
+		"ruleset":                                   ProviderWitnessMemoryRuleset,
+		"numeric_trust_score_disabled":              true,
+		"conflict_does_not_assign_fault":            true,
 		"verified_quorum_required_for_disagreement": true,
 		"memory_does_not_auto_remove_provider":      true,
 		"provider_host_or_credentials_persisted":    false,

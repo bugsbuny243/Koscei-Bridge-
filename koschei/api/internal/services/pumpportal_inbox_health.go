@@ -8,17 +8,17 @@ import (
 )
 
 type PumpPortalInboxHealth struct {
-	Available            bool       `json:"available"`
-	Status               string     `json:"status"`
-	PendingCount         int64      `json:"pending_count"`
-	ProcessingCount      int64      `json:"processing_count"`
-	RetryableCount       int64      `json:"retryable_count"`
-	ExhaustedCount       int64      `json:"exhausted_count"`
-	Completed24hCount    int64      `json:"completed_24h_count"`
-	OpenCount            int64      `json:"open_count"`
-	OldestOpenAgeSeconds int64      `json:"oldest_open_age_seconds"`
-	OldestOpenAt         *time.Time `json:"oldest_open_at,omitempty"`
-	LastReceivedAt       *time.Time `json:"last_received_at,omitempty"`
+	Available            bool           `json:"available"`
+	Status               string         `json:"status"`
+	PendingCount         int64          `json:"pending_count"`
+	ProcessingCount      int64          `json:"processing_count"`
+	RetryableCount       int64          `json:"retryable_count"`
+	ExhaustedCount       int64          `json:"exhausted_count"`
+	Completed24hCount    int64          `json:"completed_24h_count"`
+	OpenCount            int64          `json:"open_count"`
+	OldestOpenAgeSeconds int64          `json:"oldest_open_age_seconds"`
+	OldestOpenAt         *time.Time     `json:"oldest_open_at,omitempty"`
+	LastReceivedAt       *time.Time     `json:"last_received_at,omitempty"`
 	Policy               map[string]any `json:"policy"`
 }
 
@@ -26,10 +26,10 @@ func LoadPumpPortalInboxHealth(ctx context.Context, db *sql.DB, now time.Time) (
 	out := PumpPortalInboxHealth{
 		Status: "unavailable",
 		Policy: map[string]any{
-			"discovery_ingress_is_durable":           true,
-			"exhausted_rows_are_not_hidden":          true,
+			"discovery_ingress_is_durable":              true,
+			"exhausted_rows_are_not_hidden":             true,
 			"backlog_does_not_become_verified_evidence": true,
-			"trade_ledger_has_separate_delivery_path": true,
+			"trade_ledger_has_separate_delivery_path":   true,
 		},
 	}
 	if db == nil {

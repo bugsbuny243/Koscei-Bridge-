@@ -26,7 +26,7 @@ func TestKOSCHSecurityPolicyNeverGrantsTechnicalAuthority(t *testing.T) {
 			if koschSecurityCapabilityAllowed(tier, capability) {
 				t.Fatalf("tier %s must never grant forbidden capability %s", tier, capability)
 			}
-	}
+		}
 	}
 }
 

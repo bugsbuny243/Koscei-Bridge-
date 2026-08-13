@@ -33,7 +33,7 @@ func DeriveSecurityIntegrityPosture(
 			"provider_witness_memory":  providers.Status,
 		},
 		Policy: map[string]any{
-			"missing_visibility_never_becomes_safe":      true,
+			"missing_visibility_never_becomes_safe":     true,
 			"trade_visibility_is_not_verdict_authority": true,
 			"provider_memory_never_auto_bans":           true,
 			"partial_visibility_must_be_explicit":       true,
