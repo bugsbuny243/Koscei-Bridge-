@@ -19,10 +19,11 @@ func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 	}
 	registerProductRoutes(mux, h, gate)
 
-	// Starter includes the paid investigation routes and canonical durable-job
-	// create routes. Professional covers the advanced radar surfaces. Job reads
-	// remain authenticated but are not counted here because they do not consume
-	// a new premium output.
+	// SaaS plan names are the route authorization contract: Starter includes the
+	// paid investigation routes and canonical durable-job create routes, while
+	// Professional covers the advanced radar surfaces. Job reads remain
+	// authenticated but are not counted here because they do not consume a new
+	// premium output.
 	want := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional"}
 	if !reflect.DeepEqual(tiers, want) {
 		t.Fatalf("route tiers=%v want=%v", tiers, want)
