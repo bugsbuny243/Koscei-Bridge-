@@ -1,0 +1,273 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+)
+
+const ActorConstellationVersion = "koschei-actor-constellation-v1"
+
+const (
+	defaultActorConstellationDepth   = 2
+	defaultActorConstellationFanout  = 8
+	defaultActorConstellationNodeCap = 25
+	maxActorConstellationDepth       = 3
+	maxActorConstellationFanout      = 20
+	maxActorConstellationNodeCap     = 50
+)
+
+type ActorConstellationNode struct {
+	Wallet             string   `json:"wallet"`
+	Hop                int      `json:"hop"`
+	ViaWallet          string   `json:"via_wallet,omitempty"`
+	LinkClassification string   `json:"link_classification,omitempty"`
+	EvidenceStatus     string   `json:"evidence_status,omitempty"`
+	Rules              []string `json:"rules"`
+}
+
+type ActorConstellationEdge struct {
+	FromWallet               string   `json:"from_wallet"`
+	ToWallet                 string   `json:"to_wallet"`
+	Classification           string   `json:"classification"`
+	EvidenceStatus           string   `json:"evidence_status"`
+	Rules                    []string `json:"rules"`
+	DirectVerifiedRelations  int      `json:"direct_verified_relations"`
+	SharedCounterpartCount   int      `json:"shared_counterpart_count"`
+	SharedRelationCount      int      `json:"shared_relation_count"`
+	SharedFundingSourceCount int      `json:"shared_funding_source_count"`
+	VerifiedOverlapCount     int      `json:"verified_overlap_count"`
+}
+
+type ActorConstellationReport struct {
+	Version     string                   `json:"version"`
+	SeedWallet  string                   `json:"seed_wallet"`
+	Network     string                   `json:"network"`
+	Available   bool                     `json:"available"`
+	Status      string                   `json:"status"`
+	Complete    bool                     `json:"complete"`
+	NodeCount   int                      `json:"node_count"`
+	EdgeCount   int                      `json:"edge_count"`
+	MaxDepth    int                      `json:"max_depth"`
+	Fanout      int                      `json:"fanout"`
+	NodeCap     int                      `json:"node_cap"`
+	Nodes       []ActorConstellationNode `json:"nodes"`
+	Edges       []ActorConstellationEdge `json:"edges"`
+	GeneratedAt time.Time                `json:"generated_at"`
+	Policy      map[string]any           `json:"policy"`
+	Limitations []string                 `json:"limitations"`
+}
+
+type actorOperationalLookup func(context.Context, string, string, int) (ActorOperationalMemoryReport, error)
+
+type actorConstellationQueueItem struct {
+	Wallet string
+	Hop    int
+}
+
+func (s *ActorDefenseStore) LoadActorConstellation(ctx context.Context, wallet, network string, maxDepth, fanout, nodeCap int) (ActorConstellationReport, error) {
+	if s == nil || s.DB == nil {
+		return ActorConstellationReport{}, fmt.Errorf("actor defense database is unavailable")
+	}
+	return buildActorConstellation(ctx, wallet, network, maxDepth, fanout, nodeCap, s.LoadOperationalMemoryMatches)
+}
+
+func buildActorConstellation(ctx context.Context, wallet, network string, maxDepth, fanout, nodeCap int, lookup actorOperationalLookup) (ActorConstellationReport, error) {
+	wallet = strings.TrimSpace(wallet)
+	network = normalizeRadarNetwork(network)
+	if wallet == "" {
+		return ActorConstellationReport{}, fmt.Errorf("actor wallet is required")
+	}
+	if lookup == nil {
+		return ActorConstellationReport{}, fmt.Errorf("actor operational lookup is unavailable")
+	}
+	maxDepth, fanout, nodeCap = normalizeActorConstellationBounds(maxDepth, fanout, nodeCap)
+
+	out := ActorConstellationReport{
+		Version: ActorConstellationVersion,
+		SeedWallet: wallet,
+		Network: network,
+		Status: "no_constellation_observed",
+		Complete: true,
+		MaxDepth: maxDepth,
+		Fanout: fanout,
+		NodeCap: nodeCap,
+		Nodes: []ActorConstellationNode{{Wallet: wallet, Hop: 0, Rules: []string{}}},
+		Edges: []ActorConstellationEdge{},
+		GeneratedAt: time.Now().UTC(),
+		Policy: map[string]any{
+			"real_world_identity_claim": false,
+			"same_operator_claim": false,
+			"wrongdoing_claim": false,
+			"transitive_identity_claim": false,
+			"grade_authority": false,
+			"verdict_authority": false,
+			"guard_block_authority": false,
+			"weak_single_observation_expansion": false,
+			"shortest_hop_path_preserved": true,
+			"bounded_graph": true,
+			"ruleset": ActorConstellationVersion,
+		},
+		Limitations: []string{},
+	}
+
+	visited := map[string]int{wallet: 0}
+	nodeIndex := map[string]int{wallet: 0}
+	edges := map[string]ActorConstellationEdge{}
+	queue := []actorConstellationQueueItem{{Wallet: wallet, Hop: 0}}
+	truncated := false
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current.Hop >= maxDepth {
+			continue
+		}
+
+		memory, err := lookup(ctx, current.Wallet, network, fanout+1)
+		if err != nil {
+			return ActorConstellationReport{}, fmt.Errorf("load operational memory for %s: %w", current.Wallet, err)
+		}
+		matches := memory.Matches
+		if len(matches) > fanout {
+			truncated = true
+			matches = matches[:fanout]
+		}
+		for _, match := range matches {
+			candidate := strings.TrimSpace(match.Wallet)
+			if candidate == "" || candidate == current.Wallet || !actorConstellationExpansionEligible(match.Classification) {
+				continue
+			}
+
+			edge := actorConstellationEdgeFromMatch(current.Wallet, candidate, match)
+			key := actorConstellationEdgeKey(edge.FromWallet, edge.ToWallet)
+			if existing, ok := edges[key]; !ok || actorConstellationEdgeRank(edge) > actorConstellationEdgeRank(existing) {
+				edges[key] = edge
+			}
+
+			if _, seen := visited[candidate]; seen {
+				continue
+			}
+			if len(out.Nodes) >= nodeCap {
+				truncated = true
+				continue
+			}
+			hop := current.Hop + 1
+			visited[candidate] = hop
+			out.Nodes = append(out.Nodes, ActorConstellationNode{
+				Wallet: candidate,
+				Hop: hop,
+				ViaWallet: current.Wallet,
+				LinkClassification: match.Classification,
+				EvidenceStatus: match.EvidenceStatus,
+				Rules: append([]string(nil), match.Rules...),
+			})
+			nodeIndex[candidate] = len(out.Nodes) - 1
+			queue = append(queue, actorConstellationQueueItem{Wallet: candidate, Hop: hop})
+		}
+	}
+
+	out.Edges = make([]ActorConstellationEdge, 0, len(edges))
+	for _, edge := range edges {
+		out.Edges = append(out.Edges, edge)
+	}
+	sort.SliceStable(out.Edges, func(i, j int) bool {
+		if out.Edges[i].FromWallet != out.Edges[j].FromWallet {
+			return out.Edges[i].FromWallet < out.Edges[j].FromWallet
+		}
+		if out.Edges[i].ToWallet != out.Edges[j].ToWallet {
+			return out.Edges[i].ToWallet < out.Edges[j].ToWallet
+		}
+		return out.Edges[i].Classification < out.Edges[j].Classification
+	})
+	sort.SliceStable(out.Nodes, func(i, j int) bool {
+		if out.Nodes[i].Hop != out.Nodes[j].Hop {
+			return out.Nodes[i].Hop < out.Nodes[j].Hop
+		}
+		return out.Nodes[i].Wallet < out.Nodes[j].Wallet
+	})
+	_ = nodeIndex
+
+	out.NodeCount = len(out.Nodes)
+	out.EdgeCount = len(out.Edges)
+	out.Available = out.EdgeCount > 0
+	if out.Available {
+		out.Status = "operational_constellation_observed"
+	}
+	if truncated {
+		out.Complete = false
+		out.Limitations = append(out.Limitations, "The constellation hit a configured fanout or node bound; omitted wallets and edges may exist outside this bounded view.")
+	}
+	out.Limitations = append(out.Limitations,
+		"Constellation edges summarize on-chain operational evidence between wallet addresses; they do not identify a real-world person or prove common control.",
+		"Transitive graph proximity is investigation context only. A path A-B-C never upgrades A and C into the same operator or identity.",
+		"Single observed counterparty links and single operational overlaps are intentionally excluded from graph expansion to reduce noisy transitive clustering.",
+	)
+	return out, nil
+}
+
+func normalizeActorConstellationBounds(maxDepth, fanout, nodeCap int) (int, int, int) {
+	if maxDepth <= 0 || maxDepth > maxActorConstellationDepth {
+		maxDepth = defaultActorConstellationDepth
+	}
+	if fanout <= 0 || fanout > maxActorConstellationFanout {
+		fanout = defaultActorConstellationFanout
+	}
+	if nodeCap <= 1 || nodeCap > maxActorConstellationNodeCap {
+		nodeCap = defaultActorConstellationNodeCap
+	}
+	return maxDepth, fanout, nodeCap
+}
+
+func actorConstellationExpansionEligible(classification string) bool {
+	switch strings.TrimSpace(classification) {
+	case "verified_counterparty_link", "repeated_operational_overlap", "repeated_funding_overlap":
+		return true
+	default:
+		return false
+	}
+}
+
+func actorConstellationEdgeFromMatch(from, to string, match ActorOperationalMatch) ActorConstellationEdge {
+	from, to = canonicalActorConstellationPair(from, to)
+	return ActorConstellationEdge{
+		FromWallet: from,
+		ToWallet: to,
+		Classification: strings.TrimSpace(match.Classification),
+		EvidenceStatus: strings.TrimSpace(match.EvidenceStatus),
+		Rules: append([]string(nil), match.Rules...),
+		DirectVerifiedRelations: match.DirectVerifiedRelations,
+		SharedCounterpartCount: match.SharedCounterpartCount,
+		SharedRelationCount: match.SharedRelationCount,
+		SharedFundingSourceCount: match.SharedFundingSourceCount,
+		VerifiedOverlapCount: match.VerifiedOverlapCount,
+	}
+}
+
+func canonicalActorConstellationPair(a, b string) (string, string) {
+	a, b = strings.TrimSpace(a), strings.TrimSpace(b)
+	if a <= b {
+		return a, b
+	}
+	return b, a
+}
+
+func actorConstellationEdgeKey(a, b string) string {
+	a, b = canonicalActorConstellationPair(a, b)
+	return a + "\x00" + b
+}
+
+func actorConstellationEdgeRank(edge ActorConstellationEdge) int {
+	switch strings.TrimSpace(edge.Classification) {
+	case "verified_counterparty_link":
+		return 30 + edge.DirectVerifiedRelations
+	case "repeated_operational_overlap":
+		return 20 + edge.VerifiedOverlapCount
+	case "repeated_funding_overlap":
+		return 10 + edge.SharedFundingSourceCount
+	default:
+		return 0
+	}
+}
