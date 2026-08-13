@@ -10,7 +10,7 @@ on:
       - "koschei/api/internal/http/**"
       - ".github/workflows/openapi-contract.yml"
   push:
-    branches: [main]
+    branches: [main, feat/saas-billing-kosch-decoupling-v1]
     paths:
       - "koschei/api/openapi.yaml"
       - "koschei/api/cmd/openapi-gen/**"
@@ -54,3 +54,33 @@ jobs:
         run: |
           go run ./cmd/openapi-gen -check
           go test ./internal/openapi -count=1
+
+  sync-wave34-generated-contract:
+    if: github.event_name == 'push' && github.ref_name == 'feat/saas-billing-kosch-decoupling-v1'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/saas-billing-kosch-decoupling-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Regenerate committed OpenAPI contract
+        run: go run ./cmd/openapi-gen
+      - name: Commit generated contract when changed
+        run: |
+          if git diff --quiet -- openapi.yaml; then
+            echo 'OpenAPI contract already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add openapi.yaml
+          git commit -m 'chore(openapi): regenerate route contract'
+          git push origin HEAD:feat/saas-billing-kosch-decoupling-v1
