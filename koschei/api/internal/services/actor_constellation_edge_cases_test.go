@@ -6,13 +6,13 @@ import (
 )
 
 func TestBuildActorConstellationNodeCapNeverLeavesDanglingEdge(t *testing.T) {
-	lookup := func(_ context.Context, wallet, _ string, _ int) (ActorOperationalMemoryReport, error) {
+	lookup := func(_ context.Context, wallet, _ string, _ int) (actorConstellationLookupResult, error) {
 		if wallet != "A" {
-			return ActorOperationalMemoryReport{}, nil
+			return actorConstellationLookupResult{Complete: true}, nil
 		}
-		return ActorOperationalMemoryReport{Matches: []ActorOperationalMatch{
-			{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified"},
-			{Wallet: "C", Classification: "verified_counterparty_link", EvidenceStatus: "verified"},
+		return actorConstellationLookupResult{Complete: true, Candidates: []actorConstellationCandidate{
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "B", Classification: "verified_counterparty_link", EvidenceStatus: "verified", DirectVerifiedRelations: 1}),
+			testConstellationCandidate(ActorOperationalMatch{Wallet: "C", Classification: "verified_counterparty_link", EvidenceStatus: "verified", DirectVerifiedRelations: 1}),
 		}}, nil
 	}
 
@@ -46,5 +46,14 @@ func TestActorConstellationVerifiedEdgeAlwaysOutranksObservedCounters(t *testing
 	}
 	if actorConstellationEdgeRank(observed) <= actorConstellationEdgeRank(funding) {
 		t.Fatalf("repeated operational overlap must outrank repeated funding overlap: observed=%d funding=%d", actorConstellationEdgeRank(observed), actorConstellationEdgeRank(funding))
+	}
+}
+
+func TestActorConstellationEvidenceSupportRejectsIncompleteSeriousClaim(t *testing.T) {
+	rows := testConstellationEvidence("broken", "verified")
+	rows[0].Signature = ""
+	rows = rows[:1]
+	if actorConstellationEvidenceSupports("verified_counterparty_link", rows) {
+		t.Fatal("verified edge must not be supported by an incomplete serious evidence row")
 	}
 }
