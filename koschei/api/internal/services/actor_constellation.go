@@ -114,7 +114,6 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 	}
 
 	visited := map[string]int{wallet: 0}
-	nodeIndex := map[string]int{wallet: 0}
 	edges := map[string]ActorConstellationEdge{}
 	queue := []actorConstellationQueueItem{{Wallet: wallet, Hop: 0}}
 	truncated := false
@@ -141,19 +140,21 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 				continue
 			}
 
+			_, seen := visited[candidate]
+			if !seen && len(out.Nodes) >= nodeCap {
+				truncated = true
+				continue
+			}
+
 			edge := actorConstellationEdgeFromMatch(current.Wallet, candidate, match)
 			key := actorConstellationEdgeKey(edge.FromWallet, edge.ToWallet)
 			if existing, ok := edges[key]; !ok || actorConstellationEdgeRank(edge) > actorConstellationEdgeRank(existing) {
 				edges[key] = edge
 			}
+			if seen {
+				continue
+			}
 
-			if _, seen := visited[candidate]; seen {
-				continue
-			}
-			if len(out.Nodes) >= nodeCap {
-				truncated = true
-				continue
-			}
 			hop := current.Hop + 1
 			visited[candidate] = hop
 			out.Nodes = append(out.Nodes, ActorConstellationNode{
@@ -164,7 +165,6 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 				EvidenceStatus: match.EvidenceStatus,
 				Rules: append([]string(nil), match.Rules...),
 			})
-			nodeIndex[candidate] = len(out.Nodes) - 1
 			queue = append(queue, actorConstellationQueueItem{Wallet: candidate, Hop: hop})
 		}
 	}
@@ -188,7 +188,6 @@ func buildActorConstellation(ctx context.Context, wallet, network string, maxDep
 		}
 		return out.Nodes[i].Wallet < out.Nodes[j].Wallet
 	})
-	_ = nodeIndex
 
 	out.NodeCount = len(out.Nodes)
 	out.EdgeCount = len(out.Edges)
@@ -262,12 +261,22 @@ func actorConstellationEdgeKey(a, b string) string {
 func actorConstellationEdgeRank(edge ActorConstellationEdge) int {
 	switch strings.TrimSpace(edge.Classification) {
 	case "verified_counterparty_link":
-		return 30 + edge.DirectVerifiedRelations
+		return 3_000_000 + boundedActorConstellationMetric(edge.DirectVerifiedRelations)
 	case "repeated_operational_overlap":
-		return 20 + edge.VerifiedOverlapCount
+		return 2_000_000 + boundedActorConstellationMetric(edge.VerifiedOverlapCount)
 	case "repeated_funding_overlap":
-		return 10 + edge.SharedFundingSourceCount
+		return 1_000_000 + boundedActorConstellationMetric(edge.SharedFundingSourceCount)
 	default:
 		return 0
 	}
+}
+
+func boundedActorConstellationMetric(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > 999_999 {
+		return 999_999
+	}
+	return value
 }
