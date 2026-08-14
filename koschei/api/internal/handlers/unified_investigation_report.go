@@ -93,8 +93,10 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 	creatorRelation := newActorCreatorRelationRun(creator, target)
 	distributionRun := newActorDistributionIntegrationRun(creator, target)
 	var store *services.ActorDefenseStore
-	if db != nil && creator != "" {
+	if db != nil {
 		store = services.NewActorDefenseStore(db)
+	}
+	if store != nil && creator != "" {
 		if liveRequested {
 			creatorRelation = h.persistCanonicalCreatorMintRelation(ctx, store, core, creator, network)
 		}
