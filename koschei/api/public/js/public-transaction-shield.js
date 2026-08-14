@@ -22,6 +22,6 @@ form.addEventListener('submit',async event=>{
   $('warning').textContent=data.warning||'Read-only shadow mode.';
  }catch(error){
   result.hidden=true;empty.hidden=false;empty.innerHTML=`<h2>DEGRADED DEPENDENCY — simülasyon sonucu yok</h2><p>${String(error.message||'Solana RPC veya kanıt servisine erişilemedi.')}</p><p>0 compute unit veya 0 program sonucu üretilmedi; bu işlem güvenli kabul edilmemeli.</p>`;
- }finally{submit.disabled=false;submit.textContent='İşlemi simüle et'}
+ }finally{submit.disabled=false;submit.textContent='İşlemi simüle et';}
 });
 })();

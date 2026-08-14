@@ -367,9 +367,11 @@ func canonicalInt(raw any) int {
 	case int:
 		return value
 	case int64:
-		return int(value)
+		converted, _ := safeIntFromInt64(value)
+		return converted
 	case float64:
-		return int(value)
+		converted, _ := safeIntFromFloat64(value)
+		return converted
 	default:
 		var parsed int
 		_, _ = fmt.Sscan(strings.TrimSpace(fmt.Sprint(raw)), &parsed)

@@ -77,7 +77,7 @@
     try{
       const response=await fetch('/api/owner/defense/investigate',{method:'POST',credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({target,network:'solana-mainnet',live_evidence:true})});
       let data={};
-      try{data=await response.json()}catch{}
+      try{data=await response.json();}catch{}
       if(!response.ok||data.ok===false)throw new Error(data.message||data.detail||data.error||`İstek başarısız (${response.status})`);
       renderDefense(root,data);
       loadDefenseQueue();
@@ -86,7 +86,7 @@
       const message=error?.name==='AbortError'?'Actor investigation 180 saniyede tamamlanamadı.':(error?.message||'Actor investigation başarısız oldu.');
       root.innerHTML=`<div class="card error-state"><div><b>Actor investigation tamamlanamadı.</b><span>${esc(message)}</span></div></div>`;
       throw error;
-    }finally{clearTimeout(timer)}
+	}finally{clearTimeout(timer);}
   }
 
   async function scan(target,rootId){
@@ -135,7 +135,7 @@
     try{
       const response=await fetch('/api/owner/defense/tracks?network=solana-mainnet&limit=50',{credentials:'same-origin',signal:controller.signal});
       let data={};
-      try{data=await response.json()}catch{}
+	  try{data=await response.json();}catch{}
       if(!response.ok||data.ok===false)throw new Error(data.message||data.detail||data.error||`İstek başarısız (${response.status})`);
       if(request!==queueRequest)return;
       panel.dataset.loaded='true';

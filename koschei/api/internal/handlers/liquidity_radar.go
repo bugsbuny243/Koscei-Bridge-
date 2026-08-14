@@ -75,7 +75,7 @@ func (h *Handler) LiquidityDrainAnalyze(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `INSERT INTO liquidity_drain_alerts (pool_address, token_mint, severity, risk_score, removed_liquidity_usd, loss_prevented_usd, telegram_queued, sms_queued, alert_payload, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())`, req.PoolAddress, req.TokenMint, severity, score, req.RemovedLiquidity, lossPrevented, emergency.TelegramSent || req.TelegramWebhook != "", req.TwilioPhoneNumber != "", string(alertPayload)); err != nil {
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO liquidity_drain_alerts (pool_address, token_mint, severity, risk_score, removed_liquidity_usd, loss_prevented_usd, telegram_queued, sms_queued, alert_payload, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())`, req.PoolAddress, req.TokenMint, severity, score, req.RemovedLiquidity, lossPrevented, emergency.TelegramSent, req.TwilioPhoneNumber != "", string(alertPayload)); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db_failed"})
 		return
 	}
@@ -87,7 +87,7 @@ func (h *Handler) LiquidityDrainAnalyze(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db_failed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "risk_score": score, "severity": severity, "liquidity_loss_prevented_usd": lossPrevented, "telegram_queued": emergency.TelegramSent || req.TelegramWebhook != "", "discord_queued": emergency.DiscordSent || req.DiscordWebhook != "", "sms_queued": req.TwilioPhoneNumber != "", "emergency": emergency, "message": "Likidite boşaltma radarı alarmı üretildi."})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "risk_score": score, "severity": severity, "liquidity_loss_prevented_usd": lossPrevented, "telegram_queued": emergency.TelegramSent, "discord_queued": emergency.DiscordSent, "sms_queued": req.TwilioPhoneNumber != "", "emergency": emergency, "message": "Likidite boşaltma radarı alarmı üretildi."})
 }
 
 func liquidityDrainScore(req liquidityRadarRequest) int {
@@ -116,7 +116,9 @@ func dispatchEmergencyLiquidityAlert(ctx context.Context, req liquidityRadarRequ
 		return result
 	}
 	message := fmt.Sprintf("🚨 Koschei Emergency Mode: liquidity drain risk %d%% (%s). Pool: %s Token: %s Removed: $%.2f Protected estimate: $%.2f Whitehats: %s", score, severity, firstNonEmpty(req.PoolAddress, "unknown"), firstNonEmpty(req.TokenMint, "unknown"), req.RemovedLiquidity, lossPrevented, strings.Join(result.WhitehatAddresses, ", "))
-	telegramURL := firstNonEmpty(req.TelegramWebhook, os.Getenv("TELEGRAM_WEBHOOK_URL"))
+	// Webhook destinations are operator configuration, never request input. The
+	// request fields remain in the JSON contract only for backward compatibility.
+	telegramURL := strings.TrimSpace(os.Getenv("TELEGRAM_WEBHOOK_URL"))
 	if telegramURL != "" {
 		telegramPayload := map[string]any{"text": message}
 		if chatID := strings.TrimSpace(os.Getenv("TELEGRAM_CHAT_ID")); chatID != "" {
@@ -128,7 +130,7 @@ func dispatchEmergencyLiquidityAlert(ctx context.Context, req liquidityRadarRequ
 			result.TelegramSent = true
 		}
 	}
-	discordURL := firstNonEmpty(req.DiscordWebhook, os.Getenv("DISCORD_WEBHOOK_URL"))
+	discordURL := strings.TrimSpace(os.Getenv("DISCORD_WEBHOOK_URL"))
 	if discordURL != "" {
 		if err := postWebhook(ctx, discordURL, map[string]any{"content": message}); err != nil {
 			result.Errors = append(result.Errors, "discord: "+err.Error())

@@ -194,8 +194,8 @@ func liquidityTokenAccountTotals(raw any, keys []string, account, mint string) f
 		if creatorIntelCleanString(item["mint"]) != mint {
 			continue
 		}
-		index := int(creatorIntelInt64(item["accountIndex"]))
-		if index < 0 || index >= len(keys) || strings.TrimSpace(keys[index]) != account {
+		index, indexOK := safeIntFromInt64(creatorIntelInt64(item["accountIndex"]))
+		if !indexOK || index < 0 || index >= len(keys) || strings.TrimSpace(keys[index]) != account {
 			continue
 		}
 		total += creatorIntelUIAmount(creatorIntelMap(item["uiTokenAmount"]))

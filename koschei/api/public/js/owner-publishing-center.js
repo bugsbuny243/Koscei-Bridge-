@@ -299,7 +299,7 @@ async function refresh(initial=false){
   }catch(error){
     if(root)root.innerHTML=`<div class="card error-state"><div><b>Yayın merkezi yüklenemedi.</b><span>${esc(error.message)}</span></div><button class="btn small" id="publishingRetry" type="button">Tekrar dene</button></div>`;
     $('publishingRetry')?.addEventListener('click',()=>refresh(true));
-  }finally{state.refreshing=false}
+  }finally{state.refreshing=false;}
 }
 function sharedCount(){return state.items.filter(item=>state.settings.shared[item.id]).length}
 function readyCount(){return state.items.filter(item=>item.signed).length}
@@ -353,7 +353,7 @@ function bindPublishingEvents(){
 function findItem(id){return state.items.find(item=>item.id===id)||null}
 
 async function copyText(value){
-  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return}
+  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return;}
   const area=document.createElement('textarea');area.value=value;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
 }
 async function copyCaption(item){
@@ -417,7 +417,7 @@ async function shareItem(item,customCaption=''){
       markShareStarted(item);showPublishToast('Görsel ve açıklama X paylaşım akışına gönderildi.');return;
     }
     await downloadItem(item);await copyText(caption);window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,'_blank','noopener,noreferrer');markShareStarted(item);showPublishToast('PNG indirildi, metin kopyalandı ve X gönderi ekranı açıldı.');
-  }catch(error){if(error?.name==='AbortError')return;showPublishToast(error.message||'Paylaşım başlatılamadı.',true)}
+  }catch(error){if(error?.name==='AbortError')return;showPublishToast(error.message||'Paylaşım başlatılamadı.',true);}
 }
 function markShareStarted(item){state.settings.shared[item.id]=new Date().toISOString();saveSettings();render()}
 
@@ -426,7 +426,7 @@ function renderEvidenceCanvas(item){
   if(!ctx)throw new Error('Canvas context unavailable');
   const accent=canvasAccent(item),bg=ctx.createLinearGradient(0,0,1600,900);bg.addColorStop(0,'#02070c');bg.addColorStop(.48,'#071722');bg.addColorStop(1,'#02080d');ctx.fillStyle=bg;ctx.fillRect(0,0,1600,900);
   const glow=ctx.createRadialGradient(1180,130,10,1180,130,600);glow.addColorStop(0,hexAlpha(accent,.22));glow.addColorStop(1,hexAlpha(accent,0));ctx.fillStyle=glow;ctx.fillRect(0,0,1600,900);
-  ctx.save();ctx.globalAlpha=.08;ctx.strokeStyle='#54d9ff';ctx.lineWidth=1;for(let x=0;x<=1600;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,900);ctx.stroke()}for(let y=0;y<=900;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1600,y);ctx.stroke()}ctx.restore();
+  ctx.save();ctx.globalAlpha=.08;ctx.strokeStyle='#54d9ff';ctx.lineWidth=1;for(let x=0;x<=1600;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,900);ctx.stroke();}for(let y=0;y<=900;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1600,y);ctx.stroke();}ctx.restore();
   drawCornerLines(ctx,accent);drawBrand(ctx,accent,item);
   ctx.fillStyle='#f4fbff';ctx.font='900 78px Arial, sans-serif';ctx.fillText(cashtag(item)||item.symbol,72,252);
   ctx.fillStyle='#91a9b8';ctx.font='600 28px Arial, sans-serif';ctx.fillText(trimCanvasText(ctx,item.name,720),76,300);
@@ -440,22 +440,22 @@ function renderEvidenceCanvas(item){
 function canvasAccent(item){const risk=tone(item);return risk==='critical'?'#ff526f':risk==='medium'?'#ffc95c':risk==='low'?'#18ffb2':'#27d8ff'}
 function hexAlpha(hex,alpha){const clean=hex.replace('#','');const value=parseInt(clean,16);return`rgba(${value>>16},${value>>8&255},${value&255},${alpha})`}
 function roundedPath(ctx,x,y,w,h,r){const radius=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+radius,y);ctx.arcTo(x+w,y,x+w,y+h,radius);ctx.arcTo(x+w,y+h,x,y+h,radius);ctx.arcTo(x,y+h,x,y,radius);ctx.arcTo(x,y,x+w,y,radius);ctx.closePath()}
-function drawCornerLines(ctx,accent){ctx.save();ctx.strokeStyle=hexAlpha(accent,.45);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,92);ctx.lineTo(330,92);ctx.lineTo(382,40);ctx.stroke();ctx.beginPath();ctx.moveTo(1260,860);ctx.lineTo(1510,860);ctx.lineTo(1600,770);ctx.stroke();ctx.restore()}
+function drawCornerLines(ctx,accent){ctx.save();ctx.strokeStyle=hexAlpha(accent,.45);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,92);ctx.lineTo(330,92);ctx.lineTo(382,40);ctx.stroke();ctx.beginPath();ctx.moveTo(1260,860);ctx.lineTo(1510,860);ctx.lineTo(1600,770);ctx.stroke();ctx.restore();}
 function drawBrand(ctx,accent,item){
-  ctx.save();ctx.translate(74,72);ctx.strokeStyle=accent;ctx.lineWidth=4;ctx.beginPath();for(let i=0;i<6;i++){const angle=Math.PI/3*i-Math.PI/6,x=Math.cos(angle)*30,y=Math.sin(angle)*30;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.stroke();ctx.beginPath();ctx.arc(0,0,13,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(-13,0);ctx.lineTo(13,0);ctx.moveTo(0,-13);ctx.lineTo(0,13);ctx.stroke();ctx.restore();
+  ctx.save();ctx.translate(74,72);ctx.strokeStyle=accent;ctx.lineWidth=4;ctx.beginPath();for(let i=0;i<6;i++){const angle=Math.PI/3*i-Math.PI/6,x=Math.cos(angle)*30,y=Math.sin(angle)*30;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();ctx.beginPath();ctx.arc(0,0,13,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(-13,0);ctx.lineTo(13,0);ctx.moveTo(0,-13);ctx.lineTo(0,13);ctx.stroke();ctx.restore();
   ctx.fillStyle='#f0fbff';ctx.font='900 28px Arial, sans-serif';ctx.fillText('KOSCHEI ARVIS',124,66);ctx.fillStyle=accent;ctx.font='800 15px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(item.signed?'AUTO SCAN · SIGNED EVIDENCE':'AUTO WATCH · EVIDENCE PENDING',126,91);
   ctx.textAlign='right';ctx.fillStyle='#7d98a8';ctx.font='700 16px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText('ON-CHAIN ACTOR INTELLIGENCE',1528,62);ctx.fillStyle=accent;ctx.fillText(item.network.toUpperCase(),1528,87);ctx.textAlign='left';
 }
 function drawVerdictBlock(ctx,item,accent){
   const x=1190,y=160,w=338,h=176;roundedPath(ctx,x,y,w,h,26);ctx.fillStyle=hexAlpha(accent,.10);ctx.fill();ctx.strokeStyle=hexAlpha(accent,.52);ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=accent;ctx.font='900 18px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(item.signed?'DETERMINISTIC VERDICT':'AUTOMATIC WATCH',x+28,y+38);ctx.fillStyle='#ffffff';ctx.font='900 74px Arial, sans-serif';ctx.fillText(displayGrade(item),x+28,y+114);ctx.fillStyle='#9eb3bf';ctx.font='800 19px Arial, sans-serif';ctx.fillText(item.signed?item.riskLevel.toUpperCase():'REPORT PENDING',x+29,y+148);
 }
-function drawMetric(ctx,x,y,w,h,label,value,accent){roundedPath(ctx,x,y,w,h,18);ctx.fillStyle='rgba(3,13,20,.78)';ctx.fill();ctx.strokeStyle='rgba(132,196,215,.17)';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#708b9a';ctx.font='800 15px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(label,x+22,y+34);ctx.fillStyle='#f5fbff';ctx.font=value.length>14?'900 32px Arial, sans-serif':'900 38px Arial, sans-serif';ctx.fillText(trimCanvasText(ctx,value,w-44),x+22,y+91);ctx.fillStyle=accent;ctx.fillRect(x+22,y+h-16,74,3)}
+function drawMetric(ctx,x,y,w,h,label,value,accent){roundedPath(ctx,x,y,w,h,18);ctx.fillStyle='rgba(3,13,20,.78)';ctx.fill();ctx.strokeStyle='rgba(132,196,215,.17)';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#708b9a';ctx.font='800 15px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(label,x+22,y+34);ctx.fillStyle='#f5fbff';ctx.font=value.length>14?'900 32px Arial, sans-serif':'900 38px Arial, sans-serif';ctx.fillText(trimCanvasText(ctx,value,w-44),x+22,y+91);ctx.fillStyle=accent;ctx.fillRect(x+22,y+h-16,74,3);}
 function drawEvidencePanel(ctx,item,accent){
   const x=72,y=568,w=1456,h=218;roundedPath(ctx,x,y,w,h,24);ctx.fillStyle='rgba(3,13,20,.72)';ctx.fill();ctx.strokeStyle='rgba(132,196,215,.17)';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=accent;ctx.font='900 16px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(item.signed?'EVIDENCE-BACKED FINDING':'AUTOMATIC THRESHOLD OBSERVATION',x+28,y+38);
   ctx.fillStyle='#dbeaf0';ctx.font='700 27px Arial, sans-serif';const main=conciseVerdict(item);wrapCanvasText(ctx,main,x+28,y+82,900,37,3);
   const creator=creatorOutcome(item);const rightX=1070;ctx.fillStyle='#718d9c';ctx.font='800 14px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(creator?'CREATOR TOKEN OUTCOME':'EVIDENCE POLICY',rightX,y+38);ctx.fillStyle='#f2f9fc';ctx.font='900 24px Arial, sans-serif';wrapCanvasText(ctx,creator||'No evidence, no claim.',rightX,y+79,420,33,3);ctx.fillStyle='#7793a2';ctx.font='700 16px Arial, sans-serif';ctx.fillText(`Ruleset ${item.ruleVersion} · ${item.signed?'signed deterministic result':'watch-only state'}`,rightX,y+174);
 }
-function drawFooter(ctx,item,accent){ctx.strokeStyle='rgba(132,196,215,.17)';ctx.beginPath();ctx.moveTo(72,828);ctx.lineTo(1528,828);ctx.stroke();ctx.fillStyle='#7994a3';ctx.font='700 16px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(`SCAN ${shorten(item.id,12,10)} · ${new Date(item.createdAt).toISOString().replace('T',' ').slice(0,19)} UTC`,72,866);ctx.textAlign='right';ctx.fillStyle=accent;ctx.font='900 17px Arial, sans-serif';ctx.fillText('EVIDENCE FIRST · NOT FINANCIAL ADVICE',1528,866);ctx.textAlign='left'}
+function drawFooter(ctx,item,accent){ctx.strokeStyle='rgba(132,196,215,.17)';ctx.beginPath();ctx.moveTo(72,828);ctx.lineTo(1528,828);ctx.stroke();ctx.fillStyle='#7994a3';ctx.font='700 16px ui-monospace, SFMono-Regular, Menlo, monospace';ctx.fillText(`SCAN ${shorten(item.id,12,10)} · ${new Date(item.createdAt).toISOString().replace('T',' ').slice(0,19)} UTC`,72,866);ctx.textAlign='right';ctx.fillStyle=accent;ctx.font='900 17px Arial, sans-serif';ctx.fillText('EVIDENCE FIRST · NOT FINANCIAL ADVICE',1528,866);ctx.textAlign='left';}
 function trimCanvasText(ctx,value,maxWidth){let text=String(value||'');if(ctx.measureText(text).width<=maxWidth)return text;while(text.length>3&&ctx.measureText(`${text}…`).width>maxWidth)text=text.slice(0,-1);return`${text}…`}
 function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight,maxLines){const words=String(text||'').split(/\s+/),lines=[];let line='';for(const word of words){const test=line?`${line} ${word}`:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word;if(lines.length===maxLines-1)break}else line=test}if(line&&lines.length<maxLines)lines.push(line);const consumed=lines.join(' ').split(/\s+/).length;if(consumed<words.length)lines[lines.length-1]=trimCanvasText(ctx,`${lines[lines.length-1]}…`,maxWidth);lines.forEach((value,index)=>ctx.fillText(value,x,y+index*lineHeight));return lines.length}
 

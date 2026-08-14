@@ -2,13 +2,15 @@
   'use strict';
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const state = {
-    csrf: sessionStorage.getItem('koschei_csrf') || cryptoRandom(),
-    token: localStorage.getItem('koschei_auth_token') || '',
-    apiKey: localStorage.getItem('koschei_api_key') || '',
-    alerts: []
-  };
-  sessionStorage.setItem('koschei_csrf', state.csrf);
+	const state = {
+		csrf: sessionStorage.getItem('koschei_csrf') || cryptoRandom(),
+		token: localStorage.getItem('koschei_auth_token') || '',
+		// API keys are intentionally memory-only and disappear on reload.
+		apiKey: '',
+		alerts: []
+	};
+	sessionStorage.setItem('koschei_csrf', state.csrf);
+	try { localStorage.removeItem('koschei_api_key'); } catch {}
 
   const fmtUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const toast = $('#toast');
@@ -118,12 +120,11 @@
   $('#apiKey').value = state.apiKey;
   $('#settingsForm').addEventListener('submit', (event) => {
     event.preventDefault();
-    state.token = $('#authToken').value.trim();
-    state.apiKey = $('#apiKey').value.trim();
-    localStorage.setItem('koschei_auth_token', state.token);
-    localStorage.setItem('koschei_api_key', state.apiKey);
-    showToast('API ayarları kaydedildi.');
-  });
+		state.token = $('#authToken').value.trim();
+		state.apiKey = $('#apiKey').value.trim();
+		localStorage.setItem('koschei_auth_token', state.token);
+		showToast('Oturum ayarı kaydedildi; API anahtarı yalnız bu sayfa açıkken bellekte tutulur.');
+	});
 
   async function boot() {
     try {

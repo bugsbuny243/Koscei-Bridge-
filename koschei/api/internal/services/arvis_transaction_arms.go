@@ -336,8 +336,8 @@ func tokenBalanceTotals(raw any, mintSet map[string]bool) map[string]float64 {
 		}
 		if value == 0 {
 			rawAmount := radarFloat(amount["amount"])
-			decimals := int(radarInt64(amount["decimals"]))
-			if rawAmount > 0 && decimals > 0 {
+			decimals, decimalsOK := safeServiceIntFromInt64(radarInt64(amount["decimals"]))
+			if decimalsOK && decimals >= 0 && decimals <= 18 && rawAmount > 0 && decimals > 0 {
 				value = rawAmount / math.Pow10(decimals)
 			} else {
 				value = rawAmount

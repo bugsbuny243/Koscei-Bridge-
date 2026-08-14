@@ -3,17 +3,17 @@ package handlers
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"koschei/api/pkg/utils"
 )
 
 type localAuthInput struct {
@@ -48,13 +48,16 @@ func (h *Handler) LocalRegister(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "password hashing failed"})
 		return
 	}
-	_, err = h.DB.ExecContext(r.Context(), `
+	result, err := h.DB.ExecContext(r.Context(), `
 		INSERT INTO local_auth_users (email, auth_subject, password_salt, password_hash, created_at, updated_at)
 		VALUES (lower($1), $2, $3, $4, now(), now())
-		ON CONFLICT (email) DO UPDATE
-		SET password_salt = EXCLUDED.password_salt, password_hash = EXCLUDED.password_hash, auth_subject = EXCLUDED.auth_subject, updated_at = now()`, email, sub, salt, hash)
+		ON CONFLICT (email) DO NOTHING`, email, sub, salt, hash)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "auth user save failed", "message": err.Error()})
+		return
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "account already exists"})
 		return
 	}
 	_, _ = h.upsertProfile(r.Context(), sub, email)
@@ -122,26 +125,13 @@ func ensureLocalAuthSchema(ctx context.Context, db *sql.DB) error {
 }
 
 func hashLocalPassword(password string) (string, string, error) {
-	raw := make([]byte, 16)
-	if _, err := rand.Read(raw); err != nil {
-		return "", "", err
-	}
-	salt := hex.EncodeToString(raw)
-	return salt, localPasswordDigest(password, salt), nil
+	encoded, err := utils.HashPassword(password)
+	return "", encoded, err
 }
 
 func verifyLocalPassword(password, salt, stored string) bool {
-	expected := localPasswordDigest(password, salt)
-	return hmac.Equal([]byte(expected), []byte(stored))
-}
-
-func localPasswordDigest(password, salt string) string {
-	data := []byte(salt + ":" + password)
-	for i := 0; i < 120000; i++ {
-		sum := sha256.Sum256(data)
-		data = sum[:]
-	}
-	return hex.EncodeToString(data)
+	_ = salt // Retained only for compatibility with the existing database schema.
+	return utils.ComparePassword(stored, password)
 }
 
 func localJWTSecret() []byte {
@@ -184,7 +174,8 @@ func tryLocalJWT(token string) (neonJWTClaims, bool, error) {
 	if json.Unmarshal(headerRaw, &header) != nil {
 		return claims, false, nil
 	}
-	if strings.TrimSpace(header["kid"].(string)) != "koschei-local" {
+	kid, ok := header["kid"].(string)
+	if !ok || strings.TrimSpace(kid) != "koschei-local" {
 		return claims, false, nil
 	}
 	secret := localJWTSecret()

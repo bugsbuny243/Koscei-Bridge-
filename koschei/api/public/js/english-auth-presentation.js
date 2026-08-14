@@ -115,7 +115,7 @@ window.fetch=async function(input,init){
     const raw=typeof input==='string'?input:(input&&input.url)||'';
     const target=new URL(raw,window.location.origin);
     const crossOrigin=target.origin!==window.location.origin;
-    const providerHost=/neonauth\.|\.neon\.tech$/i.test(target.hostname);
+		const providerHost=/(?:^|\.)neonauth\.[a-z0-9.-]+$|(?:^|\.)neon\.tech$/i.test(target.hostname);
     const providerSessionPath=/(?:\/token|\/get-session)$/i.test(target.pathname);
     if(crossOrigin&&providerHost&&providerSessionPath){
       return new Response('{}',{status:404,headers:{'Content-Type':'application/json'}});

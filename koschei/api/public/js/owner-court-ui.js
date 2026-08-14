@@ -69,7 +69,7 @@
     for(;;){
       const response=await fetch(pollUrl,{method:'GET',credentials:'same-origin',cache:'no-store'});
       let data={};
-      try{data=await response.json()}catch{}
+      try{data=await response.json();}catch{}
       if(!response.ok||data.ok===false)throw new Error(data.message||data.detail||data.error||`Job sorgusu başarısız (${response.status})`);
       const job=obj(data.job);
       renderJobProgress(root,job);
@@ -92,7 +92,7 @@
     try{
       const response=await fetch('/api/owner/radar/jobs',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,network:'solana-mainnet',max_depth:1})});
       let data={};
-      try{data=await response.json()}catch{}
+      try{data=await response.json();}catch{}
       if(!response.ok||data.ok===false)throw new Error(data.message||data.detail||data.error||`İş oluşturulamadı (${response.status})`);
       const pollUrl=String(data.poll_url||'');
       if(!pollUrl)throw new Error('Canonical job poll adresi üretilmedi.');

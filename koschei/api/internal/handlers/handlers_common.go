@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
@@ -101,9 +100,7 @@ func (h *Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return false
 	}
-	suppliedHash := sha256.Sum256([]byte(r.Header.Get("x-admin-password")))
-	adminHash := sha256.Sum256([]byte(adminPassword))
-	valid := subtle.ConstantTimeCompare(suppliedHash[:], adminHash[:]) == 1
+	valid := constantTimeStringEqual(r.Header.Get("x-admin-password"), adminPassword)
 	if !valid {
 		if h.Limiter != nil && !h.Limiter.allow("admin-failed:"+clientIP(r), 10, 10*time.Minute) {
 			writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate limited"})
@@ -113,4 +110,18 @@ func (h *Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+const maxComparableSecretBytes = 4096
+
+func constantTimeStringEqual(a, b string) bool {
+	if len(a) > maxComparableSecretBytes || len(b) > maxComparableSecretBytes {
+		return false
+	}
+	var left, right [maxComparableSecretBytes]byte
+	copy(left[:], a)
+	copy(right[:], b)
+	valuesEqual := subtle.ConstantTimeCompare(left[:], right[:])
+	lengthsEqual := subtle.ConstantTimeEq(int32(len(a)), int32(len(b)))
+	return valuesEqual&lengthsEqual == 1
 }

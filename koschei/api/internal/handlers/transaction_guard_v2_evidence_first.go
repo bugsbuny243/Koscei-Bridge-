@@ -86,7 +86,7 @@ func (h *Handler) TransactionGuardV2EvidenceFirst(w http.ResponseWriter, r *http
 	var innerGroups []services.SolanaInnerInstructionGroup
 	authoritySnapshots := transactionGuardAuthoritySnapshots{}
 	intentPolicy := transactionGuardIntentPolicy{Requested: len(input.Accounts) > 0, Complete: len(input.Accounts) == 0, Accounts: []transactionGuardAccountDelta{}}
-	stateWitness := unavailableTransactionGuardStateWitness(fingerprint, 0, "No bounded pre-state account set was available for state witnessing.")
+	var stateWitness transactionGuardStateWitness
 	if len(addresses) == 0 {
 		simulation, err := services.SolanaSimulateTransaction(ctx, rpcURL, input.Transaction, input.Encoding)
 		if err != nil {

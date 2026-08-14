@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 // NeonCallback handles the redirect back from Neon Auth and forwards Neon JWTs to the frontend URL hash.
@@ -20,24 +19,12 @@ func (h *Handler) NeonCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := firstQueryValue(r, "access_token", "token", "id_token")
-	if token != "" {
-		redirectWithToken(w, r, redirectTo, token)
-		return
-	}
-
-	serveNeonCallbackBridge(w, redirectTo)
+	serveNeonCallbackBridge(w, redirectTo, token)
 }
 
-func redirectWithToken(w http.ResponseWriter, r *http.Request, redirectTo, token string) {
-	separator := "#"
-	if redirectURL, err := url.Parse(redirectTo); err == nil && redirectURL.Fragment != "" {
-		separator = "&"
-	}
-	http.Redirect(w, r, fmt.Sprintf("%s%saccess_token=%s", redirectTo, separator, url.QueryEscape(token)), http.StatusTemporaryRedirect)
-}
-
-func serveNeonCallbackBridge(w http.ResponseWriter, redirectTo string) {
+func serveNeonCallbackBridge(w http.ResponseWriter, redirectTo, callbackToken string) {
 	redirectJSON, _ := json.Marshal(redirectTo)
+	tokenJSON, _ := json.Marshal(callbackToken)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
 <html lang="en">
@@ -45,8 +32,9 @@ func serveNeonCallbackBridge(w http.ResponseWriter, redirectTo string) {
 <body><p>Completing Neon Auth…</p><script>
 (function(){
   var redirectTo = %s;
+	var callbackToken = %s;
   var params = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
-  var token = params.get('access_token') || params.get('token') || params.get('id_token') || '';
+	var token = callbackToken || params.get('access_token') || params.get('token') || params.get('id_token') || '';
   if (token) {
     window.location.replace(redirectTo + (redirectTo.indexOf('#') === -1 ? '#' : '&') + 'access_token=' + encodeURIComponent(token));
     return;
@@ -54,7 +42,7 @@ func serveNeonCallbackBridge(w http.ResponseWriter, redirectTo string) {
   window.location.replace(redirectTo);
 })();
 </script></body>
-</html>`, string(redirectJSON))
+</html>`, string(redirectJSON), string(tokenJSON))
 }
 
 func firstQueryValue(r *http.Request, keys ...string) string {

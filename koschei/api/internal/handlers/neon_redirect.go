@@ -125,11 +125,24 @@ func (h *Handler) neonAuthStateSecret() string {
 }
 
 func sanitizeFrontendRedirect(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\r\n") {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return ""
 	}
-	return value
+	switch parsed.Path {
+	case "/", "/hub", "/hub.html":
+		return "/hub.html"
+	case "/dashboard", "/dashboard.html":
+		return "/dashboard.html"
+	case "/account", "/account.html":
+		return "/account.html"
+	case "/scan", "/scan.html":
+		return "/scan.html"
+	case "/pricing", "/pricing.html":
+		return "/pricing.html"
+	default:
+		return ""
+	}
 }
 
 // getScheme returns the public request scheme behind Render or another proxy.

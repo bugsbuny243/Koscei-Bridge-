@@ -662,7 +662,7 @@ func creatorIntelInt64(raw any) int64 {
 	}
 }
 
-func creatorIntelInt(raw any) int { return int(creatorIntelInt64(raw)) }
+func creatorIntelInt(raw any) int { return safeIntOrZero(creatorIntelInt64(raw)) }
 
 func creatorIntelFloat(raw any) float64 {
 	switch value := raw.(type) {

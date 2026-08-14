@@ -3,10 +3,11 @@ package http
 import (
 	"database/sql"
 	"encoding/json"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"koschei/api/internal/cache"
@@ -209,8 +210,13 @@ func registerStatic(mux *http.ServeMux, staticDir string) {
 		return
 	}
 	registerStaticAliases(mux, staticDir)
+	staticFiles, err := buildStaticFileManifest(staticDir)
+	if err != nil {
+		log.Printf("warning: static file manifest unavailable: %v", err)
+		return
+	}
 	fileServer := http.FileServer(http.Dir(staticDir))
-	indexPath := filepath.Join(staticDir, "index.html")
+	indexFile, hasIndex := staticFiles["index.html"]
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
@@ -221,7 +227,11 @@ func registerStatic(mux *http.ServeMux, staticDir string) {
 			return
 		}
 		if r.URL.Path == "/" {
-			http.ServeFile(w, r, indexPath)
+			if !hasIndex {
+				http.NotFound(w, r)
+				return
+			}
+			serveStaticManifestFile(w, r, fileServer, indexFile)
 			return
 		}
 		if (r.URL.Path == "/launches" || r.URL.Path == "/launches.html") && !runtimeFeatureEnabled(featureLaunchPageBuilder) {
@@ -230,16 +240,47 @@ func registerStatic(mux *http.ServeMux, staticDir string) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "code": "feature_disabled", "feature": string(featureLaunchPageBuilder)})
 			return
 		}
-		clean := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
-		candidate := filepath.Join(staticDir, clean)
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			fileServer.ServeHTTP(w, r)
+		clean := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+		if trustedFile, ok := staticFiles[clean]; ok {
+			serveStaticManifestFile(w, r, fileServer, trustedFile)
 			return
 		}
-		if info, err := os.Stat(candidate + ".html"); err == nil && !info.IsDir() {
-			http.ServeFile(w, r, candidate+".html")
+		if trustedFile, ok := staticFiles[clean+".html"]; ok {
+			serveStaticManifestFile(w, r, fileServer, trustedFile)
 			return
 		}
-		http.ServeFile(w, r, indexPath)
+		if !hasIndex {
+			http.NotFound(w, r)
+			return
+		}
+		serveStaticManifestFile(w, r, fileServer, indexFile)
 	})
+}
+
+func buildStaticFileManifest(staticDir string) (map[string]string, error) {
+	manifest := map[string]string{}
+	err := fs.WalkDir(os.DirFS(staticDir), ".", func(filePath string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		trustedPath := strings.TrimPrefix(path.Clean("/"+filePath), "/")
+		manifest[trustedPath] = trustedPath
+		return nil
+	})
+	return manifest, err
+}
+
+func serveStaticManifestFile(w http.ResponseWriter, r *http.Request, fileServer http.Handler, trustedPath string) {
+	requestCopy := r.Clone(r.Context())
+	urlCopy := *r.URL
+	urlCopy.Path = "/" + trustedPath
+	urlCopy.RawPath = ""
+	requestCopy.URL = &urlCopy
+	fileServer.ServeHTTP(w, requestCopy)
 }

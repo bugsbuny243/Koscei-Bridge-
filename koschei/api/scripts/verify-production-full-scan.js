@@ -1,18 +1,24 @@
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const baseURL = String(process.env.BASE_URL || 'https://tradepigloball.co').replace(/\/$/, '');
-const mint = String(process.env.KOSCHEI_FULL_SCAN_MINT || 'HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump').trim();
-const outputDir = path.resolve(process.env.OUTPUT_DIR || 'diagnostics');
+const baseURL = String(
+  process.env.BASE_URL || "https://tradepigloball.co",
+).replace(/\/$/, "");
+const mint = String(
+  process.env.KOSCHEI_FULL_SCAN_MINT ||
+    "HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump",
+).trim();
+const outputDir = path.resolve(process.env.OUTPUT_DIR || "diagnostics");
 const timeoutMs = Number(process.env.FULL_SCAN_TIMEOUT_MS || 300000);
 const transientHTTPStatuses = new Set([502, 503, 504]);
 const transientAttempts = 5;
 const transientDelayMs = 5000;
 
 function requireObject(value, label) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label}_missing`);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label}_missing`);
   return value;
 }
 
@@ -27,16 +33,36 @@ function number(value) {
 }
 
 function statusOf(value) {
-  if (!value || typeof value !== 'object') return 'missing';
-  return String(value.status || value.execution_status || value.verification_status || 'present');
+  if (!value || typeof value !== "object") return "missing";
+  return String(
+    value.status ||
+      value.execution_status ||
+      value.verification_status ||
+      "present",
+  );
 }
 
 function pick(value, keys) {
   const out = {};
   for (const key of keys) {
-    if (value && Object.prototype.hasOwnProperty.call(value, key)) out[key] = value[key];
+    if (value && Object.prototype.hasOwnProperty.call(value, key))
+      out[key] = value[key];
   }
   return out;
+}
+
+function boundedNumber(value, minimum = 0, maximum = 1000000) {
+  return Math.min(maximum, Math.max(minimum, number(value)));
+}
+
+function enumValue(value, allowed, fallback = "unknown") {
+  const candidate = String(value || "").toLowerCase();
+  return allowed.includes(candidate) ? candidate : fallback;
+}
+
+function countMarkers(values) {
+  const count = Math.min(1000, Array.isArray(values) ? values.length : 0);
+  return Array.from({ length: count }, () => true);
 }
 
 function sleep(ms, signal) {
@@ -45,10 +71,10 @@ function sleep(ms, signal) {
     if (!signal) return;
     const abort = () => {
       clearTimeout(timer);
-      reject(signal.reason || new Error('production_full_scan_timeout'));
+      reject(signal.reason || new Error("production_full_scan_timeout"));
     };
     if (signal.aborted) return abort();
-    signal.addEventListener('abort', abort, { once: true });
+    signal.addEventListener("abort", abort, { once: true });
   });
 }
 
@@ -57,39 +83,50 @@ async function fetchProductionScan(controller) {
   for (let attempt = 1; attempt <= transientAttempts; attempt += 1) {
     try {
       const response = await fetch(`${baseURL}/api/token/scan`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
-          'user-agent': 'koschei-production-full-scan-acceptance/1.4.0',
+          accept: "application/json",
+          "content-type": "application/json",
+          "user-agent": "koschei-production-full-scan-acceptance/1.4.0",
         },
-        body: JSON.stringify({ mint, network: 'solana-mainnet' }),
+        body: JSON.stringify({ mint, network: "solana-mainnet" }),
         signal: controller.signal,
       });
-      if (!transientHTTPStatuses.has(response.status) || attempt === transientAttempts) {
+      if (
+        !transientHTTPStatuses.has(response.status) ||
+        attempt === transientAttempts
+      ) {
         return response;
       }
-      const transientBody = await response.text();
-      fs.writeFileSync(path.join(outputDir, `full-scan-transient-${attempt}.body`), transientBody);
-      fs.appendFileSync(path.join(outputDir, 'full-scan-transient-retries.txt'), `attempt=${attempt} status=${response.status}\n`);
+      await response.text();
+      fs.appendFileSync(
+        path.join(outputDir, "full-scan-transient-retries.txt"),
+        `attempt=${attempt} transient_response\n`,
+      );
       await sleep(transientDelayMs, controller.signal);
     } catch (error) {
       if (controller.signal.aborted) throw error;
       lastError = error;
-      fs.appendFileSync(path.join(outputDir, 'full-scan-transient-retries.txt'), `attempt=${attempt} transport_error=${String(error?.message || error)}\n`);
+      fs.appendFileSync(
+        path.join(outputDir, "full-scan-transient-retries.txt"),
+        `attempt=${attempt} transport_error\n`,
+      );
       if (attempt === transientAttempts) throw error;
       await sleep(transientDelayMs, controller.signal);
     }
   }
-  throw lastError || new Error('production_full_scan_transport_unavailable');
+  throw lastError || new Error("production_full_scan_transport_unavailable");
 }
 
 async function main() {
-  if (!mint) throw new Error('full_scan_mint_missing');
+  if (!mint) throw new Error("full_scan_mint_missing");
   fs.mkdirSync(outputDir, { recursive: true });
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error('production_full_scan_timeout')), timeoutMs);
+  const timer = setTimeout(
+    () => controller.abort(new Error("production_full_scan_timeout")),
+    timeoutMs,
+  );
   const startedAt = Date.now();
   let response;
   try {
@@ -99,111 +136,249 @@ async function main() {
   }
 
   const raw = await response.text();
-  fs.writeFileSync(path.join(outputDir, 'full-scan-http-status.txt'), `${response.status}\n`);
   if (!response.ok) {
-    fs.writeFileSync(path.join(outputDir, 'full-scan-error.body'), raw);
-    throw new Error(`production_full_scan_http_${response.status}`);
+    throw new Error("production_full_scan_http_failure");
   }
 
   let payload;
   try {
     payload = JSON.parse(raw);
   } catch (error) {
-    fs.writeFileSync(path.join(outputDir, 'full-scan-invalid-json.body'), raw);
-    throw new Error(`production_full_scan_invalid_json:${error.message}`);
+    throw new Error("production_full_scan_invalid_json");
   }
 
-  const report = requireObject(payload.investigation_report, 'investigation_report');
-  const summary = requireObject(payload.analysis_summary || report.analysis_summary, 'analysis_summary');
-  const nestedSummary = requireObject(report.analysis_summary, 'investigation_report_analysis_summary');
-  const decision = requireObject(summary.decision, 'analysis_summary_decision');
-  const coverage = requireObject(summary.evidence_coverage, 'analysis_summary_evidence_coverage');
-  const finalVerdict = requireObject(report.final_verdict, 'final_verdict');
-  const topFinalVerdict = requireObject(payload.final_verdict || finalVerdict, 'top_level_final_verdict');
-  const modules = requireArray(coverage.modules, 'evidence_coverage_modules');
-  const actions = requireArray(summary.recommended_actions, 'recommended_actions');
-  const unresolved = requireArray(summary.unresolved_questions, 'unresolved_questions');
-  const gradeDetermining = requireArray(summary.grade_changing_findings, 'grade_changing_findings');
-  const supporting = requireArray(summary.supporting_findings, 'supporting_findings');
-  const triggeredGroups = requireArray(summary.triggered_evidence_groups, 'triggered_evidence_groups');
-  const watchItems = requireArray(summary.watch_items, 'watch_items');
+  const report = requireObject(
+    payload.investigation_report,
+    "investigation_report",
+  );
+  const summary = requireObject(
+    payload.analysis_summary || report.analysis_summary,
+    "analysis_summary",
+  );
+  const nestedSummary = requireObject(
+    report.analysis_summary,
+    "investigation_report_analysis_summary",
+  );
+  const decision = requireObject(summary.decision, "analysis_summary_decision");
+  const coverage = requireObject(
+    summary.evidence_coverage,
+    "analysis_summary_evidence_coverage",
+  );
+  const finalVerdict = requireObject(report.final_verdict, "final_verdict");
+  const topFinalVerdict = requireObject(
+    payload.final_verdict || finalVerdict,
+    "top_level_final_verdict",
+  );
+  const modules = requireArray(coverage.modules, "evidence_coverage_modules");
+  const actions = requireArray(
+    summary.recommended_actions,
+    "recommended_actions",
+  );
+  const unresolved = requireArray(
+    summary.unresolved_questions,
+    "unresolved_questions",
+  );
+  const gradeDetermining = requireArray(
+    summary.grade_changing_findings,
+    "grade_changing_findings",
+  );
+  const supporting = requireArray(
+    summary.supporting_findings,
+    "supporting_findings",
+  );
+  const triggeredGroups = requireArray(
+    summary.triggered_evidence_groups,
+    "triggered_evidence_groups",
+  );
+  const watchItems = requireArray(summary.watch_items, "watch_items");
 
-  if (String(payload.mint || '') !== mint) throw new Error('token_scan_mint_mismatch');
-  if (String(report.target || '') !== mint) throw new Error('investigation_report_target_mismatch');
-  if (String(payload.response_schema_version || '') !== 'koschei-customer-investigation-response-v3') throw new Error('response_schema_mismatch');
-  if (String(summary.schema_version || '') !== 'koschei-customer-analysis-summary-v3') throw new Error('analysis_summary_schema_mismatch');
-  if (String(nestedSummary.schema_version || '') !== 'koschei-customer-analysis-summary-v3') throw new Error('nested_analysis_summary_schema_mismatch');
-  if (number(coverage.architecture_arm_count) !== 14) throw new Error('architecture_arm_count_not_14');
-  if (coverage.coverage_is_risk_score !== false) throw new Error('coverage_misrepresented_as_risk_score');
-  if (!modules.length) throw new Error('evidence_coverage_modules_empty');
-  if (!actions.length) throw new Error('recommended_actions_empty');
+  if (String(payload.mint || "") !== mint)
+    throw new Error("token_scan_mint_mismatch");
+  if (String(report.target || "") !== mint)
+    throw new Error("investigation_report_target_mismatch");
+  if (
+    String(payload.response_schema_version || "") !==
+    "koschei-customer-investigation-response-v3"
+  )
+    throw new Error("response_schema_mismatch");
+  if (
+    String(summary.schema_version || "") !==
+    "koschei-customer-analysis-summary-v3"
+  )
+    throw new Error("analysis_summary_schema_mismatch");
+  if (
+    String(nestedSummary.schema_version || "") !==
+    "koschei-customer-analysis-summary-v3"
+  )
+    throw new Error("nested_analysis_summary_schema_mismatch");
+  if (number(coverage.architecture_arm_count) !== 14)
+    throw new Error("architecture_arm_count_not_14");
+  if (coverage.coverage_is_risk_score !== false)
+    throw new Error("coverage_misrepresented_as_risk_score");
+  if (!modules.length) throw new Error("evidence_coverage_modules_empty");
+  if (!actions.length) throw new Error("recommended_actions_empty");
 
-  const verdictFields = ['grade', 'verdict', 'signed', 'signature', 'ruleset_version'];
+  const verdictFields = [
+    "grade",
+    "verdict",
+    "signed",
+    "signature",
+    "ruleset_version",
+  ];
   for (const field of verdictFields) {
-    if (String(finalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`nested_final_verdict_${field}_mismatch`);
-    if (String(topFinalVerdict[field] ?? '') !== String(decision[field] ?? '')) throw new Error(`top_final_verdict_${field}_mismatch`);
+    if (String(finalVerdict[field] ?? "") !== String(decision[field] ?? ""))
+      throw new Error(`nested_final_verdict_${field}_mismatch`);
+    if (String(topFinalVerdict[field] ?? "") !== String(decision[field] ?? ""))
+      throw new Error(`top_final_verdict_${field}_mismatch`);
   }
-  if (String(decision.ruleset_version || '') !== 'koschei-unified-radar-rules-v1.4.0') throw new Error('unified_ruleset_not_v140');
-  if (number(decision.grade_determining_rule_count) !== gradeDetermining.length) throw new Error('grade_determining_count_mismatch');
-  if (number(decision.triggered_evidence_group_count) !== triggeredGroups.length) throw new Error('triggered_group_count_mismatch');
-  if (number(decision.supporting_evidence_group_count) !== supporting.length) throw new Error('supporting_group_count_mismatch');
-  if (String(decision.grading_semantics || '') !== 'distinct_rule_ids_not_evidence_group_count') throw new Error('grading_semantics_missing');
-  const decisionPath = Array.isArray(decision.decision_path) ? decision.decision_path.join('\n') : '';
-  if (/\b5 distinct\b/i.test(decisionPath)) throw new Error('evidence_groups_still_counted_as_distinct_rules');
+  if (
+    String(decision.ruleset_version || "") !==
+    "koschei-unified-radar-rules-v1.4.0"
+  )
+    throw new Error("unified_ruleset_not_v140");
+  if (number(decision.grade_determining_rule_count) !== gradeDetermining.length)
+    throw new Error("grade_determining_count_mismatch");
+  if (
+    number(decision.triggered_evidence_group_count) !== triggeredGroups.length
+  )
+    throw new Error("triggered_group_count_mismatch");
+  if (number(decision.supporting_evidence_group_count) !== supporting.length)
+    throw new Error("supporting_group_count_mismatch");
+  if (
+    String(decision.grading_semantics || "") !==
+    "distinct_rule_ids_not_evidence_group_count"
+  )
+    throw new Error("grading_semantics_missing");
+  const decisionPath = Array.isArray(decision.decision_path)
+    ? decision.decision_path.join("\n")
+    : "";
+  if (/\b5 distinct\b/i.test(decisionPath))
+    throw new Error("evidence_groups_still_counted_as_distinct_rules");
 
   const requiredReportSections = [
-    'holder_distribution', 'holder_intelligence', 'holder_cluster', 'launch_forensics', 'market',
-    'lp_control', 'jupiter_market_context', 'exit_liquidity', 'program_security', 'actor_investigation',
-    'full_scan_live_evidence', 'evidence_references', 'threat_anticipation',
-    'verified_incident_corpus', 'campaign_genome_matches', 'behavioral_signatures',
+    "holder_distribution",
+    "holder_intelligence",
+    "holder_cluster",
+    "launch_forensics",
+    "market",
+    "lp_control",
+    "jupiter_market_context",
+    "exit_liquidity",
+    "program_security",
+    "actor_investigation",
+    "full_scan_live_evidence",
+    "evidence_references",
+    "threat_anticipation",
+    "verified_incident_corpus",
+    "campaign_genome_matches",
+    "behavioral_signatures",
   ];
-  for (const section of requiredReportSections) requireObject(report[section], `report_${section}`);
+  for (const section of requiredReportSections)
+    requireObject(report[section], `report_${section}`);
 
-  const completed = number(coverage.verified) + number(coverage.observed) + number(coverage.inferred);
-  if (completed < 1) throw new Error('no_completed_evidence_arm');
+  const completed =
+    number(coverage.verified) +
+    number(coverage.observed) +
+    number(coverage.inferred);
+  if (completed < 1) throw new Error("no_completed_evidence_arm");
 
-  const liveEvidence = requireObject(report.full_scan_live_evidence, 'full_scan_live_evidence');
-  const actorInvestigation = requireObject(report.actor_investigation, 'actor_investigation');
-  const actorRun = requireObject(actorInvestigation.integration_run, 'actor_investigation_integration_run');
-  const lpControl = requireObject(report.lp_control, 'lp_control');
-  const jupiter = requireObject(report.jupiter_market_context, 'jupiter_market_context');
-  const exitLiquidity = requireObject(report.exit_liquidity, 'exit_liquidity');
-  const programSecurity = requireObject(report.program_security, 'program_security');
-  const holder = requireObject(report.holder_intelligence, 'holder_intelligence');
-  const launch = requireObject(report.launch_forensics, 'launch_forensics');
-  const market = requireObject(report.market, 'market');
-  const incidentCorpus = requireObject(report.verified_incident_corpus, 'verified_incident_corpus');
-  const genomeMatches = requireObject(report.campaign_genome_matches, 'campaign_genome_matches');
-  const behavioralSignatures = requireObject(report.behavioral_signatures, 'behavioral_signatures');
-  const evidencePolicy = requireObject(report.evidence_policy, 'evidence_policy');
-  const genomeMatchItems = requireArray(genomeMatches.matches, 'campaign_genome_matches_matches');
-  const behaviorMatches = requireArray(behavioralSignatures.matches, 'behavioral_signatures_matches');
-  requireArray(incidentCorpus.records, 'verified_incident_corpus_records');
+  const liveEvidence = requireObject(
+    report.full_scan_live_evidence,
+    "full_scan_live_evidence",
+  );
+  const actorInvestigation = requireObject(
+    report.actor_investigation,
+    "actor_investigation",
+  );
+  const actorRun = requireObject(
+    actorInvestigation.integration_run,
+    "actor_investigation_integration_run",
+  );
+  const lpControl = requireObject(report.lp_control, "lp_control");
+  const jupiter = requireObject(
+    report.jupiter_market_context,
+    "jupiter_market_context",
+  );
+  const exitLiquidity = requireObject(report.exit_liquidity, "exit_liquidity");
+  const programSecurity = requireObject(
+    report.program_security,
+    "program_security",
+  );
+  const holder = requireObject(
+    report.holder_intelligence,
+    "holder_intelligence",
+  );
+  const launch = requireObject(report.launch_forensics, "launch_forensics");
+  const market = requireObject(report.market, "market");
+  const incidentCorpus = requireObject(
+    report.verified_incident_corpus,
+    "verified_incident_corpus",
+  );
+  const genomeMatches = requireObject(
+    report.campaign_genome_matches,
+    "campaign_genome_matches",
+  );
+  const behavioralSignatures = requireObject(
+    report.behavioral_signatures,
+    "behavioral_signatures",
+  );
+  const evidencePolicy = requireObject(
+    report.evidence_policy,
+    "evidence_policy",
+  );
+  const genomeMatchItems = requireArray(
+    genomeMatches.matches,
+    "campaign_genome_matches_matches",
+  );
+  const behaviorMatches = requireArray(
+    behavioralSignatures.matches,
+    "behavioral_signatures_matches",
+  );
+  requireArray(incidentCorpus.records, "verified_incident_corpus_records");
 
-  if (incidentCorpus.verdict_authority !== false) throw new Error('incident_corpus_gained_verdict_authority');
-  if (incidentCorpus.real_world_identity_claim !== false) throw new Error('incident_corpus_gained_identity_claim');
-  if (incidentCorpus.wrongdoing_claim !== false) throw new Error('incident_corpus_gained_wrongdoing_claim');
-  if (genomeMatches.verdict_authority !== false) throw new Error('campaign_genome_matches_gained_verdict_authority');
-  if (genomeMatches.same_operator_claim !== false) throw new Error('campaign_genome_matches_gained_operator_claim');
-  if (genomeMatches.real_world_identity_claim !== false) throw new Error('campaign_genome_matches_gained_identity_claim');
-  const behaviorPolicy = requireObject(behavioralSignatures.policy, 'behavioral_signature_policy');
-  if (behaviorPolicy.verdict_authority !== false || behaviorPolicy.grade_authority !== false || behaviorPolicy.guard_block_authority !== false) {
-    throw new Error('behavioral_signatures_gained_decision_authority');
+  if (incidentCorpus.verdict_authority !== false)
+    throw new Error("incident_corpus_gained_verdict_authority");
+  if (incidentCorpus.real_world_identity_claim !== false)
+    throw new Error("incident_corpus_gained_identity_claim");
+  if (incidentCorpus.wrongdoing_claim !== false)
+    throw new Error("incident_corpus_gained_wrongdoing_claim");
+  if (genomeMatches.verdict_authority !== false)
+    throw new Error("campaign_genome_matches_gained_verdict_authority");
+  if (genomeMatches.same_operator_claim !== false)
+    throw new Error("campaign_genome_matches_gained_operator_claim");
+  if (genomeMatches.real_world_identity_claim !== false)
+    throw new Error("campaign_genome_matches_gained_identity_claim");
+  const behaviorPolicy = requireObject(
+    behavioralSignatures.policy,
+    "behavioral_signature_policy",
+  );
+  if (
+    behaviorPolicy.verdict_authority !== false ||
+    behaviorPolicy.grade_authority !== false ||
+    behaviorPolicy.guard_block_authority !== false
+  ) {
+    throw new Error("behavioral_signatures_gained_decision_authority");
   }
-  for (const flag of ['incident_corpus_can_change_grade', 'campaign_genome_matches_can_change_grade', 'behavioral_signatures_can_change_grade']) {
-    if (evidencePolicy[flag] !== false) throw new Error(`${flag}_must_be_false`);
+  for (const flag of [
+    "incident_corpus_can_change_grade",
+    "campaign_genome_matches_can_change_grade",
+    "behavioral_signatures_can_change_grade",
+  ]) {
+    if (evidencePolicy[flag] !== false)
+      throw new Error(`${flag}_must_be_false`);
   }
   for (const match of behaviorMatches) {
-    if (match?.grade_eligible === true || match?.verdict_authority === true) throw new Error('behavioral_signature_match_gained_authority');
+    if (match?.grade_eligible === true || match?.verdict_authority === true)
+      throw new Error("behavioral_signature_match_gained_authority");
   }
 
   const artifact = {
-    schema_version: 'koschei-production-full-scan-result-v3',
+    schema_version: "koschei-production-full-scan-result-v3",
     generated_at: new Date().toISOString(),
     elapsed_ms: Date.now() - startedAt,
     endpoint: `${baseURL}/api/token/scan`,
     target: mint,
-    network: String(payload.network || report.network || 'solana-mainnet'),
+    network: String(payload.network || report.network || "solana-mainnet"),
     response_contract: {
       response_schema: payload.response_schema_version,
       top_level_analysis_summary: Boolean(payload.analysis_summary),
@@ -215,9 +390,20 @@ async function main() {
       persistent_intelligence_is_non_authoritative: true,
     },
     legacy_token_surface: pick(payload, [
-      'score', 'risk_level', 'final_policy', 'verdict_withheld', 'supply', 'decimals',
-      'mint_authority', 'freeze_authority', 'largest_holder_percent', 'top_ten_percent',
-      'token_program', 'token_2022', 'extension_resolution_status', 'extension_evidence_complete',
+      "score",
+      "risk_level",
+      "final_policy",
+      "verdict_withheld",
+      "supply",
+      "decimals",
+      "mint_authority",
+      "freeze_authority",
+      "largest_holder_percent",
+      "top_ten_percent",
+      "token_program",
+      "token_2022",
+      "extension_resolution_status",
+      "extension_evidence_complete",
     ]),
     decision,
     executive_summary: summary.executive_summary,
@@ -240,38 +426,131 @@ async function main() {
     supporting_rule_groups: supporting,
     triggered_evidence_groups: triggeredGroups,
     watch_items: watchItems,
-    non_triggered_observations: Array.isArray(summary.non_triggered_observations) ? summary.non_triggered_observations : [],
+    non_triggered_observations: Array.isArray(
+      summary.non_triggered_observations,
+    )
+      ? summary.non_triggered_observations
+      : [],
     unresolved_questions: unresolved,
     recommended_actions: actions,
     final_verdict: finalVerdict,
     persistent_intelligence: {
       verified_incident_corpus: pick(incidentCorpus, [
-        'available', 'complete', 'status', 'record_count', 'distinct_target_count', 'distinct_actor_count',
-        'verdict_authority', 'real_world_identity_claim', 'wrongdoing_claim', 'limitations',
+        "available",
+        "complete",
+        "status",
+        "record_count",
+        "distinct_target_count",
+        "distinct_actor_count",
+        "verdict_authority",
+        "real_world_identity_claim",
+        "wrongdoing_claim",
+        "limitations",
       ]),
       campaign_genome_matches: {
         ...pick(genomeMatches, [
-          'available', 'complete', 'status', 'match_count', 'other_actor_count', 'pattern_hash_sha256',
-          'verdict_authority', 'same_operator_claim', 'real_world_identity_claim', 'wrongdoing_claim', 'limitations',
+          "available",
+          "complete",
+          "status",
+          "match_count",
+          "other_actor_count",
+          "pattern_hash_sha256",
+          "verdict_authority",
+          "same_operator_claim",
+          "real_world_identity_claim",
+          "wrongdoing_claim",
+          "limitations",
         ]),
         matches: genomeMatchItems,
       },
       behavioral_signatures: {
         ...pick(behavioralSignatures, [
-          'version', 'status', 'complete', 'triggered_count', 'verified_supported_count', 'watch_count',
-          'campaign_genome_id', 'campaign_pattern_hash_sha256', 'policy', 'limitations',
+          "version",
+          "status",
+          "complete",
+          "triggered_count",
+          "verified_supported_count",
+          "watch_count",
+          "campaign_genome_id",
+          "campaign_pattern_hash_sha256",
+          "policy",
+          "limitations",
         ]),
         matches: behaviorMatches,
       },
     },
     evidence_surfaces: {
-      holder: pick(holder, ['available', 'status', 'top_1_percentage', 'top_10_percentage', 'circulating_supply', 'final_verdict_blocked', 'limitations']),
-      launch: pick(launch, ['available', 'status', 'launch_time', 'age_seconds', 'creator_wallet', 'findings', 'limitations']),
-      market: pick(market, ['available', 'status', 'price_usd', 'market_cap_usd', 'liquidity_usd', 'volume_24h_usd', 'best_pair_address']),
-      lp_control: { status: statusOf(lpControl), ...pick(lpControl, ['available', 'pool_address', 'lp_mint', 'burned_share_pct', 'creator_lp_share_pct', 'locked_until', 'limitations']) },
-      jupiter_market_context: { status: statusOf(jupiter), ...pick(jupiter, ['available', 'price_available', 'price_usd', 'sell_impact_available', 'estimated_price_impact_pct', 'quote_context_slot', 'limitations']) },
-      exit_liquidity: { status: statusOf(exitLiquidity), ...pick(exitLiquidity, ['available', 'quote_only', 'provider', 'tiers', 'limitations']) },
-      program_security: { status: statusOf(programSecurity), ...pick(programSecurity, ['available', 'authority_coverage_complete', 'age_coverage_complete', 'programs', 'limitations']) },
+      holder: pick(holder, [
+        "available",
+        "status",
+        "top_1_percentage",
+        "top_10_percentage",
+        "circulating_supply",
+        "final_verdict_blocked",
+        "limitations",
+      ]),
+      launch: pick(launch, [
+        "available",
+        "status",
+        "launch_time",
+        "age_seconds",
+        "creator_wallet",
+        "findings",
+        "limitations",
+      ]),
+      market: pick(market, [
+        "available",
+        "status",
+        "price_usd",
+        "market_cap_usd",
+        "liquidity_usd",
+        "volume_24h_usd",
+        "best_pair_address",
+      ]),
+      lp_control: {
+        status: statusOf(lpControl),
+        ...pick(lpControl, [
+          "available",
+          "pool_address",
+          "lp_mint",
+          "burned_share_pct",
+          "creator_lp_share_pct",
+          "locked_until",
+          "limitations",
+        ]),
+      },
+      jupiter_market_context: {
+        status: statusOf(jupiter),
+        ...pick(jupiter, [
+          "available",
+          "price_available",
+          "price_usd",
+          "sell_impact_available",
+          "estimated_price_impact_pct",
+          "quote_context_slot",
+          "limitations",
+        ]),
+      },
+      exit_liquidity: {
+        status: statusOf(exitLiquidity),
+        ...pick(exitLiquidity, [
+          "available",
+          "quote_only",
+          "provider",
+          "tiers",
+          "limitations",
+        ]),
+      },
+      program_security: {
+        status: statusOf(programSecurity),
+        ...pick(programSecurity, [
+          "available",
+          "authority_coverage_complete",
+          "age_coverage_complete",
+          "programs",
+          "limitations",
+        ]),
+      },
       actor_investigation: {
         wallet: actorInvestigation.wallet,
         store_status: actorInvestigation.store_status,
@@ -279,13 +558,23 @@ async function main() {
         live_requested: actorRun.live_requested,
         funding_origin_persistence: actorRun.funding_origin_persistence,
         rule_verdict_persistence: actorRun.rule_verdict_persistence,
-        campaign_genome_persistence: actorInvestigation.campaign_genome_persistence,
+        campaign_genome_persistence:
+          actorInvestigation.campaign_genome_persistence,
         behavioral_signature_status: behavioralSignatures.status,
         limitations: actorRun.limitations,
       },
       full_scan_live_evidence: pick(liveEvidence, [
-        'status', 'rpc_configured', 'wallets_requested', 'wallets_completed', 'signatures_seen',
-        'transactions_parsed', 'relevant_transactions', 'rpc_failures', 'launch_signer', 'wallet_coverage', 'limitations',
+        "status",
+        "rpc_configured",
+        "wallets_requested",
+        "wallets_completed",
+        "signatures_seen",
+        "transactions_parsed",
+        "relevant_transactions",
+        "rpc_failures",
+        "launch_signer",
+        "wallet_coverage",
+        "limitations",
       ]),
     },
     evidence_references: report.evidence_references,
@@ -293,33 +582,116 @@ async function main() {
     interpretation_policy: summary.interpretation_policy,
   };
 
-  fs.writeFileSync(path.join(outputDir, 'full-scan-result.json'), `${JSON.stringify(artifact, null, 2)}\n`);
-  fs.writeFileSync(path.join(outputDir, 'full-scan-response.json'), `${JSON.stringify(payload, null, 2)}\n`);
+  // Persist only a bounded validation receipt. Raw HTTP bodies, evidence text,
+  // URLs and error messages are never written to disk or forwarded to issues.
+  const validationReceipt = {
+    schema_version: "koschei-production-full-scan-validation-receipt-v1",
+    generated_at: new Date().toISOString(),
+    elapsed_ms: Math.max(0, Date.now() - startedAt),
+    target: mint,
+    decision: {
+      grade: enumValue(
+        decision.grade,
+        ["a", "b", "c", "d", "f", "-"],
+        "-",
+      ).toUpperCase(),
+      signed: decision.signed === true,
+      confidence: enumValue(decision.confidence, ["low", "medium", "high"]),
+      readiness: enumValue(decision.readiness, [
+        "pending",
+        "partial",
+        "ready",
+        "blocked",
+      ]),
+      ruleset_version: "koschei-unified-radar-rules-v1.4.0",
+    },
+    executive_summary:
+      "Production scan contract and evidence invariants validated successfully.",
+    evidence_coverage: {
+      coverage_percent: boundedNumber(coverage.coverage_percent, 0, 100),
+      verified: boundedNumber(coverage.verified, 0, 100),
+      observed: boundedNumber(coverage.observed, 0, 100),
+      inferred: boundedNumber(coverage.inferred, 0, 100),
+      pending: boundedNumber(coverage.pending, 0, 100),
+      not_applicable: boundedNumber(coverage.not_applicable, 0, 100),
+    },
+    grade_changing_findings: countMarkers(gradeDetermining),
+    watch_items: countMarkers(watchItems),
+    unresolved_questions: countMarkers(unresolved),
+    recommended_actions: countMarkers(actions),
+    evidence_surfaces: {
+      full_scan_live_evidence: {
+        status: enumValue(liveEvidence.status, [
+          "verified",
+          "observed",
+          "inferred",
+          "pending",
+          "unavailable",
+          "complete",
+          "partial",
+        ]),
+      },
+      actor_investigation: {
+        run_status: enumValue(actorRun.status, [
+          "verified",
+          "observed",
+          "inferred",
+          "pending",
+          "unavailable",
+          "complete",
+          "partial",
+        ]),
+      },
+    },
+  };
+  fs.writeFileSync(
+    path.join(outputDir, "full-scan-result.json"),
+    `${JSON.stringify(validationReceipt, null, 2)}\n`,
+  ); // lgtm[js/http-to-file-access]
 
   console.log(`FULL_SCAN_HTTP_STATUS=${response.status}`);
   console.log(`FULL_SCAN_ELAPSED_MS=${artifact.elapsed_ms}`);
   console.log(`FULL_SCAN_TARGET=${mint}`);
-  console.log(`FULL_SCAN_GRADE=${String(decision.grade || '-')}`);
+  console.log(`FULL_SCAN_GRADE=${String(decision.grade || "-")}`);
   console.log(`FULL_SCAN_SIGNED=${String(Boolean(decision.signed))}`);
-  console.log(`FULL_SCAN_RULESET=${String(decision.ruleset_version || 'unknown')}`);
+  console.log(
+    `FULL_SCAN_RULESET=${String(decision.ruleset_version || "unknown")}`,
+  );
   console.log(`FULL_SCAN_GRADE_DETERMINING_RULES=${gradeDetermining.length}`);
   console.log(`FULL_SCAN_SUPPORTING_GROUPS=${supporting.length}`);
-  console.log(`FULL_SCAN_DISTINCT_COMPOUNDING_RULES=${number(decision.distinct_compounding_rule_count)}`);
-  console.log(`FULL_SCAN_CONFIDENCE=${String(decision.confidence || 'unknown')}`);
-  console.log(`FULL_SCAN_READINESS=${String(decision.readiness || 'unknown')}`);
+  console.log(
+    `FULL_SCAN_DISTINCT_COMPOUNDING_RULES=${number(decision.distinct_compounding_rule_count)}`,
+  );
+  console.log(
+    `FULL_SCAN_CONFIDENCE=${String(decision.confidence || "unknown")}`,
+  );
+  console.log(`FULL_SCAN_READINESS=${String(decision.readiness || "unknown")}`);
   console.log(`FULL_SCAN_COVERAGE=${number(coverage.coverage_percent)}%`);
-  console.log(`FULL_SCAN_ARMS=verified:${number(coverage.verified)},observed:${number(coverage.observed)},inferred:${number(coverage.inferred)},pending:${number(coverage.pending)},not_applicable:${number(coverage.not_applicable)}`);
-  console.log(`FULL_SCAN_LIVE_STATUS=${String(liveEvidence.status || 'unknown')}`);
-  console.log(`FULL_SCAN_ACTOR_STATUS=${String(actorRun.status || 'unknown')}`);
-  console.log(`FULL_SCAN_INCIDENT_CORPUS_STATUS=${String(incidentCorpus.status || 'unknown')}`);
-  console.log(`FULL_SCAN_GENOME_MATCH_STATUS=${String(genomeMatches.status || 'unknown')}`);
-  console.log(`FULL_SCAN_BEHAVIOR_SIGNATURE_STATUS=${String(behavioralSignatures.status || 'unknown')}`);
-  console.log('PRODUCTION_FULL_SCAN_ACCEPTED=true');
+  console.log(
+    `FULL_SCAN_ARMS=verified:${number(coverage.verified)},observed:${number(coverage.observed)},inferred:${number(coverage.inferred)},pending:${number(coverage.pending)},not_applicable:${number(coverage.not_applicable)}`,
+  );
+  console.log(
+    `FULL_SCAN_LIVE_STATUS=${String(liveEvidence.status || "unknown")}`,
+  );
+  console.log(`FULL_SCAN_ACTOR_STATUS=${String(actorRun.status || "unknown")}`);
+  console.log(
+    `FULL_SCAN_INCIDENT_CORPUS_STATUS=${String(incidentCorpus.status || "unknown")}`,
+  );
+  console.log(
+    `FULL_SCAN_GENOME_MATCH_STATUS=${String(genomeMatches.status || "unknown")}`,
+  );
+  console.log(
+    `FULL_SCAN_BEHAVIOR_SIGNATURE_STATUS=${String(behavioralSignatures.status || "unknown")}`,
+  );
+  console.log("PRODUCTION_FULL_SCAN_ACCEPTED=true");
 }
 
-main().catch((error) => {
+main().catch(() => {
   fs.mkdirSync(outputDir, { recursive: true });
-  fs.writeFileSync(path.join(outputDir, 'full-scan-probe-error.txt'), `${error.stack || error.message || String(error)}\n`);
-  console.error(`PRODUCTION_FULL_SCAN_FAILURE: ${error.stack || error.message || String(error)}`);
+  fs.writeFileSync(
+    path.join(outputDir, "full-scan-probe-error.txt"),
+    "production_full_scan_failed\n",
+  );
+  console.error("PRODUCTION_FULL_SCAN_FAILURE");
   process.exit(1);
 });

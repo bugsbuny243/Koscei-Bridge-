@@ -82,6 +82,30 @@ func TestEmergencyLiquidityAlertPostsWebhook(t *testing.T) {
 	}
 }
 
+func TestEmergencyLiquidityAlertIgnoresRequestWebhookDestination(t *testing.T) {
+	operatorCalls := 0
+	requestCalls := 0
+	operatorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		operatorCalls++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer operatorServer.Close()
+	requestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCalls++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer requestServer.Close()
+	t.Setenv("DISCORD_WEBHOOK_URL", operatorServer.URL)
+
+	result := dispatchEmergencyLiquidityAlert(context.Background(), liquidityRadarRequest{
+		PoolAddress:    "pool",
+		DiscordWebhook: requestServer.URL,
+	}, 100, "CRITICAL", 100_000)
+	if !result.DiscordSent || operatorCalls != 1 || requestCalls != 0 {
+		t.Fatalf("unexpected dispatch: result=%+v operator=%d request=%d", result, operatorCalls, requestCalls)
+	}
+}
+
 func TestWhitehatAddressesDeduplicateRequestAndEnv(t *testing.T) {
 	t.Setenv("WHITEHAT_ALERT_ADDRESSES", "Alpha, Beta")
 	got := whitehatAddresses([]string{"alpha", "Gamma"})

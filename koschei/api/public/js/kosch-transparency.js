@@ -17,7 +17,7 @@ function degraded(error){
  setText('verdictState','BU DURUM GÜVENLİ ANLAMINA GELMEZ');
  setText('signature',`Bağımlılık hatası · ${String(error?.message||'yanıt alınamadı')}`);
  ['mintAuthority','freezeAuthority','tokenProgram','extensionCount','topOne','topTen','supply','decimals'].forEach(id=>setStatus(id,'DOĞRULANAMADI',false));
- const findings=$('findings');if(findings){findings.innerHTML='<li>Kanıt servisine erişilemedi. Authority, holder, arz ve program alanları güncel zincir verisiyle doğrulanmadı.</li><li>Boş veya sıfır değer güvenli sinyal olarak yorumlanmamalı.</li>'}
+ const findings=$('findings');if(findings){findings.innerHTML='<li>Kanıt servisine erişilemedi. Authority, holder, arz ve program alanları güncel zincir verisiyle doğrulanmadı.</li><li>Boş veya sıfır değer güvenli sinyal olarak yorumlanmamalı.</li>';}
  const history=$('history');if(history)history.innerHTML='<li>İmzalı verdict geçmişi şu anda doğrulanamadı; geçmiş yok sonucu çıkarılmadı.</li>';
  setText('updatedAt',new Date().toLocaleString('tr-TR'));
 }
@@ -37,9 +37,9 @@ async function load(){
   setStatus('freezeAuthority',authority(scan.freeze_authority),!scan.freeze_authority);
   setText('tokenProgram',scan.token_program||'—');setText('topOne',`${Number(scan.largest_holder_percent||0).toFixed(2)}%`);setText('topTen',`${Number(scan.top_ten_percent||0).toFixed(2)}%`);
   setText('supply',scan.supply||'—');setText('decimals',String(scan.decimals??'—'));setText('extensionCount',String(Array.isArray(scan.extensions)?scan.extensions.length:0));
-  const findings=$('findings');findings.innerHTML='';(scan.findings||[]).slice(0,6).forEach(value=>{const li=document.createElement('li');li.textContent=String(value);findings.appendChild(li)});if(!findings.children.length){const li=document.createElement('li');li.textContent='Canlı tarama belirgin ek bulgu döndürmedi.';findings.appendChild(li)}
+  const findings=$('findings');findings.innerHTML='';(scan.findings||[]).slice(0,6).forEach(value=>{const li=document.createElement('li');li.textContent=String(value);findings.appendChild(li);});if(!findings.children.length){const li=document.createElement('li');li.textContent='Canlı tarama belirgin ek bulgu döndürmedi.';findings.appendChild(li);}
   renderHistory(history);setText('updatedAt',new Date().toLocaleString('tr-TR'));setText('liveState','CANLI · SOLANA MAINNET');
- }catch(error){degraded(error)}
+ }catch(error){degraded(error);}
 }
 $('copyMint').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(MINT);$('copyMint').textContent='Mint kopyalandı'}catch{$('copyMint').textContent='Kopyalanamadı'}});
 load();

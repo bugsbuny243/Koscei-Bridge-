@@ -288,8 +288,8 @@ func holderClusterFlowTokenAccounts(meta map[string]any, keys []string) map[stri
 			if !ok {
 				continue
 			}
-			index := int(holderClusterInt64(rawIndex))
-			if index < 0 || index >= len(keys) || strings.TrimSpace(keys[index]) == "" {
+			index, indexOK := safeServiceIntFromInt64(holderClusterInt64(rawIndex))
+			if !indexOK || index < 0 || index >= len(keys) || strings.TrimSpace(keys[index]) == "" {
 				continue
 			}
 			current := out[keys[index]]
@@ -301,8 +301,9 @@ func holderClusterFlowTokenAccounts(meta map[string]any, keys []string) map[stri
 			}
 			amount := holderClusterMap(row["uiTokenAmount"])
 			if rawDecimals, ok := amount["decimals"]; ok {
-				value := int(holderClusterInt64(rawDecimals))
-				current.Decimals = &value
+				if value, valueOK := safeServiceIntFromInt64(holderClusterInt64(rawDecimals)); valueOK && value >= 0 && value <= 255 {
+					current.Decimals = &value
+				}
 			}
 			out[keys[index]] = current
 		}
@@ -331,12 +332,14 @@ func holderClusterFlowInstructions(message, meta map[string]any) []map[string]an
 func holderClusterFlowInstructionDecimals(info map[string]any) *int {
 	tokenAmount := holderClusterMap(info["tokenAmount"])
 	if raw, ok := tokenAmount["decimals"]; ok {
-		value := int(holderClusterInt64(raw))
-		return &value
+		if value, valueOK := safeServiceIntFromInt64(holderClusterInt64(raw)); valueOK && value >= 0 && value <= 255 {
+			return &value
+		}
 	}
 	if raw, ok := info["decimals"]; ok {
-		value := int(holderClusterInt64(raw))
-		return &value
+		if value, valueOK := safeServiceIntFromInt64(holderClusterInt64(raw)); valueOK && value >= 0 && value <= 255 {
+			return &value
+		}
 	}
 	return nil
 }

@@ -42,6 +42,53 @@ func TestOwnerStaticRouteServesLoginUI(t *testing.T) {
 	}
 }
 
+func TestStaticRouteCannotEscapeManifest(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("index"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(staticDir), "outside-secret.txt")
+	if err := os.WriteFile(outside, []byte("must-not-leak"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(NewServer(nil, "", "", "", staticDir))
+	defer srv.Close()
+	client := &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.Get(srv.URL + "/..%2foutside-secret.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) == "must-not-leak" {
+		t.Fatal("request escaped the trusted static manifest")
+	}
+}
+
+func TestStaticManifestExcludesSymlinks(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("index"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(staticDir), "symlink-secret.txt")
+	if err := os.WriteFile(outside, []byte("must-not-leak"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(staticDir, "linked.txt")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	manifest, err := buildStaticFileManifest(staticDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := manifest["linked.txt"]; ok {
+		t.Fatal("symlink was admitted to the static manifest")
+	}
+}
+
 func TestCleanRoutesExposeAllPublicModules(t *testing.T) {
 	staticDir := t.TempDir()
 	files := map[string]string{

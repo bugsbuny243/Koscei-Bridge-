@@ -209,10 +209,13 @@ func fundingAssistantDraft(q fundingAssistantInput) map[string]any {
 	if q.MilestoneCount < 1 {
 		q.MilestoneCount = 3
 	}
+	if q.MilestoneCount > 12 {
+		q.MilestoneCount = 12
+	}
 	if q.Ecosystem == "" {
 		q.Ecosystem = "Custom"
 	}
-	milestones := make([]map[string]string, 0, q.MilestoneCount)
+	milestones := []map[string]string{}
 	for i := 1; i <= q.MilestoneCount; i++ {
 		milestones = append(milestones, map[string]string{
 			"title":       fmt.Sprintf("Milestone %d", i),

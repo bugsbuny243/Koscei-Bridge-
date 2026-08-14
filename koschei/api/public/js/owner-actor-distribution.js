@@ -89,7 +89,7 @@
     try{
       const response=await originalFetch('/api/owner/defense/distribution',{method:'POST',credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({creator_wallet:creator,mint,network})});
       let payload={};
-      try{payload=await response.json()}catch{}
+      try{payload=await response.json();}catch{}
       if(!response.ok||payload.ok===false)throw new Error(payload.message||payload.detail||payload.error||`İstek başarısız (${response.status})`);
       if(generation!==queueGeneration)return;
       item.status='complete';

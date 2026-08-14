@@ -1,16 +1,14 @@
 package web3
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"log"
+	"net"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 )
-
-var rpcURLPattern = regexp.MustCompile(`(?i)(?:https?|wss?)://[^\s\"']+`)
-var rpcSecretPattern = regexp.MustCompile(`(?i)([?&](?:api[_-]?key|apikey|key|token)=)[^&\s\"']+`)
 
 // RPCProviderHost returns only the provider hostname. Paths, credentials and
 // query strings are deliberately discarded so startup and failure logs cannot
@@ -34,37 +32,83 @@ func RPCHTTPStatusClass(statusCode int) string {
 	return strconv.Itoa(statusCode/100) + "xx"
 }
 
-// LogRPCFailure emits provider-safe diagnostics. The raw endpoint is never
-// logged; error strings are scrubbed of URLs and query credentials.
-func LogRPCFailure(method, endpoint string, statusCode int, err error) {
-	method = strings.TrimSpace(method)
-	if method == "" {
-		method = "unknown"
+// RPCProviderLabel returns a bounded label instead of attacker-controlled host
+// text, so diagnostics cannot leak provider credentials or accept log payloads.
+func RPCProviderLabel(rawURL string) string {
+	host := RPCProviderHost(rawURL)
+	switch {
+	case host == "api.mainnet-beta.solana.com":
+		return "solana"
+	case host == "mainnet.helius-rpc.com" || strings.HasSuffix(host, ".helius-rpc.com"):
+		return "helius"
+	case strings.HasSuffix(host, ".g.alchemy.com"):
+		return "alchemy"
+	case strings.HasSuffix(host, ".quiknode.pro"):
+		return "quicknode"
+	case host == "127.0.0.1" || host == "localhost":
+		return "local"
+	case host == "unconfigured":
+		return "unconfigured"
+	case host == "invalid-host":
+		return "invalid"
+	default:
+		return "other"
 	}
-	message := safeRPCLogError(err)
-	if message == "" {
-		message = "rpc request failed"
-	}
-	log.Printf(
-		"solana rpc failure method=%s provider=%s http_class=%s status=%d error=%s",
-		method,
-		RPCProviderHost(endpoint),
-		RPCHTTPStatusClass(statusCode),
-		statusCode,
-		message,
-	)
 }
 
-func safeRPCLogError(err error) string {
+func rpcMethodLabel(method string) string {
+	switch strings.TrimSpace(method) {
+	case "getAccountInfo":
+		return "getAccountInfo"
+	case "getBalance":
+		return "getBalance"
+	case "getBlockTime":
+		return "getBlockTime"
+	case "getMultipleAccounts":
+		return "getMultipleAccounts"
+	case "getSignaturesForAddress":
+		return "getSignaturesForAddress"
+	case "getTokenAccountBalance":
+		return "getTokenAccountBalance"
+	case "getTokenLargestAccounts":
+		return "getTokenLargestAccounts"
+	case "getTokenSupply":
+		return "getTokenSupply"
+	case "getTransaction":
+		return "getTransaction"
+	case "simulateTransaction":
+		return "simulateTransaction"
+	default:
+		return "other"
+	}
+}
+
+func rpcErrorClass(err error) string {
 	if err == nil {
-		return ""
+		return "none"
 	}
-	message := strings.TrimSpace(err.Error())
-	message = rpcURLPattern.ReplaceAllString(message, "[redacted-url]")
-	message = rpcSecretPattern.ReplaceAllString(message, `${1}[redacted]`)
-	message = strings.Join(strings.Fields(message), " ")
-	if len(message) > 180 {
-		message = message[:180]
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "deadline"
 	}
-	return fmt.Sprintf("%q", message)
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+	var networkError net.Error
+	if errors.As(err, &networkError) {
+		return "network"
+	}
+	return "request_failed"
+}
+
+// LogRPCFailure emits only bounded diagnostic labels. Raw endpoints, method
+// text and error strings are deliberately excluded.
+func LogRPCFailure(method, endpoint string, statusCode int, err error) {
+	log.Printf(
+		"solana rpc failure method=%s provider=%s http_class=%s status=%d error_class=%s",
+		rpcMethodLabel(method),
+		RPCProviderLabel(endpoint),
+		RPCHTTPStatusClass(statusCode),
+		statusCode,
+		rpcErrorClass(err),
+	)
 }

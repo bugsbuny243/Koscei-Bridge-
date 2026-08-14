@@ -38,7 +38,7 @@ async function fetchJSON(url,options={}){
   const externalSignal=options.signal;
   let timedOut=false;
   const onExternalAbort=()=>controller.abort(externalSignal?.reason);
-  if(externalSignal){if(externalSignal.aborted)onExternalAbort();else externalSignal.addEventListener('abort',onExternalAbort,{once:true})}
+  if(externalSignal){if(externalSignal.aborted)onExternalAbort();else externalSignal.addEventListener('abort',onExternalAbort,{once:true});}
   const timer=setTimeout(()=>{timedOut=true;controller.abort('koschei_api_timeout')},timeoutMs);
   try{
     const response=await fetch(url,{...options,signal:controller.signal});
@@ -119,7 +119,7 @@ function applyMode(next,{updateURL=false,reset=true}={}){
   kind.disabled=activeMode==='token';kindLabel.hidden=activeMode==='token';
   if(activeMode==='token')kind.value='token';
   modeSummary.textContent=MODES[activeMode].summary;submit.textContent=MODES[activeMode].button;
-  if(reset){empty.hidden=false;empty.innerHTML='<h2>Evidence coverage and all attached ARVIS results appear here.</h2><p class="sub" style="margin-top:9px">Select a mode, provide the required target, and run the canonical investigation workflow.</p>';resetResult()}
+  if(reset){empty.hidden=false;empty.innerHTML='<h2>Evidence coverage and all attached ARVIS results appear here.</h2><p class="sub" style="margin-top:9px">Select a mode, provide the required target, and run the canonical investigation workflow.</p>';resetResult();}
   if(updateURL)updateModeURL();
 }
 
@@ -145,7 +145,7 @@ async function runTargetScan(){
       const data=await fetchJSON('/api/token/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mint:value,network:'solana-mainnet'})});
       const report=data.investigation_report;
       const decision=requestToken?requestGuard.accept(requestToken,report):{accepted:true};
-      if(!decision.accepted){if(decision.reason==='stale_response')return;throw new Error(`scan_target_mismatch:${decision.expected}:${decision.returned}`)}
+      if(!decision.accepted){if(decision.reason==='stale_response')return;throw new Error(`scan_target_mismatch:${decision.expected}:${decision.returned}`);}
       if(!renderTechnicalReport(report,value))throw new Error('investigation_report_missing');
     }else{
       const intent=[activeMode==='deep'?'deep_radar_requested':'quick_check',note.value.trim()].filter(Boolean).join(': ');
@@ -159,7 +159,7 @@ async function runTargetScan(){
   }finally{
     const ownsUI=!requestToken||!requestGuard||requestGuard.isActive(requestToken);
     if(requestToken&&requestGuard)requestGuard.finish(requestToken);
-    if(ownsUI){submit.disabled=false;submit.textContent=MODES[activeMode].button}
+    if(ownsUI){submit.disabled=false;submit.textContent=MODES[activeMode].button;}
   }
 }
 
@@ -176,5 +176,5 @@ const initialKind=params.get('kind')||'token';
 applyMode(initialMode,{updateURL:false,reset:false});
 if(['token','wallet','site','transaction'].includes(initialKind)&&activeMode!=='token')kind.value=initialKind;
 const initial=pathMint||params.get('mint')||params.get('target')||'';
-if(initial&&activeMode!=='transaction'){target.value=initial;runScan()}
+if(initial&&activeMode!=='transaction'){target.value=initial;runScan();}
 })();

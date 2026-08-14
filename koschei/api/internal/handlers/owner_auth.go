@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -80,10 +78,4 @@ func walletFromBearer(r *http.Request) string {
 
 func normalizeWallet(v string) string {
 	return strings.ToLower(strings.TrimSpace(v))
-}
-
-func constantTimeStringEqual(a, b string) bool {
-	aHash := sha256.Sum256([]byte(a))
-	bHash := sha256.Sum256([]byte(b))
-	return subtle.ConstantTimeCompare(aHash[:], bHash[:]) == 1
 }

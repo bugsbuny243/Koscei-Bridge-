@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -377,8 +378,9 @@ func bearerToken(h string) string {
 
 func hashAPIKey(raw string) string {
 	pepper := os.Getenv("API_KEY_PEPPER")
-	sum := sha256.Sum256([]byte(raw + pepper))
-	return hex.EncodeToString(sum[:])
+	mac := hmac.New(sha256.New, []byte("koschei-api-key-v2:"+pepper))
+	_, _ = mac.Write([]byte(raw))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func newRawAPIKey() (string, error) {

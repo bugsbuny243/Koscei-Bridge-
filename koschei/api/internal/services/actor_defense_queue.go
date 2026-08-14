@@ -79,7 +79,7 @@ func (s *ActorDefenseStore) ListVerificationQueue(ctx context.Context, network, 
 	}
 	defer rows.Close()
 
-	items := make([]ActorDefenseQueueItem, 0, limit)
+	items := []ActorDefenseQueueItem{}
 	for rows.Next() {
 		var track ActorDefenseTrack
 		var dossierRaw []byte

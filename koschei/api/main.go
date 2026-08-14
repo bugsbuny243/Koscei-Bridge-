@@ -81,8 +81,8 @@ func main() {
 	defer appCache.Close()
 	solanaRPC := web3.NewSolanaRPC(appCache)
 	log.Printf("solana rpc primary=%s fallback=%s",
-		web3.RPCProviderHost(solanaRPC.URL("solana-mainnet")),
-		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
+		web3.RPCProviderLabel(solanaRPC.URL("solana-mainnet")),
+		web3.RPCProviderLabel(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
 	stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)

@@ -223,7 +223,7 @@ func acceptanceSHA256(value []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
-func dossierInt(value any) int { return int(dossierInt64(value)) }
+func dossierInt(value any) int { return safeIntOrZero(dossierInt64(value)) }
 
 func dossierInt64(value any) int64 {
 	switch typed := value.(type) {
