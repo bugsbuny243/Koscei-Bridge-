@@ -1,0 +1,687 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:koschei:web3:defense-validation-scenario:v0.1",
+  "title": "Koschei Web3 Defense Validation Scenario Definition v0.1",
+  "description": "A planned, non-evidentiary Solana attack/benign scenario definition. This contract cannot represent an executed run or a validation result.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "contract",
+    "scenario_ref",
+    "scenario_version",
+    "title",
+    "status",
+    "chain",
+    "ruleset_version",
+    "taxonomy",
+    "claim_boundary",
+    "environment",
+    "safety_gates",
+    "control_contract",
+    "matrix",
+    "required_run_evidence",
+    "limitations",
+    "references"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "defense-validation-scenario-v0\\.1\\.schema\\.json$"
+    },
+    "contract": {
+      "const": "koschei-defense-validation-scenario-v0.1"
+    },
+    "scenario_ref": {
+      "type": "string",
+      "pattern": "^scenario:solana:[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "scenario_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 12
+    },
+    "status": {
+      "const": "planned"
+    },
+    "chain": {
+      "const": "solana"
+    },
+    "ruleset_version": {
+      "const": "koschei-defense-validation-rules-v0.1.0"
+    },
+    "taxonomy": {
+      "$ref": "#/$defs/taxonomy"
+    },
+    "claim_boundary": {
+      "$ref": "#/$defs/claimBoundary"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "safety_gates": {
+      "$ref": "#/$defs/safetyGates"
+    },
+    "control_contract": {
+      "$ref": "#/$defs/controlContract"
+    },
+    "matrix": {
+      "$ref": "#/$defs/matrix"
+    },
+    "required_run_evidence": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "execution_hash",
+          "pre_state_hash",
+          "post_state_hash",
+          "independent_observation_hash",
+          "alert_hash_if_alerted",
+          "control_configuration_hash",
+          "completed_observation_window",
+          "execution_engine_attestation"
+        ]
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 12
+      }
+    },
+    "references": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": { "const": "taxonomy" }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": { "const": "methodology" }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": { "const": "execution-engine" }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "taxonomy": {
+      "type": "object",
+      "required": [
+        "framework",
+        "primary_technique_id",
+        "primary_technique_url",
+        "mapping_rationale",
+        "secondary_technique_ids"
+      ],
+      "properties": {
+        "framework": {
+          "const": "MITRE AADAPT"
+        },
+        "primary_technique_id": {
+          "type": "string",
+          "pattern": "^ADT[0-9]{4}(?:\\.[0-9]{3})?$"
+        },
+        "primary_technique_url": {
+          "type": "string",
+          "pattern": "^https://aadapt\\.mitre\\.org/techniques/ADT[0-9]{4}(?:\\.[0-9]{3})?/$"
+        },
+        "mapping_rationale": {
+          "type": "string",
+          "minLength": 24
+        },
+        "secondary_technique_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^ADT[0-9]{4}(?:\\.[0-9]{3})?$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "claimBoundary": {
+      "type": "object",
+      "required": [
+        "is_execution_evidence",
+        "is_validation_result",
+        "production_claim_allowed",
+        "mainnet_transaction_sent",
+        "verdict_authority"
+      ],
+      "properties": {
+        "is_execution_evidence": {
+          "const": false
+        },
+        "is_validation_result": {
+          "const": false
+        },
+        "production_claim_allowed": {
+          "const": false
+        },
+        "mainnet_transaction_sent": {
+          "const": false
+        },
+        "verdict_authority": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "execution_mode",
+        "engine",
+        "network_access",
+        "mainnet_rpc_allowed",
+        "ephemeral_generated_signers_only",
+        "private_key_material_in_manifest",
+        "signature_verification_disabled",
+        "arbitrary_account_writes_allowed"
+      ],
+      "properties": {
+        "execution_mode": {
+          "const": "sandbox"
+        },
+        "engine": {
+          "const": "litesvm"
+        },
+        "network_access": {
+          "const": false
+        },
+        "mainnet_rpc_allowed": {
+          "const": false
+        },
+        "ephemeral_generated_signers_only": {
+          "const": true
+        },
+        "private_key_material_in_manifest": {
+          "const": false
+        },
+        "signature_verification_disabled": {
+          "const": false
+        },
+        "arbitrary_account_writes_allowed": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "safetyGates": {
+      "type": "object",
+      "required": [
+        "default_off",
+        "owner_approval_required",
+        "production_control_mutation",
+        "automatic_intervention",
+        "wallet_custody",
+        "arbitrary_command_execution"
+      ],
+      "properties": {
+        "default_off": {
+          "const": true
+        },
+        "owner_approval_required": {
+          "const": true
+        },
+        "production_control_mutation": {
+          "const": false
+        },
+        "automatic_intervention": {
+          "const": false
+        },
+        "wallet_custody": {
+          "const": false
+        },
+        "arbitrary_command_execution": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "controlContract": {
+      "type": "object",
+      "required": [
+        "control_class",
+        "independent_collector_required",
+        "adapter_version_required",
+        "configuration_hash_required",
+        "attack_signal",
+        "benign_silence_required"
+      ],
+      "properties": {
+        "control_class": {
+          "const": "privileged-transaction-monitor"
+        },
+        "independent_collector_required": {
+          "const": true
+        },
+        "adapter_version_required": {
+          "const": true
+        },
+        "configuration_hash_required": {
+          "const": true
+        },
+        "attack_signal": {
+          "const": "unauthorized_privileged_withdrawal"
+        },
+        "benign_silence_required": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "matrix": {
+      "type": "object",
+      "required": [
+        "pair_ref",
+        "matched_fields",
+        "single_intent_difference",
+        "cases"
+      ],
+      "properties": {
+        "pair_ref": {
+          "type": "string",
+          "pattern": "^pair:solana:[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "matched_fields": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "stimulus.program_fixture",
+              "stimulus.instruction",
+              "stimulus.asset",
+              "stimulus.amount_atomic",
+              "observation_window_ms"
+            ]
+          }
+        },
+        "single_intent_difference": {
+          "const": "authorization_and_destination_policy"
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "required": ["case_kind"],
+                "properties": {
+                  "case_kind": { "const": "attack" }
+                }
+              },
+              "minContains": 1,
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "required": ["case_kind"],
+                "properties": {
+                  "case_kind": { "const": "benign" }
+                }
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/case"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "case_ref",
+        "case_kind",
+        "pair_ref",
+        "description",
+        "stimulus",
+        "authorization",
+        "planned_operations",
+        "state_assertions",
+        "impact_deadline_ms",
+        "observation_window_ms",
+        "expected_control_behavior"
+      ],
+      "properties": {
+        "case_ref": {
+          "type": "string",
+          "pattern": "^case:solana:[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "case_kind": {
+          "enum": [
+            "attack",
+            "benign"
+          ]
+        },
+        "pair_ref": {
+          "type": "string",
+          "pattern": "^pair:solana:[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20
+        },
+        "stimulus": {
+          "$ref": "#/$defs/stimulus"
+        },
+        "authorization": {
+          "$ref": "#/$defs/authorization"
+        },
+        "planned_operations": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            {
+              "const": "prepare_ephemeral_fixture_state"
+            },
+            {
+              "const": "present_withdrawal_to_control"
+            },
+            {
+              "const": "execute_owner_approved_isolated_fixture"
+            },
+            {
+              "const": "complete_independent_observation_window"
+            }
+          ],
+          "items": false
+        },
+        "state_assertions": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/stateAssertion"
+          }
+        },
+        "impact_deadline_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "observation_window_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_control_behavior": {
+          "$ref": "#/$defs/expectedControlBehavior"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "case_kind": {
+                "const": "attack"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "impact_deadline_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "expected_control_behavior": {
+                "properties": {
+                  "alert_required": {
+                    "const": true
+                  },
+                  "expected_signal": {
+                    "const": "unauthorized_privileged_withdrawal"
+                  },
+                  "latest_alert_offset_ms": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "authorization": {
+                "properties": {
+                  "approval_state": {
+                    "const": "absent"
+                  },
+                  "destination_policy": {
+                    "const": "not_allowlisted"
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "impact_deadline_ms": {
+                "const": null
+              },
+              "expected_control_behavior": {
+                "properties": {
+                  "alert_required": {
+                    "const": false
+                  },
+                  "expected_signal": {
+                    "const": null
+                  },
+                  "latest_alert_offset_ms": {
+                    "const": null
+                  }
+                }
+              },
+              "authorization": {
+                "properties": {
+                  "approval_state": {
+                    "const": "approved"
+                  },
+                  "destination_policy": {
+                    "const": "allowlisted"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "stimulus": {
+      "type": "object",
+      "required": [
+        "program_fixture",
+        "instruction",
+        "asset",
+        "amount_atomic"
+      ],
+      "properties": {
+        "program_fixture": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*_v[0-9]+$"
+        },
+        "instruction": {
+          "const": "treasury_withdrawal"
+        },
+        "asset": {
+          "const": "SOL"
+        },
+        "amount_atomic": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "authorization": {
+      "type": "object",
+      "required": [
+        "signer_class",
+        "approval_state",
+        "destination_policy",
+        "production_identity_used"
+      ],
+      "properties": {
+        "signer_class": {
+          "const": "ephemeral_privileged_fixture"
+        },
+        "approval_state": {
+          "enum": [
+            "absent",
+            "approved"
+          ]
+        },
+        "destination_policy": {
+          "enum": [
+            "not_allowlisted",
+            "allowlisted"
+          ]
+        },
+        "production_identity_used": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "stateAssertion": {
+      "type": "object",
+      "required": [
+        "assertion_ref",
+        "phase",
+        "subject",
+        "operator",
+        "expected"
+      ],
+      "properties": {
+        "assertion_ref": {
+          "type": "string",
+          "pattern": "^assertion:[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "phase": {
+          "enum": [
+            "pre",
+            "post"
+          ]
+        },
+        "subject": {
+          "enum": [
+            "treasury_balance_delta_atomic",
+            "destination_balance_delta_atomic"
+          ]
+        },
+        "operator": {
+          "const": "equals"
+        },
+        "expected": {
+          "enum": [
+            "zero",
+            "negative_transfer_amount_atomic",
+            "positive_transfer_amount_atomic"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "expectedControlBehavior": {
+      "type": "object",
+      "required": [
+        "alert_required",
+        "expected_signal",
+        "latest_alert_offset_ms"
+      ],
+      "properties": {
+        "alert_required": {
+          "type": "boolean"
+        },
+        "expected_signal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latest_alert_offset_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "role",
+        "title",
+        "url"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "taxonomy",
+            "methodology",
+            "execution-engine"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 4
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

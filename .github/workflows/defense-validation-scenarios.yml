@@ -1,0 +1,41 @@
+name: Defense Validation Scenarios
+
+on:
+  pull_request:
+    paths:
+      - "docs/defense-validation/scenarios/**"
+      - "oss/schemas/defense-validation-scenario-*.schema.json"
+      - "oss/verifier/typescript/verify-defense-scenario*.mjs"
+      - ".github/workflows/defense-validation-scenarios.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/defense-validation/scenarios/**"
+      - "oss/schemas/defense-validation-scenario-*.schema.json"
+      - "oss/verifier/typescript/verify-defense-scenario*.mjs"
+      - ".github/workflows/defense-validation-scenarios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify planned scenario contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check verifier syntax
+        run: node --check oss/verifier/typescript/verify-defense-scenario.mjs
+      - name: Run fail-closed contract tests
+        run: node --test oss/verifier/typescript/verify-defense-scenario.test.mjs
+      - name: Verify canonical planned scenario
+        run: >-
+          node oss/verifier/typescript/verify-defense-scenario.mjs
+          docs/defense-validation/scenarios/solana-compromised-privileged-signer-v1.json

@@ -191,7 +191,9 @@ Tron adapter   ┘
 6. order-independent rapor hash'i;
 7. hiçbir route, migration, worker action veya production gate aktivasyonu olmaması.
 
-Sonraki dilim, Phase 12C yürütme kaydı ile evaluator arasındaki tek yönlü adapter olacaktır. İlk gerçek ürün kanıtı, owner-onaylı bir Solana senaryosunun iki farklı savunma ayarında aynı immutable fixture ile karşılaştırılmasıdır.
+Yürütme adapter'ından önce statik senaryo tanımı; attack + benign eşini, güvenlik kapılarını ve gelecekte zorunlu olacak run kanıtlarını kilitleyebilir. Bu tanım yalnızca `planned` olabilir; run kimliği, execution/state hash'i, observation, outcome veya verdict içeremez ve “test edildi” iddiası üretmez.
+
+Sonraki yürütme dilimi, Phase 12C yürütme kaydı ile evaluator arasındaki tek yönlü adapter olacaktır. İlk gerçek ürün kanıtı, owner-onaylı bir Solana senaryosunun iki farklı savunma ayarında aynı immutable fixture ile karşılaştırılmasıdır.
 
 ## 12. Kabul kriteri
 

@@ -1,0 +1,204 @@
+{
+  "$schema": "../../../oss/schemas/defense-validation-scenario-v0.1.schema.json",
+  "contract": "koschei-defense-validation-scenario-v0.1",
+  "scenario_ref": "scenario:solana:compromised-privileged-signer",
+  "scenario_version": "v1.0.0",
+  "title": "Compromised privileged signer treasury withdrawal",
+  "status": "planned",
+  "chain": "solana",
+  "ruleset_version": "koschei-defense-validation-rules-v0.1.0",
+  "taxonomy": {
+    "framework": "MITRE AADAPT",
+    "primary_technique_id": "ADT1552.004",
+    "primary_technique_url": "https://aadapt.mitre.org/techniques/ADT1552.004/",
+    "mapping_rationale": "The attack case models unauthorized use of a compromised privileged signing authority while keeping all identities ephemeral and isolated.",
+    "secondary_technique_ids": []
+  },
+  "claim_boundary": {
+    "is_execution_evidence": false,
+    "is_validation_result": false,
+    "production_claim_allowed": false,
+    "mainnet_transaction_sent": false,
+    "verdict_authority": false
+  },
+  "environment": {
+    "execution_mode": "sandbox",
+    "engine": "litesvm",
+    "network_access": false,
+    "mainnet_rpc_allowed": false,
+    "ephemeral_generated_signers_only": true,
+    "private_key_material_in_manifest": false,
+    "signature_verification_disabled": false,
+    "arbitrary_account_writes_allowed": false
+  },
+  "safety_gates": {
+    "default_off": true,
+    "owner_approval_required": true,
+    "production_control_mutation": false,
+    "automatic_intervention": false,
+    "wallet_custody": false,
+    "arbitrary_command_execution": false
+  },
+  "control_contract": {
+    "control_class": "privileged-transaction-monitor",
+    "independent_collector_required": true,
+    "adapter_version_required": true,
+    "configuration_hash_required": true,
+    "attack_signal": "unauthorized_privileged_withdrawal",
+    "benign_silence_required": true
+  },
+  "matrix": {
+    "pair_ref": "pair:solana:privileged-withdrawal",
+    "matched_fields": [
+      "stimulus.program_fixture",
+      "stimulus.instruction",
+      "stimulus.asset",
+      "stimulus.amount_atomic",
+      "observation_window_ms"
+    ],
+    "single_intent_difference": "authorization_and_destination_policy",
+    "cases": [
+      {
+        "case_ref": "case:solana:unauthorized-privileged-withdrawal",
+        "case_kind": "attack",
+        "pair_ref": "pair:solana:privileged-withdrawal",
+        "description": "An ephemeral privileged fixture signer requests a withdrawal without approval to a non-allowlisted fixture destination.",
+        "stimulus": {
+          "program_fixture": "koschei_treasury_guard_fixture_v1",
+          "instruction": "treasury_withdrawal",
+          "asset": "SOL",
+          "amount_atomic": "1000000000"
+        },
+        "authorization": {
+          "signer_class": "ephemeral_privileged_fixture",
+          "approval_state": "absent",
+          "destination_policy": "not_allowlisted",
+          "production_identity_used": false
+        },
+        "planned_operations": [
+          "prepare_ephemeral_fixture_state",
+          "present_withdrawal_to_control",
+          "execute_owner_approved_isolated_fixture",
+          "complete_independent_observation_window"
+        ],
+        "state_assertions": [
+          {
+            "assertion_ref": "assertion:pre-treasury-delta",
+            "phase": "pre",
+            "subject": "treasury_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "zero"
+          },
+          {
+            "assertion_ref": "assertion:post-treasury-debit",
+            "phase": "post",
+            "subject": "treasury_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "negative_transfer_amount_atomic"
+          },
+          {
+            "assertion_ref": "assertion:post-destination-credit",
+            "phase": "post",
+            "subject": "destination_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "positive_transfer_amount_atomic"
+          }
+        ],
+        "impact_deadline_ms": 1000,
+        "observation_window_ms": 2000,
+        "expected_control_behavior": {
+          "alert_required": true,
+          "expected_signal": "unauthorized_privileged_withdrawal",
+          "latest_alert_offset_ms": 1000
+        }
+      },
+      {
+        "case_ref": "case:solana:authorized-privileged-withdrawal",
+        "case_kind": "benign",
+        "pair_ref": "pair:solana:privileged-withdrawal",
+        "description": "The same ephemeral privileged fixture signer requests the same withdrawal with approval to an allowlisted fixture destination.",
+        "stimulus": {
+          "program_fixture": "koschei_treasury_guard_fixture_v1",
+          "instruction": "treasury_withdrawal",
+          "asset": "SOL",
+          "amount_atomic": "1000000000"
+        },
+        "authorization": {
+          "signer_class": "ephemeral_privileged_fixture",
+          "approval_state": "approved",
+          "destination_policy": "allowlisted",
+          "production_identity_used": false
+        },
+        "planned_operations": [
+          "prepare_ephemeral_fixture_state",
+          "present_withdrawal_to_control",
+          "execute_owner_approved_isolated_fixture",
+          "complete_independent_observation_window"
+        ],
+        "state_assertions": [
+          {
+            "assertion_ref": "assertion:pre-treasury-delta",
+            "phase": "pre",
+            "subject": "treasury_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "zero"
+          },
+          {
+            "assertion_ref": "assertion:post-treasury-debit",
+            "phase": "post",
+            "subject": "treasury_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "negative_transfer_amount_atomic"
+          },
+          {
+            "assertion_ref": "assertion:post-destination-credit",
+            "phase": "post",
+            "subject": "destination_balance_delta_atomic",
+            "operator": "equals",
+            "expected": "positive_transfer_amount_atomic"
+          }
+        ],
+        "impact_deadline_ms": null,
+        "observation_window_ms": 2000,
+        "expected_control_behavior": {
+          "alert_required": false,
+          "expected_signal": null,
+          "latest_alert_offset_ms": null
+        }
+      }
+    ]
+  },
+  "required_run_evidence": [
+    "execution_hash",
+    "pre_state_hash",
+    "post_state_hash",
+    "independent_observation_hash",
+    "alert_hash_if_alerted",
+    "control_configuration_hash",
+    "completed_observation_window",
+    "execution_engine_attestation"
+  ],
+  "limitations": [
+    "This file is a scenario definition only; no transaction or sandbox execution has occurred.",
+    "No defense control has been tested and no validated, failed, or incomplete result is claimed.",
+    "The fixture program, execution adapter, and independent collector are not implemented in this slice.",
+    "The AADAPT mapping describes the planned threat model and is not evidence of a real incident."
+  ],
+  "references": [
+    {
+      "role": "taxonomy",
+      "title": "MITRE AADAPT ADT1552.004 — Unsecured Credentials: Private Keys",
+      "url": "https://aadapt.mitre.org/techniques/ADT1552.004/"
+    },
+    {
+      "role": "methodology",
+      "title": "Security Alliance drill template",
+      "url": "https://github.com/security-alliance/drill-template"
+    },
+    {
+      "role": "execution-engine",
+      "title": "LiteSVM",
+      "url": "https://github.com/LiteSVM/litesvm"
+    }
+  ]
+}

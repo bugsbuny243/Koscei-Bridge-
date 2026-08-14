@@ -196,7 +196,7 @@ func validDefenseValidationTestInput() DefenseValidationInput {
 		Cases: []DefenseValidationCase{
 			{
 				CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttack,
-				TechniqueID: "AADAPT:privileged-access", ExecutionMode: DefenseValidationExecutionFork,
+				TechniqueID: "ADT1552.004", ExecutionMode: DefenseValidationExecutionFork,
 				ExecutionRef: "execution:attack", ExecutionHash: defenseValidationTestHash("2"),
 				PreStateHash: defenseValidationTestHash("3"), PostStateHash: defenseValidationTestHash("4"),
 				EvidenceState: DefenseValidationEvidenceVerified, ImpactOffsetMS: &impact,
