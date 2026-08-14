@@ -12,7 +12,6 @@ type RecursiveLineageWalletMemory struct {
 	Seed      RecursiveLineageSeed            `json:"seed"`
 	Available bool                            `json:"available"`
 	Status    string                          `json:"status"`
-	Track     ActorDefenseTrack               `json:"track"`
 	Tokens    []ActorDefenseTokenObservation `json:"tokens"`
 	Coverage  map[string]any                  `json:"coverage"`
 }
@@ -49,6 +48,7 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 			"no_evidence_no_claim":       true,
 			"bounded_persistent_history": true,
 			"synchronous_rpc_fanout":     false,
+			"read_path_mutates_store":    false,
 		},
 	}
 	if store == nil || store.DB == nil {
@@ -71,30 +71,37 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 		if wallet == "" {
 			continue
 		}
-		dossier, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 200)
+		history, err := store.LoadBoundedRecursiveTokenHistory(ctx, wallet, network, MaxRecursiveLineageTokensPerSeed)
 		if err != nil {
 			out.Complete = false
 			out.FailedWallets = append(out.FailedWallets, wallet)
 			out.Wallets = append(out.Wallets, RecursiveLineageWalletMemory{
-				Seed: seed, Available: false, Status: "persistent_dossier_unavailable", Coverage: map[string]any{}, Tokens: []ActorDefenseTokenObservation{},
+				Seed: seed, Available: false, Status: "persistent_history_unavailable", Coverage: map[string]any{}, Tokens: []ActorDefenseTokenObservation{},
 			})
 			continue
 		}
-		tokens := append([]ActorDefenseTokenObservation(nil), dossier.Tokens...)
-		if len(tokens) > MaxRecursiveLineageTokensPerSeed {
-			tokens = tokens[:MaxRecursiveLineageTokensPerSeed]
+		if !history.Complete {
 			out.Complete = false
+			out.Limitations = append(out.Limitations, history.Limitations...)
 		}
 		out.Wallets = append(out.Wallets, RecursiveLineageWalletMemory{
-			Seed: seed, Available: true, Status: "persistent_dossier_loaded",
-			Track: dossier.Track, Tokens: tokens, Coverage: dossier.Coverage,
+			Seed: seed, Available: true, Status: "bounded_persistent_history_loaded",
+			Tokens: append([]ActorDefenseTokenObservation(nil), history.Tokens...),
+			Coverage: map[string]any{
+				"complete": history.Complete,
+				"evidence_rows_read": history.EvidenceRowsRead,
+				"trade_groups_read": history.TradeGroupsRead,
+				"token_count": len(history.Tokens),
+			},
 		})
-		mergeInputs = append(mergeInputs, RecursiveLineageWalletDossier{Seed: seed, Dossier: dossier})
+		mergeInputs = append(mergeInputs, RecursiveLineageWalletDossier{
+			Seed: seed, Dossier: ActorDefenseDossier{Wallet: wallet, Network: network, Tokens: history.Tokens},
+		})
 	}
 	out.FailedWallets = uniqueSortedRecursiveLineageStrings(out.FailedWallets)
 	if len(out.FailedWallets) > 0 {
 		out.Status = "persistent_memory_partial"
-		out.Limitations = append(out.Limitations, "One or more seed-wallet persistent dossiers could not be loaded; no clean/safe claim was inferred from missing history.")
+		out.Limitations = append(out.Limitations, "One or more seed-wallet persistent histories could not be loaded; no clean/safe claim was inferred from missing history.")
 	}
 	out.TokenLineage = MergeRecursiveLineageTokenHistory(currentMint, mergeInputs)
 	if !out.TokenLineage.Complete {
