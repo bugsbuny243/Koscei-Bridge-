@@ -87,3 +87,28 @@ func TestBuildRecursiveLineageSeedPlanDeduplicatesRoles(t *testing.T) {
 		t.Fatalf("holder rank should be preserved on merged seed, got %d", seed.HolderRank)
 	}
 }
+
+func TestBuildRecursiveLineageSeedPlanCountsRepeatedHolderWalletOnce(t *testing.T) {
+	holders := HolderIntelligence{Rows: []HolderIntelligenceRow{
+		{Rank: 5, OwnerWallet: "holder-x", OwnerResolved: true, RiskBearing: true, ParsedTransactions: 1},
+		{Rank: 2, OwnerWallet: "holder-x", OwnerResolved: true, RiskBearing: true, CommonExitObserved: true},
+	}}
+	plan := BuildRecursiveLineageSeedPlan("creator", ActorFundingOrigin{}, holders)
+	if plan.HolderCandidatesObserved != 1 || plan.HolderSeedsIncluded != 1 {
+		t.Fatalf("repeated holder rows must count once: candidates=%d included=%d", plan.HolderCandidatesObserved, plan.HolderSeedsIncluded)
+	}
+	if len(plan.Seeds) != 2 {
+		t.Fatalf("expected creator plus one unique holder seed, got %#v", plan.Seeds)
+	}
+	seed := plan.Seeds[1]
+	if seed.HolderRank != 2 {
+		t.Fatalf("merged duplicate holder should preserve best rank, got %d", seed.HolderRank)
+	}
+	reasons := map[string]bool{}
+	for _, reason := range seed.Reasons {
+		reasons[reason] = true
+	}
+	if !reasons["parsed_transaction_evidence"] || !reasons["common_exit_evidence"] {
+		t.Fatalf("merged duplicate holder should preserve all reasons: %#v", seed.Reasons)
+	}
+}
