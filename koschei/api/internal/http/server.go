@@ -171,7 +171,7 @@ func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier tie
 	risk := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureRiskScanner, next) }
 	badge := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featurePublicBadge, next) }
 	mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))
-	mux.HandleFunc("/api/v1/risk/badge", solana(badge(method("GET", h.SecurityRiskBadge))))
+	mux.HandleFunc("/api/v1/risk/badge", solana(badge(method("GET", h.CanonicalSecurityRiskBadge))))
 	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, planTier("starter", method("POST", h.TokenScan))))))
 	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, planTier("starter", method("POST", h.AddressPoisoningCheck)))))
 	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, planTier("starter", method("POST", h.SecurityRadarCheckWithAlerts)))))
@@ -180,7 +180,7 @@ func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier tie
 	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, planTier("starter", method("POST", h.CreateWeb3Job))))))
 	mux.HandleFunc("/api/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
 	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, planTier("starter", method("GET", h.SecurityRadarDetailV3)))))
-	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarFeed)))))
+	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, planTier("professional", method("GET", h.CanonicalSecurityRadarFeed)))))
 	mux.HandleFunc("/api/v1/radar/creator-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerCreatorIntelligence)))))
 	mux.HandleFunc("/api/v1/radar/actor-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerActorSecurityIntelligence)))))
 	mux.HandleFunc("/api/v1/radar/graph", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarGraph)))))
