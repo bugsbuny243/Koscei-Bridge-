@@ -65,8 +65,9 @@ func (h *Handler) CanonicalSecurityRiskBadge(w http.ResponseWriter, r *http.Requ
 }
 
 // CanonicalSecurityRadarFeed exposes one latest signed canonical token verdict
-// per target. Legacy risk_index/risk_level fields remain nullable compatibility
-// fields because the canonical decision contract is categorical by design.
+// per target. Legacy risk_index remains nullable because the canonical decision
+// contract is categorical by design; categorical risk_level is derived only
+// from the signed grade and is not a numeric score.
 func (h *Handler) CanonicalSecurityRadarFeed(w http.ResponseWriter, r *http.Request) {
 	db := h.DBRead
 	if db == nil {
@@ -195,6 +196,19 @@ func scanCanonicalPublicRadarRecord(scanner canonicalPublicRadarScanner) (canoni
 	return record, nil
 }
 
+func canonicalGradeRiskLevel(grade string) string {
+	switch strings.ToUpper(strings.TrimSpace(grade)) {
+	case "F", "E", "D", "D+":
+		return "high"
+	case "C", "C-", "C+":
+		return "elevated"
+	case "A", "A-", "A+", "B", "B-", "B+":
+		return "monitor"
+	default:
+		return "unknown"
+	}
+}
+
 func canonicalPublicBadgeMap(record canonicalPublicRadarRecord) map[string]any {
 	return map[string]any{
 		"ok": true,
@@ -204,7 +218,7 @@ func canonicalPublicBadgeMap(record canonicalPublicRadarRecord) map[string]any {
 		"grade": record.Grade,
 		"verdict": record.Verdict,
 		"risk_index": nil,
-		"risk_level": "categorical_grade",
+		"risk_level": canonicalGradeRiskLevel(record.Grade),
 		"score_model": "categorical_grade_no_numeric_risk",
 		"rule_version": record.RulesetVersion,
 		"actor_rule_version": record.ActorRulesetVersion,
@@ -229,7 +243,7 @@ func canonicalPublicFeedMap(record canonicalPublicRadarRecord) map[string]any {
 		"network": record.Network,
 		"grade": record.Grade,
 		"risk_index": nil,
-		"risk_level": "categorical_grade",
+		"risk_level": canonicalGradeRiskLevel(record.Grade),
 		"verdict": record.Verdict,
 		"rule_version": record.RulesetVersion,
 		"actor_rule_version": record.ActorRulesetVersion,
@@ -249,6 +263,8 @@ func canonicalPublicFeedMap(record canonicalPublicRadarRecord) map[string]any {
 			"canonical_authority": true,
 			"canonical_store": "security_unified_radar_verdicts",
 			"categorical_grade": true,
+			"canonical_grade": record.Grade,
+			"verified_evidence": record.Signed && strings.TrimSpace(record.Signature) != "",
 			"deterministic_signed_contract": record.Signed,
 		},
 		"summary": map[string]any{
