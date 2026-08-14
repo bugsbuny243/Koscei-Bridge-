@@ -9,12 +9,12 @@ import (
 const RecursiveLineageVersion = "koschei-radar-recursive-lineage-v1"
 
 type RecursiveLineageWalletMemory struct {
-	Seed      RecursiveLineageSeed              `json:"seed"`
-	Available bool                              `json:"available"`
-	Status    string                            `json:"status"`
-	Tokens    []ActorDefenseTokenObservation   `json:"tokens"`
-	Lifecycle RecursiveLineageLifecycleReport  `json:"lifecycle"`
-	Coverage  map[string]any                    `json:"coverage"`
+	Seed      RecursiveLineageSeed             `json:"seed"`
+	Available bool                             `json:"available"`
+	Status    string                           `json:"status"`
+	Tokens    []ActorDefenseTokenObservation  `json:"tokens"`
+	Lifecycle RecursiveLineageLifecycleReport `json:"lifecycle"`
+	Coverage  map[string]any                   `json:"coverage"`
 }
 
 type RecursiveLineagePersistentMemoryReport struct {
@@ -105,10 +105,11 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 			Seed: seed, Available: true, Status: "bounded_persistent_history_loaded",
 			Tokens: append([]ActorDefenseTokenObservation(nil), history.Tokens...), Lifecycle: lifecycle,
 			Coverage: map[string]any{
-				"complete": history.Complete,
-				"evidence_rows_read": history.EvidenceRowsRead,
-				"trade_groups_read": history.TradeGroupsRead,
-				"token_count": len(history.Tokens),
+				"complete":                  history.Complete,
+				"evidence_rows_read":        history.EvidenceRowsRead,
+				"funding_rows_read":         history.FundingRowsRead,
+				"trade_groups_read":         history.TradeGroupsRead,
+				"token_count":               len(history.Tokens),
 				"lifecycle_reference_count": len(lifecycle.References),
 			},
 		})
