@@ -9,11 +9,12 @@ import (
 const RecursiveLineageVersion = "koschei-radar-recursive-lineage-v1"
 
 type RecursiveLineageWalletMemory struct {
-	Seed      RecursiveLineageSeed            `json:"seed"`
-	Available bool                            `json:"available"`
-	Status    string                          `json:"status"`
-	Tokens    []ActorDefenseTokenObservation `json:"tokens"`
-	Coverage  map[string]any                  `json:"coverage"`
+	Seed      RecursiveLineageSeed              `json:"seed"`
+	Available bool                              `json:"available"`
+	Status    string                            `json:"status"`
+	Tokens    []ActorDefenseTokenObservation   `json:"tokens"`
+	Lifecycle RecursiveLineageLifecycleReport  `json:"lifecycle"`
+	Coverage  map[string]any                    `json:"coverage"`
 }
 
 type RecursiveLineagePersistentMemoryReport struct {
@@ -77,6 +78,7 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 			out.FailedWallets = append(out.FailedWallets, wallet)
 			out.Wallets = append(out.Wallets, RecursiveLineageWalletMemory{
 				Seed: seed, Available: false, Status: "persistent_history_unavailable", Coverage: map[string]any{}, Tokens: []ActorDefenseTokenObservation{},
+				Lifecycle: RecursiveLineageLifecycleReport{Wallet: wallet, Network: network, Complete: false, References: []RecursiveLineageLifecycleReference{}, Limitations: []string{"Persistent token history was unavailable."}},
 			})
 			continue
 		}
@@ -84,14 +86,30 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 			out.Complete = false
 			out.Limitations = append(out.Limitations, history.Limitations...)
 		}
+		lifecycle := RecursiveLineageLifecycleReport{Wallet: wallet, Network: network, Complete: true, References: []RecursiveLineageLifecycleReference{}, Limitations: []string{}}
+		if recursiveLineageHistoryHasCreatorRole(history.Tokens) {
+			loadedLifecycle, lifecycleErr := store.LoadBoundedRecursiveLifecycle(ctx, wallet, network, currentMint, MaxRecursiveLineageTokensPerSeed)
+			if lifecycleErr != nil {
+				out.Complete = false
+				lifecycle.Complete = false
+				lifecycle.Limitations = append(lifecycle.Limitations, "Creator lifecycle provenance could not be loaded for this seed wallet.")
+			} else {
+				lifecycle = loadedLifecycle
+				if !lifecycle.Complete {
+					out.Complete = false
+					out.Limitations = append(out.Limitations, lifecycle.Limitations...)
+				}
+			}
+		}
 		out.Wallets = append(out.Wallets, RecursiveLineageWalletMemory{
 			Seed: seed, Available: true, Status: "bounded_persistent_history_loaded",
-			Tokens: append([]ActorDefenseTokenObservation(nil), history.Tokens...),
+			Tokens: append([]ActorDefenseTokenObservation(nil), history.Tokens...), Lifecycle: lifecycle,
 			Coverage: map[string]any{
 				"complete": history.Complete,
 				"evidence_rows_read": history.EvidenceRowsRead,
 				"trade_groups_read": history.TradeGroupsRead,
 				"token_count": len(history.Tokens),
+				"lifecycle_reference_count": len(lifecycle.References),
 			},
 		})
 		mergeInputs = append(mergeInputs, RecursiveLineageWalletDossier{
@@ -104,10 +122,22 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 		out.Limitations = append(out.Limitations, "One or more seed-wallet persistent histories could not be loaded; no clean/safe claim was inferred from missing history.")
 	}
 	out.TokenLineage = MergeRecursiveLineageTokenHistory(currentMint, mergeInputs)
+	out.TokenLineage = AttachRecursiveLineageLifecycle(out.TokenLineage, out.Wallets)
 	if !out.TokenLineage.Complete {
 		out.Complete = false
 		out.Limitations = append(out.Limitations, out.TokenLineage.Limitations...)
 	}
 	out.Limitations = uniqueSortedRecursiveLineageStrings(out.Limitations)
 	return out
+}
+
+func recursiveLineageHistoryHasCreatorRole(tokens []ActorDefenseTokenObservation) bool {
+	for _, token := range tokens {
+		for _, role := range token.Roles {
+			if strings.TrimSpace(role) == "creator_deployer" {
+				return true
+			}
+		}
+	}
+	return false
 }
