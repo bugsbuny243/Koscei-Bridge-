@@ -87,27 +87,37 @@ func BuildRecursiveLineageSeedPlan(creator string, funding ActorFundingOrigin, h
 		return strings.TrimSpace(rows[i].OwnerWallet) < strings.TrimSpace(rows[j].OwnerWallet)
 	})
 
+	holderCandidates := map[string]bool{}
+	holderSeeds := map[string]bool{}
 	for _, row := range rows {
 		if !recursiveLineageHolderEligible(row) {
 			continue
 		}
-		out.HolderCandidatesObserved++
+		wallet := strings.TrimSpace(row.OwnerWallet)
+		if !holderCandidates[wallet] {
+			holderCandidates[wallet] = true
+			out.HolderCandidatesObserved++
+		}
+		if holderSeeds[wallet] {
+			add(RecursiveLineageSeed{
+				Wallet: wallet, Roles: []string{"critical_holder"}, EvidenceStatus: "observed",
+				HolderRank: row.Rank, Reasons: recursiveLineageHolderReasons(row),
+			})
+			continue
+		}
 		if out.HolderSeedsIncluded >= MaxRecursiveLineageHolderSeeds {
 			out.Complete = false
 			continue
 		}
-		reasons := recursiveLineageHolderReasons(row)
-		before := len(out.Seeds)
 		add(RecursiveLineageSeed{
-			Wallet:         row.OwnerWallet,
+			Wallet:         wallet,
 			Roles:          []string{"critical_holder"},
 			EvidenceStatus: "observed",
 			HolderRank:     row.Rank,
-			Reasons:        reasons,
+			Reasons:        recursiveLineageHolderReasons(row),
 		})
-		if len(out.Seeds) > before || recursiveLineageSeedHasRole(out.Seeds, strings.TrimSpace(row.OwnerWallet), "critical_holder") {
-			out.HolderSeedsIncluded++
-		}
+		holderSeeds[wallet] = true
+		out.HolderSeedsIncluded++
 	}
 	if out.HolderCandidatesObserved > MaxRecursiveLineageHolderSeeds {
 		out.Limitations = append(out.Limitations, "Critical-holder seed selection was capped at 20 wallets; additional eligible holders may exist outside this bounded view.")
@@ -157,20 +167,6 @@ func recursiveLineageEvidenceRank(status string) int {
 	default:
 		return 0
 	}
-}
-
-func recursiveLineageSeedHasRole(seeds []RecursiveLineageSeed, wallet, role string) bool {
-	for _, seed := range seeds {
-		if seed.Wallet != wallet {
-			continue
-		}
-		for _, candidate := range seed.Roles {
-			if candidate == role {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func uniqueSortedRecursiveLineageStrings(values []string) []string {
