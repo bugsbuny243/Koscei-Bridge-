@@ -1,11 +1,13 @@
 # Koschei — Solana Security Market-Gap Integration
 
-Status: strategic execution contract  
+Status: historical strategic input; product positioning superseded  
 Baseline: `main@7e31b5d8fbe3feb2d55f854a93675f4dfe01f722`  
 Canonical investigation contract: `ACTOR_INVESTIGATION_ENGINE.md` v1.0  
 Unified Radar ruleset: `koschei-unified-radar-rules-v1.0.0`
 
 This document incorporates the market-gap report received on 2026-07-24 into Koschei without replacing or weakening the existing evidence engine.
+
+> **Supersession notice — 2026-08-14:** Product positioning, immediate priority and success metrics in this document are historical inputs. The current product-wide contract is [`WEB3_DEFENSE_VALIDATION_ENGINE.md`](../WEB3_DEFENSE_VALIDATION_ENGINE.md): Koschei Web3 validates whether exact Web3 defense configurations actually work. ARVIS actor intelligence and Defense OS remain evidence/execution subsystems. The evidence, safety and no-authority boundaries below remain active unless the new canonical contract is stricter.
 
 External market sizes, competitor claims, pricing figures, legal conclusions and incident totals are strategic inputs, not Koschei technical evidence. They must be independently revalidated before public marketing, contracting or legal reliance.
 

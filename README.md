@@ -1,27 +1,30 @@
-# KOSCHEİ WEB3 — ARVIS
+# KOSCHEİ WEB3 — DEFENSE VALIDATION
 
-Koschei ARVIS is a live, Solana-native pre-signing risk layer for developers, wallets, launchpads, dApps, DeFi protocols, research teams and security operators.
+Koschei Web3 is an evidence-first, vendor-neutral defense-validation platform. It is being built to prove whether an exact Web3 security-control configuration catches a controlled attack before impact, reacts late, misses it or flags benign behavior.
 
 ## 30-second pitch
 
-Koschei ARVIS stops risky Solana interactions before users sign. Integrating products call one API and receive a machine-readable **allow, warn, block or withhold** decision backed by verified evidence, rule metadata and signed status.
+Koschei Web3 answers one question: **who tests the Web3 defenses?** It runs versioned attack and benign-control cases in an isolated fork/sandbox, observes the defense through an independent collector and produces a deterministic **validated, failed or incomplete** result backed by execution, state, timing and alert hashes.
 
-Instead of building separate token, wallet, transaction, monitoring and alert systems, Solana product teams integrate one reusable risk layer.
+It does not replace monitoring, wallets, audits or incident response. It tests whether those defenses actually work for the exact version, configuration, scenario and observation window in the report. Existing ARVIS and Defense OS capabilities become evidence and safe-execution subsystems of this product.
 
 ## Who pays — and why
 
-| Customer | What ARVIS does | Why they pay |
+| Customer | What Koschei validates | Why they pay |
 | --- | --- | --- |
-| Wallets | Adds evidence-backed pre-signing warnings | Reduce preventable risky interactions and support incidents |
-| Launchpads | Screens token behavior, authorities and concentration | Avoid maintaining several disconnected screening systems |
-| dApps and DeFi protocols | Simulates transactions and applies integration policy | Make consistent allow, warn, block or withhold decisions before execution |
-| Security and research teams | Monitors targets and delivers signed alerts | Replace manual monitoring with auditable evidence and reliable delivery |
+| Protocol and DAO security teams | Whether monitoring and response controls catch controlled exploit sequences before impact | Replace assumptions with reproducible evidence before and after a control change |
+| Wallet and pre-signing teams | Whether malicious payloads are blocked without flagging matched benign activity | Measure misses, late detections and false positives against exact releases |
+| Monitoring and detection vendors | Whether exact rule/configuration versions detect a versioned Web3 scenario corpus | Produce independently collected benchmark evidence instead of self-attestation |
+| Audit and incident-response firms | Whether recommended controls survive realistic fork drills | Add proof-of-control to code review and post-incident remediation |
+| Exchange and custody security teams | Whether privileged-access and transaction controls react within the required window | Test high-impact defenses without custody or mainnet execution |
 
-Commercial access can be output-based API capacity, persistent monitoring capacity or a B2B integration agreement.
+Commercial access can be scenario packs, control adapters, isolated validation runs, continuous regression validation or enterprise evidence dossiers.
 
 ## Why Solana
 
-ARVIS is not a generic Web3 score with a Solana label. Its evidence model is built around:
+Solana is the first adapter because the repository already contains the deepest safe-execution and evidence substrate there. The core evaluator is chain-independent; EVM and Tron require separate adapters and fixture corpora that preserve the same evidence contract.
+
+The existing Solana evidence subsystem understands:
 
 - Solana transaction instructions and account relationships
 - SPL Token and Token-2022 authorities, extensions and transfer behavior
@@ -33,32 +36,30 @@ ARVIS is not a generic Web3 score with a Solana label. Its evidence model is bui
 
 ## Current proof and next proof
 
-Live today:
+Existing substrate:
 
 - production Go API and worker pipeline
-- evidence-backed radar and signed verdict contract
+- deterministic ARVIS evidence and signed Radar verdicts
 - Token-2022 scanner and transaction firewall
-- persistent watchlists and HMAC-signed webhook delivery
-- authenticated B2B batch screening with idempotency
-- asynchronous result lookup and usage accounting
-- TypeScript client, schemas, examples and CI checks
+- immutable Defense OS artifacts, harness plans and default-off LiteSVM execution gates
+- persistent watchlists, webhooks, B2B APIs and evidence dossiers
 
-The next proof is external adoption: integration pilots, measured reliability and published technical case studies. Pilot requests are collected at `/pilot`.
+The first defense-validation slice adds a pure deterministic evaluator and fail-closed tests. It exposes no route, migration, worker action or production gate. A real product claim begins only after an owner-approved attack plus benign-control case runs through an independent collector twice with reproducible hashes.
 
 ## Technical scope
 
-Koschei is an engineering and infrastructure project. Its concrete outputs are:
+Koschei Web3's target outputs are:
 
-1. a live Solana observation and risk-processing pipeline
-2. deterministic evidence collection and final verdict generation
-3. authenticated developer APIs
-4. a TypeScript SDK
-5. an open-source Solana event normalizer
-6. a machine-readable signed-verdict schema
-7. wallet and launchpad integration examples
-8. developer documentation and reproducible CI checks
+1. a versioned Web3 attack and benign-control scenario corpus
+2. safe fork/sandbox orchestration with no mainnet, custody or signing authority
+3. vendor-neutral security-control adapters
+4. independent alert and observation collection
+5. exact detection time, lead time, miss and false-positive measurements
+6. deterministic `VALIDATED / FAILED / INCOMPLETE` evaluation
+7. immutable evidence bundles and reproducible report hashes
+8. Solana-first adapters followed by separately evidenced EVM/Tron adapters
 
-Community events, general education and ecosystem promotion are not the product scope.
+ARVIS actor intelligence, signed Radar verdicts and current developer APIs remain active evidence surfaces. They do not decide a defense-validation outcome.
 
 ## Open-source developer kit
 
@@ -79,25 +80,27 @@ The open-source packages are MIT licensed and designed to remain useful without 
 ## Product rule
 
 ```text
-14 internal evidence arms
+versioned attack + matched benign control
         ↓
-one ARVIS core
+real fork/sandbox execution
         ↓
-one customer-facing verdict
+independent observation
+        ↓
+deterministic validation result
 ```
 
-The evidence arms are internal verification layers, not separate products. Customers and integrations receive one structured output with evidence, risk level, rule version and recommended action.
+The ARVIS evidence arms remain an internal evidence subsystem, not separate products. A defense-validation customer receives one structured result bound to the control version, configuration hash, scenario version, timing, evidence hashes and ruleset.
 
 ## Evidence policy
 
 ```text
-verified evidence exists  → signed verdict may be produced
-verified evidence missing → no score, no grade, no signed verdict
+verified execution + independent complete observation + attack/benign matrix → validation may be produced
+missing, mismatched or unverified evidence                                  → INCOMPLETE
 ```
 
 On-chain and off-chain observations are labeled separately. Parsed URLs are not presented as on-chain evidence. Wallet relations are not presented as real-world identity claims. A low-risk or monitor result is not a safety guarantee.
 
-## Core evidence arms
+## Existing ARVIS evidence subsystem
 
 1. Pump.fun Sybil Radar
 2. Raydium Pool Guardian
@@ -116,7 +119,7 @@ On-chain and off-chain observations are labeled separately. Parsed URLs are not 
 
 Each arm remains unsigned when its required evidence is unavailable.
 
-## Live pipeline
+## Existing ARVIS live pipeline
 
 ```text
 Pump-style + Raydium-style observations
@@ -156,16 +159,16 @@ See `docs/api-reference.md` for authentication boundaries and current production
 
 ## Integration pilot
 
-The pilot flow is for wallets, dApps, launchpads, DeFi protocols and security teams with a real Solana integration surface.
+The first defense-validation pilot is for a team with one exact security control and explicit authorization to test it in an isolated Solana environment.
 
 A strong pilot has:
 
-- one named integration owner
-- one explicit risk decision
-- one documented live API route
-- measurable decision latency and completed-check rate
-- reviewed false-positive and withheld-output samples
-- permission to publish anonymized technical integration notes
+- one named security owner and written test scope
+- one pinned control version and configuration hash
+- one attack case plus a matched benign control
+- one independently observed detection deadline
+- no mainnet, custody, signing or automatic-intervention requirement
+- permission to publish anonymized technical benchmark evidence
 
 Apply through the production `/pilot` page.
 
@@ -226,6 +229,8 @@ successful evidence-backed analysis    → one output consumed
 
 ## Documentation
 
+- Defense validation contract: `WEB3_DEFENSE_VALIDATION_ENGINE.md`
+- Actor investigation subsystem: `ACTOR_INVESTIGATION_ENGINE.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Data flow: `docs/architecture/data-flow.md`
 - API reference: `docs/api-reference.md`
@@ -244,4 +249,4 @@ MIT — see `LICENSE`.
 
 ---
 
-Built as live Solana-native pre-signing risk infrastructure and reusable developer tooling.
+Building the evidence layer that tests whether Web3 defenses actually work. Solana first; vendor-neutral and chain-adapter based.

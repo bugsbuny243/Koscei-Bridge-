@@ -1,6 +1,6 @@
 # Koschei Solana Defense Intelligence OS — Master Roadmap
 
-This document is the durable implementation order for the Defense OS track. It preserves the constitutional boundary that Defense evidence may support investigation but never owns a Koschei Radar verdict.
+This document is the durable implementation order for the Defense OS execution/evidence substrate. The product-wide compass is [`WEB3_DEFENSE_VALIDATION_ENGINE.md`](../WEB3_DEFENSE_VALIDATION_ENGINE.md): Koschei Web3 tests whether an exact Web3 defense configuration actually works. Defense OS supplies safe, default-off execution evidence; it does not by itself validate a security control and never owns a Koschei Radar verdict.
 
 ## Constitutional boundary
 
@@ -113,7 +113,7 @@ Delivered:
 
 Status: **complete**.
 
-## Active phase
+## Active execution-substrate phase
 
 ### Phase 12C — First Isolated Deterministic LiteSVM Run
 
@@ -136,7 +136,13 @@ The worker image currently installs Bubblewrap, but the Phase 12C execution gate
 
 Status: **in progress**.
 
-## Planned phases after Phase 12
+## Planned execution and validation phases after Phase 12
+
+### Defense Validation v0.1 — Deterministic Evaluation Foundation
+
+A chain-independent, I/O-free evaluator consumes exact control configuration, real fork/sandbox case evidence and independent observation evidence. It requires attack plus benign-control coverage and produces only `VALIDATED`, `FAILED` or `INCOMPLETE` under `koschei-defense-validation-rules-v0.1.0`.
+
+This slice adds no route, migration, worker action or production gate. Phase 12C remains default-off. The next slice is a one-way adapter from immutable Phase 12C attempts into versioned validation cases.
 
 ### Phase 13 — Stateful Adversarial Sequence Engine
 

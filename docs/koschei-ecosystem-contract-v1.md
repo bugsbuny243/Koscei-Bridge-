@@ -8,11 +8,22 @@ Scope: Koschei Web3 Hub, Koschei language, Koschei Sentinel and the official KOS
 
 The projects share an ecosystem identity and long-term direction, but they are not one runtime system today.
 
+The frozen product split is:
+
+```text
+Koschei Web3     = “Who tests Web3 defenses?”
+Koschei Sentinel = security intelligence/model
+Koschei Lang     = ultra-secure execution and authority infrastructure
+```
+
+ARVIS remains a Web3 evidence subsystem rather than a fourth independent product.
+
 | Component | Current responsibility | Current integration state | Must never own |
 | --- | --- | --- | --- |
-| Koschei Web3 Hub / ARVIS | Solana evidence collection, durable security memory, deterministic rules and signed verdicts | production-independent | Compiler semantics, model promotion authority or token price support |
-| Koschei language | Independent capability-secure language research, compiler/runtime development and interoperability tests | incubation-only | ARVIS production verdicts, Web3 runtime dependencies or token-controlled compiler behavior |
-| Koschei Sentinel | Offline Solana-security dataset, training, evaluation and model-lineage research | incubation-only | Final verdict authority, evidence fabrication, Web3 runtime execution or automatic production deployment |
+| Koschei Web3 Hub | Vendor-neutral Web3 defense validation: controlled fork/sandbox scenarios, independent observation, deterministic control outcomes and immutable evidence | production-independent; Solana-first | Compiler semantics, model promotion authority, custody, signing, mainnet execution or token price support |
+| ARVIS Actor Investigation | Durable Solana actor/campaign evidence and deterministic signed Radar verdicts; a Web3 evidence subsystem | production-independent | Defense-control validation, compiler semantics or model promotion authority |
+| Koschei language | Original ultra-secure execution and authority infrastructure research | incubation-only | ARVIS/Defense production verdicts, Web3 runtime dependency or token-controlled compiler behavior |
+| Koschei Sentinel | Offline security-intelligence/model dataset, training, evaluation and model-lineage research | incubation-only | Final verdict authority, evidence fabrication, Web3 runtime execution or automatic production deployment |
 | KOSCH asset | Verifiable ecosystem identity and separately documented access/community coordination | identity/utility only | Buying a safer verdict, changing compiler behavior, changing model promotion or promising financial return |
 
 Repositories:
@@ -233,10 +244,12 @@ Permitted uses may include documented access, capacity, contribution recognition
 
 ### Active Web3 work
 
-1. Preserve Helius and existing Solana collection.
-2. Complete durable actor, incident, funding and verdict memory.
-3. Ship bounded native intelligence queries.
-4. Improve production evidence quality, resilience and auditability.
+1. Establish the deterministic defense-validation contract in `WEB3_DEFENSE_VALIDATION_ENGINE.md`.
+2. Preserve Helius, ARVIS actor memory and existing Solana collection as evidence inputs.
+3. Connect default-off Defense OS fork/sandbox execution to versioned attack and benign-control scenarios.
+4. Add independent control-observation adapters without trusting vendor self-attestation.
+5. Produce immutable `VALIDATED / FAILED / INCOMPLETE` results for exact control configurations without changing Radar verdicts.
+6. Expand to additional chains only through adapters that preserve the canonical evidence contract.
 
 ### Background Sentinel work
 
@@ -257,7 +270,8 @@ Permitted uses may include documented access, capacity, contribution recognition
 The ecosystem may share identity while runtime integration remains disabled.
 
 ```text
-Web3 Hub remains production-independent
+Web3 Hub validates exact defense configurations without custody or mainnet authority
+ARVIS supplies evidence without owning defense-validation outcomes
 Sentinel matures offline without customer authority
 Koschei language matures independently without production dependency
 KOSCH coordinates utility without changing technical truth

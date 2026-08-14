@@ -1,22 +1,24 @@
 # Koschei Web3 Hub — Actor Investigation Engine
 
 **Ruleset & mimari referansı — v1.0**  
-**Statü:** Aktif pusula. Her yeni özellik ve iş bu dokümandaki filtreden geçer.  
-**Konum:** Repo kökü. Codex'e verilen her görev bu dokümana referansla yazılır.
+**Statü:** Aktif actor-intelligence alt sistemi pusulası. Actor/token işleri bu dokümandaki filtreden geçer.  
+**Konum:** Repo kökü. Actor/token görevleri bu dokümana; ürün-geneli savunma doğrulama görevleri `WEB3_DEFENSE_VALIDATION_ENGINE.md` belgesine referans verir.
 
 ---
 
 ## 0. Tek cümlelik ürün tanımı
 
-Koschei bir risk kartı üreticisi değildir. Koschei, bir araştırmacının saatlerce Solscan gezerek bulacağı aktör bağlantılarını dakikalar içinde, işlem imzalarıyla kanıtlanmış şekilde ortaya çıkaran **wallet-first + token-first actor investigation engine**'dir.
+Koschei Actor Investigation Engine bir risk kartı üreticisi değildir. Bir araştırmacının saatlerce Solscan gezerek bulacağı aktör bağlantılarını dakikalar içinde, işlem imzalarıyla kanıtlanmış şekilde ortaya çıkaran **wallet-first + token-first actor investigation** alt sistemidir.
 
 Skor hikâyeyi oluşturmaz. **Kanıtlar verdict'i doğurur.** Verdict, zincirin ilk çıktısı değil, son çıktısıdır.
+
+Koschei Web3'ün ürün-geneli sorusu artık “Web3 savunmalarını kim sınayacak?”tır. Bu alt sistem, gerçek olay ve aktör örüntülerini savunma senaryolarına kanıt olarak sağlayabilir; test edilen bir güvenlik kontrolü için `VALIDATED / FAILED / INCOMPLETE` sonucu üretemez veya değiştiremez. Ürün-geneli sözleşme: [`WEB3_DEFENSE_VALIDATION_ENGINE.md`](./WEB3_DEFENSE_VALIDATION_ENGINE.md).
 
 ---
 
 ## 1. On soru filtresi
 
-Bu sorulara cevap vermeyen tarama boştur. Yeni bir özellik fikri geldiğinde tek test şudur: **Bu iş aşağıdaki sorulardan en az birine cevap veriyor mu? Vermiyorsa kesilir.**
+Actor/token investigation kapsamındaki bu sorulara cevap vermeyen tarama boştur. Bu alt sistem için yeni bir özellik fikri geldiğinde tek test şudur: **Bu iş aşağıdaki sorulardan en az birine cevap veriyor mu? Vermiyorsa actor roadmap'inden kesilir.** Savunma-doğrulama çalışmaları kendi canonical filtresine tabidir.
 
 1. Token'ı kim oluşturdu?
 2. Creator ilk SOL'u nereden aldı?
@@ -262,7 +264,7 @@ Cross-token ve liquidity katmanları ikinci turdur. Bu kesit tek başına `yHCx`
 
 - Sayısal skor (`0–100`) — kaldırıldı, geri gelmeyecek
 - Verdict-first rapor düzeni — kaldırıldı
-- On soru filtresinden geçmeyen her yeni özellik — otomatik red
+- On soru filtresinden geçmeyen her yeni actor/token investigation özelliği — actor roadmap'inden otomatik red
 - INFERRED ilişkilere dayalı suçlama dili — yasak
 - Demo/beta/sentetik rapor — yasak
 
@@ -270,7 +272,7 @@ Cross-token ve liquidity katmanları ikinci turdur. Bu kesit tek başına `yHCx`
 
 ## 10. Konumlandırma notu
 
-Rakip tarama araçları **nokta savunmasıdır**: token'a bakar ve o anki görüntüye skor basar. Koschei **entegre hava resmi** çıkarır: aktörü, fırlatma geçmişini, tedarik zincirini (`funding`) ve önceki angajmanlarını tek imzalı dosyada birleştirir.
+Actor-investigation yüzeyindeki rakip tarama araçları **nokta savunmasıdır**: token'a bakar ve o anki görüntüye skor basar. Bu Koschei alt sistemi **entegre hava resmi** çıkarır: aktörü, fırlatma geçmişini, tedarik zincirini (`funding`) ve önceki angajmanlarını tek imzalı dosyada birleştirir.
 
 > Diğerleri füzeyi görür. Koschei fırlatma rampasını izler.
 
