@@ -179,6 +179,9 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 		actorRun.LiveEvidence.Status = "stored_evidence_only"
 	}
 
+	recursiveSeedPlan := services.BuildRecursiveLineageSeedPlan(creator, actorRun.FundingOrigin, core.Intelligence)
+	recursiveLineage := services.LoadRecursiveLineagePersistentMemory(ctx, store, target, network, recursiveSeedPlan)
+
 	actorLifecycle := services.ActorTokenLifecycleRecurrence{
 		Status: "not_investigated", EvidenceStatus: "not_investigated", ActorWallet: creator, Network: network, CurrentMint: target,
 		OtherMints: []string{}, CreationSignatures: []string{}, CreationSlots: []int64{}, RuggedStatus: "not_classified_by_lifecycle_table", Limitations: []string{},
@@ -387,6 +390,7 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"funding_origin_persistence":  actorRun.FundingOriginPersistence,
 			"actor_live_evidence":         actorRun.LiveEvidence,
 			"current_token_distribution":  distributionRun,
+			"recursive_lineage":           recursiveLineage,
 			"token_lifecycle_recurrence":  actorLifecycle,
 			"exit_event_recurrence":       actorExit,
 			"campaign_genome":             campaignGenome,
@@ -411,7 +415,9 @@ func (h *Handler) assembleUnifiedInvestigationReportMode(ctx context.Context, co
 			"identity_scope": "onchain_wallet_only", "caller_type_changes_evidence": false,
 			"external_attribution_is_observed_only": true,
 			"recipient_full_wallet_history":         false,
-			"recipient_investigation_scope":         "mint_specific_token_accounts",
+			"recipient_investigation_scope":         "bounded_persistent_actor_history",
+			"recursive_lineage_can_change_grade":   false,
+			"recursive_lineage_can_change_verdict": false,
 			"jupiter_context_can_change_verdict":    false, "lp_control_arm_can_change_grade": false,
 			"exit_liquidity_quote_only": true, "program_authority_is_capability_not_intent": true,
 			"corpus_percentile_can_change_verdict":       false,
