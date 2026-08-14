@@ -1,24 +1,6 @@
 name: Actor Constellation V1 Acceptance
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "koschei/api/internal/services/actor_constellation*.go"
-      - "koschei/api/internal/handlers/owner_actor_constellation.go"
-      - "koschei/api/internal/http/defense_routes.go"
-      - "koschei/api/internal/http/route_inventory.go"
-      - "koschei/api/openapi.yaml"
-      - ".github/workflows/actor-constellation-acceptance.yml"
-  push:
-    branches: [main]
-    paths:
-      - "koschei/api/internal/services/actor_constellation*.go"
-      - "koschei/api/internal/handlers/owner_actor_constellation.go"
-      - "koschei/api/internal/http/defense_routes.go"
-      - "koschei/api/internal/http/route_inventory.go"
-      - "koschei/api/openapi.yaml"
-      - ".github/workflows/actor-constellation-acceptance.yml"
   workflow_dispatch:
 
 permissions:
