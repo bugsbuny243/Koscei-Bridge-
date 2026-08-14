@@ -21,6 +21,7 @@ type RecursiveLineagePersistentMemoryReport struct {
 	Version       string                         `json:"version"`
 	Status        string                         `json:"status"`
 	Complete      bool                           `json:"complete"`
+	Network       string                         `json:"network"`
 	CurrentMint   string                         `json:"current_mint"`
 	SeedPlan      RecursiveLineageSeedPlan       `json:"seed_plan"`
 	Wallets       []RecursiveLineageWalletMemory `json:"wallets"`
@@ -31,22 +32,23 @@ type RecursiveLineagePersistentMemoryReport struct {
 	Policy        map[string]any                 `json:"policy"`
 }
 
-func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefenseStore, currentMint string, plan RecursiveLineageSeedPlan) RecursiveLineagePersistentMemoryReport {
+func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefenseStore, currentMint, network string, plan RecursiveLineageSeedPlan) RecursiveLineagePersistentMemoryReport {
 	currentMint = strings.TrimSpace(currentMint)
+	network = normalizeRadarNetwork(network)
 	out := RecursiveLineagePersistentMemoryReport{
 		Version: RecursiveLineageVersion, Status: "persistent_memory_available", Complete: plan.Complete,
-		CurrentMint: currentMint, SeedPlan: plan, Wallets: []RecursiveLineageWalletMemory{},
+		Network: network, CurrentMint: currentMint, SeedPlan: plan, Wallets: []RecursiveLineageWalletMemory{},
 		FailedWallets: []string{}, GeneratedAt: time.Now().UTC(), Limitations: append([]string(nil), plan.Limitations...),
 		Policy: map[string]any{
-			"real_world_identity_claim": false,
-			"same_operator_claim":       false,
-			"wrongdoing_claim":          false,
-			"verdict_authority":         false,
-			"grade_authority":           false,
-			"guard_block_authority":     false,
-			"no_evidence_no_claim":      true,
+			"real_world_identity_claim":  false,
+			"same_operator_claim":        false,
+			"wrongdoing_claim":           false,
+			"verdict_authority":          false,
+			"grade_authority":            false,
+			"guard_block_authority":      false,
+			"no_evidence_no_claim":       true,
 			"bounded_persistent_history": true,
-			"synchronous_rpc_fanout":    false,
+			"synchronous_rpc_fanout":     false,
 		},
 	}
 	if store == nil || store.DB == nil {
@@ -69,7 +71,7 @@ func LoadRecursiveLineagePersistentMemory(ctx context.Context, store *ActorDefen
 		if wallet == "" {
 			continue
 		}
-		dossier, err := store.LoadPersistentWalletDossier(ctx, wallet, "solana-mainnet", 200)
+		dossier, err := store.LoadPersistentWalletDossier(ctx, wallet, network, 200)
 		if err != nil {
 			out.Complete = false
 			out.FailedWallets = append(out.FailedWallets, wallet)
