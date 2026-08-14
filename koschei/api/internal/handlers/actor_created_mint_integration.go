@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 
@@ -133,11 +132,12 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		verified.Source = "solana_jsonparsed_instruction"
 
 		// DexScreener snapshot gerçek Solana pair likiditesini ve en likit
-		// pair'in referans fiyatını sağlar. Jupiter yalnızca fiyat fallback'idir.
+		// pair'in referans fiyatını sağlar. Trusted Jupiter adapter yalnızca
+		// read-only fiyat fallback'idir; generic URL collector kullanılmaz.
 		market := services.FetchSolanaTokenMarketSnapshot(ctx, verified.Mint)
 		fate := applyActorTokenMarketSnapshot(&verified, market)
 		if verified.CurrentPriceUSD <= 0 {
-			mkt := collectJupiterMarketContext(ctx, nil, &http.Client{Timeout: 8 * time.Second}, network, verified.Mint, services.HolderIntelligence{}, market)
+			mkt := h.collectTrustedJupiterMarketContext(ctx, network, verified.Mint, services.HolderIntelligence{}, market)
 			if mkt.PriceAvailable {
 				verified.CurrentPriceUSD = mkt.PriceUSD
 			}
