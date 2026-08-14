@@ -9,13 +9,14 @@ import (
 )
 
 type RecursiveLineagePersistentTokenHistory struct {
-	Wallet            string                         `json:"wallet"`
-	Network           string                         `json:"network"`
+	Wallet            string                          `json:"wallet"`
+	Network           string                          `json:"network"`
 	Tokens            []ActorDefenseTokenObservation `json:"tokens"`
-	Complete          bool                           `json:"complete"`
-	EvidenceRowsRead  int                            `json:"evidence_rows_read"`
-	TradeGroupsRead   int                            `json:"trade_groups_read"`
-	Limitations       []string                       `json:"limitations"`
+	Complete          bool                            `json:"complete"`
+	EvidenceRowsRead  int                             `json:"evidence_rows_read"`
+	FundingRowsRead   int                             `json:"funding_rows_read"`
+	TradeGroupsRead   int                             `json:"trade_groups_read"`
+	Limitations       []string                        `json:"limitations"`
 }
 
 func (s *ActorDefenseStore) LoadBoundedRecursiveTokenHistory(ctx context.Context, wallet, network string, limit int) (RecursiveLineagePersistentTokenHistory, error) {
@@ -99,6 +100,53 @@ func (s *ActorDefenseStore) LoadBoundedRecursiveTokenHistory(ctx context.Context
 	rows.Close()
 	if out.EvidenceRowsRead > evidenceCap {
 		out.Limitations = append(out.Limitations, "Persistent actor-evidence input hit the bounded per-wallet row cap.")
+	}
+
+	fundingCap := limit * 2
+	fundingRows, err := s.DB.QueryContext(ctx, `
+		SELECT token_mint,verification_status,COALESCE(signature,''),first_observed_at,last_observed_at
+		FROM security_actor_evidence
+		WHERE network=$2
+		  AND counterpart_kind='wallet'
+		  AND counterpart_id=$1
+		  AND token_mint IS NOT NULL
+		  AND btrim(token_mint)<>''
+		  AND relation IN ('initial_funding_in','oldest_funding_in_window','funded_by','funding_origin','funded_creator')
+		  AND verification_status IN ('verified','observed')
+		ORDER BY CASE verification_status WHEN 'verified' THEN 0 ELSE 1 END,last_observed_at DESC,id DESC
+		LIMIT $3`, wallet, network, fundingCap+1)
+	if err != nil {
+		return out, err
+	}
+	for fundingRows.Next() {
+		out.FundingRowsRead++
+		if out.FundingRowsRead > fundingCap {
+			out.Complete = false
+			continue
+		}
+		var mint, status, signature string
+		var firstAt, lastAt time.Time
+		if err := fundingRows.Scan(&mint, &status, &signature, &firstAt, &lastAt); err != nil {
+			fundingRows.Close()
+			return out, err
+		}
+		mint = strings.TrimSpace(mint)
+		if mint == "" {
+			continue
+		}
+		row := ensure(mint)
+		row.roles["funder"] = true
+		row.Evidence = appendUniqueHolderEvidence(row.Evidence, "Persistent actor evidence links this wallet as a funding counterparty for the token context ("+status+").")
+		_ = signature
+		mergeActorDefenseTimes(&row.item, firstAt, lastAt)
+	}
+	if err := fundingRows.Err(); err != nil {
+		fundingRows.Close()
+		return out, err
+	}
+	fundingRows.Close()
+	if out.FundingRowsRead > fundingCap {
+		out.Limitations = append(out.Limitations, "Persistent funding-token input hit the bounded per-wallet row cap.")
 	}
 
 	tradeCap := limit * 2
