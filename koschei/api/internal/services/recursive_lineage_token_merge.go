@@ -13,17 +13,18 @@ const (
 )
 
 type RecursiveLineageTokenWalletRole struct {
-	Wallet           string   `json:"wallet"`
-	SeedRoles        []string `json:"seed_roles"`
-	TokenRoles       []string `json:"token_roles"`
-	EvidenceStatus   string   `json:"evidence_status"`
-	FirstObservedAt  string   `json:"first_observed_at,omitempty"`
-	LastObservedAt   string   `json:"last_observed_at,omitempty"`
-	CreatorSignature string   `json:"creator_signature,omitempty"`
+	Wallet           string                              `json:"wallet"`
+	SeedRoles        []string                            `json:"seed_roles"`
+	TokenRoles       []string                            `json:"token_roles"`
+	EvidenceStatus   string                              `json:"evidence_status"`
+	FirstObservedAt  string                              `json:"first_observed_at,omitempty"`
+	LastObservedAt   string                              `json:"last_observed_at,omitempty"`
+	CreatorSignature string                              `json:"creator_signature,omitempty"`
+	Lifecycle        *RecursiveLineageLifecycleReference `json:"lifecycle,omitempty"`
 }
 
 type RecursiveLineageRelatedToken struct {
-	Mint        string                            `json:"mint"`
+	Mint        string                             `json:"mint"`
 	WalletRoles []RecursiveLineageTokenWalletRole `json:"wallet_roles"`
 }
 
@@ -100,6 +101,9 @@ func MergeRecursiveLineageTokenHistory(currentMint string, inputs []RecursiveLin
 				}
 				if existing.LastObservedAt > row.LastObservedAt {
 					row.LastObservedAt = existing.LastObservedAt
+				}
+				if row.Lifecycle == nil {
+					row.Lifecycle = existing.Lifecycle
 				}
 			}
 			wallets[wallet] = row
