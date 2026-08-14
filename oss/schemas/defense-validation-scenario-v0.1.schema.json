@@ -463,6 +463,10 @@
       "allOf": [
         {
           "if": {
+            "type": "object",
+            "required": [
+              "case_kind"
+            ],
             "properties": {
               "case_kind": {
                 "const": "attack"
@@ -470,12 +474,14 @@
             }
           },
           "then": {
+            "type": "object",
             "properties": {
               "impact_deadline_ms": {
                 "type": "integer",
                 "minimum": 0
               },
               "expected_control_behavior": {
+                "type": "object",
                 "properties": {
                   "alert_required": {
                     "const": true
@@ -490,6 +496,7 @@
                 }
               },
               "authorization": {
+                "type": "object",
                 "properties": {
                   "approval_state": {
                     "const": "absent"
@@ -502,11 +509,13 @@
             }
           },
           "else": {
+            "type": "object",
             "properties": {
               "impact_deadline_ms": {
                 "const": null
               },
               "expected_control_behavior": {
+                "type": "object",
                 "properties": {
                   "alert_required": {
                     "const": false
@@ -520,6 +529,7 @@
                 }
               },
               "authorization": {
+                "type": "object",
                 "properties": {
                   "approval_state": {
                     "const": "approved"
