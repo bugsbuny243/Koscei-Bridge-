@@ -9,14 +9,14 @@ import (
 )
 
 type RecursiveLineagePersistentTokenHistory struct {
-	Wallet            string                          `json:"wallet"`
-	Network           string                          `json:"network"`
-	Tokens            []ActorDefenseTokenObservation `json:"tokens"`
-	Complete          bool                            `json:"complete"`
-	EvidenceRowsRead  int                             `json:"evidence_rows_read"`
-	FundingRowsRead   int                             `json:"funding_rows_read"`
-	TradeGroupsRead   int                             `json:"trade_groups_read"`
-	Limitations       []string                        `json:"limitations"`
+	Wallet           string                          `json:"wallet"`
+	Network          string                          `json:"network"`
+	Tokens           []ActorDefenseTokenObservation `json:"tokens"`
+	Complete         bool                            `json:"complete"`
+	EvidenceRowsRead int                             `json:"evidence_rows_read"`
+	FundingRowsRead  int                             `json:"funding_rows_read"`
+	TradeGroupsRead  int                             `json:"trade_groups_read"`
+	Limitations      []string                        `json:"limitations"`
 }
 
 func (s *ActorDefenseStore) LoadBoundedRecursiveTokenHistory(ctx context.Context, wallet, network string, limit int) (RecursiveLineagePersistentTokenHistory, error) {
@@ -136,7 +136,7 @@ func (s *ActorDefenseStore) LoadBoundedRecursiveTokenHistory(ctx context.Context
 		}
 		row := ensure(mint)
 		row.roles["funder"] = true
-		row.Evidence = appendUniqueHolderEvidence(row.Evidence, "Persistent actor evidence links this wallet as a funding counterparty for the token context ("+status+").")
+		row.item.Evidence = appendUniqueHolderEvidence(row.item.Evidence, "Persistent actor evidence links this wallet as a funding counterparty for the token context ("+status+").")
 		_ = signature
 		mergeActorDefenseTimes(&row.item, firstAt, lastAt)
 	}
