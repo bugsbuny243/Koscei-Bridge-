@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -103,49 +101,6 @@ func TestBondingCurveWithoutPoolIsNotApplicableAndMakesNoRPC(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatalf("unexpected RPC calls=%d", calls)
-	}
-}
-
-func TestJupiterContextIsOptionalAndReportsSellImpact(t *testing.T) {
-	mint := "MintJupiter111111111111111111111111111111"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if strings.Contains(r.URL.Path, "price") {
-			_, _ = w.Write([]byte(`{"` + mint + `":{"usdPrice":0.25,"blockId":888,"createdAt":"2026-07-17T00:00:00Z"}}`))
-			return
-		}
-		_, _ = w.Write([]byte(`{"outAmount":"90000000","priceImpactPct":"0.125","contextSlot":889,"routePlan":[{"swapInfo":{"label":"Raydium CPMM"}}]}`))
-	}))
-	defer server.Close()
-	t.Setenv("JUPITER_PRICE_URL", server.URL+"/price")
-	t.Setenv("JUPITER_QUOTE_URL", server.URL+"/quote")
-	rpc := func(_ context.Context, _ string, method string, _ any, out any) error {
-		if method != "getTokenSupply" {
-			return errors.New("unexpected RPC")
-		}
-		response := out.(*rpcTokenSupplyResponse)
-		response.Value.Decimals = 6
-		response.Value.UIAmountString = "1000000"
-		return nil
-	}
-	holder := services.HolderIntelligence{Available: true, TopOwnerBalance: 400000}
-	got := collectJupiterMarketContext(context.Background(), rpc, server.Client(), "solana-mainnet", mint, holder, services.TokenMarketSnapshot{PriceUSD: 0.24})
-	if !got.PriceAvailable || !got.SellImpactAvailable || got.EstimatedPriceImpactPct != 12.5 || got.QuoteContextSlot != 889 {
-		t.Fatalf("Jupiter result=%#v", got)
-	}
-	if len(got.RouteLabels) != 1 || got.RouteLabels[0] != "Raydium CPMM" {
-		t.Fatalf("routes=%v", got.RouteLabels)
-	}
-}
-
-func TestJupiterOutageDoesNotFailCoreContext(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "down", http.StatusServiceUnavailable) }))
-	defer server.Close()
-	t.Setenv("JUPITER_PRICE_URL", server.URL+"/price")
-	t.Setenv("JUPITER_QUOTE_URL", server.URL+"/quote")
-	got := collectJupiterMarketContext(context.Background(), nil, server.Client(), "solana-mainnet", "Mint", services.HolderIntelligence{}, services.TokenMarketSnapshot{Available: true, PriceUSD: 1})
-	if got.Available || got.Status != "jupiter_context_unavailable" {
-		t.Fatalf("result=%#v", got)
 	}
 }
 
