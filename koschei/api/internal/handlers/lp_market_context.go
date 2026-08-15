@@ -5,10 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -27,8 +25,6 @@ const (
 	defaultJupiterQuoteURL = "https://api.jup.ag/swap/v1/quote"
 )
 
-// Program IDs are pinned from the protocols' official address references:
-// Raydium CPMM / AMM v4 / Burn & Earn and Streamflow's Solana mainnet program.
 var knownLPLockerPrograms = map[string]string{
 	raydiumLPLockProgram: "raydium_burn_and_earn",
 	streamflowProgram:    "streamflow",
@@ -106,8 +102,6 @@ func collectLPControlEvidence(ctx context.Context, rpc solanaRPCCall, network, m
 	switch out.PoolProgram {
 	case raydiumCPMMProgram:
 		out.PoolType = "raydium_cpmm"
-		// Anchor discriminator (8) followed by PoolState pubkeys in the official
-		// CPMM account order: config, creator, vault0, vault1, LP mint, token0, token1.
 		if len(data) < 232 {
 			out.Status = services.LPControlSourceUnavailable
 			out.ReasonCode = "cpmm_pool_state_short"
@@ -264,103 +258,10 @@ func summarizeLPControlOwnership(out services.LPControlEvidence, creator string)
 	return out
 }
 
-func (h *Handler) collectJupiterMarketContext(ctx context.Context, network, mint string, holder services.HolderIntelligence, market services.TokenMarketSnapshot) services.JupiterMarketContext {
-	return collectJupiterMarketContext(ctx, h.lpRPC(), &http.Client{Timeout: 7 * time.Second}, network, mint, holder, market)
-}
-
-func collectJupiterMarketContext(ctx context.Context, rpc solanaRPCCall, client *http.Client, network, mint string, holder services.HolderIntelligence, market services.TokenMarketSnapshot) services.JupiterMarketContext {
-	out := services.JupiterMarketContext{Status: "jupiter_context_unavailable", RouteLabels: []string{}, Limitations: []string{}, DexScreenerPriceUSD: market.PriceUSD}
-	if client == nil {
-		client = &http.Client{Timeout: 7 * time.Second}
-	}
-	priceURL := strings.TrimSpace(os.Getenv("JUPITER_PRICE_URL"))
-	if priceURL == "" {
-		priceURL = defaultJupiterPriceURL
-	}
-	quoteURL := strings.TrimSpace(os.Getenv("JUPITER_QUOTE_URL"))
-	if quoteURL == "" {
-		quoteURL = defaultJupiterQuoteURL
-	}
-	mint = strings.TrimSpace(mint)
-	if mint == "" {
-		return out
-	}
-
-	priceEndpoint, err := url.Parse(priceURL)
-	if err == nil {
-		q := priceEndpoint.Query()
-		q.Set("ids", mint)
-		priceEndpoint.RawQuery = q.Encode()
-		var prices map[string]struct {
-			USDPrice  float64 `json:"usdPrice"`
-			BlockID   uint64  `json:"blockId"`
-			CreatedAt string  `json:"createdAt"`
-		}
-		if getOptionalJSON(ctx, client, priceEndpoint.String(), &prices) == nil {
-			if value, ok := prices[mint]; ok && value.USDPrice > 0 {
-				out.PriceAvailable, out.Available = true, true
-				out.PriceUSD, out.PriceBlockID = value.USDPrice, value.BlockID
-				out.PriceObservedAt = time.Now().UTC()
-				if parsed, parseErr := time.Parse(time.RFC3339Nano, value.CreatedAt); parseErr == nil {
-					out.PriceObservedAt = parsed.UTC()
-				}
-				if market.PriceUSD > 0 {
-					out.PriceDifferencePct = roundCollectorPct(math.Abs(value.USDPrice-market.PriceUSD) / market.PriceUSD * 100)
-				}
-			}
-		}
-	}
-
-	if rpc != nil && holder.Available && holder.TopOwnerBalance > 0 {
-		var supply rpcTokenSupplyResponse
-		if err := rpc(ctx, network, "getTokenSupply", []any{mint, map[string]any{"commitment": "confirmed"}}, &supply); err == nil {
-			amount := decimalToRaw(holder.TopOwnerBalance, supply.Value.Decimals)
-			if amount != "" && amount != "0" {
-				quoteEndpoint, parseErr := url.Parse(quoteURL)
-				if parseErr == nil {
-					q := quoteEndpoint.Query()
-					q.Set("inputMint", mint)
-					q.Set("outputMint", jupiterUSDCMint)
-					q.Set("amount", amount)
-					q.Set("slippageBps", "100")
-					quoteEndpoint.RawQuery = q.Encode()
-					var quote struct {
-						OutAmount      string `json:"outAmount"`
-						PriceImpactPct string `json:"priceImpactPct"`
-						ContextSlot    uint64 `json:"contextSlot"`
-						RoutePlan      []struct {
-							SwapInfo struct {
-								Label string `json:"label"`
-							} `json:"swapInfo"`
-						} `json:"routePlan"`
-					}
-					if getOptionalJSON(ctx, client, quoteEndpoint.String(), &quote) == nil && quote.OutAmount != "" {
-						out.Available, out.SellImpactAvailable = true, true
-						out.SellInputAmountRaw, out.SellOutputAmountRaw, out.SellOutputMint = amount, quote.OutAmount, jupiterUSDCMint
-						impactRatio, parseImpactErr := strconv.ParseFloat(strings.TrimSpace(quote.PriceImpactPct), 64)
-						if parseImpactErr == nil {
-							out.EstimatedPriceImpactPct = roundCollectorPct(math.Max(0, math.Min(1, impactRatio)) * 100)
-						}
-						out.QuoteContextSlot, out.QuoteObservedAt = quote.ContextSlot, time.Now().UTC()
-						for _, route := range quote.RoutePlan {
-							if label := strings.TrimSpace(route.SwapInfo.Label); label != "" {
-								out.RouteLabels = append(out.RouteLabels, label)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	if out.Available {
-		out.Status = "optional_jupiter_context_observed"
-	}
-	return out
-}
-
 type rpcContext struct {
 	Slot uint64 `json:"slot"`
 }
+
 type rpcAccountInfoResponse struct {
 	Context rpcContext `json:"context"`
 	Value   *struct {
@@ -368,6 +269,7 @@ type rpcAccountInfoResponse struct {
 		Data  any    `json:"data"`
 	} `json:"value"`
 }
+
 type rpcTokenAmount struct {
 	Amount         string  `json:"amount"`
 	Decimals       int     `json:"decimals"`
@@ -391,7 +293,9 @@ type rpcTokenBalanceResponse struct {
 	Context rpcContext     `json:"context"`
 	Value   rpcTokenAmount `json:"value"`
 }
+
 type rpcTokenSupplyResponse = rpcTokenBalanceResponse
+
 type rpcLargestAccount struct {
 	Address string `json:"address"`
 	rpcTokenAmount
@@ -434,6 +338,7 @@ func resolveTokenAccountOwners(ctx context.Context, rpc solanaRPCCall, network s
 	}
 	return out
 }
+
 func resolveAccountPrograms(ctx context.Context, rpc solanaRPCCall, network string, addresses []string) map[string]string {
 	out := map[string]string{}
 	if len(addresses) == 0 {
@@ -458,6 +363,7 @@ func resolveAccountPrograms(ctx context.Context, rpc solanaRPCCall, network stri
 	}
 	return out
 }
+
 func accountDataBytes(value any) ([]byte, error) {
 	raw, _ := json.Marshal(value)
 	var pair []any
@@ -471,23 +377,7 @@ func accountDataBytes(value any) ([]byte, error) {
 	}
 	return nil, fmt.Errorf("unsupported account data")
 }
-func getOptionalJSON(ctx context.Context, client *http.Client, endpoint string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Koschei-ARVIS-Market-Context/1.0")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("http %d", resp.StatusCode)
-	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(out)
-}
+
 func decimalToRaw(value float64, decimals int) string {
 	if value <= 0 || decimals < 0 || decimals > 18 {
 		return ""
@@ -498,6 +388,7 @@ func decimalToRaw(value float64, decimals int) string {
 	}
 	return strconv.FormatUint(uint64(math.Floor(raw)), 10)
 }
+
 func mapValues(values map[string]string) []string {
 	out := make([]string, 0, len(values))
 	for _, v := range values {
@@ -507,6 +398,7 @@ func mapValues(values map[string]string) []string {
 	}
 	return out
 }
+
 func uniqueStrings(values []string) []string {
 	seen := map[string]bool{}
 	out := []string{}
@@ -519,7 +411,9 @@ func uniqueStrings(values []string) []string {
 	}
 	return out
 }
+
 func roundCollectorPct(value float64) float64 { return math.Round(value*10000) / 10000 }
+
 func compactCollectorError(err error) string {
 	if err == nil {
 		return ""
