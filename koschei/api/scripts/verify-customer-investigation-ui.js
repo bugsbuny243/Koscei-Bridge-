@@ -4,22 +4,38 @@ const source = fs.readFileSync('public/js/security-radar-detail.js', 'utf8');
 const required = [
   'normalizeCustomerInvestigation',
   'envelope?.investigation_report',
-  'renderDetail(directReport',
-  'lpControlPanel(data.lp_control)',
-  'liveEvidencePanel(data.full_scan_live_evidence)',
-  'behaviorPanel(data.behavior_signals)',
+  'renderDetail(report',
   'UNIFIED GRADE',
-  'EVIDENCE PENDING'
+  'CANONICAL KOSCHEI VERDICT',
+  'security_unified_radar_verdicts',
+  'recursive_lineage',
+  'triggered_rules',
+  'watch_flags',
+  'decision_path',
+  'access.plan',
+  'outputs_remaining'
 ];
 for (const marker of required) {
-  if (!source.includes(marker)) throw new Error(`missing customer investigation UI marker: ${marker}`);
+  if (!source.includes(marker)) throw new Error(`missing canonical customer investigation UI marker: ${marker}`);
 }
+
+const forbidden = [
+  'risk_index',
+  'token_tier',
+  'structural_floor',
+  'KOSCH doğrulaması gerekli',
+  'Temsilci risk'
+];
+for (const marker of forbidden) {
+  if (source.includes(marker)) throw new Error(`legacy customer investigation UI contract returned: ${marker}`);
+}
+
 const postBlock = source.slice(source.indexOf("api('/api/v1/radar/check'"), source.indexOf('async function boot'));
-if (!postBlock.includes('data.investigation_report') && !postBlock.includes('normalizeCustomerInvestigation(data, target)')) {
-  throw new Error('POST response is not consumed as an investigation report');
+if (!postBlock.includes('normalizeCustomerInvestigation(data, target)')) {
+  throw new Error('POST response is not consumed as a canonical investigation report');
 }
-if (postBlock.indexOf('renderDetail(directReport') > postBlock.indexOf('await openDetail(target, item)')) {
-  throw new Error('direct investigation rendering must precede legacy detail fallback');
+if (!postBlock.includes('renderDetail(report')) {
+  throw new Error('canonical investigation report is not rendered directly');
 }
 
 const ownerHTML = fs.readFileSync('public/owner-production.html', 'utf8');
@@ -51,4 +67,4 @@ for (const marker of ownerMarkers) {
 if (ownerCreator.includes('/api/owner/defense/investigate') || ownerCreator.includes('/api/owner/defense/distribution')) {
   throw new Error('owner creator renderer must not start a duplicate actor investigation request');
 }
-console.log('customer and owner investigation UI contracts verified');
+console.log('canonical customer and owner investigation UI contracts verified');
