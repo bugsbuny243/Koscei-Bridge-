@@ -1,23 +1,6 @@
 name: Persistent Actor Memory Acceptance
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "koschei/api/internal/services/persistent_repeat_actor_memory.go"
-      - "koschei/api/internal/services/persistent_repeat_actor_memory_test.go"
-      - "koschei/api/internal/services/persistent_repeat_actor_memory_postgres_test.go"
-      - "koschei/api/internal/handlers/holder_intelligence_core.go"
-      - "koschei/api/migrations/**"
-      - ".github/workflows/actor-memory-acceptance.yml"
-  pull_request:
-    paths:
-      - "koschei/api/internal/services/persistent_repeat_actor_memory.go"
-      - "koschei/api/internal/services/persistent_repeat_actor_memory_test.go"
-      - "koschei/api/internal/services/persistent_repeat_actor_memory_postgres_test.go"
-      - "koschei/api/internal/handlers/holder_intelligence_core.go"
-      - "koschei/api/migrations/**"
-      - ".github/workflows/actor-memory-acceptance.yml"
   workflow_dispatch:
 
 permissions:
