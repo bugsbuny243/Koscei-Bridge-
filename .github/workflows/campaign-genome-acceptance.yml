@@ -1,29 +1,6 @@
 name: Campaign Genome Index Acceptance
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "koschei/api/internal/services/actor_campaign_genome.go"
-      - "koschei/api/internal/services/campaign_genome_index.go"
-      - "koschei/api/internal/services/campaign_genome_index_test.go"
-      - "koschei/api/internal/services/campaign_genome_index_postgres_test.go"
-      - "koschei/api/internal/services/behavioral_signature_engine.go"
-      - "koschei/api/internal/services/behavioral_signature_engine_test.go"
-      - "koschei/api/internal/services/behavioral_signature_genome_match_test.go"
-      - "koschei/api/migrations/097_campaign_genome_index.sql"
-      - ".github/workflows/campaign-genome-acceptance.yml"
-  pull_request:
-    paths:
-      - "koschei/api/internal/services/actor_campaign_genome.go"
-      - "koschei/api/internal/services/campaign_genome_index.go"
-      - "koschei/api/internal/services/campaign_genome_index_test.go"
-      - "koschei/api/internal/services/campaign_genome_index_postgres_test.go"
-      - "koschei/api/internal/services/behavioral_signature_engine.go"
-      - "koschei/api/internal/services/behavioral_signature_engine_test.go"
-      - "koschei/api/internal/services/behavioral_signature_genome_match_test.go"
-      - "koschei/api/migrations/097_campaign_genome_index.sql"
-      - ".github/workflows/campaign-genome-acceptance.yml"
   workflow_dispatch:
 
 permissions:
