@@ -141,10 +141,12 @@ func (s *SecurityRadarStore) captureStructuralSignals(ctx context.Context, verdi
 		target, network, largest, top10, hasHolder, mintAuth, freezeAuth, hasAuthority, tokenSupply, hasSupply)
 }
 
-// applyStructuralFloor prevents final verdicts from dropping below the
-// strongest fresh, verified structural component cached for the token.
+// applyStructuralFloor is retained as a compatibility hook for the legacy
+// persistence path, but it no longer changes grade, risk, verdict, or
+// signature. Structural memory is diagnostic evidence only; the canonical
+// unified evaluator is the sole final-decision authority.
 func (s *SecurityRadarStore) applyStructuralFloor(ctx context.Context, verdict *SecurityRadarVerdictRecord) {
-	if s == nil || s.DB == nil || verdict == nil || verdict.ModuleID != ModuleFinalVerdictEngine {
+	if s == nil || s.DB == nil || verdict == nil {
 		return
 	}
 	target := strings.TrimSpace(verdict.Target)
@@ -170,25 +172,14 @@ func (s *SecurityRadarStore) applyStructuralFloor(ctx context.Context, verdict *
 		return
 	}
 
-	floor, observedAt := cached.structuralFloor(time.Now().UTC())
-	if floor <= 0 || floor <= verdict.RiskIndex {
+	baseline, observedAt := cached.structuralFloor(time.Now().UTC())
+	if baseline <= 0 || observedAt.IsZero() {
 		return
 	}
-	originalRisk := verdict.RiskIndex
-	verdict.RiskIndex = floor
-	verdict.RiskLevel = riskLevelFromIndex(floor)
-	verdict.Grade = gradeFromRiskLevel(verdict.RiskLevel)
-	verdict.Recommendation = recommendationFromRiskLevel(verdict.RiskLevel)
 	verdict.Signals = nonNilMap(verdict.Signals)
-	verdict.Verdict = verdictFromRiskLevel(verdict.ModuleID, verdict.RiskLevel, verdict.Signals)
-	if strings.TrimSpace(verdict.Signature) != "" {
-		verdict.Signature = signSecurityRadarVerdict(verdict.ModuleID, verdict.Target, verdict.Network, verdict.RiskIndex)
-	}
-
-	verdict.Signals["structural_floor_applied"] = true
-	verdict.Signals["structural_floor"] = floor
-	verdict.Signals["structural_floor_original_risk_index"] = originalRisk
-	verdict.Signals["structural_floor_source"] = "cached_verified_onchain_structure"
+	verdict.Signals["structural_baseline_observed"] = true
+	verdict.Signals["structural_baseline_index"] = baseline
+	verdict.Signals["structural_baseline_source"] = "cached_verified_onchain_structure"
 	verdict.Signals["structural_observed_at"] = observedAt.Format(time.RFC3339)
 	if cached.HasHolderData && structuralObservationFresh(time.Now().UTC(), cached.HolderObservedAt) {
 		verdict.Signals["structural_largest_holder_pct"] = cached.LargestHolderPct
@@ -199,10 +190,10 @@ func (s *SecurityRadarStore) applyStructuralFloor(ctx context.Context, verdict *
 		verdict.Signals["structural_freeze_authority_present"] = cached.FreezeAuthorityPresent
 	}
 	if cached.LaunchForensicsRisk > 0 && structuralObservationFresh(time.Now().UTC(), cached.LaunchForensicsObservedAt) {
-		verdict.Signals["structural_launch_forensics_floor"] = cached.LaunchForensicsRisk
+		verdict.Signals["structural_launch_forensics_baseline"] = cached.LaunchForensicsRisk
 	}
 	verdict.Evidence = append(nonNilEvidence(verdict.Evidence),
-		fmt.Sprintf("Structural floor applied: verified cached on-chain structure observed %s scored %d/100; current event evidence scored %d/100.", observedAt.Format(time.RFC3339), floor, originalRisk))
+		fmt.Sprintf("Structural baseline observed: verified cached on-chain structure observed %s; diagnostic index %d/100. This baseline does not modify the persisted verdict.", observedAt.Format(time.RFC3339), baseline))
 }
 
 func structuralSignalsVerified(signals map[string]any) bool {
