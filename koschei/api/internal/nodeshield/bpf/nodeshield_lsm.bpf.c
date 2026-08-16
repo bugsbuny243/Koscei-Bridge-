@@ -34,6 +34,15 @@ static __always_inline struct workload_gate *current_gate(void)
     return bpf_map_lookup_elem(&workload_gate_map, &zero);
 }
 
+static __always_inline int deny_write_if_armed(int ret)
+{
+    struct workload_gate *gate;
+    if (ret) return ret;
+    gate = current_gate();
+    if (gate && gate->enabled && gate->deny_file_write) return -13;
+    return 0;
+}
+
 static __always_inline int deny_privilege_if_armed(int ret)
 {
     struct workload_gate *gate;
@@ -53,15 +62,30 @@ int BPF_PROG(nodeshield_bprm_check, struct linux_binprm *bprm, int ret)
     return 0;
 }
 
+// Actual I/O path: catches writes through descriptors opened before policy arm.
 SEC("lsm_cgroup/file_permission")
 int BPF_PROG(nodeshield_file_permission, struct file *file, int mask, int ret)
 {
-    struct workload_gate *gate;
-    if (ret) return ret;
-    gate = current_gate();
-    if (gate && gate->enabled && gate->deny_file_write && (mask & MAY_WRITE)) return -13;
-    return 0;
+    if (!(mask & MAY_WRITE)) return ret;
+    return deny_write_if_armed(ret);
 }
+
+// Pre-side-effect inode hooks: prevent create and truncate/attribute mutation
+// before VFS changes become visible.
+SEC("lsm_cgroup/inode_create")
+int BPF_PROG(nodeshield_inode_create, struct inode *dir, struct dentry *dentry, umode_t mode, int ret)
+{ return deny_write_if_armed(ret); }
+
+SEC("lsm_cgroup/inode_permission")
+int BPF_PROG(nodeshield_inode_permission, struct inode *inode, int mask, int ret)
+{
+    if (!(mask & MAY_WRITE)) return ret;
+    return deny_write_if_armed(ret);
+}
+
+SEC("lsm_cgroup/inode_setattr")
+int BPF_PROG(nodeshield_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr, int ret)
+{ return deny_write_if_armed(ret); }
 
 SEC("lsm_cgroup/task_fix_setuid")
 int BPF_PROG(nodeshield_task_fix_setuid, struct cred *new, const struct cred *old, int flags, int ret)
