@@ -33,6 +33,20 @@ func TestRuntimeDeniesUnexpectedNetwork(t *testing.T) {
 	}
 }
 
+func TestRuntimeWildcardDoesNotAllowApex(t *testing.T) {
+	policy := RuntimePolicy{ArtifactSHA256: "abc123", AllowedHosts: []string{"*.example.com"}}
+
+	allowed := EvaluateRuntimeEvent(policy, "abc123", RuntimeEvent{Kind: EventNetworkConnect, Destination: "api.example.com:443"})
+	if allowed.Action != RuntimeAllow {
+		t.Fatalf("expected subdomain allow, got %#v", allowed)
+	}
+
+	apex := EvaluateRuntimeEvent(policy, "abc123", RuntimeEvent{Kind: EventNetworkConnect, Destination: "example.com:443"})
+	if apex.Action != RuntimeDeny {
+		t.Fatalf("expected wildcard not to authorize apex, got %#v", apex)
+	}
+}
+
 func TestRuntimeKillsArtifactMismatch(t *testing.T) {
 	policy := RuntimePolicy{ArtifactSHA256: "approved"}
 	decision := EvaluateRuntimeEvent(policy, "substituted", RuntimeEvent{Kind: EventFileOpen, Path: "/data/a", Write: false})
