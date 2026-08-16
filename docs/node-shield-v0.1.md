@@ -53,7 +53,7 @@ Fail-closed rules currently include:
 - undeclared child executable -> `DENY`;
 - unknown future event kind -> `DENY`.
 
-The runtime evaluator is deliberately collector-agnostic. A future Docker/eBPF/SoloHost collector will convert native events to `RuntimeEvent`; policy evaluation remains in the common core.
+The runtime evaluator is deliberately collector-agnostic. A Docker/eBPF/SoloHost collector converts native events to `RuntimeEvent`; policy evaluation stays in the common core. Collectors are not trusted to authorize behavior: they only report observations. Authorization remains deterministic inside Node Shield.
 
 ## Security invariant
 
