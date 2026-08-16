@@ -36,6 +36,25 @@ jobs:
       - name: Compile privileged integration harness
         run: go test -tags nodeshield_integration -run '^$' ./internal/nodeshield
 
+  bpf-object-build:
+    name: Node Shield BPF object build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install BPF build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm bpftool libbpf-dev
+      - name: Generate runner CO-RE type header
+        run: |
+          test -r /sys/kernel/btf/vmlinux
+          bpftool btf dump file /sys/kernel/btf/vmlinux format c > koschei/api/internal/nodeshield/bpf/vmlinux.h
+      - name: Compile and hash BPF objects
+        run: |
+          chmod +x koschei/api/internal/nodeshield/bpf/build.sh
+          TARGET_ARCH=x86 koschei/api/internal/nodeshield/bpf/build.sh
+          sha256sum -c koschei/api/internal/nodeshield/bpf/out/SHA256SUMS
+
   privileged-kernel-enforcement:
     name: Privileged BPF LSM enforcement proof
     if: >-
