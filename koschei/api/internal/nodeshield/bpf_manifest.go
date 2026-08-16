@@ -8,49 +8,75 @@ import (
 	"strings"
 )
 
-// BPFObjectManifest binds a compiled BPF object to an expected immutable digest.
-// A loader must verify this manifest before attempting to load or attach code.
+// BPFObjectManifest binds a compiled BPF object path to an expected immutable digest.
 type BPFObjectManifest struct {
 	Name   string `json:"name"`
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
 }
 
-func VerifyBPFObjectManifest(m BPFObjectManifest) error {
-	if strings.TrimSpace(m.Name) == "" {
-		return fmt.Errorf("BPF object name is required")
+// VerifiedBPFObject contains the exact bytes that passed digest verification.
+// Privileged backends must load Bytes directly rather than reopening Path.
+type VerifiedBPFObject struct {
+	Name   string
+	SHA256 string
+	Bytes  []byte
+}
+
+func ReadVerifiedBPFObject(m BPFObjectManifest) (VerifiedBPFObject, error) {
+	name := strings.TrimSpace(m.Name)
+	if name == "" {
+		return VerifiedBPFObject{}, fmt.Errorf("BPF object name is required")
 	}
 	if strings.TrimSpace(m.Path) == "" {
-		return fmt.Errorf("BPF object path is required")
+		return VerifiedBPFObject{}, fmt.Errorf("BPF object path is required")
 	}
 	expected := strings.ToLower(strings.TrimSpace(m.SHA256))
 	if len(expected) != 64 {
-		return fmt.Errorf("BPF object %s has invalid sha256 length", m.Name)
+		return VerifiedBPFObject{}, fmt.Errorf("BPF object %s has invalid sha256 length", name)
 	}
 	if _, err := hex.DecodeString(expected); err != nil {
-		return fmt.Errorf("BPF object %s has invalid sha256: %w", m.Name, err)
+		return VerifiedBPFObject{}, fmt.Errorf("BPF object %s has invalid sha256: %w", name, err)
 	}
 
 	data, err := os.ReadFile(m.Path)
 	if err != nil {
-		return fmt.Errorf("read BPF object %s: %w", m.Name, err)
+		return VerifiedBPFObject{}, fmt.Errorf("read BPF object %s: %w", name, err)
 	}
 	sum := sha256.Sum256(data)
 	actual := hex.EncodeToString(sum[:])
 	if actual != expected {
-		return fmt.Errorf("BPF object %s digest mismatch: got %s", m.Name, actual)
+		return VerifiedBPFObject{}, fmt.Errorf("BPF object %s digest mismatch: got %s", name, actual)
 	}
-	return nil
+	return VerifiedBPFObject{Name: name, SHA256: expected, Bytes: data}, nil
+}
+
+func ReadVerifiedBPFObjects(manifests []BPFObjectManifest) ([]VerifiedBPFObject, error) {
+	if len(manifests) == 0 {
+		return nil, fmt.Errorf("at least one BPF object manifest is required")
+	}
+	out := make([]VerifiedBPFObject, 0, len(manifests))
+	seen := make(map[string]struct{}, len(manifests))
+	for _, manifest := range manifests {
+		obj, err := ReadVerifiedBPFObject(manifest)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := seen[obj.Name]; ok {
+			return nil, fmt.Errorf("duplicate BPF object name %q", obj.Name)
+		}
+		seen[obj.Name] = struct{}{}
+		out = append(out, obj)
+	}
+	return out, nil
+}
+
+func VerifyBPFObjectManifest(m BPFObjectManifest) error {
+	_, err := ReadVerifiedBPFObject(m)
+	return err
 }
 
 func VerifyBPFObjects(manifests []BPFObjectManifest) error {
-	if len(manifests) == 0 {
-		return fmt.Errorf("at least one BPF object manifest is required")
-	}
-	for _, manifest := range manifests {
-		if err := VerifyBPFObjectManifest(manifest); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := ReadVerifiedBPFObjects(manifests)
+	return err
 }
