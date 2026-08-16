@@ -44,8 +44,8 @@ if [[ "$GO_VERSION" == "$REQUIRED_GO" ]]; then
   ok "Go ${REQUIRED_GO} active"
 else
   info "active Go toolchain is ${GO_VERSION:-unknown}; repository requires ${REQUIRED_GO}"
-  if GOTOOLCHAIN=auto go version "go${REQUIRED_GO}" >/dev/null 2>&1; then
-    ok "Go ${REQUIRED_GO} is available through automatic toolchain selection"
+  if GOTOOLCHAIN="go${REQUIRED_GO}" go version >/dev/null 2>&1; then
+    ok "Go ${REQUIRED_GO} is available through Go toolchain selection"
   else
     fail "Go ${REQUIRED_GO} is required; install/enable that official toolchain before live proof"
   fi
