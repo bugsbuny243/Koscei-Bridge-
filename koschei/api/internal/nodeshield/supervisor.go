@@ -28,7 +28,7 @@ type Supervisor struct {
 	ObservedArtifactSHA256 string
 	Policy                 RuntimePolicy
 	Enforcer               RuntimeEnforcer
-	Audit                   RuntimeAuditSink
+	Audit                  RuntimeAuditSink
 }
 
 // Handle evaluates and enforces one runtime event. ALLOW returns without a
