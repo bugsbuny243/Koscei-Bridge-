@@ -23,7 +23,8 @@ command -v bpftool >/dev/null 2>&1 || fail "bpftool is required"
 command -v go >/dev/null 2>&1 || fail "Go is required"
 command -v git >/dev/null 2>&1 || fail "git is required for commit-bound evidence"
 command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required for proof evidence"
-ok "clang, bpftool, Go, git, and sha256sum detected"
+command -v mktemp >/dev/null 2>&1 || fail "mktemp is required for a private feature-probe file"
+ok "clang, bpftool, Go, git, sha256sum, and mktemp detected"
 
 [[ -r /sys/kernel/btf/vmlinux ]] || fail "kernel BTF /sys/kernel/btf/vmlinux is required for CO-RE"
 ok "kernel BTF available"
@@ -31,20 +32,25 @@ ok "kernel BTF available"
 [[ -r /usr/include/bpf/bpf_helpers.h ]] || fail "libbpf development headers are required"
 ok "libbpf headers available"
 
-if bpftool feature probe kernel >/tmp/nodeshield-bpf-feature-probe.txt 2>&1; then
+PROBE_FILE="$(mktemp -p "${TMPDIR:-/tmp}" nodeshield-bpf-feature-probe.XXXXXX)"
+cleanup() { rm -f -- "$PROBE_FILE"; }
+trap cleanup EXIT HUP INT TERM
+chmod 600 "$PROBE_FILE"
+
+if bpftool feature probe kernel >"$PROBE_FILE" 2>&1; then
   ok "bpftool kernel feature probe succeeded"
 else
-  cat /tmp/nodeshield-bpf-feature-probe.txt >&2 || true
+  cat "$PROBE_FILE" >&2 || true
   fail "bpftool kernel feature probe failed"
 fi
 
-if grep -q 'program_type lsm is available' /tmp/nodeshield-bpf-feature-probe.txt; then
+if grep -q 'program_type lsm is available' "$PROBE_FILE"; then
   ok "BPF LSM program type available"
 else
   fail "bpftool did not report BPF LSM program type availability"
 fi
 
-if grep -q 'program_type cgroup_sock_addr is available' /tmp/nodeshield-bpf-feature-probe.txt; then
+if grep -q 'program_type cgroup_sock_addr is available' "$PROBE_FILE"; then
   ok "cgroup socket-address BPF program type available"
 else
   fail "bpftool did not report cgroup socket-address program type availability"
