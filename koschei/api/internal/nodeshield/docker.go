@@ -7,8 +7,8 @@ import (
 )
 
 type dockerInspect struct {
-	Name  string `json:"Name"`
-	Image string `json:"Image"`
+	Name   string `json:"Name"`
+	Image  string `json:"Image"`
 	Config struct {
 		Image        string              `json:"Image"`
 		User         string              `json:"User"`
