@@ -17,11 +17,11 @@ var sensitiveHostPrefixes = []string{
 }
 
 var dangerousCapabilities = map[string]struct{}{
-	"SYS_ADMIN":  {},
-	"SYS_PTRACE": {},
-	"NET_ADMIN":  {},
+	"SYS_ADMIN":    {},
+	"SYS_PTRACE":   {},
+	"NET_ADMIN":    {},
 	"DAC_OVERRIDE": {},
-	"SYS_MODULE": {},
+	"SYS_MODULE":   {},
 }
 
 // Scan evaluates a normalized workload manifest without executing the workload.
@@ -136,11 +136,11 @@ func Scan(m WorkloadManifest) Report {
 	}
 
 	return Report{
-		SchemaVersion: "nodeshield.report.v0.1",
-		Workload: m.Name,
+		SchemaVersion:  "nodeshield.report.v0.1",
+		Workload:       m.Name,
 		ArtifactSHA256: m.ArtifactSHA256,
-		Score: score,
-		Verdict: verdict,
-		Findings: findings,
+		Score:          score,
+		Verdict:        verdict,
+		Findings:       findings,
 	}
 }
