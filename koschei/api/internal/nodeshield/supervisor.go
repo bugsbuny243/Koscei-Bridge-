@@ -5,57 +5,59 @@ import (
 	"fmt"
 )
 
-// RuntimeEnforcer applies a Node Shield runtime decision to the underlying
-// execution platform. Platform adapters should implement only narrowly scoped
-// actions; the policy engine remains platform-neutral.
 type RuntimeEnforcer interface {
 	Deny(ctx context.Context, workloadID string, event RuntimeEvent, decision RuntimeDecision) error
 	Kill(ctx context.Context, workloadID string, decision RuntimeDecision) error
 }
 
-// RuntimeAuditSink receives every decision before enforcement is attempted.
-// Audit failure is treated as fatal for deny/kill decisions so a blocked action
-// cannot become invisible to the evidence trail.
 type RuntimeAuditSink interface {
 	RecordRuntimeDecision(ctx context.Context, workloadID string, event RuntimeEvent, decision RuntimeDecision) error
 }
 
-// Supervisor binds one approved artifact and runtime policy to a concrete
-// workload instance. It does not collect events itself; collectors normalize
-// platform-specific telemetry into RuntimeEvent and call Handle.
 type Supervisor struct {
 	WorkloadID             string
 	ObservedArtifactSHA256 string
 	Policy                 RuntimePolicy
 	Enforcer               RuntimeEnforcer
 	Audit                  RuntimeAuditSink
+	ObserveOnly            bool
 }
 
-// Handle evaluates and enforces one runtime event. ALLOW returns without a
-// platform mutation. DENY and KILL are fail-closed: missing enforcement or
-// missing audit support returns an error rather than silently continuing.
 func (s Supervisor) Handle(ctx context.Context, event RuntimeEvent) (RuntimeDecision, error) {
 	decision := EvaluateRuntimeEvent(s.Policy, s.ObservedArtifactSHA256, event)
 
+	var auditErr error
 	if s.Audit != nil {
-		if err := s.Audit.RecordRuntimeDecision(ctx, s.WorkloadID, event, decision); err != nil {
-			if decision.Action != RuntimeAllow {
-				return decision, fmt.Errorf("record runtime decision: %w", err)
-			}
+		auditErr = s.Audit.RecordRuntimeDecision(ctx, s.WorkloadID, event, decision)
+	} else if decision.Action != RuntimeAllow && !s.ObserveOnly {
+		auditErr = fmt.Errorf("runtime %s requires an audit sink", decision.Action)
+	}
+
+	if s.ObserveOnly {
+		if auditErr != nil {
+			return decision, fmt.Errorf("record runtime decision: %w", auditErr)
 		}
-	} else if decision.Action != RuntimeAllow {
-		return decision, fmt.Errorf("runtime %s requires an audit sink", decision.Action)
+		return decision, nil
 	}
 
 	switch decision.Action {
 	case RuntimeAllow:
+		if auditErr != nil {
+			return decision, fmt.Errorf("record runtime decision: %w", auditErr)
+		}
 		return decision, nil
 	case RuntimeDeny:
 		if s.Enforcer == nil {
 			return decision, fmt.Errorf("runtime deny requires an enforcer")
 		}
-		if err := s.Enforcer.Deny(ctx, s.WorkloadID, event, decision); err != nil {
-			return decision, fmt.Errorf("enforce runtime deny: %w", err)
+		denyErr := s.Enforcer.Deny(ctx, s.WorkloadID, event, decision)
+		if denyErr != nil || auditErr != nil {
+			killDecision := RuntimeDecision{Action: RuntimeKill, RuleID: "NS-RT-ENF-001", Description: "deny/audit failure escalated to workload termination"}
+			killErr := s.Enforcer.Kill(ctx, s.WorkloadID, killDecision)
+			if killErr != nil {
+				return decision, fmt.Errorf("deny/audit failure and kill escalation failed: deny=%v audit=%v kill=%w", denyErr, auditErr, killErr)
+			}
+			return killDecision, fmt.Errorf("deny/audit failure escalated to kill: deny=%v audit=%v", denyErr, auditErr)
 		}
 		return decision, nil
 	case RuntimeKill:
@@ -64,6 +66,9 @@ func (s Supervisor) Handle(ctx context.Context, event RuntimeEvent) (RuntimeDeci
 		}
 		if err := s.Enforcer.Kill(ctx, s.WorkloadID, decision); err != nil {
 			return decision, fmt.Errorf("enforce runtime kill: %w", err)
+		}
+		if auditErr != nil {
+			return decision, fmt.Errorf("workload killed but audit failed: %w", auditErr)
 		}
 		return decision, nil
 	default:
