@@ -7,85 +7,79 @@ Node Shield is the first compute-security product surface inside Koschei Web3. I
 1. **Install time:** what authority would this workload receive if the node runs it?
 2. **Runtime:** is the running artifact still behaving inside the authority boundary that was approved?
 
-The scanner is platform-neutral. SoloHost, Docker, OCI, and future node-compute platforms should translate their native package/runtime metadata into the Node Shield types rather than duplicating security policy.
+The scanner is platform-neutral. SoloHost, Docker, OCI, and future node-compute platforms should translate native package/runtime metadata into Node Shield types rather than duplicating security policy.
 
-## v0.1 — install-time scanner
+## Install-time scanner
 
-The install-time scanner binds a review to an immutable artifact SHA-256 and returns a deterministic `ALLOW`, `WARN`, or `BLOCK` verdict.
+The scanner binds a review to an immutable artifact SHA-256 and returns deterministic `ALLOW`, `WARN`, or `BLOCK` verdicts. Current critical/high-risk checks include privileged execution, Docker socket exposure, sensitive host mounts, host namespace sharing, dangerous Linux capabilities, privilege gain, root execution, missing immutable artifact identity, and missing explicit outbound-network intent.
 
-Current critical/high-risk checks include:
+A Docker `inspect` adapter is the first concrete normalizer. SoloHost-specific parsing remains an adapter boundary until Pi publishes/stabilizes the relevant package manifest/API contract.
 
-- privileged container execution;
-- Docker daemon socket exposure;
-- sensitive host filesystem mounts;
-- host PID/IPC/network namespace sharing;
-- privilege gain;
-- root execution;
-- dangerous Linux capabilities;
-- missing immutable artifact identity;
-- missing explicit outbound network intent.
+## Runtime enforcement
 
-A Docker `inspect` adapter is included as the first concrete normalizer. SoloHost-specific parsing remains an adapter boundary until Pi publishes/stabilizes the relevant package manifest/API contract.
+Runtime policy is bound to the exact reviewed artifact SHA-256. Normalized event classes cover outbound network connections, filesystem write/open behavior, process execution, and privilege change.
 
-## v0.2 — artifact-bound runtime enforcement
-
-Runtime policy is bound to the exact reviewed artifact SHA-256. Every observed event is normalized before policy evaluation.
-
-Current normalized runtime event classes:
-
-- outbound network connection;
-- filesystem open/write;
-- process execution;
-- privilege change.
-
-Current enforcement decisions:
-
-- `ALLOW`: behavior remains inside the approved boundary;
-- `DENY`: the individual operation must not proceed;
-- `KILL`: the workload crossed a trust boundary and the supervisor should terminate it.
-
-Fail-closed rules currently include:
-
-- running artifact hash differs from the approved artifact -> `KILL`;
-- forbidden privilege change -> `KILL`;
-- undeclared outbound destination -> `DENY`;
-- undeclared filesystem write -> `DENY`;
-- undeclared child executable -> `DENY`;
-- unknown future event kind -> `DENY`.
-
-The runtime evaluator is deliberately collector-agnostic. A Docker/eBPF/SoloHost collector converts native events to `RuntimeEvent`; policy evaluation stays in the common core. Collectors are not trusted to authorize behavior: they only report observations. Authorization remains deterministic inside Node Shield.
+Decisions are `ALLOW`, `DENY`, and `KILL`. A changed artifact, forbidden privilege change, undeclared destination/write/child executable, or unknown event fails closed according to policy.
 
 ### Enforcement capability contract
 
-Every prevention-capable collector should declare what it can actually enforce through `RuntimeCapabilities`.
+Collectors/enforcers must declare what they can truly enforce:
 
-Supported modes:
+- `observe_only` — telemetry only; never a prevention claim;
+- `kill_only` — can terminate after a violation;
+- `pre_action_deny` — can reject a covered operation before completion.
 
-- `observe_only`: records behavior after it occurs; no prevention claim is allowed;
-- `kill_only`: can terminate the workload after a violation is observed;
-- `pre_action_deny`: can block a covered operation before it reaches its target.
+When pre-action enforcement is required, Node Shield refuses to start unless artifact identity plus network connect, file write, process exec, and privilege-change controls are all covered.
 
-When `RequirePreAction` is enabled, Node Shield refuses to start unless the collector declares `pre_action_deny`, binds events to the running artifact identity, and covers network connect, file write, process exec, and privilege-change operations. Partial or unknown coverage fails closed.
+## Linux CO-RE enforcement
 
-This prevents an ordinary Docker event stream from being accidentally presented as a kernel enforcement boundary. Real pre-action denial requires a suitable hook such as eBPF/LSM, OCI runtime integration, or a SoloHost-native enforcement control surface.
+The Linux path now contains BPF LSM programs for exec/file/credential gates and a cgroup `connect4` program for exact IPv4 endpoint allowlisting. CO-RE objects are built with clang, hashed into a SHA-256 manifest, re-verified by Go before privileged load, attached with `cilium/ebpf`, and retained by workload-scoped link handles.
+
+BPF object existence or hook availability is never enough to claim prevention. Full prevention state requires:
+
+1. expected BPF object digests match;
+2. target cgroup directory identity matches the cgroup ID used by policy maps;
+3. an independent `WorkloadIdentityVerifier` proves the target cgroup belongs to the reviewed workload/artifact;
+4. all required LSM and cgroup links attach and expose valid link information;
+5. artifact/policy maps initialize successfully;
+6. the approved artifact SHA-256 is written to and read back from kernel policy state;
+7. all required pre-action boundaries remain covered.
+
+Writing an approved hash into a BPF map is **not** identity verification. The production loader refuses to arm a workload gate without an independent identity verifier.
+
+## Privileged kernel proof
+
+`linux_core_integration_test.go` is guarded by the `nodeshield_integration` build tag. It creates a disposable cgroup, starts a helper process, moves that PID into the protected cgroup, and verifies `/proc/<pid>/exe` SHA-256 against the approved artifact before arming kernel policy.
+
+The live proof then requires:
+
+- an allowlisted IPv4 endpoint remains reachable;
+- a second listening but unauthorized endpoint is blocked;
+- a forbidden file write is blocked;
+- a credential change is blocked;
+- a new executable image is blocked.
+
+`.github/workflows/node-shield-kernel-ci.yml` provides two validation tiers. Pull requests run normal Go unit/vet/compile checks on GitHub-hosted Linux. The live kernel proof is manual and requires a self-hosted runner labeled `nodeshield-bpf` with root access, cgroup v2, kernel BTF, BPF LSM, clang, bpftool, and libbpf headers.
+
+Until the privileged kernel proof succeeds on a compatible runner, Koschei must **not** claim end-to-end live kernel prevention.
+
+## Current CI status
+
+The feature branch currently has no recorded GitHub Actions runs. The connected GitHub integration can read workflow/run state but cannot read repository Actions permission settings. Therefore PR #841 remains unmerged until executable validation is available.
 
 ## Security invariant
 
-Node Shield does not trust an application because it was previously scanned. Trust is bound to:
+Node Shield trust is bound to:
 
-`artifact identity + declared authority + observed behavior + enforcement capability`
+`artifact identity + independent workload identity + declared authority + observed behavior + verified enforcement capability`
 
-A changed artifact is a different workload and requires a new review/policy. An enforcement adapter that cannot prove the required control surface cannot run in prevention mode.
-
-## Validation
-
-Node Shield lives under `koschei/api/**`, so the repository's existing **API Required CI** workflow covers pull-request changes to this package. That workflow runs Go tests, vet, build, and database-backed API checks before merge.
+A changed artifact is a different workload and requires a new review/policy. A kernel hook, map value, container label, or collector assertion is never sufficient by itself to elevate trust.
 
 ## Next slices
 
-1. Linux eBPF/LSM collector and enforcer implementation.
-2. Signed risk/evidence manifests.
-3. Package-update permission diffing.
-4. SoloHost adapter when the package schema/API is stable and publicly available.
-5. Sentinel ingestion for cross-node anomaly and reputation analysis.
-6. Verified-compute result attestation and challenge/re-execution.
+1. Execute the privileged BPF integration proof on a compatible runner and fix every verifier/kernel mismatch it reveals.
+2. Add signed risk/evidence manifests for successful enforcement sessions.
+3. Add package-update permission diffing.
+4. Add a SoloHost adapter only when Pi's package schema/API is stable and public.
+5. Feed cross-node behavior and enforcement evidence into Koschei Sentinel.
+6. Extend verified-compute result attestation and challenge/re-execution.
