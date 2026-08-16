@@ -3,6 +3,7 @@ package nodeshield
 import (
 	"net"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -23,21 +24,23 @@ const (
 	EventPrivilege      RuntimeEventKind = "privilege_change"
 )
 
-// For write events, collectors must provide a kernel/OS-resolved target and
-// attest that resolution in PathIdentityVerified. Lexical user paths are never
-// sufficient to authorize writes because symlinks can escape the boundary.
+// Write and exec authorization never trusts lexical user paths. Collectors must
+// provide an OS/kernel-resolved target and attest that it identifies the object
+// actually acted on at the enforcement point.
 type RuntimeEvent struct {
-	Kind                 RuntimeEventKind `json:"kind"`
-	Destination          string           `json:"destination,omitempty"`
-	Path                 string           `json:"path,omitempty"`
-	ResolvedPath         string           `json:"resolved_path,omitempty"`
-	PathIdentityVerified bool             `json:"path_identity_verified,omitempty"`
-	Executable           string           `json:"executable,omitempty"`
-	Write                bool             `json:"write,omitempty"`
+	Kind                       RuntimeEventKind `json:"kind"`
+	Destination                string           `json:"destination,omitempty"`
+	Path                       string           `json:"path,omitempty"`
+	ResolvedPath               string           `json:"resolved_path,omitempty"`
+	PathIdentityVerified       bool             `json:"path_identity_verified,omitempty"`
+	Executable                 string           `json:"executable,omitempty"`
+	ResolvedExecutable         string           `json:"resolved_executable,omitempty"`
+	ExecutableIdentityVerified bool             `json:"executable_identity_verified,omitempty"`
+	Write                      bool             `json:"write,omitempty"`
 }
 
 type RuntimePolicy struct {
-	ArtifactSHA256      string   `json:"artifact_sha256"`
+	ArtifactSHA256 string `json:"artifact_sha256"`
 	// AllowedHosts is retained for schema compatibility, but each entry is an
 	// exact host:port endpoint (or wildcard-host:port such as *.example.com:443).
 	AllowedHosts        []string `json:"allowed_hosts,omitempty"`
@@ -78,9 +81,12 @@ func EvaluateRuntimeEvent(policy RuntimePolicy, observedArtifactSHA256 string, e
 		}
 		return allowRuntime()
 	case EventProcessExec:
-		exe := filepath.Clean(strings.TrimSpace(event.Executable))
-		if exe == "." || !exactStringAllowed(exe, policy.AllowedExecutables) {
-			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-PROC-001", Description: "process execution is outside the approved executable set"}
+		if !event.ExecutableIdentityVerified {
+			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-PROC-002", Description: "process execution lacks verified resolved executable identity"}
+		}
+		exe := filepath.Clean(strings.TrimSpace(event.ResolvedExecutable))
+		if exe == "." || exe == "/" || !exactStringAllowed(exe, policy.AllowedExecutables) {
+			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-PROC-001", Description: "resolved process execution is outside the approved executable set"}
 		}
 		return allowRuntime()
 	default:
@@ -95,7 +101,41 @@ func normalizeEndpoint(destination string) string {
 	host, port, err := net.SplitHostPort(destination)
 	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" { return "" }
 	host = strings.Trim(strings.TrimSpace(host), "[]")
-	return net.JoinHostPort(host, port)
+	if !validEndpointHost(host, false) { return "" }
+	p, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || p == 0 { return "" }
+	return net.JoinHostPort(host, strconv.FormatUint(p, 10))
+}
+
+func normalizePolicyEndpoint(destination string) string {
+	destination = strings.TrimSpace(strings.ToLower(destination))
+	host, port, err := net.SplitHostPort(destination)
+	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" { return "" }
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if !validEndpointHost(host, true) { return "" }
+	p, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || p == 0 { return "" }
+	return net.JoinHostPort(host, strconv.FormatUint(p, 10))
+}
+
+func validEndpointHost(host string, wildcard bool) bool {
+	host = strings.TrimSpace(strings.ToLower(host))
+	if host == "" || host == "*" { return false }
+	if wildcard && strings.HasPrefix(host, "*.") {
+		host = strings.TrimPrefix(host, "*.")
+		if host == "" { return false }
+	} else if strings.Contains(host, "*") { return false }
+	if ip := net.ParseIP(host); ip != nil { return true }
+	if len(host) > 253 || strings.HasPrefix(host, ".") || strings.HasSuffix(host, ".") { return false }
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' { return false }
+		for _, r := range label {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' { continue }
+			return false
+		}
+	}
+	return true
 }
 
 func endpointAllowed(endpoint string, allowed []string) bool {
@@ -103,7 +143,8 @@ func endpointAllowed(endpoint string, allowed []string) bool {
 	if err != nil { return false }
 	host = strings.ToLower(strings.Trim(host, "[]"))
 	for _, raw := range allowed {
-		candidate := strings.TrimSpace(strings.ToLower(raw))
+		candidate := normalizePolicyEndpoint(raw)
+		if candidate == "" { continue }
 		chost, cport, err := net.SplitHostPort(candidate)
 		if err != nil || cport != port { continue }
 		chost = strings.Trim(chost, "[]")
@@ -128,7 +169,9 @@ func pathAllowed(path string, allowed []string) bool {
 
 func exactStringAllowed(value string, allowed []string) bool {
 	for _, candidate := range allowed {
-		if value == filepath.Clean(strings.TrimSpace(candidate)) { return true }
+		candidate = filepath.Clean(strings.TrimSpace(candidate))
+		if candidate == "." || candidate == "/" { continue }
+		if value == candidate { return true }
 	}
 	return false
 }
