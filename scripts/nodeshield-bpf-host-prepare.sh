@@ -30,7 +30,34 @@ apt-get update
 apt-get install -y --no-install-recommends \
   clang llvm bpftool libbpf-dev golang-go git ca-certificates coreutils make gcc libc6-dev
 
-ok "installed clang/llvm, bpftool, libbpf headers, Go, git and build prerequisites"
+ok "installed clang/llvm, bpftool, libbpf headers, Go bootstrap package, git and build prerequisites"
+
+# The repository currently requires Go 1.25.12. Distribution packages are only
+# a bootstrap convenience and MUST NOT be treated as proof that the required
+# toolchain is present. Go's automatic toolchain selection may satisfy this if
+# supported by the installed bootstrap version; otherwise the host operator
+# must install the required official toolchain explicitly.
+REQUIRED_GO="1.25.12"
+GO_VERSION="$(go env GOVERSION 2>/dev/null || true)"
+GO_VERSION="${GO_VERSION#go}"
+if [[ "$GO_VERSION" == "$REQUIRED_GO" ]]; then
+  ok "Go ${REQUIRED_GO} active"
+else
+  info "active Go toolchain is ${GO_VERSION:-unknown}; repository requires ${REQUIRED_GO}"
+  if GOTOOLCHAIN=auto go version "go${REQUIRED_GO}" >/dev/null 2>&1; then
+    ok "Go ${REQUIRED_GO} is available through automatic toolchain selection"
+  else
+    fail "Go ${REQUIRED_GO} is required; install/enable that official toolchain before live proof"
+  fi
+fi
+
+if [[ -n "${EXPECTED_SHA:-}" ]]; then
+  command -v git >/dev/null 2>&1 || fail "git is required for EXPECTED_SHA validation"
+  ACTUAL_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
+  [[ -n "$ACTUAL_SHA" ]] || fail "EXPECTED_SHA was supplied but current directory is not a Git checkout"
+  [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || fail "checkout identity mismatch: got $ACTUAL_SHA expected $EXPECTED_SHA"
+  ok "checkout matches expected head $EXPECTED_SHA"
+fi
 
 if [[ -f /sys/fs/cgroup/cgroup.controllers ]]; then
   ok "cgroup v2 detected"
@@ -76,8 +103,10 @@ READINESS="${SCRIPT_DIR}/nodeshield-bpf-readiness.sh"
 info "running canonical readiness probe"
 "$READINESS"
 
-cat <<'EOF'
+cat <<EOF
 Node Shield proof-host preparation: PASS
+Checked Git head: ${EXPECTED_SHA:-not supplied}
+Required Go: ${REQUIRED_GO}
 Next command from the exact PR-head checkout:
   sudo -E ./scripts/nodeshield-bpf-proof.sh
 EOF
