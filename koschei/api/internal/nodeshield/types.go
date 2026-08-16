@@ -22,9 +22,17 @@ const (
 
 // Mount describes a container/host filesystem mapping.
 type Mount struct {
+	Type     string `json:"type,omitempty"`
 	Source   string `json:"source"`
 	Target   string `json:"target"`
 	ReadOnly bool   `json:"read_only"`
+}
+
+// DeviceMapping describes a raw host device exposed to a workload.
+type DeviceMapping struct {
+	HostPath      string `json:"host_path"`
+	ContainerPath string `json:"container_path"`
+	Permissions   string `json:"permissions,omitempty"`
 }
 
 // WorkloadManifest is the normalized security-relevant view of a SoloHost,
@@ -44,6 +52,7 @@ type WorkloadManifest struct {
 	ReadOnlyRootFS     bool              `json:"read_only_root_fs"`
 	RunAsRoot          bool              `json:"run_as_root"`
 	Mounts             []Mount           `json:"mounts,omitempty"`
+	Devices            []DeviceMapping   `json:"devices,omitempty"`
 	ExposedPorts       []int             `json:"exposed_ports,omitempty"`
 	OutboundHosts      []string          `json:"outbound_hosts,omitempty"`
 	EnvKeys            []string          `json:"env_keys,omitempty"`
@@ -65,7 +74,6 @@ type Report struct {
 	SchemaVersion  string    `json:"schema_version"`
 	Workload       string    `json:"workload"`
 	ArtifactSHA256 string    `json:"artifact_sha256"`
-	Score          int       `json:"score"`
 	Verdict        Verdict   `json:"verdict"`
 	Findings       []Finding `json:"findings"`
 }
