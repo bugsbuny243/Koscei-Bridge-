@@ -24,6 +24,13 @@ func (s *sliceEventSource) Next(_ context.Context) (RuntimeEvent, error) {
 	return RuntimeEvent{}, errors.New("done")
 }
 
+type capabilityEventSource struct {
+	sliceEventSource
+	caps RuntimeCapabilities
+}
+
+func (s *capabilityEventSource) Capabilities() RuntimeCapabilities { return s.caps }
+
 func TestGuardStopsAfterKill(t *testing.T) {
 	source := &sliceEventSource{events: []RuntimeEvent{{Kind: EventFileOpen, Path: "/tmp/x"}}}
 	enforcer := &fakeEnforcer{}
@@ -50,5 +57,31 @@ func TestGuardReturnsSourceFailure(t *testing.T) {
 	guard := Guard{Source: &sliceEventSource{err: errors.New("collector failed")}}
 	if err := guard.Run(context.Background()); err == nil {
 		t.Fatal("expected collector failure")
+	}
+}
+
+func TestGuardRejectsObserveOnlyCollectorWhenPreActionRequired(t *testing.T) {
+	source := &capabilityEventSource{caps: RuntimeCapabilities{Mode: EnforcementObserveOnly, ArtifactIdentity: true}}
+	guard := Guard{Source: source, RequirePreAction: true}
+	if err := guard.Run(context.Background()); err == nil {
+		t.Fatal("expected pre-action requirement to reject observe-only collector")
+	}
+}
+
+func TestGuardAcceptsCapabilityAwarePreActionCollector(t *testing.T) {
+	source := &capabilityEventSource{
+		sliceEventSource: sliceEventSource{err: errors.New("done")},
+		caps: RuntimeCapabilities{
+			Mode:              EnforcementPreAction,
+			ArtifactIdentity: true,
+			NetworkConnect:    true,
+			FileWrite:         true,
+			ProcessExec:       true,
+			PrivilegeChange:  true,
+		},
+	}
+	guard := Guard{Source: source, RequirePreAction: true}
+	if err := guard.Run(context.Background()); err == nil {
+		t.Fatal("expected collector end error after capability validation")
 	}
 }
