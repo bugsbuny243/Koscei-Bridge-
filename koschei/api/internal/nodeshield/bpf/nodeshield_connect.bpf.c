@@ -18,8 +18,6 @@ struct endpoint_key4 {
     struct endpoint4 endpoint;
 };
 
-// Workloads appear in this map only after userspace binds the runtime policy
-// to the approved artifact identity.
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 4096);
@@ -27,9 +25,6 @@ struct {
     __type(value, __u8);
 } protected_cgroups SEC(".maps");
 
-// Exact IPv4 endpoint allowlist. DNS names are resolved and pinned by the
-// userspace policy compiler; the kernel program never trusts mutable hostname
-// strings.
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 65536);
@@ -50,7 +45,7 @@ int nodeshield_connect4(struct bpf_sock_addr *ctx)
         return 1;
 
     key.cgroup_id = cgid;
-    key.endpoint.addr = ctx->user_ip4;
+    key.endpoint.addr = bpf_ntohl(ctx->user_ip4);
     key.endpoint.port = bpf_ntohs((__u16)ctx->user_port);
 
     allowed = bpf_map_lookup_elem(&allowed_endpoints4, &key);
