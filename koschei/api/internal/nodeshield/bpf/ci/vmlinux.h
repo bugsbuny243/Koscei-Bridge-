@@ -31,6 +31,12 @@ struct dentry;
 struct cred;
 struct mnt_idmap;
 struct iattr;
+struct msghdr;
+
+// Minimal compile-only network object fields referenced by the LSM source.
+struct sock_common { __u16 skc_family; };
+struct sock { struct sock_common __sk_common; };
+struct socket { int type; struct sock *sk; };
 
 // Fields referenced by cgroup/connect* and cgroup/sendmsg* programs.
 struct bpf_sock_addr {
