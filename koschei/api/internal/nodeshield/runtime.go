@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// RuntimeAction is the enforcement decision for a single observed event.
 type RuntimeAction string
 
 const (
@@ -15,7 +14,6 @@ const (
 	RuntimeKill  RuntimeAction = "kill"
 )
 
-// RuntimeEventKind is a normalized behavior observed while a workload is running.
 type RuntimeEventKind string
 
 const (
@@ -25,34 +23,35 @@ const (
 	EventPrivilege      RuntimeEventKind = "privilege_change"
 )
 
-// RuntimeEvent intentionally carries only normalized security-relevant fields.
-// Platform collectors (Docker/eBPF/SoloHost) translate native events into this type.
+// For write events, collectors must provide a kernel/OS-resolved target and
+// attest that resolution in PathIdentityVerified. Lexical user paths are never
+// sufficient to authorize writes because symlinks can escape the boundary.
 type RuntimeEvent struct {
-	Kind        RuntimeEventKind `json:"kind"`
-	Destination string           `json:"destination,omitempty"`
-	Path        string           `json:"path,omitempty"`
-	Executable  string           `json:"executable,omitempty"`
-	Write       bool             `json:"write,omitempty"`
+	Kind                 RuntimeEventKind `json:"kind"`
+	Destination          string           `json:"destination,omitempty"`
+	Path                 string           `json:"path,omitempty"`
+	ResolvedPath         string           `json:"resolved_path,omitempty"`
+	PathIdentityVerified bool             `json:"path_identity_verified,omitempty"`
+	Executable           string           `json:"executable,omitempty"`
+	Write                bool             `json:"write,omitempty"`
 }
 
-// RuntimePolicy binds live behavior to the exact workload artifact reviewed at install time.
 type RuntimePolicy struct {
 	ArtifactSHA256      string   `json:"artifact_sha256"`
+	// AllowedHosts is retained for schema compatibility, but each entry is an
+	// exact host:port endpoint (or wildcard-host:port such as *.example.com:443).
 	AllowedHosts        []string `json:"allowed_hosts,omitempty"`
 	AllowedWritePaths   []string `json:"allowed_write_paths,omitempty"`
 	AllowedExecutables  []string `json:"allowed_executables,omitempty"`
 	DenyPrivilegeChange bool     `json:"deny_privilege_change"`
 }
 
-// RuntimeDecision is deterministic and fail-closed. Kill means the observed
-// behavior crosses a trust boundary and the supervisor should stop the workload.
 type RuntimeDecision struct {
 	Action      RuntimeAction `json:"action"`
 	RuleID      string        `json:"rule_id"`
 	Description string        `json:"description"`
 }
 
-// EvaluateRuntimeEvent evaluates one normalized live event against an artifact-bound policy.
 func EvaluateRuntimeEvent(policy RuntimePolicy, observedArtifactSHA256 string, event RuntimeEvent) RuntimeDecision {
 	if strings.TrimSpace(policy.ArtifactSHA256) == "" || !strings.EqualFold(strings.TrimSpace(policy.ArtifactSHA256), strings.TrimSpace(observedArtifactSHA256)) {
 		return RuntimeDecision{Action: RuntimeKill, RuleID: "NS-RT-PROV-001", Description: "running artifact identity does not match the approved runtime policy"}
@@ -60,71 +59,60 @@ func EvaluateRuntimeEvent(policy RuntimePolicy, observedArtifactSHA256 string, e
 
 	switch event.Kind {
 	case EventPrivilege:
-		if policy.DenyPrivilegeChange {
-			return RuntimeDecision{Action: RuntimeKill, RuleID: "NS-RT-AUTH-001", Description: "runtime privilege change is forbidden"}
-		}
+		if policy.DenyPrivilegeChange { return RuntimeDecision{Action: RuntimeKill, RuleID: "NS-RT-AUTH-001", Description: "runtime privilege change is forbidden"} }
 		return allowRuntime()
-
 	case EventNetworkConnect:
-		host := normalizeHost(event.Destination)
-		if host == "" || !hostAllowed(host, policy.AllowedHosts) {
-			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-NET-001", Description: "outbound destination is outside the approved network boundary"}
+		endpoint := normalizeEndpoint(event.Destination)
+		if endpoint == "" || !endpointAllowed(endpoint, policy.AllowedHosts) {
+			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-NET-001", Description: "outbound endpoint is outside the approved host-and-port boundary"}
 		}
 		return allowRuntime()
-
 	case EventFileOpen:
-		if !event.Write {
-			return allowRuntime()
+		if !event.Write { return allowRuntime() }
+		if !event.PathIdentityVerified {
+			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-FS-002", Description: "write target lacks verified resolved-path identity"}
 		}
-		path := filepath.Clean(strings.TrimSpace(event.Path))
-		if path == "." || !pathAllowed(path, policy.AllowedWritePaths) {
-			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-FS-001", Description: "write target is outside the approved filesystem boundary"}
+		path := filepath.Clean(strings.TrimSpace(event.ResolvedPath))
+		if path == "." || path == "/" || !pathAllowed(path, policy.AllowedWritePaths) {
+			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-FS-001", Description: "resolved write target is outside the approved filesystem boundary"}
 		}
 		return allowRuntime()
-
 	case EventProcessExec:
 		exe := filepath.Clean(strings.TrimSpace(event.Executable))
 		if exe == "." || !exactStringAllowed(exe, policy.AllowedExecutables) {
 			return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-PROC-001", Description: "process execution is outside the approved executable set"}
 		}
 		return allowRuntime()
-
 	default:
 		return RuntimeDecision{Action: RuntimeDeny, RuleID: "NS-RT-UNK-001", Description: "unknown runtime event kind is denied by default"}
 	}
 }
 
-func allowRuntime() RuntimeDecision {
-	return RuntimeDecision{Action: RuntimeAllow, RuleID: "NS-RT-ALLOW", Description: "event is within the approved runtime boundary"}
-}
+func allowRuntime() RuntimeDecision { return RuntimeDecision{Action: RuntimeAllow, RuleID: "NS-RT-ALLOW", Description: "event is within the approved runtime boundary"} }
 
-func normalizeHost(destination string) string {
+func normalizeEndpoint(destination string) string {
 	destination = strings.TrimSpace(strings.ToLower(destination))
-	if destination == "" {
-		return ""
-	}
-	if host, _, err := net.SplitHostPort(destination); err == nil {
-		return strings.Trim(host, "[]")
-	}
-	return strings.Trim(destination, "[]")
+	host, port, err := net.SplitHostPort(destination)
+	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" { return "" }
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	return net.JoinHostPort(host, port)
 }
 
-func hostAllowed(host string, allowed []string) bool {
-	for _, candidate := range allowed {
-		candidate = strings.TrimSpace(strings.ToLower(candidate))
-		if candidate == "" {
+func endpointAllowed(endpoint string, allowed []string) bool {
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil { return false }
+	host = strings.ToLower(strings.Trim(host, "[]"))
+	for _, raw := range allowed {
+		candidate := strings.TrimSpace(strings.ToLower(raw))
+		chost, cport, err := net.SplitHostPort(candidate)
+		if err != nil || cport != port { continue }
+		chost = strings.Trim(chost, "[]")
+		if strings.HasPrefix(chost, "*.") {
+			suffix := strings.TrimPrefix(chost, "*")
+			if strings.HasSuffix(host, suffix) && host != strings.TrimPrefix(suffix, ".") { return true }
 			continue
 		}
-		if strings.HasPrefix(candidate, "*.") {
-			suffix := strings.TrimPrefix(candidate, "*")
-			if strings.HasSuffix(host, suffix) && host != strings.TrimPrefix(suffix, ".") {
-				return true
-			}
-			continue
-		}
-		if host == candidate {
-			return true
-		}
+		if host == chost { return true }
 	}
 	return false
 }
@@ -132,21 +120,15 @@ func hostAllowed(host string, allowed []string) bool {
 func pathAllowed(path string, allowed []string) bool {
 	for _, candidate := range allowed {
 		candidate = filepath.Clean(strings.TrimSpace(candidate))
-		if candidate == "." {
-			continue
-		}
-		if path == candidate || strings.HasPrefix(path, candidate+string(filepath.Separator)) {
-			return true
-		}
+		if candidate == "." || candidate == "/" { continue }
+		if path == candidate || strings.HasPrefix(path, candidate+string(filepath.Separator)) { return true }
 	}
 	return false
 }
 
 func exactStringAllowed(value string, allowed []string) bool {
 	for _, candidate := range allowed {
-		if value == filepath.Clean(strings.TrimSpace(candidate)) {
-			return true
-		}
+		if value == filepath.Clean(strings.TrimSpace(candidate)) { return true }
 	}
 	return false
 }
