@@ -62,10 +62,10 @@ type Finding struct {
 
 // Report is the deterministic install-time security verdict for a workload.
 type Report struct {
-	SchemaVersion string    `json:"schema_version"`
-	Workload      string    `json:"workload"`
-	ArtifactSHA256 string   `json:"artifact_sha256"`
-	Score         int       `json:"score"`
-	Verdict       Verdict   `json:"verdict"`
-	Findings      []Finding `json:"findings"`
+	SchemaVersion  string    `json:"schema_version"`
+	Workload       string    `json:"workload"`
+	ArtifactSHA256 string    `json:"artifact_sha256"`
+	Score          int       `json:"score"`
+	Verdict        Verdict   `json:"verdict"`
+	Findings       []Finding `json:"findings"`
 }
