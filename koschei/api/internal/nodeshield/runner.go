@@ -15,13 +15,23 @@ type RuntimeEventSource interface {
 // cancelled, or an enforcement/audit failure occurs. A KILL decision stops the
 // loop after the enforcer has been invoked.
 type Guard struct {
-	Source     RuntimeEventSource
-	Supervisor Supervisor
+	Source           RuntimeEventSource
+	Supervisor       Supervisor
+	RequirePreAction bool
 }
 
 func (g Guard) Run(ctx context.Context) error {
 	if g.Source == nil {
 		return fmt.Errorf("runtime guard requires an event source")
+	}
+
+	capsSource, ok := g.Source.(CapabilitySource)
+	if !ok {
+		if g.RequirePreAction {
+			return fmt.Errorf("pre-action enforcement requires a capability-aware event source")
+		}
+	} else if err := ValidateRuntimeCapabilities(capsSource.Capabilities(), g.RequirePreAction); err != nil {
+		return fmt.Errorf("validate runtime capabilities: %w", err)
 	}
 
 	for {
