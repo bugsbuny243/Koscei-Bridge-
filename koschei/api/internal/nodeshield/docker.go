@@ -7,8 +7,8 @@ import (
 )
 
 type dockerInspect struct {
-	Name   string `json:"Name"`
-	Image  string `json:"Image"`
+	Name  string `json:"Name"`
+	Image string `json:"Image"`
 	Config struct {
 		Image        string              `json:"Image"`
 		User         string              `json:"User"`
@@ -24,18 +24,20 @@ type dockerInspect struct {
 		CapAdd         []string `json:"CapAdd"`
 		SecurityOpt    []string `json:"SecurityOpt"`
 		Binds          []string `json:"Binds"`
+		Devices        []struct {
+			PathOnHost        string `json:"PathOnHost"`
+			PathInContainer   string `json:"PathInContainer"`
+			CgroupPermissions string `json:"CgroupPermissions"`
+		} `json:"Devices"`
 	} `json:"HostConfig"`
 	Mounts []struct {
+		Type        string `json:"Type"`
 		Source      string `json:"Source"`
 		Destination string `json:"Destination"`
 		RW          bool   `json:"RW"`
 	} `json:"Mounts"`
 }
 
-// FromDockerInspect converts the JSON emitted by `docker inspect <container>`
-// into Node Shield's platform-neutral WorkloadManifest. The artifact hash is
-// supplied separately so callers can bind the review to an immutable image or
-// exported package digest rather than a mutable image tag.
 func FromDockerInspect(data []byte, artifactSHA256 string) (WorkloadManifest, error) {
 	var list []dockerInspect
 	if err := json.Unmarshal(data, &list); err != nil {
@@ -46,42 +48,57 @@ func FromDockerInspect(data []byte, artifactSHA256 string) (WorkloadManifest, er
 	}
 
 	d := list[0]
+	userPart := strings.TrimSpace(d.Config.User)
+	if i := strings.IndexByte(userPart, ':'); i >= 0 {
+		userPart = userPart[:i]
+	}
 	m := WorkloadManifest{
-		Name:           strings.TrimPrefix(d.Name, "/"),
-		ArtifactSHA256: artifactSHA256,
-		Image:          d.Config.Image,
-		Privileged:     d.HostConfig.Privileged,
-		HostNetwork:    d.HostConfig.NetworkMode == "host",
-		HostPID:        d.HostConfig.PidMode == "host",
-		HostIPC:        d.HostConfig.IpcMode == "host",
-		ReadOnlyRootFS: d.HostConfig.ReadonlyRootfs,
-		RunAsRoot:      d.Config.User == "" || d.Config.User == "0" || strings.EqualFold(d.Config.User, "root"),
-		Capabilities:   append([]string(nil), d.HostConfig.CapAdd...),
+		Name:               strings.TrimPrefix(d.Name, "/"),
+		ArtifactSHA256:     artifactSHA256,
+		Image:              d.Config.Image,
+		Privileged:         d.HostConfig.Privileged,
+		HostNetwork:        d.HostConfig.NetworkMode == "host",
+		HostPID:            d.HostConfig.PidMode == "host",
+		HostIPC:            d.HostConfig.IpcMode == "host",
+		ReadOnlyRootFS:     d.HostConfig.ReadonlyRootfs,
+		RunAsRoot:          userPart == "" || userPart == "0" || strings.EqualFold(userPart, "root"),
+		AllowPrivilegeGain: true,
+		Capabilities:       append([]string(nil), d.HostConfig.CapAdd...),
 	}
 
 	for _, opt := range d.HostConfig.SecurityOpt {
 		if strings.EqualFold(strings.TrimSpace(opt), "no-new-privileges:true") {
 			m.AllowPrivilegeGain = false
+			break
 		}
 	}
 
-	for _, mount := range d.Mounts {
-		m.Mounts = append(m.Mounts, Mount{Source: mount.Source, Target: mount.Destination, ReadOnly: !mount.RW})
-		if mount.Source == "/var/run/docker.sock" {
+	seenMounts := map[string]struct{}{}
+	appendMount := func(mt Mount) {
+		key := strings.ToLower(mt.Type) + "\x00" + mt.Source + "\x00" + mt.Target + fmt.Sprintf("\x00%t", mt.ReadOnly)
+		if _, ok := seenMounts[key]; ok {
+			return
+		}
+		seenMounts[key] = struct{}{}
+		m.Mounts = append(m.Mounts, mt)
+		if strings.EqualFold(mt.Type, "bind") && mt.Source == "/var/run/docker.sock" {
 			m.DockerSocket = true
 		}
 	}
 
+	for _, mount := range d.Mounts {
+		appendMount(Mount{Type: mount.Type, Source: mount.Source, Target: mount.Destination, ReadOnly: !mount.RW})
+	}
 	for _, bind := range d.HostConfig.Binds {
 		parts := strings.Split(bind, ":")
 		if len(parts) < 2 {
 			continue
 		}
-		ro := len(parts) >= 3 && strings.Contains(parts[2], "ro")
-		m.Mounts = append(m.Mounts, Mount{Source: parts[0], Target: parts[1], ReadOnly: ro})
-		if parts[0] == "/var/run/docker.sock" {
-			m.DockerSocket = true
-		}
+		ro := len(parts) >= 3 && strings.Contains(strings.ToLower(parts[2]), "ro")
+		appendMount(Mount{Type: "bind", Source: parts[0], Target: parts[1], ReadOnly: ro})
+	}
+	for _, device := range d.HostConfig.Devices {
+		m.Devices = append(m.Devices, DeviceMapping{HostPath: device.PathOnHost, ContainerPath: device.PathInContainer, Permissions: device.CgroupPermissions})
 	}
 
 	for key := range d.Config.ExposedPorts {
@@ -90,12 +107,10 @@ func FromDockerInspect(data []byte, artifactSHA256 string) (WorkloadManifest, er
 			m.ExposedPorts = append(m.ExposedPorts, port)
 		}
 	}
-
 	for _, env := range d.Config.Env {
 		if i := strings.IndexByte(env, '='); i > 0 {
 			m.EnvKeys = append(m.EnvKeys, env[:i])
 		}
 	}
-
 	return m, nil
 }
