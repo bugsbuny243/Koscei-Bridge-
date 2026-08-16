@@ -37,11 +37,11 @@ type RuntimeEvent struct {
 
 // RuntimePolicy binds live behavior to the exact workload artifact reviewed at install time.
 type RuntimePolicy struct {
-	ArtifactSHA256    string   `json:"artifact_sha256"`
-	AllowedHosts      []string `json:"allowed_hosts,omitempty"`
-	AllowedWritePaths []string `json:"allowed_write_paths,omitempty"`
-	AllowedExecutables []string `json:"allowed_executables,omitempty"`
-	DenyPrivilegeChange bool   `json:"deny_privilege_change"`
+	ArtifactSHA256      string   `json:"artifact_sha256"`
+	AllowedHosts        []string `json:"allowed_hosts,omitempty"`
+	AllowedWritePaths   []string `json:"allowed_write_paths,omitempty"`
+	AllowedExecutables  []string `json:"allowed_executables,omitempty"`
+	DenyPrivilegeChange bool     `json:"deny_privilege_change"`
 }
 
 // RuntimeDecision is deterministic and fail-closed. Kill means the observed
