@@ -57,11 +57,15 @@ jobs:
 
   privileged-kernel-enforcement:
     name: Privileged BPF LSM enforcement proof
+    # A persistent label must never authorize a later synchronize event. For a
+    # PR, root execution is permitted only by the fresh event that ADDS the
+    # approval label to the current head. Any new commit requires remove+re-add.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       contains(github.event.pull_request.labels.*.name, 'nodeshield-kernel-proof'))
+       github.event.action == 'labeled' &&
+       github.event.label.name == 'nodeshield-kernel-proof' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, linux, nodeshield-bpf]
     env:
       EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -87,11 +91,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          REPORT=artifacts/nodeshield-kernel-proof/kernel-proof.json
-          CHECKSUM=${REPORT}.sha256
+          EVIDENCE_DIR=artifacts/nodeshield-kernel-proof
+          REPORT=${EVIDENCE_DIR}/kernel-proof.json
           test -s "$REPORT"
-          test -s "$CHECKSUM"
-          sha256sum -c "$CHECKSUM"
+          test -s "${REPORT}.sha256"
+          (cd "$EVIDENCE_DIR" && sha256sum -c kernel-proof.json.sha256)
           grep -Fq '"result": "PASS"' "$REPORT"
           grep -Fq '"test": "TestLinuxCOREBackendKernelEnforcement"' "$REPORT"
           grep -Fq "\"commit_sha\": \"$EXPECTED_SHA\"" "$REPORT"
