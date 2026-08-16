@@ -20,7 +20,8 @@ ok "cgroup v2 detected"
 command -v clang >/dev/null 2>&1 || fail "clang is required"
 command -v bpftool >/dev/null 2>&1 || fail "bpftool is required"
 command -v go >/dev/null 2>&1 || fail "Go is required"
-ok "clang, bpftool, and Go detected"
+[[ -r /usr/include/bpf/bpf_helpers.h ]] || fail "libbpf headers are required"
+ok "clang, bpftool, Go, and libbpf headers detected"
 
 if [[ ! -r /sys/kernel/btf/vmlinux ]]; then
   fail "kernel BTF /sys/kernel/btf/vmlinux is required for CO-RE"
