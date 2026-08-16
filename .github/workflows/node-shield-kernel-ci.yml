@@ -50,6 +50,18 @@ jobs:
         run: |
           chmod +x scripts/nodeshield-bpf-readiness.sh scripts/nodeshield-bpf-proof.sh koschei/api/internal/nodeshield/bpf/build.sh
           sudo -E scripts/nodeshield-bpf-proof.sh
+      - name: Verify proof report exists and is commit-bound
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT=artifacts/nodeshield-kernel-proof/kernel-proof.json
+          CHECKSUM=${REPORT}.sha256
+          test -s "$REPORT"
+          test -s "$CHECKSUM"
+          sha256sum -c "$CHECKSUM"
+          grep -Fq '"result": "PASS"' "$REPORT"
+          grep -Fq '"test": "TestLinuxCOREBackendKernelEnforcement"' "$REPORT"
+          grep -Fq '"commit_sha": "${{ github.sha }}"' "$REPORT"
       - name: Upload tamper-evident kernel proof
         if: always()
         uses: actions/upload-artifact@v4
