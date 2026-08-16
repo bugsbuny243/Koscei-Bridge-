@@ -29,22 +29,20 @@ func (g Guard) Run(ctx context.Context) error {
 
 	if g.RequirePreAction && g.Supervisor.Enforcer == nil { return fmt.Errorf("pre-action enforcement requires an enforcer") }
 	if mode == EnforcementKillOnly && g.Supervisor.Enforcer == nil { return fmt.Errorf("kill-only enforcement requires an enforcer") }
+	if mode == EnforcementObserveOnly && g.Supervisor.Audit == nil { return fmt.Errorf("observe-only mode requires an audit sink") }
 	g.Supervisor.ObserveOnly = mode == EnforcementObserveOnly
 	g.Supervisor.KillOnly = mode == EnforcementKillOnly
 
 	startupDecision := EvaluateRuntimeEvent(g.Supervisor.Policy, g.Supervisor.ObservedArtifactSHA256, RuntimeEvent{})
 	if startupDecision.Action == RuntimeKill {
 		if g.Supervisor.ObserveOnly {
-			if g.Supervisor.Audit != nil {
-				if err := g.Supervisor.Audit.RecordRuntimeDecision(ctx, g.Supervisor.WorkloadID, RuntimeEvent{}, startupDecision); err != nil { return fmt.Errorf("record startup artifact mismatch: %w", err) }
-			}
+			if err := g.Supervisor.Audit.RecordRuntimeDecision(ctx, g.Supervisor.WorkloadID, RuntimeEvent{}, startupDecision); err != nil { return fmt.Errorf("record startup artifact mismatch: %w", err) }
 			return nil
 		}
 		if g.Supervisor.Enforcer == nil { return fmt.Errorf("artifact mismatch requires an enforcer") }
 		if err := g.Supervisor.Enforcer.Kill(ctx, g.Supervisor.WorkloadID, startupDecision); err != nil { return fmt.Errorf("kill mismatched workload before event loop: %w", err) }
-		if g.Supervisor.Audit != nil {
-			if err := g.Supervisor.Audit.RecordRuntimeDecision(ctx, g.Supervisor.WorkloadID, RuntimeEvent{}, startupDecision); err != nil { return fmt.Errorf("workload killed but startup audit failed: %w", err) }
-		}
+		if g.Supervisor.Audit == nil { return fmt.Errorf("workload killed but startup audit sink is missing") }
+		if err := g.Supervisor.Audit.RecordRuntimeDecision(ctx, g.Supervisor.WorkloadID, RuntimeEvent{}, startupDecision); err != nil { return fmt.Errorf("workload killed but startup audit failed: %w", err) }
 		return nil
 	}
 
