@@ -22,6 +22,13 @@ type LinuxBPFProbe struct {
 	LSMProgramsAttached    bool   `json:"lsm_programs_attached"`
 	ConnectProgramAttached bool   `json:"connect_program_attached"`
 	PolicyMapsReady        bool   `json:"policy_maps_ready"`
+
+	// CompleteKernelCoverage is deliberately separate from hook availability.
+	// It may only be set after the implementation covers descendant cgroups,
+	// IPv4+IPv6 network connects, writes through already-open descriptors, and
+	// the full credential-change surface exercised by the privileged proof.
+	// Until then Node Shield must not advertise pre_action_deny.
+	CompleteKernelCoverage bool `json:"complete_kernel_coverage"`
 }
 
 // ApplyBPFLoadResult imports only verified backend state into the probe. The
@@ -39,10 +46,10 @@ func (p *LinuxBPFProbe) ApplyBPFLoadResult(result BPFLoadResult) {
 
 // Capabilities converts the probed Linux hook coverage into the common Node
 // Shield runtime capability contract. Full pre-action mode is only declared
-// when every required boundary exists and verified enforcement is attached.
+// after complete adversarial kernel coverage has been explicitly verified.
 func (p LinuxBPFProbe) Capabilities() RuntimeCapabilities {
 	loaded := p.ProgramObjectsVerified && p.LSMProgramsAttached && p.ConnectProgramAttached && p.PolicyMapsReady
-	fullPreAction := p.BPFLSMEnabled && p.CgroupBPFEnabled && p.ArtifactBinding && loaded &&
+	fullPreAction := p.CompleteKernelCoverage && p.BPFLSMEnabled && p.CgroupBPFEnabled && p.ArtifactBinding && loaded &&
 		p.ExecHookAvailable && p.FileHookAvailable && p.PrivilegeHook && p.ConnectHookAvailable
 
 	mode := EnforcementObserveOnly
@@ -51,12 +58,14 @@ func (p LinuxBPFProbe) Capabilities() RuntimeCapabilities {
 	}
 
 	return RuntimeCapabilities{
-		Mode:              mode,
+		Mode:             mode,
 		ArtifactIdentity: p.ArtifactBinding,
-		NetworkConnect:    loaded && p.CgroupBPFEnabled && p.ConnectHookAvailable,
-		FileWrite:         loaded && p.BPFLSMEnabled && p.FileHookAvailable,
-		ProcessExec:       loaded && p.BPFLSMEnabled && p.ExecHookAvailable,
-		PrivilegeChange:  loaded && p.BPFLSMEnabled && p.PrivilegeHook,
+		// Coverage booleans are claims, not merely observations that a hook exists.
+		// Keep them false until CompleteKernelCoverage has passed the live proof.
+		NetworkConnect:   fullPreAction,
+		FileWrite:        fullPreAction,
+		ProcessExec:      fullPreAction,
+		PrivilegeChange: fullPreAction,
 	}
 }
 
@@ -80,6 +89,9 @@ func ValidateLinuxBPFProbe(p LinuxBPFProbe, requirePreAction bool) error {
 	}
 	if requirePreAction && !p.PolicyMapsReady {
 		return fmt.Errorf("pre-action enforcement requires initialized artifact-bound policy maps")
+	}
+	if requirePreAction && !p.CompleteKernelCoverage {
+		return fmt.Errorf("pre-action enforcement requires complete adversarial kernel coverage")
 	}
 	return ValidateRuntimeCapabilities(p.Capabilities(), requirePreAction)
 }
