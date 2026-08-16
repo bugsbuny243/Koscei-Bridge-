@@ -5,9 +5,6 @@ import (
 	"runtime"
 )
 
-// LinuxHook identifies the kernel control surface expected to back one class
-// of pre-action enforcement. These names describe intent; adapters may use
-// BPF LSM, cgroup BPF, or another Linux-native mechanism to realize them.
 type LinuxHook string
 
 const (
@@ -17,8 +14,6 @@ const (
 	LinuxHookPrivilege      LinuxHook = "privilege_change"
 )
 
-// LinuxHookStatus records whether one security boundary is available and can
-// actually reject the covered action before it reaches its target.
 type LinuxHookStatus struct {
 	Hook      LinuxHook `json:"hook"`
 	Available bool      `json:"available"`
@@ -26,47 +21,32 @@ type LinuxHookStatus struct {
 	Backend   string    `json:"backend,omitempty"`
 }
 
-// LinuxEnforcementStatus is a runtime capability snapshot for the host.
+// LinuxEnforcementStatus never synthesizes artifact identity from hook
+// discovery. ArtifactIdentityVerified must come from independent workload
+// identity evidence produced by the launcher/verifier path.
 type LinuxEnforcementStatus struct {
-	Platform string            `json:"platform"`
-	Hooks    []LinuxHookStatus `json:"hooks"`
+	Platform                 string            `json:"platform"`
+	ArtifactIdentityVerified bool              `json:"artifact_identity_verified"`
+	Hooks                    []LinuxHookStatus `json:"hooks"`
 }
 
-// Capabilities converts a Linux enforcement probe into the common Node Shield
-// capability contract. It only advertises pre-action coverage when every
-// required hook is both available and prevention-capable.
 func (s LinuxEnforcementStatus) Capabilities() RuntimeCapabilities {
-	caps := RuntimeCapabilities{Mode: EnforcementObserveOnly, ArtifactIdentity: true}
-
+	caps := RuntimeCapabilities{Mode: EnforcementObserveOnly, ArtifactIdentity: s.ArtifactIdentityVerified}
 	for _, h := range s.Hooks {
-		if !h.Available || !h.PreAction {
-			continue
-		}
+		if !h.Available || !h.PreAction { continue }
 		switch h.Hook {
-		case LinuxHookNetworkConnect:
-			caps.NetworkConnect = true
-		case LinuxHookFileWrite:
-			caps.FileWrite = true
-		case LinuxHookProcessExec:
-			caps.ProcessExec = true
-		case LinuxHookPrivilege:
-			caps.PrivilegeChange = true
+		case LinuxHookNetworkConnect: caps.NetworkConnect = true
+		case LinuxHookFileWrite: caps.FileWrite = true
+		case LinuxHookProcessExec: caps.ProcessExec = true
+		case LinuxHookPrivilege: caps.PrivilegeChange = true
 		}
 	}
-
-	if caps.NetworkConnect || caps.FileWrite || caps.ProcessExec || caps.PrivilegeChange {
-		caps.Mode = EnforcementKillOnly
-	}
-	if caps.NetworkConnect && caps.FileWrite && caps.ProcessExec && caps.PrivilegeChange {
-		caps.Mode = EnforcementPreAction
-	}
+	if caps.NetworkConnect || caps.FileWrite || caps.ProcessExec || caps.PrivilegeChange { caps.Mode = EnforcementKillOnly }
+	if caps.ArtifactIdentity && caps.NetworkConnect && caps.FileWrite && caps.ProcessExec && caps.PrivilegeChange { caps.Mode = EnforcementPreAction }
 	return caps
 }
 
-// ValidateHost rejects non-Linux or incomplete prevention configurations.
 func (s LinuxEnforcementStatus) ValidateHost(requirePreAction bool) error {
-	if runtime.GOOS != "linux" {
-		return fmt.Errorf("linux enforcement is unavailable on %s", runtime.GOOS)
-	}
+	if runtime.GOOS != "linux" { return fmt.Errorf("linux enforcement is unavailable on %s", runtime.GOOS) }
 	return ValidateRuntimeCapabilities(s.Capabilities(), requirePreAction)
 }
