@@ -23,7 +23,7 @@ type linuxWorkloadGate struct {
 	DenyPrivilege uint8
 }
 
-type linuxArtifactDigest struct { SHA256 [32]byte }
+type linuxArtifactDigest struct{ SHA256 [32]byte }
 
 type linuxEndpoint4 struct {
 	Addr uint32
@@ -39,9 +39,9 @@ type linuxEndpointKey4 struct {
 type linuxLSMObjects struct {
 	BprmCheck       *ebpf.Program `ebpf:"nodeshield_bprm_check"`
 	FileOpen        *ebpf.Program `ebpf:"nodeshield_file_open"`
-	TaskFixSetuid    *ebpf.Program `ebpf:"nodeshield_task_fix_setuid"`
-	WorkloadGates    *ebpf.Map     `ebpf:"workload_gates"`
-	ArtifactBindings *ebpf.Map     `ebpf:"artifact_bindings"`
+	TaskFixSetuid   *ebpf.Program `ebpf:"nodeshield_task_fix_setuid"`
+	WorkloadGates   *ebpf.Map     `ebpf:"workload_gates"`
+	ArtifactBindings *ebpf.Map    `ebpf:"artifact_bindings"`
 }
 
 func (o *linuxLSMObjects) Close() {
@@ -77,21 +77,28 @@ func (s *linuxBPFSession) Close() {
 }
 
 // LinuxCOREBackend is the privileged production loader for Node Shield's
-// verified CO-RE objects. Attachment handles are retained per workload so a
-// successful LoadAndAttach cannot silently detach when the function returns.
+// verified CO-RE objects. The identity verifier must independently prove that
+// the target cgroup belongs to the reviewed workload/artifact before any gate
+// is armed. Writing an approved digest into a map is evidence recording, not
+// identity verification by itself.
 type LinuxCOREBackend struct {
-	mu       sync.Mutex
-	sessions map[string]*linuxBPFSession
+	mu               sync.Mutex
+	sessions         map[string]*linuxBPFSession
+	identityVerifier WorkloadIdentityVerifier
 }
 
-func NewLinuxCOREBackend() *LinuxCOREBackend {
-	return &LinuxCOREBackend{sessions: make(map[string]*linuxBPFSession)}
+func NewLinuxCOREBackend(identityVerifier WorkloadIdentityVerifier) *LinuxCOREBackend {
+	return &LinuxCOREBackend{
+		sessions:         make(map[string]*linuxBPFSession),
+		identityVerifier: identityVerifier,
+	}
 }
 
 func (b *LinuxCOREBackend) LoadAndAttach(ctx context.Context, cfg BPFLoadConfig, objects []BPFObjectManifest) (BPFLoadResult, error) {
 	if err := ctx.Err(); err != nil { return BPFLoadResult{}, err }
 	if err := cfg.Validate(); err != nil { return BPFLoadResult{}, err }
 	if err := verifyCgroupIdentity(cfg.CgroupPath, cfg.CgroupID); err != nil { return BPFLoadResult{}, err }
+	if err := RequireVerifiedWorkloadIdentity(ctx, b.identityVerifier, cfg); err != nil { return BPFLoadResult{}, err }
 
 	lsmPath, connectPath, err := nodeShieldObjectPaths(objects)
 	if err != nil { return BPFLoadResult{}, err }
@@ -118,7 +125,11 @@ func (b *LinuxCOREBackend) LoadAndAttach(ctx context.Context, cfg BPFLoadConfig,
 		session.links = append(session.links, lnk)
 	}
 
-	connectLink, err := link.AttachCgroup(link.CgroupOptions{Path: cfg.CgroupPath, Attach: ebpf.AttachCGroupInet4Connect, Program: session.connect.Connect4})
+	connectLink, err := link.AttachCgroup(link.CgroupOptions{
+		Path: cfg.CgroupPath,
+		Attach: ebpf.AttachCGroupInet4Connect,
+		Program: session.connect.Connect4,
+	})
 	if err != nil { return BPFLoadResult{}, fmt.Errorf("attach cgroup connect4 program: %w", err) }
 	if _, err := connectLink.Info(); err != nil {
 		_ = connectLink.Close()
@@ -134,14 +145,22 @@ func (b *LinuxCOREBackend) LoadAndAttach(ctx context.Context, cfg BPFLoadConfig,
 	var verifiedDigest linuxArtifactDigest
 	if err := session.lsm.ArtifactBindings.Lookup(cfg.CgroupID, &verifiedDigest); err != nil || verifiedDigest != digest { return BPFLoadResult{}, fmt.Errorf("verify artifact digest binding") }
 
-	gate := linuxWorkloadGate{Enabled: 1, DenyExec: boolByte(cfg.DenyExec), DenyFileWrite: boolByte(cfg.DenyFileWrite), DenyPrivilege: boolByte(cfg.DenyPrivilege)}
+	gate := linuxWorkloadGate{
+		Enabled: 1,
+		DenyExec: boolByte(cfg.DenyExec),
+		DenyFileWrite: boolByte(cfg.DenyFileWrite),
+		DenyPrivilege: boolByte(cfg.DenyPrivilege),
+	}
 	if err := session.lsm.WorkloadGates.Update(cfg.CgroupID, gate, ebpf.UpdateAny); err != nil { return BPFLoadResult{}, fmt.Errorf("initialize workload gate map: %w", err) }
 
 	one := uint8(1)
 	if err := session.connect.ProtectedCgroups.Update(cfg.CgroupID, one, ebpf.UpdateAny); err != nil { return BPFLoadResult{}, fmt.Errorf("initialize protected cgroup map: %w", err) }
 	for _, endpoint := range cfg.AllowedIPv4 {
 		addr4 := endpoint.Address.As4()
-		key := linuxEndpointKey4{CgroupID: cfg.CgroupID, Endpoint: linuxEndpoint4{Addr: binary.BigEndian.Uint32(addr4[:]), Port: endpoint.Port}}
+		key := linuxEndpointKey4{
+			CgroupID: cfg.CgroupID,
+			Endpoint: linuxEndpoint4{Addr: binary.BigEndian.Uint32(addr4[:]), Port: endpoint.Port},
+		}
 		if err := session.connect.AllowedEndpoints4.Update(key, one, ebpf.UpdateAny); err != nil { return BPFLoadResult{}, fmt.Errorf("initialize endpoint allowlist: %w", err) }
 	}
 
