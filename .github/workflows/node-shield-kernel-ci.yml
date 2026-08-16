@@ -50,3 +50,11 @@ jobs:
         run: |
           chmod +x scripts/nodeshield-bpf-readiness.sh scripts/nodeshield-bpf-proof.sh koschei/api/internal/nodeshield/bpf/build.sh
           sudo -E scripts/nodeshield-bpf-proof.sh
+      - name: Upload tamper-evident kernel proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodeshield-kernel-proof-${{ github.sha }}
+          path: artifacts/nodeshield-kernel-proof/
+          if-no-files-found: error
+          retention-days: 30
