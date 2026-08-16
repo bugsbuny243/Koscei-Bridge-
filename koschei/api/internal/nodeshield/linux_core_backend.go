@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type linuxWorkloadGate struct { Enabled, DenyExec, DenyFileWrite, DenyPrivilege uint8 }
+type linuxWorkloadGate struct { Enabled, DenyExec, DenyFileWrite, DenyPrivilege, DenyRawSocket uint8 }
 type linuxArtifactDigest struct{ SHA256 [32]byte }
 type linuxEndpoint4 struct { Addr uint32; Port uint16; Pad uint16 }
 type linuxEndpoint6 struct { Addr [4]uint32; Port uint16; Pad uint16 }
@@ -34,12 +34,14 @@ type linuxLSMObjects struct {
 	TaskFixSetgid *ebpf.Program `ebpf:"nodeshield_task_fix_setgid"`
 	TaskFixSetgroups *ebpf.Program `ebpf:"nodeshield_task_fix_setgroups"`
 	Capset *ebpf.Program `ebpf:"nodeshield_capset"`
+	SocketCreate *ebpf.Program `ebpf:"nodeshield_socket_create"`
+	SocketSendmsg *ebpf.Program `ebpf:"nodeshield_socket_sendmsg"`
 	WorkloadGate *ebpf.Map `ebpf:"workload_gate_map"`
 	ArtifactBinding *ebpf.Map `ebpf:"artifact_binding_map"`
 }
 
 func (o *linuxLSMObjects) Close() {
-	for _,p:=range []*ebpf.Program{o.BprmCheck,o.FilePermission,o.InodeCreate,o.InodePermission,o.InodeSetattr,o.TaskFixSetuid,o.TaskFixSetgid,o.TaskFixSetgroups,o.Capset} { if p!=nil { _=p.Close() } }
+	for _,p:=range []*ebpf.Program{o.BprmCheck,o.FilePermission,o.InodeCreate,o.InodePermission,o.InodeSetattr,o.TaskFixSetuid,o.TaskFixSetgid,o.TaskFixSetgroups,o.Capset,o.SocketCreate,o.SocketSendmsg} { if p!=nil { _=p.Close() } }
 	if o.WorkloadGate!=nil { _=o.WorkloadGate.Close() }; if o.ArtifactBinding!=nil { _=o.ArtifactBinding.Close() }
 }
 
@@ -73,12 +75,12 @@ func (b *LinuxCOREBackend) LoadAndAttach(ctx context.Context,cfg BPFLoadConfig,o
 	zero:=uint32(0); if err:=s.lsm.WorkloadGate.Update(zero,linuxWorkloadGate{},ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}; if err:=s.connect.NetworkGate.Update(zero,uint8(0),ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}
 	ab,err:=hex.DecodeString(cfg.ArtifactSHA256); if err!=nil||len(ab)!=sha256.Size{return BPFLoadResult{},fmt.Errorf("decode artifact sha256")}; var digest linuxArtifactDigest; copy(digest.SHA256[:],ab); if err:=s.lsm.ArtifactBinding.Update(zero,digest,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}; var vd linuxArtifactDigest; if err:=s.lsm.ArtifactBinding.Lookup(zero,&vd);err!=nil||vd!=digest{return BPFLoadResult{},fmt.Errorf("verify artifact digest binding")}
 	one:=uint8(1); for _,ep:=range cfg.AllowedIPs{ if ep.Address.Is4(){a:=ep.Address.As4();key:=linuxEndpoint4{Addr:binary.BigEndian.Uint32(a[:]),Port:ep.Port};if err:=s.connect.AllowedEndpoints4.Update(key,one,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}}else{a:=ep.Address.As16();key:=linuxEndpoint6{Port:ep.Port};for i:=0;i<4;i++{key.Addr[i]=binary.BigEndian.Uint32(a[i*4:(i+1)*4])};if err:=s.connect.AllowedEndpoints6.Update(key,one,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}} }
-	for _,prog:=range []*ebpf.Program{s.lsm.BprmCheck,s.lsm.FilePermission,s.lsm.InodeCreate,s.lsm.InodePermission,s.lsm.InodeSetattr,s.lsm.TaskFixSetuid,s.lsm.TaskFixSetgid,s.lsm.TaskFixSetgroups,s.lsm.Capset}{lnk,err:=link.AttachRawLink(link.RawLinkOptions{Target:int(cg.Fd()),Program:prog,Attach:ebpf.AttachLSMCgroup});if err!=nil{return BPFLoadResult{},fmt.Errorf("attach cgroup LSM: %w",err)};if _,err:=lnk.Info();err!=nil{_=lnk.Close();return BPFLoadResult{},err};s.links=append(s.links,lnk)}
+	for _,prog:=range []*ebpf.Program{s.lsm.BprmCheck,s.lsm.FilePermission,s.lsm.InodeCreate,s.lsm.InodePermission,s.lsm.InodeSetattr,s.lsm.TaskFixSetuid,s.lsm.TaskFixSetgid,s.lsm.TaskFixSetgroups,s.lsm.Capset,s.lsm.SocketCreate,s.lsm.SocketSendmsg}{lnk,err:=link.AttachRawLink(link.RawLinkOptions{Target:int(cg.Fd()),Program:prog,Attach:ebpf.AttachLSMCgroup});if err!=nil{return BPFLoadResult{},fmt.Errorf("attach cgroup LSM: %w",err)};if _,err:=lnk.Info();err!=nil{_=lnk.Close();return BPFLoadResult{},err};s.links=append(s.links,lnk)}
 	for _,it:=range []struct{p *ebpf.Program;a ebpf.AttachType;n string}{{s.connect.Connect4,ebpf.AttachCGroupInet4Connect,"connect4"},{s.connect.Connect6,ebpf.AttachCGroupInet6Connect,"connect6"},{s.connect.Sendmsg4,ebpf.AttachCGroupUDP4Sendmsg,"sendmsg4"},{s.connect.Sendmsg6,ebpf.AttachCGroupUDP6Sendmsg,"sendmsg6"}}{lnk,err:=link.AttachRawLink(link.RawLinkOptions{Target:int(cg.Fd()),Program:it.p,Attach:it.a});if err!=nil{return BPFLoadResult{},fmt.Errorf("attach cgroup %s: %w",it.n,err)};if _,err:=lnk.Info();err!=nil{_=lnk.Close();return BPFLoadResult{},err};s.links=append(s.links,lnk)}
-	gate:=linuxWorkloadGate{Enabled:1,DenyExec:boolByte(cfg.DenyExec),DenyFileWrite:boolByte(cfg.DenyFileWrite),DenyPrivilege:boolByte(cfg.DenyPrivilege)}; if err:=s.lsm.WorkloadGate.Update(zero,gate,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}; if err:=s.connect.NetworkGate.Update(zero,one,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}
+	gate:=linuxWorkloadGate{Enabled:1,DenyExec:boolByte(cfg.DenyExec),DenyFileWrite:boolByte(cfg.DenyFileWrite),DenyPrivilege:boolByte(cfg.DenyPrivilege),DenyRawSocket:1}; if err:=s.lsm.WorkloadGate.Update(zero,gate,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}; if err:=s.connect.NetworkGate.Update(zero,one,ebpf.UpdateAny);err!=nil{return BPFLoadResult{},err}
 	if err:=setCgroupFrozen(cg,false);err!=nil{return BPFLoadResult{},fmt.Errorf("unfreeze protected workload: %w",err)}; frozen=false
 	if old:=b.sessions[cfg.WorkloadID];old!=nil{old.Close()};b.sessions[cfg.WorkloadID]=&s;cleanup=false
-	return BPFLoadResult{LSMAttached:true,ConnectAttached:true,PolicyMapsReady:true,ArtifactBound:true,SubtreeScoped:true,DualStack:true,FileIOCovered:true,CredentialCovered:true,FrozenDuringArm:true,AtomicCgroupHandle:true},nil
+	return BPFLoadResult{LSMAttached:true,ConnectAttached:true,PolicyMapsReady:true,ArtifactBound:true,SubtreeScoped:true,DualStack:true,FileIOCovered:true,CredentialCovered:true,RawSocketCovered:true,FrozenDuringArm:true,AtomicCgroupHandle:true},nil
 }
 
 func (b *LinuxCOREBackend) CloseWorkload(id string)error{b.mu.Lock();defer b.mu.Unlock();s:=b.sessions[id];if s==nil{return nil};delete(b.sessions,id);s.Close();return nil}
