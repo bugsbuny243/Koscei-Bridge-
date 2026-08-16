@@ -17,6 +17,7 @@ func fullLinuxBPFProbe() LinuxBPFProbe {
 		LSMProgramsAttached:    true,
 		ConnectProgramAttached: true,
 		PolicyMapsReady:        true,
+		CompleteKernelCoverage: true,
 	}
 }
 
@@ -44,6 +45,18 @@ func TestLinuxBPFProbeRejectsUninitializedPolicyMaps(t *testing.T) {
 	probe.PolicyMapsReady = false
 	if err := ValidateLinuxBPFProbe(probe, true); err == nil {
 		t.Fatal("expected missing policy maps to reject pre-action mode")
+	}
+}
+
+func TestLinuxBPFProbeRejectsIncompleteAdversarialCoverage(t *testing.T) {
+	probe := fullLinuxBPFProbe()
+	probe.CompleteKernelCoverage = false
+	if err := ValidateLinuxBPFProbe(probe, true); err == nil {
+		t.Fatal("expected incomplete kernel coverage to reject pre-action mode")
+	}
+	caps := probe.Capabilities()
+	if caps.Mode == EnforcementPreAction || caps.NetworkConnect || caps.FileWrite || caps.ProcessExec || caps.PrivilegeChange {
+		t.Fatalf("incomplete kernel coverage must not advertise prevention: %#v", caps)
 	}
 }
 
