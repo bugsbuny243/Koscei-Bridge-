@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-// Koschei Node Shield — Linux BPF LSM enforcement prototype.
+// Koschei Node Shield — cgroup-scoped BPF LSM enforcement.
 //
-// This object is intentionally policy-map driven. A workload is never placed
-// into prevention mode merely because this object loaded; the Go-side loader
-// must verify hook attachment, artifact binding, and map population first.
+// These programs use BPF_LSM_CGROUP attachment. The privileged loader attaches
+// them to the exact verified cgroup file descriptor, so the policy applies to
+// that cgroup and its descendants instead of installing one host-global LSM
+// stack per workload.
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <bpf/bpf_core_read.h>
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -23,82 +23,88 @@ struct artifact_digest {
     __u8 sha256[32];
 };
 
-// Key: cgroup v2 id for the supervised workload.
+// Per-loaded-workload policy. A cgroup-scoped LSM program only executes for
+// the cgroup subtree it is attached to, so no cgroup-id lookup is required.
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 4096);
-    __type(key, __u64);
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
     __type(value, struct workload_gate);
-} workload_gates SEC(".maps");
+} workload_gate_map SEC(".maps");
 
-// Evidence binding for the exact artifact approved by userspace before the
-// cgroup gate is armed. The LSM program does not interpret the digest; the
-// privileged loader must populate and verify it before enabling prevention.
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 4096);
-    __type(key, __u64);
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
     __type(value, struct artifact_digest);
-} artifact_bindings SEC(".maps");
+} artifact_binding_map SEC(".maps");
 
 static __always_inline struct workload_gate *current_gate(void)
 {
-    __u64 cgid = bpf_get_current_cgroup_id();
-    return bpf_map_lookup_elem(&workload_gates, &cgid);
+    __u32 zero = 0;
+    return bpf_map_lookup_elem(&workload_gate_map, &zero);
 }
 
-SEC("lsm/bprm_check_security")
+static __always_inline int deny_privilege_if_armed(int ret)
+{
+    struct workload_gate *gate;
+    if (ret)
+        return ret;
+    gate = current_gate();
+    if (gate && gate->enabled && gate->deny_privilege)
+        return -1; // -EPERM
+    return 0;
+}
+
+SEC("lsm_cgroup/bprm_check_security")
 int BPF_PROG(nodeshield_bprm_check, struct linux_binprm *bprm, int ret)
 {
     struct workload_gate *gate;
-
     if (ret)
         return ret;
-
     gate = current_gate();
-    if (!gate || !gate->enabled)
-        return 0;
-
-    if (gate->deny_exec)
+    if (gate && gate->enabled && gate->deny_exec)
         return -13; // -EACCES
-
     return 0;
 }
 
-SEC("lsm/file_open")
-int BPF_PROG(nodeshield_file_open, struct file *file, int ret)
+// file_permission is evaluated on actual I/O, including writes through a file
+// descriptor opened before the policy was armed. This closes the pre-opened-FD
+// bypass left by relying on file_open alone.
+SEC("lsm_cgroup/file_permission")
+int BPF_PROG(nodeshield_file_permission, struct file *file, int mask, int ret)
 {
     struct workload_gate *gate;
-    fmode_t mode;
-
     if (ret)
         return ret;
-
     gate = current_gate();
-    if (!gate || !gate->enabled || !gate->deny_file_write)
-        return 0;
-
-    mode = BPF_CORE_READ(file, f_mode);
-    if (mode & (FMODE_WRITE | FMODE_PWRITE))
+    if (gate && gate->enabled && gate->deny_file_write && (mask & MAY_WRITE))
         return -13; // -EACCES
-
     return 0;
 }
 
-SEC("lsm/task_fix_setuid")
+SEC("lsm_cgroup/task_fix_setuid")
 int BPF_PROG(nodeshield_task_fix_setuid, struct cred *new, const struct cred *old, int flags, int ret)
 {
-    struct workload_gate *gate;
+    return deny_privilege_if_armed(ret);
+}
 
-    if (ret)
-        return ret;
+SEC("lsm_cgroup/task_fix_setgid")
+int BPF_PROG(nodeshield_task_fix_setgid, struct cred *new, const struct cred *old, int flags, int ret)
+{
+    return deny_privilege_if_armed(ret);
+}
 
-    gate = current_gate();
-    if (!gate || !gate->enabled)
-        return 0;
+SEC("lsm_cgroup/task_fix_setgroups")
+int BPF_PROG(nodeshield_task_fix_setgroups, struct cred *new, const struct cred *old, int ret)
+{
+    return deny_privilege_if_armed(ret);
+}
 
-    if (gate->deny_privilege)
-        return -1; // -EPERM
-
-    return 0;
+SEC("lsm_cgroup/capset")
+int BPF_PROG(nodeshield_capset, struct cred *new, const struct cred *old,
+             const kernel_cap_t *effective, const kernel_cap_t *inheritable,
+             const kernel_cap_t *permitted, int ret)
+{
+    return deny_privilege_if_armed(ret);
 }
