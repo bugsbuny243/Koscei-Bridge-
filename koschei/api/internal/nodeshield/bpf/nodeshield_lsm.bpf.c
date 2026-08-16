@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Koschei Node Shield — cgroup-scoped BPF LSM enforcement.
+// BPF_LSM_CGROUP semantics: return 1 to allow and 0 to deny (EPERM).
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
@@ -34,73 +35,64 @@ static __always_inline struct workload_gate *current_gate(void)
     return bpf_map_lookup_elem(&workload_gate_map, &zero);
 }
 
-static __always_inline int deny_write_if_armed(int ret)
+static __always_inline int allow_unless_write_denied(void)
 {
-    struct workload_gate *gate;
-    if (ret) return ret;
-    gate = current_gate();
-    if (gate && gate->enabled && gate->deny_file_write) return -13;
-    return 0;
+    struct workload_gate *gate = current_gate();
+    return !(gate && gate->enabled && gate->deny_file_write);
 }
 
-static __always_inline int deny_privilege_if_armed(int ret)
+static __always_inline int allow_unless_privilege_denied(void)
 {
-    struct workload_gate *gate;
-    if (ret) return ret;
-    gate = current_gate();
-    if (gate && gate->enabled && gate->deny_privilege) return -1;
-    return 0;
+    struct workload_gate *gate = current_gate();
+    return !(gate && gate->enabled && gate->deny_privilege);
 }
 
 SEC("lsm_cgroup/bprm_check_security")
-int BPF_PROG(nodeshield_bprm_check, struct linux_binprm *bprm, int ret)
+int BPF_PROG(nodeshield_bprm_check, struct linux_binprm *bprm)
 {
-    struct workload_gate *gate;
-    if (ret) return ret;
-    gate = current_gate();
-    if (gate && gate->enabled && gate->deny_exec) return -13;
-    return 0;
+    struct workload_gate *gate = current_gate();
+    return !(gate && gate->enabled && gate->deny_exec);
 }
 
 // Actual I/O path: catches writes through descriptors opened before policy arm.
 SEC("lsm_cgroup/file_permission")
-int BPF_PROG(nodeshield_file_permission, struct file *file, int mask, int ret)
+int BPF_PROG(nodeshield_file_permission, struct file *file, int mask)
 {
-    if (!(mask & MAY_WRITE)) return ret;
-    return deny_write_if_armed(ret);
+    if (!(mask & MAY_WRITE)) return 1;
+    return allow_unless_write_denied();
 }
 
 // Pre-side-effect inode hooks: prevent create and truncate/attribute mutation
 // before VFS changes become visible.
 SEC("lsm_cgroup/inode_create")
-int BPF_PROG(nodeshield_inode_create, struct inode *dir, struct dentry *dentry, umode_t mode, int ret)
-{ return deny_write_if_armed(ret); }
+int BPF_PROG(nodeshield_inode_create, struct inode *dir, struct dentry *dentry, umode_t mode)
+{ return allow_unless_write_denied(); }
 
 SEC("lsm_cgroup/inode_permission")
-int BPF_PROG(nodeshield_inode_permission, struct inode *inode, int mask, int ret)
+int BPF_PROG(nodeshield_inode_permission, struct inode *inode, int mask)
 {
-    if (!(mask & MAY_WRITE)) return ret;
-    return deny_write_if_armed(ret);
+    if (!(mask & MAY_WRITE)) return 1;
+    return allow_unless_write_denied();
 }
 
 SEC("lsm_cgroup/inode_setattr")
-int BPF_PROG(nodeshield_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr, int ret)
-{ return deny_write_if_armed(ret); }
+int BPF_PROG(nodeshield_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
+{ return allow_unless_write_denied(); }
 
 SEC("lsm_cgroup/task_fix_setuid")
-int BPF_PROG(nodeshield_task_fix_setuid, struct cred *new, const struct cred *old, int flags, int ret)
-{ return deny_privilege_if_armed(ret); }
+int BPF_PROG(nodeshield_task_fix_setuid, struct cred *new, const struct cred *old, int flags)
+{ return allow_unless_privilege_denied(); }
 
 SEC("lsm_cgroup/task_fix_setgid")
-int BPF_PROG(nodeshield_task_fix_setgid, struct cred *new, const struct cred *old, int flags, int ret)
-{ return deny_privilege_if_armed(ret); }
+int BPF_PROG(nodeshield_task_fix_setgid, struct cred *new, const struct cred *old, int flags)
+{ return allow_unless_privilege_denied(); }
 
 SEC("lsm_cgroup/task_fix_setgroups")
-int BPF_PROG(nodeshield_task_fix_setgroups, struct cred *new, const struct cred *old, int ret)
-{ return deny_privilege_if_armed(ret); }
+int BPF_PROG(nodeshield_task_fix_setgroups, struct cred *new, const struct cred *old)
+{ return allow_unless_privilege_denied(); }
 
 SEC("lsm_cgroup/capset")
 int BPF_PROG(nodeshield_capset, struct cred *new, const struct cred *old,
              const kernel_cap_t *effective, const kernel_cap_t *inheritable,
-             const kernel_cap_t *permitted, int ret)
-{ return deny_privilege_if_armed(ret); }
+             const kernel_cap_t *permitted)
+{ return allow_unless_privilege_denied(); }
