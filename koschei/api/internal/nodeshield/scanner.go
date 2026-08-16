@@ -9,7 +9,7 @@ import (
 var sensitiveHostPrefixes = []string{
 	"/var/run/docker.sock", "/run/docker.sock", "/etc", "/root", "/home", "/var/lib/docker", "/proc", "/sys", "/dev",
 }
-var dangerousCapabilities = map[string]struct{}{"SYS_ADMIN":{},"SYS_PTRACE":{},"NET_ADMIN":{},"DAC_OVERRIDE":{},"SYS_MODULE":{}}
+var dangerousCapabilities = map[string]struct{}{"SYS_ADMIN":{},"SYS_PTRACE":{},"NET_ADMIN":{},"NET_RAW":{},"DAC_OVERRIDE":{},"SYS_MODULE":{}}
 
 func validSHA256(v string) bool { v=strings.TrimSpace(v); if len(v)!=64{return false}; _,err:=hex.DecodeString(v); return err==nil }
 func isSHA256Hex(v string) bool { return validSHA256(v) }
@@ -43,7 +43,7 @@ func Scan(m WorkloadManifest) Report {
 	}
 	for _,device:=range m.Devices{if strings.TrimSpace(device.HostPath)!=""{add("NS-DEV-001",SeverityCritical,"Raw host device exposed","The workload receives direct access to host device "+device.HostPath+", which can bypass normal filesystem and container isolation.","Remove raw device mappings from untrusted workloads.")}}
 	for _,raw:=range m.Capabilities{capName:=strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(raw)),"CAP_");if capName=="ALL"{add("NS-CAP-001",SeverityCritical,"All Linux capabilities requested","The workload requests all Linux capabilities, collapsing the intended capability boundary.","Grant only the minimal explicitly required capabilities.");continue};if _,ok:=dangerousCapabilities[capName];ok{add("NS-CAP-001",SeverityHigh,"Dangerous Linux capability","The workload requests capability "+capName+", which materially expands kernel or host control.","Drop the capability unless a documented, unavoidable requirement exists.")}}
-	hasOutboundBoundary:=false;for _,host:=range m.OutboundHosts{if strings.TrimSpace(host)!=""{hasOutboundBoundary=true;break}};if !hasOutboundBoundary{add("NS-NET-002",SeverityMedium,"Unbounded outbound intent","No usable outbound destination set was supplied, so the reviewed workload has no network egress boundary.","Declare the exact outbound hosts and ports required by the workload.")}
+	hasOutboundBoundary:=false;for _,host:=range m.OutboundHosts{if normalizePolicyEndpoint(host)!=""{hasOutboundBoundary=true;break}};if !hasOutboundBoundary{add("NS-NET-002",SeverityMedium,"Unbounded outbound intent","No syntactically enforceable outbound host-and-port destination set was supplied, so the reviewed workload has no network egress boundary.","Declare exact host:port destinations (or controlled *.domain:port wildcards) required by the workload.")}
 	verdict:=VerdictAllow;for _,f:=range findings{if f.Severity==SeverityCritical{verdict=VerdictBlock;break};if f.Severity==SeverityHigh||f.Severity==SeverityMedium{verdict=VerdictWarn}}
 	return Report{SchemaVersion:"nodeshield.report.v0.1",Workload:m.Name,ArtifactSHA256:m.ArtifactSHA256,Verdict:verdict,Findings:findings}
 }
