@@ -65,6 +65,10 @@ Node Shield does not trust an application because it was previously scanned. Tru
 
 A changed artifact is a different workload and requires a new review/policy.
 
+## Validation
+
+Node Shield lives under `koschei/api/**`, so the repository's existing **API Required CI** workflow covers pull-request changes to this package. That workflow runs Go tests, vet, build, and database-backed API checks before merge.
+
 ## Next slices
 
 1. Runtime event collector/supervisor integration.
