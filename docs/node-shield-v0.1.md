@@ -55,6 +55,8 @@ Fail-closed rules currently include:
 
 The runtime evaluator is deliberately collector-agnostic. A Docker/eBPF/SoloHost collector converts native events to `RuntimeEvent`; policy evaluation stays in the common core. Collectors are not trusted to authorize behavior: they only report observations. Authorization remains deterministic inside Node Shield.
 
+A runtime `DENY` is only meaningful when a supervisor can actually prevent the operation. Until a collector/supervisor is wired to kernel/container enforcement, the evaluator is a policy decision engine rather than a complete containment boundary. Koschei must never market observation-only mode as prevention.
+
 ## Security invariant
 
 Node Shield does not trust an application because it was previously scanned. Trust is bound to:
