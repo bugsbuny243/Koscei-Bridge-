@@ -47,16 +47,17 @@ func (c BPFLoadConfig) Validate() error {
 // BPFLoadResult is the minimum attested state required before Node Shield may
 // expose kernel prevention. Backend-specific handles remain outside the common core.
 type BPFLoadResult struct {
-	ObjectsVerified bool `json:"objects_verified"`
-	LSMAttached     bool `json:"lsm_attached"`
-	ConnectAttached bool `json:"connect_attached"`
-	PolicyMapsReady bool `json:"policy_maps_ready"`
-	ArtifactBound   bool `json:"artifact_bound"`
-	SubtreeScoped   bool `json:"subtree_scoped"`
-	DualStack       bool `json:"dual_stack"`
-	FileIOCovered   bool `json:"file_io_covered"`
-	CredentialCovered bool `json:"credential_covered"`
-	FrozenDuringArm bool `json:"frozen_during_arm"`
+	ObjectsVerified    bool `json:"objects_verified"`
+	LSMAttached        bool `json:"lsm_attached"`
+	ConnectAttached    bool `json:"connect_attached"`
+	PolicyMapsReady    bool `json:"policy_maps_ready"`
+	ArtifactBound      bool `json:"artifact_bound"`
+	SubtreeScoped      bool `json:"subtree_scoped"`
+	DualStack          bool `json:"dual_stack"`
+	FileIOCovered      bool `json:"file_io_covered"`
+	CredentialCovered  bool `json:"credential_covered"`
+	RawSocketCovered   bool `json:"raw_socket_covered"`
+	FrozenDuringArm    bool `json:"frozen_during_arm"`
 	AtomicCgroupHandle bool `json:"atomic_cgroup_handle"`
 }
 
@@ -88,11 +89,11 @@ func LoadVerifiedBPF(ctx context.Context, backend BPFBackend, config BPFLoadConf
 	result.ObjectsVerified = true
 	if !result.LSMAttached || !result.ConnectAttached || !result.PolicyMapsReady || !result.ArtifactBound ||
 		!result.SubtreeScoped || !result.DualStack || !result.FileIOCovered || !result.CredentialCovered ||
-		!result.FrozenDuringArm || !result.AtomicCgroupHandle {
-		return result, fmt.Errorf("BPF prevention state incomplete: lsm=%t connect=%t maps=%t artifact=%t subtree=%t dualstack=%t fileio=%t credential=%t frozen=%t atomic_cgroup=%t",
+		!result.RawSocketCovered || !result.FrozenDuringArm || !result.AtomicCgroupHandle {
+		return result, fmt.Errorf("BPF prevention state incomplete: lsm=%t connect=%t maps=%t artifact=%t subtree=%t dualstack=%t fileio=%t credential=%t rawsocket=%t frozen=%t atomic_cgroup=%t",
 			result.LSMAttached, result.ConnectAttached, result.PolicyMapsReady, result.ArtifactBound,
 			result.SubtreeScoped, result.DualStack, result.FileIOCovered, result.CredentialCovered,
-			result.FrozenDuringArm, result.AtomicCgroupHandle)
+			result.RawSocketCovered, result.FrozenDuringArm, result.AtomicCgroupHandle)
 	}
 	return result, nil
 }
