@@ -55,15 +55,27 @@ Fail-closed rules currently include:
 
 The runtime evaluator is deliberately collector-agnostic. A Docker/eBPF/SoloHost collector converts native events to `RuntimeEvent`; policy evaluation stays in the common core. Collectors are not trusted to authorize behavior: they only report observations. Authorization remains deterministic inside Node Shield.
 
-A runtime `DENY` is only meaningful when a supervisor can actually prevent the operation. Until a collector/supervisor is wired to kernel/container enforcement, the evaluator is a policy decision engine rather than a complete containment boundary. Koschei must never market observation-only mode as prevention.
+### Enforcement capability contract
+
+Every prevention-capable collector should declare what it can actually enforce through `RuntimeCapabilities`.
+
+Supported modes:
+
+- `observe_only`: records behavior after it occurs; no prevention claim is allowed;
+- `kill_only`: can terminate the workload after a violation is observed;
+- `pre_action_deny`: can block a covered operation before it reaches its target.
+
+When `RequirePreAction` is enabled, Node Shield refuses to start unless the collector declares `pre_action_deny`, binds events to the running artifact identity, and covers network connect, file write, process exec, and privilege-change operations. Partial or unknown coverage fails closed.
+
+This prevents an ordinary Docker event stream from being accidentally presented as a kernel enforcement boundary. Real pre-action denial requires a suitable hook such as eBPF/LSM, OCI runtime integration, or a SoloHost-native enforcement control surface.
 
 ## Security invariant
 
 Node Shield does not trust an application because it was previously scanned. Trust is bound to:
 
-`artifact identity + declared authority + observed behavior`
+`artifact identity + declared authority + observed behavior + enforcement capability`
 
-A changed artifact is a different workload and requires a new review/policy.
+A changed artifact is a different workload and requires a new review/policy. An enforcement adapter that cannot prove the required control surface cannot run in prevention mode.
 
 ## Validation
 
@@ -71,7 +83,7 @@ Node Shield lives under `koschei/api/**`, so the repository's existing **API Req
 
 ## Next slices
 
-1. Runtime event collector/supervisor integration.
+1. Linux eBPF/LSM collector and enforcer implementation.
 2. Signed risk/evidence manifests.
 3. Package-update permission diffing.
 4. SoloHost adapter when the package schema/API is stable and publicly available.
