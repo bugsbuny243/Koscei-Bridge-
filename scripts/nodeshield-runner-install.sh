@@ -16,13 +16,22 @@ info() { echo "[INFO] $*"; }
 : "${RUNNER_NAME:=nodeshield-bpf-$(hostname -s)}"
 
 case "$(uname -m)" in
-  x86_64) runner_arch=x64 ;;
-  aarch64|arm64) runner_arch=arm64 ;;
+  x86_64)
+    runner_arch=x64
+    expected_sha256=01066fad3a2893e63e6ca880ae3a1fad5bf9329d60e77ee15f2b97c148c3cd4e
+    ;;
+  aarch64|arm64)
+    runner_arch=arm64
+    expected_sha256=b801b9809c4d9301932bccadf57ca13533073b2aa9fa9b8e625a8db905b5d8eb
+    ;;
   *) fail "unsupported runner architecture: $(uname -m)" ;;
 esac
 
+[[ "$RUNNER_VERSION" == "2.328.0" ]] || fail "RUNNER_VERSION override is not allowed without updating the pinned SHA-256 values"
+
 command -v curl >/dev/null 2>&1 || fail "curl is required"
 command -v tar >/dev/null 2>&1 || fail "tar is required"
+command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
 
 if ! id "$RUNNER_USER" >/dev/null 2>&1; then
   useradd --system --create-home --shell /usr/sbin/nologin "$RUNNER_USER"
@@ -35,6 +44,8 @@ archive="actions-runner-linux-${runner_arch}-${RUNNER_VERSION}.tar.gz"
 url="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${archive}"
 info "downloading GitHub Actions runner ${RUNNER_VERSION} for ${runner_arch}"
 curl --fail --location --proto '=https' --tlsv1.2 --output "$archive" "$url"
+printf '%s  %s\n' "$expected_sha256" "$archive" | sha256sum -c -
+ok "runner package SHA-256 verified"
 
 tar xzf "$archive"
 rm -f "$archive"
