@@ -1,53 +1,73 @@
-# Koschei Node Shield v0.1
-
-Koschei Node Shield is the install-time security gate for untrusted SoloHost, Docker, and OCI workloads.
+# Koschei Node Shield
 
 ## Goal
 
-Answer one question before execution: **what power will this workload gain over the host?**
+Node Shield is the first compute-security product surface inside Koschei Web3. It answers two separate questions:
 
-Node Shield v0.1 is intentionally platform-neutral. Platform adapters normalize workload metadata into a common `WorkloadManifest`; the policy scanner then emits a deterministic `ALLOW`, `WARN`, or `BLOCK` report.
+1. **Install time:** what authority would this workload receive if the node runs it?
+2. **Runtime:** is the running artifact still behaving inside the authority boundary that was approved?
 
-## Fail-closed risks
+The scanner is platform-neutral. SoloHost, Docker, OCI, and future node-compute platforms should translate their native package/runtime metadata into the Node Shield types rather than duplicating security policy.
 
-The first release blocks conditions that can collapse host isolation, including:
+## v0.1 — install-time scanner
 
-- privileged containers;
-- Docker socket exposure;
-- sensitive host mounts such as `/proc`, `/sys`, `/dev`, and Docker state;
-- dangerous privilege/capability expansion;
-- other critical isolation failures.
+The install-time scanner binds a review to an immutable artifact SHA-256 and returns a deterministic `ALLOW`, `WARN`, or `BLOCK` verdict.
 
-High- and medium-risk conditions such as host networking, host PID/IPC namespaces, missing immutable artifact identity, root execution, and unbounded egress produce warnings until enforcement policy is tightened.
+Current critical/high-risk checks include:
 
-## Provenance rule
+- privileged container execution;
+- Docker daemon socket exposure;
+- sensitive host filesystem mounts;
+- host PID/IPC/network namespace sharing;
+- privilege gain;
+- root execution;
+- dangerous Linux capabilities;
+- missing immutable artifact identity;
+- missing explicit outbound network intent.
 
-A workload review is meaningful only when bound to an immutable artifact identity. Each scan therefore accepts an artifact SHA-256. Package updates must be treated as a new artifact and scanned again.
+A Docker `inspect` adapter is included as the first concrete normalizer. SoloHost-specific parsing remains an adapter boundary until Pi publishes/stabilizes the relevant package manifest/API contract.
 
-## Architecture
+## v0.2 — artifact-bound runtime enforcement
 
-```text
-SoloHost / Docker / OCI package
-            |
-         Adapter
-            |
-   WorkloadManifest
-            |
-     Node Shield Scan
-            |
-  Findings + risk score
-            |
-   ALLOW / WARN / BLOCK
-```
+Runtime policy is bound to the exact reviewed artifact SHA-256. Every observed event is normalized before policy evaluation.
 
-The current Docker adapter consumes `docker inspect` JSON. A SoloHost adapter will be added once the package/manifest schema is stable and publicly documented.
+Current normalized runtime event classes:
 
-## Non-goals for v0.1
+- outbound network connection;
+- filesystem open/write;
+- process execution;
+- privilege change.
 
-- malware execution or detonation;
-- runtime syscall enforcement;
-- distributed-compute job verification;
-- Pi-specific bridge logic;
-- automatic installation of third-party workloads.
+Current enforcement decisions:
 
-Those belong to later Node Shield and Verified Compute phases.
+- `ALLOW`: behavior remains inside the approved boundary;
+- `DENY`: the individual operation must not proceed;
+- `KILL`: the workload crossed a trust boundary and the supervisor should terminate it.
+
+Fail-closed rules currently include:
+
+- running artifact hash differs from the approved artifact -> `KILL`;
+- forbidden privilege change -> `KILL`;
+- undeclared outbound destination -> `DENY`;
+- undeclared filesystem write -> `DENY`;
+- undeclared child executable -> `DENY`;
+- unknown future event kind -> `DENY`.
+
+The runtime evaluator is deliberately collector-agnostic. A future Docker/eBPF/SoloHost collector will convert native events to `RuntimeEvent`; policy evaluation remains in the common core.
+
+## Security invariant
+
+Node Shield does not trust an application because it was previously scanned. Trust is bound to:
+
+`artifact identity + declared authority + observed behavior`
+
+A changed artifact is a different workload and requires a new review/policy.
+
+## Next slices
+
+1. Runtime event collector/supervisor integration.
+2. Signed risk/evidence manifests.
+3. Package-update permission diffing.
+4. SoloHost adapter when the package schema/API is stable and publicly available.
+5. Sentinel ingestion for cross-node anomaly and reputation analysis.
+6. Verified-compute result attestation and challenge/re-execution.
