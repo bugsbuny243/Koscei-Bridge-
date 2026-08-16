@@ -3,12 +3,14 @@
 package nodeshield
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -37,11 +39,11 @@ type linuxEndpointKey4 struct {
 }
 
 type linuxLSMObjects struct {
-	BprmCheck       *ebpf.Program `ebpf:"nodeshield_bprm_check"`
-	FileOpen        *ebpf.Program `ebpf:"nodeshield_file_open"`
-	TaskFixSetuid   *ebpf.Program `ebpf:"nodeshield_task_fix_setuid"`
-	WorkloadGates   *ebpf.Map     `ebpf:"workload_gates"`
-	ArtifactBindings *ebpf.Map    `ebpf:"artifact_bindings"`
+	BprmCheck        *ebpf.Program `ebpf:"nodeshield_bprm_check"`
+	FileOpen         *ebpf.Program `ebpf:"nodeshield_file_open"`
+	TaskFixSetuid    *ebpf.Program `ebpf:"nodeshield_task_fix_setuid"`
+	WorkloadGates    *ebpf.Map     `ebpf:"workload_gates"`
+	ArtifactBindings *ebpf.Map     `ebpf:"artifact_bindings"`
 }
 
 func (o *linuxLSMObjects) Close() {
@@ -100,19 +102,27 @@ func (b *LinuxCOREBackend) LoadAndAttach(ctx context.Context, cfg BPFLoadConfig,
 	if err := verifyCgroupIdentity(cfg.CgroupPath, cfg.CgroupID); err != nil { return BPFLoadResult{}, err }
 	if err := RequireVerifiedWorkloadIdentity(ctx, b.identityVerifier, cfg); err != nil { return BPFLoadResult{}, err }
 
-	lsmPath, connectPath, err := nodeShieldObjectPaths(objects)
+	lsmManifest, connectManifest, err := nodeShieldObjectManifests(objects)
+	if err != nil { return BPFLoadResult{}, err }
+
+	// Read each object once, verify the digest over those exact bytes, and parse
+	// the ELF from the same in-memory byte slice. This closes the path-reopen
+	// TOCTOU window between userspace digest verification and privileged load.
+	lsmBytes, err := readAndVerifyBPFObject(lsmManifest)
+	if err != nil { return BPFLoadResult{}, err }
+	connectBytes, err := readAndVerifyBPFObject(connectManifest)
 	if err != nil { return BPFLoadResult{}, err }
 
 	var session linuxBPFSession
 	cleanup := true
 	defer func() { if cleanup { session.Close() } }()
 
-	lsmSpec, err := ebpf.LoadCollectionSpec(lsmPath)
-	if err != nil { return BPFLoadResult{}, fmt.Errorf("load LSM collection spec: %w", err) }
+	lsmSpec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(lsmBytes))
+	if err != nil { return BPFLoadResult{}, fmt.Errorf("load verified LSM collection spec: %w", err) }
 	if err := lsmSpec.LoadAndAssign(&session.lsm, nil); err != nil { return BPFLoadResult{}, fmt.Errorf("load LSM objects: %w", err) }
 
-	connectSpec, err := ebpf.LoadCollectionSpec(connectPath)
-	if err != nil { return BPFLoadResult{}, fmt.Errorf("load connect collection spec: %w", err) }
+	connectSpec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(connectBytes))
+	if err != nil { return BPFLoadResult{}, fmt.Errorf("load verified connect collection spec: %w", err) }
 	if err := connectSpec.LoadAndAssign(&session.connect, nil); err != nil { return BPFLoadResult{}, fmt.Errorf("load connect objects: %w", err) }
 
 	for _, prog := range []*ebpf.Program{session.lsm.BprmCheck, session.lsm.FileOpen, session.lsm.TaskFixSetuid} {
@@ -198,16 +208,30 @@ func verifyCgroupIdentity(path string, expected uint64) error {
 	return nil
 }
 
-func nodeShieldObjectPaths(objects []BPFObjectManifest) (string, string, error) {
-	var lsmPath, connectPath string
+func nodeShieldObjectManifests(objects []BPFObjectManifest) (BPFObjectManifest, BPFObjectManifest, error) {
+	var lsm, connect BPFObjectManifest
 	for _, obj := range objects {
 		switch obj.Name {
-		case "nodeshield_lsm": lsmPath = obj.Path
-		case "nodeshield_connect": connectPath = obj.Path
+		case "nodeshield_lsm": lsm = obj
+		case "nodeshield_connect": connect = obj
 		}
 	}
-	if lsmPath == "" || connectPath == "" { return "", "", fmt.Errorf("BPF manifest must contain nodeshield_lsm and nodeshield_connect objects") }
-	return lsmPath, connectPath, nil
+	if lsm.Path == "" || connect.Path == "" {
+		return BPFObjectManifest{}, BPFObjectManifest{}, fmt.Errorf("BPF manifest must contain nodeshield_lsm and nodeshield_connect objects")
+	}
+	return lsm, connect, nil
+}
+
+func readAndVerifyBPFObject(obj BPFObjectManifest) ([]byte, error) {
+	data, err := os.ReadFile(obj.Path)
+	if err != nil { return nil, fmt.Errorf("read BPF object %s: %w", obj.Name, err) }
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	expected := strings.ToLower(strings.TrimSpace(obj.SHA256))
+	if actual != expected {
+		return nil, fmt.Errorf("BPF object %s digest mismatch during load: got %s", obj.Name, actual)
+	}
+	return data, nil
 }
 
 func boolByte(v bool) uint8 { if v { return 1 }; return 0 }
