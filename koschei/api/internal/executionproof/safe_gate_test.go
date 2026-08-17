@@ -46,6 +46,13 @@ func TestAuthorizeSigningRequestBlocksCalldataMismatch(t *testing.T) {
 	assertSigningBlockedFor(t, AuthorizeSigningRequest(proof, req), ReasonSigningRequestMismatch)
 }
 
+func TestAuthorizeSigningRequestBlocksSafeTxHashMismatch(t *testing.T) {
+	proof, _ := Evaluate(validEnvelope())
+	req := validSigningRequest()
+	req.SafeTxHash = "0x" + strings.Repeat("5", 64)
+	assertSigningBlockedFor(t, AuthorizeSigningRequest(proof, req), ReasonSigningRequestMismatch)
+}
+
 func TestAuthorizeSigningRequestBlocksInvalidSafeTxHash(t *testing.T) {
 	proof, _ := Evaluate(validEnvelope())
 	req := validSigningRequest()
