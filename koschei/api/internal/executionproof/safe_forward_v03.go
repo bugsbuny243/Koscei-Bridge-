@@ -9,17 +9,29 @@ import (
 )
 
 const (
-	ReasonForkExecutionRequired ReasonCode = "EP-010-FORK-EXECUTION-REQUIRED"
-	ReasonForkPayloadMismatch   ReasonCode = "EP-011-FORK-PAYLOAD-MISMATCH"
-	ReasonForkReceiptMismatch   ReasonCode = "EP-012-FORK-RECEIPT-MISMATCH"
-	ReasonForkStateStale        ReasonCode = "EP-013-FORK-STATE-STALE"
+	ReasonForkExecutionRequired       ReasonCode = "EP-010-FORK-EXECUTION-REQUIRED"
+	ReasonForkPayloadMismatch         ReasonCode = "EP-011-FORK-PAYLOAD-MISMATCH"
+	ReasonForkReceiptMismatch         ReasonCode = "EP-012-FORK-RECEIPT-MISMATCH"
+	ReasonForkStateStale              ReasonCode = "EP-013-FORK-STATE-STALE"
+	ReasonSafeExecutionSemantics      ReasonCode = "EP-014-SAFE-EXECUTION-SEMANTICS-REQUIRED"
+	SafeExecutionModelSimulateTxV1              = "safe-simulate-tx-accessor/v1"
 )
 
-// VerifyForkAndForwardSafeTransaction is the v0.3 production boundary. It does
-// not accept a caller-supplied simulation receipt. The verified fork is run
-// inside the same fail-closed control path, then independently rechecked for
-// canonicality/staleness immediately before the native Safe hash gate and the
-// side-effecting forwarder.
+// SafeAwareVerifiedForkBackend is deliberately narrower than VerifiedForkBackend.
+// A generic EVM direct-call simulation is not semantically equivalent to Safe
+// execTransaction: nonce, operation, guard hooks, signature context, refund/gas
+// behavior and tx.origin can differ. Only a backend that explicitly proves a
+// Safe-aware execution model may authorize Safe forwarding.
+type SafeAwareVerifiedForkBackend interface {
+	VerifiedForkBackend
+	SafeExecutionModel() string
+}
+
+// VerifyForkAndForwardSafeTransaction is the v0.3 Safe authorization boundary.
+// It rejects generic direct-call fork backends. The verified fork must be
+// produced by an explicitly Safe-aware execution backend, then independently
+// rechecked for canonicality/staleness immediately before the native Safe hash
+// gate and side-effecting forwarder.
 func VerifyForkAndForwardSafeTransaction(
 	ctx context.Context,
 	proof Proof,
@@ -32,12 +44,16 @@ func VerifyForkAndForwardSafeTransaction(
 	if backend == nil || canonicality == nil || forwarder == nil {
 		return blockedForkSigning(ReasonForkExecutionRequired), VerifiedForkReceipt{}, ErrSigningBlocked
 	}
+	safeBackend, ok := backend.(SafeAwareVerifiedForkBackend)
+	if !ok || safeBackend.SafeExecutionModel() != SafeExecutionModelSimulateTxV1 {
+		return blockedForkSigning(ReasonSafeExecutionSemantics), VerifiedForkReceipt{}, ErrSigningBlocked
+	}
 	prepared, ok := prepareVerifiedForkRequest(forkRequest)
 	if !ok || !safeTransactionMatchesFork(req.Transaction, prepared) {
 		return blockedForkSigning(ReasonForkPayloadMismatch), VerifiedForkReceipt{}, ErrSigningBlocked
 	}
 
-	forkReceipt, err := RunVerifiedForkExecution(ctx, forkRequest, backend)
+	forkReceipt, err := RunVerifiedForkExecution(ctx, forkRequest, safeBackend)
 	if err != nil || !ValidVerifiedForkReceipt(forkReceipt) {
 		return blockedForkSigning(ReasonForkExecutionRequired), forkReceipt, ErrSigningBlocked
 	}
