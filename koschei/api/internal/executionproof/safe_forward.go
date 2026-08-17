@@ -14,20 +14,22 @@ type SafeForwarder interface {
 
 var ErrSigningBlocked = errors.New("execution proof blocked Safe signing request")
 
-// VerifyAndForwardSafeTransaction enforces authorization before any external
-// forwarding side effect. A BLOCK decision never calls the forwarder.
+// VerifyAndForwardSafeTransaction is the production Safe forwarding boundary.
+// Hash authority is intentionally not injectable here: this boundary always
+// uses Koschei's native Safe EIP-712 implementation so a caller cannot replace
+// local recomputation with a Transaction Service supplied or pass-through hash.
+// A BLOCK decision never calls the forwarder.
 func VerifyAndForwardSafeTransaction(
 	ctx context.Context,
 	proof Proof,
 	req SafeForwardRequest,
-	computer SafeTxHashComputer,
 	forwarder SafeForwarder,
 ) (SigningGateResult, error) {
 	if forwarder == nil {
 		return SigningGateResult{Decision: DecisionBlock, Reasons: []ReasonCode{ReasonInvalidSigningRequest}}, ErrSigningBlocked
 	}
 
-	decision := AuthorizeSafeForward(proof, req, computer)
+	decision := AuthorizeSafeForward(proof, req, NativeSafeTxHashComputer{})
 	if decision.Decision != DecisionAllow {
 		return decision, ErrSigningBlocked
 	}
