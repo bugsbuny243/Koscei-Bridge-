@@ -6,15 +6,17 @@ import (
 	"testing"
 )
 
-func TestHomepageIsSecurityControlPlaneNotTokenScanner(t *testing.T) {
+func TestHomepageIsSecurityWorldNotTokenScanner(t *testing.T) {
 	body, err := os.ReadFile("public/index.html")
 	if err != nil {
 		t.Fatalf("read homepage: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Koschei Web3 | Security Control Plane",
-		"Prove what will execute.",
+		"Koschei Web3 | Security World",
+		"See the execution.",
+		"SECURITY WORLD / TOPOLOGY",
+		"koschei-security-world.js",
 		"Execution Proof",
 		"Transaction Defense",
 		"Node Shield",
@@ -25,7 +27,7 @@ func TestHomepageIsSecurityControlPlaneNotTokenScanner(t *testing.T) {
 		"In validation",
 	} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("homepage missing control-plane identity %q", required)
+			t.Fatalf("homepage missing Security World identity %q", required)
 		}
 	}
 	for _, forbidden := range []string{
