@@ -2,6 +2,7 @@ package executionproof
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/big"
 	"strings"
