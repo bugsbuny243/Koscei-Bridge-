@@ -32,7 +32,7 @@ func TestNativeSafeTxHashComputerMatchesReferenceVector(t *testing.T) {
 }
 
 func TestNativeSafeTxHashComputerBindsDomainChainID(t *testing.T) {
-	tx := validRawSafeTransaction()
+	tx := validSafeForwardRequest().Transaction
 	first, err := (NativeSafeTxHashComputer{}).ComputeSafeTxHash(tx)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestNativeSafeTxHashComputerBindsDomainChainID(t *testing.T) {
 }
 
 func TestNativeSafeTxHashComputerRejectsUint256Overflow(t *testing.T) {
-	tx := validRawSafeTransaction()
+	tx := validSafeForwardRequest().Transaction
 	tx.Value = new(big.Int).Lsh(big.NewInt(1), 256)
 	if _, err := (NativeSafeTxHashComputer{}).ComputeSafeTxHash(tx); err == nil {
 		t.Fatal("expected uint256 overflow to fail")
