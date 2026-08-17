@@ -68,13 +68,17 @@ func AuthorizeSafeForward(proof Proof, req SafeForwardRequest, computer SafeTxHa
 func validSafeTransaction(tx SafeTransaction) bool {
 	return tx.ChainID != 0 &&
 		validAddress(tx.Safe) && validAddress(tx.To) &&
-		tx.Value != nil && tx.Value.Sign() >= 0 &&
+		validUint256(tx.Value) &&
 		tx.Operation <= 1 &&
-		tx.SafeTxGas != nil && tx.SafeTxGas.Sign() >= 0 &&
-		tx.BaseGas != nil && tx.BaseGas.Sign() >= 0 &&
-		tx.GasPrice != nil && tx.GasPrice.Sign() >= 0 &&
+		validUint256(tx.SafeTxGas) &&
+		validUint256(tx.BaseGas) &&
+		validUint256(tx.GasPrice) &&
 		validAddress(tx.GasToken) && validAddress(tx.RefundReceiver) &&
-		tx.Nonce != nil && tx.Nonce.Sign() >= 0
+		validUint256(tx.Nonce)
+}
+
+func validUint256(v *big.Int) bool {
+	return v != nil && v.Sign() >= 0 && v.BitLen() <= 256
 }
 
 func validAddress(v string) bool {
