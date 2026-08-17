@@ -4,7 +4,19 @@
 # contract fixtures (including .env.example) are present during full API tests.
 FROM golang:1.25.12-alpine3.24 AS validator
 
-RUN apk add --no-cache build-base
+# Foundry is pinned to an immutable release artifact and checksum. Only Anvil is
+# extracted because this validator must not acquire wallet/signing tooling it
+# does not need.
+ARG FOUNDRY_VERSION=v1.7.1
+ARG FOUNDRY_ANVIL_SHA256=2c46eff8d59d9273afae6b8bfd7a79807ba62843e60235ca7058732ff7fcb204
+RUN apk add --no-cache build-base curl ca-certificates \
+    && curl -fsSL "https://github.com/foundry-rs/foundry/releases/download/${FOUNDRY_VERSION}/foundry_${FOUNDRY_VERSION}_alpine_amd64.tar.gz" -o /tmp/foundry.tar.gz \
+    && echo "${FOUNDRY_ANVIL_SHA256}  /tmp/foundry.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/foundry.tar.gz -C /tmp \
+    && install -m 0755 /tmp/anvil /usr/local/bin/anvil \
+    && rm -f /tmp/foundry.tar.gz /tmp/forge /tmp/cast /tmp/chisel /tmp/anvil \
+    && anvil --version
+
 WORKDIR /src
 COPY . .
 
@@ -15,6 +27,15 @@ RUN go mod download
 RUN go test ./...
 RUN go test -race ./...
 RUN go vet ./...
+
+# Required live proof: execute the v0.3 verified-fork backend against finalized
+# Ethereum mainnet block 20,000,000. The test pins both height and block hash;
+# any chain mismatch, RPC failure, execution failure or invariant mismatch is a
+# hard build failure. No production key or custody secret is used.
+RUN KOSCHEI_ANVIL_PATH=/usr/local/bin/anvil \
+    KOSCHEI_LIVE_FORK_URL=https://ethereum-rpc.publicnode.com \
+    go test -tags=integration -count=1 -run '^TestLivePinnedEthereumForkProducesVerifiedReceipt$' ./internal/executionproof
+
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/koschei-api .
 
 FROM alpine:3.24.1
