@@ -11,9 +11,10 @@ type fixedCanonicalityVerifier struct{ err error }
 func (f fixedCanonicalityVerifier) VerifyCanonical(context.Context, uint64, uint64, string) error { return f.err }
 
 type fixedSafeAwareVerifiedForkBackend struct{ fixedVerifiedForkBackend }
-func (fixedSafeAwareVerifiedForkBackend) SafeExecutionModel() string { return SafeExecutionModelSimulateTxV1 }
+func (fixedSafeAwareVerifiedForkBackend) SafeExecutionModel() string { return ExecutionModelSafeSimulateTxV1 }
 
 func safeAwareBackend(result VerifiedForkBackendResult) VerifiedForkBackend {
+	result.Execution.ExecutionModel = ExecutionModelSafeSimulateTxV1
 	return fixedSafeAwareVerifiedForkBackend{fixedVerifiedForkBackend{result: result}}
 }
 
@@ -30,7 +31,7 @@ func safeForkFixture(t *testing.T) (SafeForwardRequest, Proof, VerifiedForkReque
 	proof, err = Evaluate(proof.Envelope)
 	if err != nil { t.Fatal(err) }
 	result := validVerifiedForkBackendResult(t, forkReq)
-	result.Execution = ForkExecutionEvidence{TransactionHash:"0x"+strings.Repeat("3",64), TransactionReceiptSHA256:strings.Repeat("4",64), InvariantEvidenceSHA256:canonicalInvariantEvidenceDigest(result.Simulation.Checks)}
+	result.Execution = ForkExecutionEvidence{ExecutionModel:ExecutionModelEVMDirectCallV03, TransactionHash:"0x"+strings.Repeat("3",64), TransactionReceiptSHA256:strings.Repeat("4",64), InvariantEvidenceSHA256:canonicalInvariantEvidenceDigest(result.Simulation.Checks)}
 	return req, proof, forkReq, result
 }
 
@@ -49,6 +50,7 @@ func TestVerifyForkAndForwardSafeTransactionRequiresMatchingVerifiedExecution(t 
 	decision, receipt, err := VerifyForkAndForwardSafeTransaction(context.Background(), proof, forkReq, safeAwareBackend(result), fixedCanonicalityVerifier{}, req, forwarder)
 	if err != nil { t.Fatal(err) }
 	if decision.Decision != DecisionAllow || !ValidVerifiedForkReceipt(receipt) { t.Fatalf("decision=%s receipt_valid=%v reasons=%v",decision.Decision,ValidVerifiedForkReceipt(receipt),decision.Reasons) }
+	if receipt.Execution.ExecutionModel != ExecutionModelSafeSimulateTxV1 { t.Fatalf("execution model=%q", receipt.Execution.ExecutionModel) }
 	if forwarder.calls != 1 { t.Fatalf("forward calls=%d want=1",forwarder.calls) }
 }
 
