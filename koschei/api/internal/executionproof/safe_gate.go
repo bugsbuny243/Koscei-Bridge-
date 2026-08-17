@@ -19,10 +19,11 @@ const (
 	ReasonInvalidSigningRequest  ReasonCode = "EP-008-INVALID-SIGNING-REQUEST"
 )
 
-// AuthorizeSigningRequest is intentionally provider-agnostic. A Safe/MPC adapter
-// must call this before forwarding a signing request. It re-evaluates the proof,
-// recomputes the proof identity, and binds the external signing request to both
-// the proof payload and the pre-approved 32-byte signing-request identifier.
+// AuthorizeSigningRequest is the provider-agnostic enforcement boundary.
+// A concrete Safe adapter MUST locally recompute SafeTxHash from the raw Safe
+// transaction fields before calling this function; a transaction-service
+// supplied hash alone is not authoritative. This function then re-evaluates
+// the Execution Proof and requires exact identity with the pre-approved request.
 func AuthorizeSigningRequest(proof Proof, req SigningRequest) SigningGateResult {
 	auth := AuthorizeForSigning(proof)
 	if auth.Decision != DecisionAllow {
