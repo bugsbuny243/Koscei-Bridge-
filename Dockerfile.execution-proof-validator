@@ -1,0 +1,17 @@
+# Dedicated validation image for Koschei Execution Proof PR gates.
+# This is intentionally separate from the production Dockerfile.
+FROM golang:1.25.12-alpine3.24 AS validator
+
+WORKDIR /src
+COPY . .
+
+WORKDIR /src/koschei/api
+RUN go mod download
+RUN go test ./...
+RUN go vet ./...
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/koschei-api .
+
+FROM alpine:3.24.1
+RUN apk add --no-cache ca-certificates tzdata
+COPY --from=validator /out/koschei-api /app/koschei-api
+CMD ["sh", "-c", "echo execution-proof-full-validator-pass && sleep 3600"]
