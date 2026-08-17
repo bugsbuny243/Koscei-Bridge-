@@ -1,5 +1,7 @@
 # Dedicated validation image for Koschei Execution Proof PR gates.
 # This is intentionally separate from the production Dockerfile.
+# Railway builds this file from the full PR source snapshot so repository-root
+# contract fixtures (including .env.example) are present during full API tests.
 FROM golang:1.25.12-alpine3.24 AS validator
 
 WORKDIR /src
