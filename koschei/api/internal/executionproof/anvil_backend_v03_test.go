@@ -66,14 +66,14 @@ func receiptRPCServer(t *testing.T, fixture receiptRPCFixture) *httptest.Server 
 			t.Fatalf("unexpected method %q", req.Method)
 		}
 		result := map[string]any{
-			"transaction_hash":    fixture.TransactionHash,
-			"block_hash":          fixture.BlockHash,
-			"block_number":        fixture.BlockNumber,
-			"status":              fixture.Status,
-			"gas_used":            fixture.GasUsed,
-			"cumulative_gas_used": fixture.CumulativeGasUsed,
-			"contract_address":     nil,
-			"logs":                 []any{},
+			"transactionHash":   fixture.TransactionHash,
+			"blockHash":         fixture.BlockHash,
+			"blockNumber":       fixture.BlockNumber,
+			"status":            fixture.Status,
+			"gasUsed":           fixture.GasUsed,
+			"cumulativeGasUsed": fixture.CumulativeGasUsed,
+			"contractAddress":   nil,
+			"logs":              []any{},
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": result})
 	}))
