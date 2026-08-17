@@ -159,13 +159,15 @@ func canonicalizeInvariantChecks(input []InvariantCheck) ([]InvariantCheck, []Si
 		return nil, []SimulationReason{SimulationMissingChecks}
 	}
 	checks := append([]InvariantCheck(nil), input...)
+	for i := range checks {
+		checks[i].ID = strings.TrimSpace(checks[i].ID)
+		checks[i].Evidence = strings.ToLower(strings.TrimSpace(checks[i].Evidence))
+	}
 	sort.Slice(checks, func(i, j int) bool { return checks[i].ID < checks[j].ID })
 
 	reasons := make([]SimulationReason, 0, 2)
 	seen := make(map[string]struct{}, len(checks))
 	for i := range checks {
-		checks[i].ID = strings.TrimSpace(checks[i].ID)
-		checks[i].Evidence = strings.ToLower(strings.TrimSpace(checks[i].Evidence))
 		if checks[i].ID == "" || !validInvariantClass(checks[i].Class) || !validSHA256(checks[i].Evidence) {
 			reasons = appendUniqueSimulationReason(reasons, SimulationInvalidEvidence)
 		}
