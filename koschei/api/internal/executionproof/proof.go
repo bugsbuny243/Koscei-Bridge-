@@ -58,7 +58,8 @@ type SimulationEvidence struct {
 }
 
 type AuthorizationEvidence struct {
-	SigningPolicySHA256 string `json:"signing_policy_sha256"`
+	SigningPolicySHA256      string `json:"signing_policy_sha256"`
+	ApprovedSigningRequestID string `json:"approved_signing_request_id"`
 }
 
 type Envelope struct {
@@ -140,7 +141,8 @@ func validEvidence(e Envelope) bool {
 		validSHA256(e.Payload.GeneratedCalldataSHA256) &&
 		validSHA256(e.Payload.GeneratorSHA256) &&
 		validSHA256(e.Simulation.InvariantSetSHA256) &&
-		validSHA256(e.Authorization.SigningPolicySHA256)
+		validSHA256(e.Authorization.SigningPolicySHA256) &&
+		validHex32(e.Authorization.ApprovedSigningRequestID)
 }
 
 func validGitObjectID(v string) bool {
@@ -157,6 +159,11 @@ func validSHA256(v string) bool {
 	}
 	_, err := hex.DecodeString(v)
 	return err == nil
+}
+
+func validHex32(v string) bool {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "0x")
+	return validSHA256(v)
 }
 
 func equalDigest(a, b string) bool {
