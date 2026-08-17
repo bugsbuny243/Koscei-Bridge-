@@ -10,28 +10,32 @@ import (
 const VerifiedForkReceiptVersion = "koschei-verified-fork-receipt/v0.3"
 
 const (
+	ExecutionModelEVMDirectCallV03 = "evm-direct-call/v0.3"
+	ExecutionModelSafeSimulateTxV1 = "safe-simulate-tx-accessor/v1"
+
 	SimulationExecutionEvidenceInvalid SimulationReason = "SIM-013-EXECUTION-EVIDENCE-INVALID"
 	SimulationReceiptBindingMismatch   SimulationReason = "SIM-014-RECEIPT-BINDING-MISMATCH"
 )
 
 // ForkExecutionEvidence binds the isolated execution itself to the invariant
-// receipt. The transaction receipt digest is produced from a canonical subset
-// of the EVM receipt, while InvariantEvidenceSHA256 is independently derived
-// from the canonicalized invariant checks.
+// receipt. ExecutionModel prevents evidence produced under one EVM semantic
+// model from being reused as if it proved a stronger model (for example a
+// direct call being presented as Safe execTransaction semantics).
 type ForkExecutionEvidence struct {
-	TransactionHash        string `json:"transaction_hash"`
+	ExecutionModel          string `json:"execution_model"`
+	TransactionHash         string `json:"transaction_hash"`
 	TransactionReceiptSHA256 string `json:"transaction_receipt_sha256"`
 	InvariantEvidenceSHA256 string `json:"invariant_evidence_sha256"`
 }
 
-// VerifiedForkReceipt is the v0.3 artifact that may be bound into a signing
+// VerifiedForkReceipt is the v0.3 artifact that may be bound into an
 // authorization. It wraps the deterministic v0.2 simulation receipt and exact
 // isolated-execution evidence under one digest.
 type VerifiedForkReceipt struct {
-	Version      string                `json:"version"`
-	Simulation   ForkSimulationReceipt `json:"simulation"`
-	Execution    ForkExecutionEvidence `json:"execution"`
-	ReceiptSHA256 string               `json:"receipt_sha256"`
+	Version       string                `json:"version"`
+	Simulation    ForkSimulationReceipt `json:"simulation"`
+	Execution     ForkExecutionEvidence `json:"execution"`
+	ReceiptSHA256 string                `json:"receipt_sha256"`
 }
 
 func canonicalInvariantEvidenceDigest(checks []InvariantCheck) string {
@@ -44,8 +48,18 @@ func canonicalInvariantEvidenceDigest(checks []InvariantCheck) string {
 	return hex.EncodeToString(digest[:])
 }
 
+func validExecutionModel(model string) bool {
+	switch strings.TrimSpace(model) {
+	case ExecutionModelEVMDirectCallV03, ExecutionModelSafeSimulateTxV1:
+		return true
+	default:
+		return false
+	}
+}
+
 func validForkExecutionEvidence(e ForkExecutionEvidence, checks []InvariantCheck) bool {
-	return validHex32(e.TransactionHash) &&
+	return validExecutionModel(e.ExecutionModel) &&
+		validHex32(e.TransactionHash) &&
 		validSHA256(e.TransactionReceiptSHA256) &&
 		validSHA256(e.InvariantEvidenceSHA256) &&
 		equalDigest(e.InvariantEvidenceSHA256, canonicalInvariantEvidenceDigest(checks))
@@ -54,6 +68,7 @@ func validForkExecutionEvidence(e ForkExecutionEvidence, checks []InvariantCheck
 func verifiedForkReceiptDigest(receipt VerifiedForkReceipt) string {
 	copyReceipt := receipt
 	copyReceipt.ReceiptSHA256 = ""
+	copyReceipt.Execution.ExecutionModel = strings.TrimSpace(copyReceipt.Execution.ExecutionModel)
 	copyReceipt.Execution.TransactionHash = normalizeHex32(copyReceipt.Execution.TransactionHash)
 	copyReceipt.Execution.TransactionReceiptSHA256 = strings.ToLower(strings.TrimSpace(copyReceipt.Execution.TransactionReceiptSHA256))
 	copyReceipt.Execution.InvariantEvidenceSHA256 = strings.ToLower(strings.TrimSpace(copyReceipt.Execution.InvariantEvidenceSHA256))
