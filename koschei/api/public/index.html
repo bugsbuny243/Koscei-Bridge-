@@ -19,7 +19,6 @@
 <a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small class="muted">Security Control Plane</small></span></a>
 <div class="nav"><a class="btn" href="#execution-proof">Execution Proof</a><a class="btn" href="#transaction-defense">Transaction Defense</a><a class="btn" href="#node-shield">Node Shield</a><a class="btn" href="#cross-chain">Cross-Chain Trust</a><a class="btn" href="/dashboard">Security Operations</a></div>
 </nav>
-
 <section class="hero">
 <article class="surface hero-copy">
 <span class="eyebrow">Web3 cybersecurity control plane</span>
@@ -29,62 +28,44 @@
 <div class="chips"><span class="chip">NO VALID PROOF = NO SIGNATURE</span><span class="chip">FAIL CLOSED</span><span class="chip">NO CUSTODY</span><span class="chip">NO NEXT.JS</span></div>
 </article>
 <aside class="surface control-card">
-<span class="eyebrow">Authorization path</span>
-<h2>Security before side effects</h2>
-<div class="chain">
-<div><small>01</small><b>Approved source + artifact identity</b></div>
-<div><small>02</small><b>Runtime policy + runner identity</b></div>
-<div><small>03</small><b>Exact payload + pinned chain state</b></div>
-<div><small>04</small><b>Fork execution + invariants</b></div>
-<div><small>05</small><b>Signer request recomputation</b></div>
-</div>
+<span class="eyebrow">Authorization path</span><h2>Security before side effects</h2>
+<div class="chain"><div><small>01</small><b>Approved source + artifact identity</b></div><div><small>02</small><b>Runtime policy + runner identity</b></div><div><small>03</small><b>Exact payload + pinned chain state</b></div><div><small>04</small><b>Fork execution + invariants</b></div><div><small>05</small><b>Signer request recomputation</b></div></div>
 <div class="decision"><strong>ALLOW</strong> only when the evidence chain is complete. Any mismatch becomes <strong>BLOCK</strong>.</div>
 </aside>
 </section>
-
 <section class="surface section" id="execution-proof">
-<span class="eyebrow">Core product</span>
-<h2>Execution Proof</h2>
-<p class="section-lead">Koschei verifies that the transaction presented for signing is the transaction produced by the approved source/build/runtime path and tested against pinned chain state. A dashboard score is not an authorization primitive; reproducible evidence is.</p>
+<span class="eyebrow">Core product</span><h2>Execution Proof</h2>
+<p class="section-lead">Koschei verifies that the transaction presented for signing is bound to approved evidence. A dashboard score is not an authorization primitive; reproducible evidence is.</p>
 <div class="grid">
-<article class="card"><span class="status">Core implemented</span><h3>Deterministic proof envelope</h3><p>Source identity, artifact hash, policy hash, calldata identity, invariant set and signer authorization are bound into canonical evidence.</p></article>
-<article class="card"><span class="status">Core implemented</span><h3>Safe signing gate</h3><p>Safe transaction identity is recomputed locally. A caller-supplied ALLOW value or presented transaction hash is never authoritative.</p></article>
-<article class="card"><span class="status preview">Verified fork in validation</span><h3>Pinned EVM execution</h3><p>An isolated Anvil fork executes the exact payload against a pinned block before signing and binds the execution receipt to the proof.</p></article>
+<article class="card"><span class="status">Core available</span><h3>Deterministic proof envelope</h3><p>Source identity, artifact hash, policy hash, calldata identity, invariant set and signer authorization are bound into canonical evidence.</p></article>
+<article class="card"><span class="status">Core available</span><h3>Safe signing gate</h3><p>Safe transaction identity is recomputed locally. A caller-supplied ALLOW value or presented transaction hash is never authoritative.</p></article>
+<article class="card"><span class="status preview">In validation</span><h3>Pinned EVM execution</h3><p>The v0.3 work executes the exact payload on an isolated pinned fork and binds the execution receipt to authorization evidence.</p></article>
 </div>
 </section>
-
 <section class="surface section" id="transaction-defense">
-<span class="eyebrow">Transaction defense</span>
-<h2>Stop compromised execution paths before signing.</h2>
+<span class="eyebrow">Transaction defense</span><h2>Stop compromised execution paths before signing.</h2>
 <div class="grid">
-<article class="card"><span class="status">Implemented</span><h3>Payload integrity</h3><p>Chain, target, value and calldata must match the approved execution request. Different transaction context means BLOCK.</p></article>
-<article class="card"><span class="status">Implemented</span><h3>Invariant verification</h3><p>Proxy codehash, privileged-role state, treasury bounds, asset conservation and bridge reserve/supply policies are evaluated fail-closed.</p></article>
-<article class="card"><span class="status">Implemented</span><h3>Reorg / staleness gate</h3><p>Reference block identity and permitted head lag are rechecked immediately before any signing side effect.</p></article>
+<article class="card"><span class="status preview">In validation</span><h3>Exact fork payload binding</h3><p>The v0.3 work requires chain, Safe-as-from, target, value and calldata to match the verified fork request before forwarding.</p></article>
+<article class="card"><span class="status preview">In validation</span><h3>Concrete invariant verification</h3><p>Proxy codehash, privileged-role state, treasury bounds, asset conservation and bridge reserve/supply evaluators are under v0.3 review.</p></article>
+<article class="card"><span class="status preview">In validation</span><h3>Reorg / staleness gate</h3><p>The v0.3 authorization path rechecks reference block identity and permitted head lag immediately before signing side effects.</p></article>
 </div>
 <div class="flow"><div>Intent</div><div>Build</div><div>Payload</div><div>Pinned State</div><div>Execute</div><div>Invariants</div><div>Sign / Block</div></div>
 </section>
-
 <section class="surface section" id="node-shield">
-<span class="eyebrow">Runtime defense</span>
-<h2>Node Shield</h2>
+<span class="eyebrow">Runtime defense</span><h2>Node Shield</h2>
 <p class="section-lead">Node Shield is the runtime containment and attestation layer intended to prove that the artifact and effective runtime authority match the approved deployment policy. It remains behind its live Linux/BPF proof gate and is not presented here as production-complete.</p>
 <div class="grid"><article class="card"><span class="status preview">In validation</span><h3>Runtime identity</h3><p>Bind the approved artifact to the process that actually runs.</p></article><article class="card"><span class="status preview">In validation</span><h3>Capability containment</h3><p>Prevent runtime authority from silently expanding beyond local policy.</p></article><article class="card"><span class="status preview">In validation</span><h3>Kernel evidence</h3><p>Linux eBPF/LSM evidence is required before the runtime layer is treated as proven.</p></article></div>
 </section>
-
 <section class="surface section" id="cross-chain">
-<span class="eyebrow">Cross-chain trust</span>
-<h2>One proof model, chain-specific evidence.</h2>
-<p class="section-lead">Koschei is not a Solana-only scanner. The control plane is designed around execution and authority evidence that can be adapted to Ethereum/EVM, Solana and other chains. Bridge reserve/supply semantics are already represented in the invariant model; Pi ↔ Solana remains a separate chain-adapter implementation, not a fake EVM wrapper.</p>
-<div class="grid"><article class="card"><span class="status">Invariant semantics implemented</span><h3>Bridge reserve / supply</h3><p>Issued supply cannot exceed the locally approved reserve evidence boundary.</p></article><article class="card"><span class="status preview">Adapter planned</span><h3>Pi ↔ Solana</h3><p>Vault, mint and burn authorization will reuse cross-chain proof semantics with native evidence adapters.</p></article><article class="card"><span class="status preview">Expansion path</span><h3>Multi-chain control plane</h3><p>New chains join through evidence adapters without redefining the core ALLOW/BLOCK contract.</p></article></div>
+<span class="eyebrow">Cross-chain trust</span><h2>One proof model, chain-specific evidence.</h2>
+<p class="section-lead">Koschei is not a Solana-only scanner. The control plane is designed around execution and authority evidence that can be adapted to Ethereum/EVM, Solana and other chains. Pi ↔ Solana remains a separate chain-adapter implementation, not a fake EVM wrapper.</p>
+<div class="grid"><article class="card"><span class="status">Semantics defined</span><h3>Bridge reserve / supply</h3><p>The invariant model includes reserve/supply semantics; the concrete EVM evaluator is in v0.3 validation and chain-specific adapters come separately.</p></article><article class="card"><span class="status preview">Adapter planned</span><h3>Pi ↔ Solana</h3><p>Vault, mint and burn authorization will reuse cross-chain proof semantics with native evidence adapters.</p></article><article class="card"><span class="status preview">Expansion path</span><h3>Multi-chain control plane</h3><p>New chains join through evidence adapters without redefining the core ALLOW/BLOCK contract.</p></article></div>
 </section>
-
 <section class="surface section">
-<span class="eyebrow">Security operations</span>
-<h2>The old investigation engine becomes a tool, not the product.</h2>
+<span class="eyebrow">Security operations</span><h2>The old investigation engine becomes a tool, not the product.</h2>
 <p class="section-lead">Wallet, token, actor and transaction investigation still has value for evidence collection and incident response. It no longer defines Koschei Web3's identity or homepage.</p>
 <div class="legacy"><strong>Legacy investigation tools:</strong> <a href="/scan">Token / wallet investigation</a> · <a href="/scan?mode=deep">Deep investigation</a> · <a href="/safe-check">Safe Check</a>. These remain secondary operational tools.</div>
 </section>
-
 <footer class="footer"><span>© Koschei Web3 · Security Control Plane</span><span>Execution integrity · Runtime defense · Cross-chain trust · Security operations</span></footer>
 </main>
 <script src="/js/koschei-global-shell.js?v=4"></script><script src="/js/koschei-product-v2.js?v=1"></script><script src="/js/feedback-button.js?v=1"></script>
