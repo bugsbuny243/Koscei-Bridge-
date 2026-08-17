@@ -16,13 +16,22 @@ func (f *recordingSafeForwarder) ForwardSafeTransaction(context.Context, SafeFor
 	return f.err
 }
 
-func TestVerifyAndForwardSafeTransactionCallsForwarderOnlyAfterAllow(t *testing.T) {
+func nativeSafeForwardFixture(t *testing.T) (SafeForwardRequest, Proof) {
+	t.Helper()
 	req := validSafeForwardRequest()
-	computer := fixedSafeHashComputer{hash: req.PresentedSafeHash}
-	proof := proofForSafeForward(t, req)
+	hash, err := (NativeSafeTxHashComputer{}).ComputeSafeTxHash(req.Transaction)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.PresentedSafeHash = hash
+	return req, proofForSafeForward(t, req)
+}
+
+func TestVerifyAndForwardSafeTransactionCallsForwarderOnlyAfterAllow(t *testing.T) {
+	req, proof := nativeSafeForwardFixture(t)
 	forwarder := &recordingSafeForwarder{}
 
-	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, computer, forwarder)
+	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, forwarder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,12 +44,11 @@ func TestVerifyAndForwardSafeTransactionCallsForwarderOnlyAfterAllow(t *testing.
 }
 
 func TestVerifyAndForwardSafeTransactionNeverForwardsBlockedRequest(t *testing.T) {
-	req := validSafeForwardRequest()
-	proof := proofForSafeForward(t, req)
+	req, proof := nativeSafeForwardFixture(t)
 	forwarder := &recordingSafeForwarder{}
 
 	req.Transaction.Operation = 2
-	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, fixedSafeHashComputer{hash: req.PresentedSafeHash}, forwarder)
+	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, forwarder)
 	if !errors.Is(err, ErrSigningBlocked) {
 		t.Fatalf("error = %v, want ErrSigningBlocked", err)
 	}
@@ -53,11 +61,11 @@ func TestVerifyAndForwardSafeTransactionNeverForwardsBlockedRequest(t *testing.T
 }
 
 func TestVerifyAndForwardSafeTransactionDoesNotForwardOnHashMismatch(t *testing.T) {
-	req := validSafeForwardRequest()
-	proof := proofForSafeForward(t, req)
+	req, proof := nativeSafeForwardFixture(t)
 	forwarder := &recordingSafeForwarder{}
 
-	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, fixedSafeHashComputer{hash: "0x5555555555555555555555555555555555555555555555555555555555555555"}, forwarder)
+	req.PresentedSafeHash = "0x5555555555555555555555555555555555555555555555555555555555555555"
+	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, forwarder)
 	if !errors.Is(err, ErrSigningBlocked) {
 		t.Fatalf("error = %v, want ErrSigningBlocked", err)
 	}
@@ -68,12 +76,11 @@ func TestVerifyAndForwardSafeTransactionDoesNotForwardOnHashMismatch(t *testing.
 }
 
 func TestVerifyAndForwardSafeTransactionPropagatesForwarderFailure(t *testing.T) {
-	req := validSafeForwardRequest()
-	proof := proofForSafeForward(t, req)
+	req, proof := nativeSafeForwardFixture(t)
 	forwardErr := errors.New("safe transport unavailable")
 	forwarder := &recordingSafeForwarder{err: forwardErr}
 
-	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, fixedSafeHashComputer{hash: req.PresentedSafeHash}, forwarder)
+	got, err := VerifyAndForwardSafeTransaction(context.Background(), proof, req, forwarder)
 	if !errors.Is(err, forwardErr) {
 		t.Fatalf("error = %v, want %v", err, forwardErr)
 	}
@@ -82,5 +89,23 @@ func TestVerifyAndForwardSafeTransactionPropagatesForwarderFailure(t *testing.T)
 	}
 	if forwarder.calls != 1 {
 		t.Fatalf("forward calls = %d, want 1", forwarder.calls)
+	}
+}
+
+func TestVerifyAndForwardSafeTransactionBlocksCancelledContextBeforeForward(t *testing.T) {
+	req, proof := nativeSafeForwardFixture(t)
+	forwarder := &recordingSafeForwarder{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	got, err := VerifyAndForwardSafeTransaction(ctx, proof, req, forwarder)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if got.Decision != DecisionBlock {
+		t.Fatalf("decision = %s, want BLOCK", got.Decision)
+	}
+	if forwarder.calls != 0 {
+		t.Fatalf("cancelled request reached forwarder: calls=%d", forwarder.calls)
 	}
 }
