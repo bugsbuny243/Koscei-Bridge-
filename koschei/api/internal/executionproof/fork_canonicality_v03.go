@@ -24,7 +24,10 @@ type RPCForkCanonicalityVerifier struct {
 }
 
 func (v RPCForkCanonicalityVerifier) VerifyCanonical(ctx context.Context, chainID uint64, referenceBlock uint64, referenceHash string) error {
-	if strings.TrimSpace(v.RPCURL) == "" || chainID == 0 || referenceBlock == 0 || !validHex32(referenceHash) {
+	// MaxHeadLag is an authorization policy, not an optional optimization.
+	// A zero value must fail closed; otherwise omitted configuration silently
+	// turns the freshness gate into an unlimited-age acceptance rule.
+	if strings.TrimSpace(v.RPCURL) == "" || chainID == 0 || referenceBlock == 0 || !validHex32(referenceHash) || v.MaxHeadLag == 0 {
 		return errors.New("invalid canonicality verifier request")
 	}
 	client := &evmRPCClient{url:v.RPCURL, http:&http.Client{Timeout:durationOr(v.Timeout,5*time.Second)}}
@@ -37,6 +40,6 @@ func (v RPCForkCanonicalityVerifier) VerifyCanonical(ctx context.Context, chainI
 	headHex = strings.TrimPrefix(strings.TrimSpace(headHex),"0x")
 	head, err := strconv.ParseUint(headHex,16,64)
 	if err != nil || head < referenceBlock { return errors.New("invalid canonical head") }
-	if v.MaxHeadLag != 0 && head-referenceBlock > v.MaxHeadLag { return errors.New("fork reference block is stale") }
+	if head-referenceBlock > v.MaxHeadLag { return errors.New("fork reference block is stale") }
 	return nil
 }
