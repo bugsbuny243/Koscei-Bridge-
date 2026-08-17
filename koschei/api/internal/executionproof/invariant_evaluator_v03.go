@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 )
 
 // InvariantPolicyRegistry is deliberately local-authority-first. The fork
@@ -67,7 +69,7 @@ func (e PolicyBoundInvariantEvaluator) EvaluatePostState(ctx context.Context, rp
 	if e.Registry == nil || strings.TrimSpace(rpcURL) == "" || !validHex32(txHash) {
 		return nil, errors.New("invalid invariant evaluator boundary")
 	}
-	client := &evmRPCClient{url: rpcURL, http: defaultInvariantHTTPClient()}
+	client := &evmRPCClient{url: rpcURL, http: &http.Client{Timeout: 5 * time.Second}}
 	checks := make([]InvariantCheck, 0, len(request.Invariants))
 	for _, definition := range request.Invariants {
 		switch definition.Class {
