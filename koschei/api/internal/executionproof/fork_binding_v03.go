@@ -39,8 +39,9 @@ type PreparedVerifiedForkRequest struct {
 }
 
 type VerifiedForkBackendResult struct {
-	ObservedRunnerSHA256 string            `json:"observed_runner_sha256"`
-	Simulation           ForkBackendResult `json:"simulation"`
+	ObservedRunnerSHA256 string                `json:"observed_runner_sha256"`
+	Simulation           ForkBackendResult     `json:"simulation"`
+	Execution            ForkExecutionEvidence `json:"execution"`
 }
 
 type VerifiedForkBackend interface {
@@ -53,27 +54,83 @@ func (a verifiedForkAdapter) ExecuteForkSimulation(context.Context, ForkSimulati
 	return a.result, nil
 }
 
+// RunVerifiedForkInvariants preserves the v0.2-compatible simulation receipt
+// surface. New signing integrations must use RunVerifiedForkExecution so the
+// exact isolated transaction receipt is part of the authorization evidence.
 func RunVerifiedForkInvariants(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (ForkSimulationReceipt, error) {
+	prepared, result, receipt, err := runVerifiedForkCore(ctx, request, backend)
+	_ = prepared
+	_ = result
+	return receipt, err
+}
+
+// RunVerifiedForkExecution produces the v0.3 execution-bound receipt. Backend
+// supplied execution evidence is not trusted: invariant evidence is recomputed
+// from canonical checks and both the inner and outer receipt digests are
+// verified deterministically before this artifact can be used by a signer gate.
+func RunVerifiedForkExecution(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (VerifiedForkReceipt, error) {
+	_, result, simulation, err := runVerifiedForkCore(ctx, request, backend)
+	if err != nil {
+		return blockedVerifiedForkReceipt(simulation, result.Execution), err
+	}
+	if !validForkExecutionEvidence(result.Execution, simulation.Checks) {
+		return blockedVerifiedForkReceipt(simulation, result.Execution), ErrSimulationBlocked
+	}
+
+	receipt := VerifiedForkReceipt{
+		Version:    VerifiedForkReceiptVersion,
+		Simulation: simulation,
+		Execution: ForkExecutionEvidence{
+			TransactionHash:          normalizeHex32(result.Execution.TransactionHash),
+			TransactionReceiptSHA256: strings.ToLower(strings.TrimSpace(result.Execution.TransactionReceiptSHA256)),
+			InvariantEvidenceSHA256:  strings.ToLower(strings.TrimSpace(result.Execution.InvariantEvidenceSHA256)),
+		},
+	}
+	receipt.ReceiptSHA256 = verifiedForkReceiptDigest(receipt)
+	if !ValidVerifiedForkReceipt(receipt) {
+		return blockedVerifiedForkReceipt(simulation, result.Execution), ErrSimulationBlocked
+	}
+	return receipt, nil
+}
+
+func blockedVerifiedForkReceipt(simulation ForkSimulationReceipt, execution ForkExecutionEvidence) VerifiedForkReceipt {
+	if simulation.Decision == "" {
+		simulation.Decision = SimulationBlock
+	}
+	return VerifiedForkReceipt{
+		Version:    VerifiedForkReceiptVersion,
+		Simulation: simulation,
+		Execution:  execution,
+	}
+}
+
+func runVerifiedForkCore(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (PreparedVerifiedForkRequest, VerifiedForkBackendResult, ForkSimulationReceipt, error) {
 	prepared, ok := prepareVerifiedForkRequest(request)
 	if !ok || backend == nil {
-		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationInvalidRequest), ErrSimulationBlocked
+		receipt := blockedSimulationReceipt(prepared.Simulation, nil, SimulationInvalidRequest)
+		return prepared, VerifiedForkBackendResult{}, receipt, ErrSimulationBlocked
 	}
 	if err := ctx.Err(); err != nil {
-		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure), err
+		receipt := blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure)
+		return prepared, VerifiedForkBackendResult{}, receipt, err
 	}
 
 	result, err := backend.ExecuteVerifiedFork(ctx, prepared)
 	if err != nil {
-		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure), err
+		receipt := blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure)
+		return prepared, result, receipt, err
 	}
 	if !equalDigest(result.ObservedRunnerSHA256, prepared.Simulation.RunnerSHA256) {
-		return blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationRunnerMismatch), ErrSimulationBlocked
+		receipt := blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationRunnerMismatch)
+		return prepared, result, receipt, ErrSimulationBlocked
 	}
 	if !equalDigest(result.Simulation.ObservedInvariantSetHash, prepared.Simulation.InvariantSetSHA256) {
-		return blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationInvariantDefinitionMismatch), ErrSimulationBlocked
+		receipt := blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationInvariantDefinitionMismatch)
+		return prepared, result, receipt, ErrSimulationBlocked
 	}
 
-	return RunForkInvariants(ctx, prepared.Simulation, verifiedForkAdapter{result: result.Simulation})
+	receipt, err := RunForkInvariants(ctx, prepared.Simulation, verifiedForkAdapter{result: result.Simulation})
+	return prepared, result, receipt, err
 }
 
 func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedForkRequest, bool) {
