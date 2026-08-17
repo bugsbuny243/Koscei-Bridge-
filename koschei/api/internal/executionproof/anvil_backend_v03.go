@@ -102,6 +102,10 @@ func (b AnvilForkBackend) ExecuteVerifiedFork(ctx context.Context, request Prepa
 	if err := client.requireSuccessfulReceipt(ctx, txHash); err != nil {
 		return VerifiedForkBackendResult{}, fmt.Errorf("isolated fork transaction failed: %w", err)
 	}
+	receiptSHA, err := client.transactionReceiptDigest(ctx, txHash)
+	if err != nil {
+		return VerifiedForkBackendResult{}, fmt.Errorf("bind isolated fork receipt: %w", err)
+	}
 
 	checks, err := b.Evaluator.EvaluatePostState(ctx, rpcURL, request, txHash)
 	if err != nil {
@@ -121,6 +125,11 @@ func (b AnvilForkBackend) ExecuteVerifiedFork(ctx context.Context, request Prepa
 			ObservedPayloadSHA256:    payloadSHA,
 			ObservedInvariantSetHash: request.Simulation.InvariantSetSHA256,
 			Checks:                   checks,
+		},
+		Execution: ForkExecutionEvidence{
+			TransactionHash:          txHash,
+			TransactionReceiptSHA256: receiptSHA,
+			InvariantEvidenceSHA256:  canonicalInvariantEvidenceDigest(checks),
 		},
 	}, nil
 }
@@ -233,9 +242,41 @@ func (c *evmRPCClient) sendTransaction(ctx context.Context, payload EVMPayload) 
 	return normalizeHex32(txHash), nil
 }
 
+type canonicalEVMReceipt struct {
+	TransactionHash   string            `json:"transaction_hash"`
+	BlockHash         string            `json:"block_hash"`
+	BlockNumber       string            `json:"block_number"`
+	Status            string            `json:"status"`
+	GasUsed           string            `json:"gas_used"`
+	CumulativeGasUsed string            `json:"cumulative_gas_used"`
+	ContractAddress   *string           `json:"contract_address"`
+	Logs              []json.RawMessage `json:"logs"`
+}
+
+func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (canonicalEVMReceipt, error) {
+	var receipt canonicalEVMReceipt
+	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil { return receipt, err }
+	if !equalHex32(receipt.TransactionHash, txHash) || !validHex32(receipt.BlockHash) {
+		return receipt, errors.New("invalid transaction receipt identity")
+	}
+	return receipt, nil
+}
+
 func (c *evmRPCClient) requireSuccessfulReceipt(ctx context.Context, txHash string) error {
-	var receipt struct{ Status string `json:"status"` }
-	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil { return err }
+	receipt, err := c.transactionReceipt(ctx, txHash)
+	if err != nil { return err }
 	if strings.ToLower(receipt.Status) != "0x1" { return fmt.Errorf("receipt status %q", receipt.Status) }
 	return nil
+}
+
+func (c *evmRPCClient) transactionReceiptDigest(ctx context.Context, txHash string) (string, error) {
+	receipt, err := c.transactionReceipt(ctx, txHash)
+	if err != nil { return "", err }
+	if strings.ToLower(receipt.Status) != "0x1" { return "", fmt.Errorf("receipt status %q", receipt.Status) }
+	receipt.TransactionHash = normalizeHex32(receipt.TransactionHash)
+	receipt.BlockHash = normalizeHex32(receipt.BlockHash)
+	encoded, err := json.Marshal(receipt)
+	if err != nil { return "", err }
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:]), nil
 }
