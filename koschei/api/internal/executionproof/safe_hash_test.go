@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+// These schema strings are pinned to safe-fndn/safe-smart-account
+// commit 37a8215a8f2a10e275650cfce0059dbfb480030e, specifically
+// contracts/Safe.sol and src/utils/execution.ts. Keeping the schema itself
+// under test prevents silent field-order or field-type drift even if a
+// downstream golden transaction hash were accidentally updated.
+func TestSafeEIP712TypeHashesMatchPinnedUpstreamSchema(t *testing.T) {
+	domain := keccak256([]byte("EIP712Domain(uint256 chainId,address verifyingContract)"))
+	if domain != safeDomainSeparatorTypeHash {
+		t.Fatalf("Safe domain typehash drifted: got %x want %x", domain, safeDomainSeparatorTypeHash)
+	}
+
+	safeTx := keccak256([]byte("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"))
+	if safeTx != safeTxTypeHash {
+		t.Fatalf("SafeTx typehash drifted: got %x want %x", safeTx, safeTxTypeHash)
+	}
+}
+
 func TestNativeSafeTxHashComputerMatchesReferenceVector(t *testing.T) {
 	tx := SafeTransaction{
 		ChainID:        1,
