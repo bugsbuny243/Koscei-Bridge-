@@ -28,7 +28,7 @@ type VerifiedForkRequest struct {
 	ChainID            uint64                        `json:"chain_id"`
 	ReferenceBlock     uint64                        `json:"reference_block"`
 	ReferenceBlockHash string                        `json:"reference_block_hash"`
-	PayloadSHA256      string                        `json:"payload_sha256"`
+	Payload            EVMPayload                    `json:"payload"`
 	RunnerSHA256       string                        `json:"runner_sha256"`
 	Invariants         []ApprovedInvariantDefinition `json:"invariants"`
 }
@@ -77,7 +77,8 @@ func prepareVerifiedForkRequest(request VerifiedForkRequest) (ForkSimulationRequ
 	if request.Version == "" {
 		request.Version = ExecutionProofForkBindingVersion
 	}
-	if request.Version != ExecutionProofForkBindingVersion || request.ChainID == 0 || request.ReferenceBlock == 0 || !validHex32(request.ReferenceBlockHash) || !validSHA256(request.PayloadSHA256) || !validSHA256(request.RunnerSHA256) {
+	payloadSHA256, validPayload := evmPayloadDigest(request.Payload)
+	if request.Version != ExecutionProofForkBindingVersion || request.ChainID == 0 || request.ReferenceBlock == 0 || !validHex32(request.ReferenceBlockHash) || !validPayload || !validSHA256(request.RunnerSHA256) {
 		return ForkSimulationRequest{}, false
 	}
 
@@ -95,7 +96,7 @@ func prepareVerifiedForkRequest(request VerifiedForkRequest) (ForkSimulationRequ
 		ChainID:            request.ChainID,
 		ReferenceBlock:     request.ReferenceBlock,
 		ReferenceBlockHash: normalizeHex32(request.ReferenceBlockHash),
-		PayloadSHA256:      strings.ToLower(request.PayloadSHA256),
+		PayloadSHA256:      payloadSHA256,
 		InvariantSetSHA256: approvedInvariantSetDigest(invariants),
 		RunnerSHA256:       strings.ToLower(request.RunnerSHA256),
 		RequiredCheckIDs:   ids,
