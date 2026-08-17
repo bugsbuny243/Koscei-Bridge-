@@ -24,13 +24,14 @@ const (
 )
 
 type ForkSimulationRequest struct {
-	Version            string `json:"version"`
-	ChainID            uint64 `json:"chain_id"`
-	ReferenceBlock     uint64 `json:"reference_block"`
-	ReferenceBlockHash string `json:"reference_block_hash"`
-	PayloadSHA256      string `json:"payload_sha256"`
-	InvariantSetSHA256 string `json:"invariant_set_sha256"`
-	RunnerSHA256       string `json:"runner_sha256"`
+	Version            string   `json:"version"`
+	ChainID            uint64   `json:"chain_id"`
+	ReferenceBlock     uint64   `json:"reference_block"`
+	ReferenceBlockHash string   `json:"reference_block_hash"`
+	PayloadSHA256      string   `json:"payload_sha256"`
+	InvariantSetSHA256 string   `json:"invariant_set_sha256"`
+	RunnerSHA256       string   `json:"runner_sha256"`
+	RequiredCheckIDs   []string `json:"required_check_ids"`
 }
 
 type InvariantCheck struct {
@@ -72,6 +73,7 @@ const (
 	SimulationDuplicateCheck   SimulationReason = "SIM-007-DUPLICATE-CHECK"
 	SimulationInvariantFailure SimulationReason = "SIM-008-INVARIANT-FAILURE"
 	SimulationInvalidEvidence  SimulationReason = "SIM-009-INVALID-EVIDENCE"
+	SimulationCheckSetMismatch SimulationReason = "SIM-010-CHECK-SET-MISMATCH"
 )
 
 type ForkSimulationReceipt struct {
@@ -82,6 +84,7 @@ type ForkSimulationReceipt struct {
 	PayloadSHA256      string             `json:"payload_sha256"`
 	InvariantSetSHA256 string             `json:"invariant_set_sha256"`
 	RunnerSHA256       string             `json:"runner_sha256"`
+	RequiredCheckIDs   []string           `json:"required_check_ids"`
 	Checks             []InvariantCheck   `json:"checks"`
 	Decision           SimulationDecision `json:"decision"`
 	Reasons            []SimulationReason `json:"reasons"`
@@ -94,7 +97,9 @@ func RunForkInvariants(ctx context.Context, request ForkSimulationRequest, backe
 	if request.Version == "" {
 		request.Version = InvariantRunnerVersion
 	}
-	if !validForkSimulationRequest(request) || backend == nil {
+	requiredIDs, validRequiredIDs := canonicalizeRequiredCheckIDs(request.RequiredCheckIDs)
+	request.RequiredCheckIDs = requiredIDs
+	if !validRequiredIDs || !validForkSimulationRequest(request) || backend == nil {
 		return blockedSimulationReceipt(request, nil, SimulationInvalidRequest), ErrSimulationBlocked
 	}
 	if err := ctx.Err(); err != nil {
@@ -106,7 +111,7 @@ func RunForkInvariants(ctx context.Context, request ForkSimulationRequest, backe
 		return blockedSimulationReceipt(request, nil, SimulationBackendFailure), fmt.Errorf("fork simulation backend: %w", err)
 	}
 
-	reasons := make([]SimulationReason, 0, 4)
+	reasons := make([]SimulationReason, 0, 5)
 	if result.ChainID != request.ChainID || result.ObservedReferenceBlock != request.ReferenceBlock || !equalHex32(result.ObservedReferenceHash, request.ReferenceBlockHash) {
 		reasons = append(reasons, SimulationStateMismatch)
 	}
@@ -119,6 +124,9 @@ func RunForkInvariants(ctx context.Context, request ForkSimulationRequest, backe
 
 	checks, checkReasons := canonicalizeInvariantChecks(result.Checks)
 	reasons = append(reasons, checkReasons...)
+	if !exactRequiredCheckSet(request.RequiredCheckIDs, checks) {
+		reasons = appendUniqueSimulationReason(reasons, SimulationCheckSetMismatch)
+	}
 
 	decision := SimulationAllow
 	if len(reasons) != 0 {
@@ -133,6 +141,7 @@ func RunForkInvariants(ctx context.Context, request ForkSimulationRequest, backe
 		PayloadSHA256:      strings.ToLower(request.PayloadSHA256),
 		InvariantSetSHA256: strings.ToLower(request.InvariantSetSHA256),
 		RunnerSHA256:       strings.ToLower(request.RunnerSHA256),
+		RequiredCheckIDs:   append([]string(nil), request.RequiredCheckIDs...),
 		Checks:             checks,
 		Decision:           decision,
 		Reasons:            reasons,
@@ -151,7 +160,29 @@ func validForkSimulationRequest(request ForkSimulationRequest) bool {
 		validHex32(request.ReferenceBlockHash) &&
 		validSHA256(request.PayloadSHA256) &&
 		validSHA256(request.InvariantSetSHA256) &&
-		validSHA256(request.RunnerSHA256)
+		validSHA256(request.RunnerSHA256) &&
+		len(request.RequiredCheckIDs) != 0
+}
+
+func canonicalizeRequiredCheckIDs(input []string) ([]string, bool) {
+	if len(input) == 0 {
+		return nil, false
+	}
+	ids := make([]string, 0, len(input))
+	seen := make(map[string]struct{}, len(input))
+	for _, raw := range input {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			return nil, false
+		}
+		if _, ok := seen[id]; ok {
+			return nil, false
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids, true
 }
 
 func canonicalizeInvariantChecks(input []InvariantCheck) ([]InvariantCheck, []SimulationReason) {
@@ -180,6 +211,18 @@ func canonicalizeInvariantChecks(input []InvariantCheck) ([]InvariantCheck, []Si
 		}
 	}
 	return checks, reasons
+}
+
+func exactRequiredCheckSet(required []string, checks []InvariantCheck) bool {
+	if len(required) != len(checks) {
+		return false
+	}
+	for i := range required {
+		if required[i] != checks[i].ID {
+			return false
+		}
+	}
+	return true
 }
 
 func validInvariantClass(class InvariantClass) bool {
@@ -212,6 +255,7 @@ func blockedSimulationReceipt(request ForkSimulationRequest, checks []InvariantC
 		PayloadSHA256:      strings.ToLower(strings.TrimSpace(request.PayloadSHA256)),
 		InvariantSetSHA256: strings.ToLower(strings.TrimSpace(request.InvariantSetSHA256)),
 		RunnerSHA256:       strings.ToLower(strings.TrimSpace(request.RunnerSHA256)),
+		RequiredCheckIDs:   append([]string(nil), request.RequiredCheckIDs...),
 		Checks:             checks,
 		Decision:           SimulationBlock,
 		Reasons:            []SimulationReason{reason},
