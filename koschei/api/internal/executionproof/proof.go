@@ -20,16 +20,16 @@ const (
 type ReasonCode string
 
 const (
-	ReasonInvalidEvidence         ReasonCode = "EP-001-INVALID-EVIDENCE"
-	ReasonArtifactMismatch       ReasonCode = "EP-002-ARTIFACT-MISMATCH"
+	ReasonInvalidEvidence          ReasonCode = "EP-001-INVALID-EVIDENCE"
+	ReasonArtifactMismatch        ReasonCode = "EP-002-ARTIFACT-MISMATCH"
 	ReasonRuntimeArtifactMismatch ReasonCode = "EP-003-RUNTIME-ARTIFACT-MISMATCH"
-	ReasonPayloadMismatch        ReasonCode = "EP-004-PAYLOAD-MISMATCH"
-	ReasonInvariantFailed        ReasonCode = "EP-005-INVARIANT-NOT-PASS"
+	ReasonPayloadMismatch         ReasonCode = "EP-004-PAYLOAD-MISMATCH"
+	ReasonInvariantFailed         ReasonCode = "EP-005-INVARIANT-NOT-PASS"
 )
 
 type SourceEvidence struct {
-	CommitSHA256 string `json:"commit_sha256"`
-	TreeSHA256   string `json:"tree_sha256"`
+	CommitID string `json:"commit_id"`
+	TreeID   string `json:"tree_id"`
 }
 
 type BuildEvidence struct {
@@ -45,11 +45,11 @@ type RuntimeEvidence struct {
 }
 
 type PayloadEvidence struct {
-	ChainID                uint64 `json:"chain_id"`
-	Target                 string `json:"target"`
-	ApprovedCalldataSHA256 string `json:"approved_calldata_sha256"`
+	ChainID                 uint64 `json:"chain_id"`
+	Target                  string `json:"target"`
+	ApprovedCalldataSHA256  string `json:"approved_calldata_sha256"`
 	GeneratedCalldataSHA256 string `json:"generated_calldata_sha256"`
-	GeneratorSHA256        string `json:"generator_sha256"`
+	GeneratorSHA256         string `json:"generator_sha256"`
 }
 
 type SimulationEvidence struct {
@@ -116,8 +116,8 @@ func Evaluate(envelope Envelope) (Proof, error) {
 	digest := sha256.Sum256(canonical)
 
 	return Proof{
-		Envelope: envelope,
-		Evaluation: Evaluation{Decision: decision, Reasons: reasons},
+		Envelope:       envelope,
+		Evaluation:     Evaluation{Decision: decision, Reasons: reasons},
 		EnvelopeSHA256: hex.EncodeToString(digest[:]),
 	}, nil
 }
@@ -127,8 +127,8 @@ func CanonicalBytes(proof Proof) ([]byte, error) {
 }
 
 func validEvidence(e Envelope) bool {
-	return validSHA256(e.Source.CommitSHA256) &&
-		validSHA256(e.Source.TreeSHA256) &&
+	return validGitObjectID(e.Source.CommitID) &&
+		validGitObjectID(e.Source.TreeID) &&
 		validSHA256(e.Build.ToolchainSHA256) &&
 		validSHA256(e.Build.ApprovedArtifactSHA256) &&
 		validSHA256(e.Build.BuiltArtifactSHA256) &&
@@ -141,6 +141,14 @@ func validEvidence(e Envelope) bool {
 		validSHA256(e.Payload.GeneratorSHA256) &&
 		validSHA256(e.Simulation.InvariantSetSHA256) &&
 		validSHA256(e.Authorization.SigningPolicySHA256)
+}
+
+func validGitObjectID(v string) bool {
+	if len(v) != 40 && len(v) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(v)
+	return err == nil
 }
 
 func validSHA256(v string) bool {
