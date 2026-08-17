@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -28,9 +27,9 @@ type ProxyCodehashPolicy struct {
 }
 
 type PrivilegedRolePolicy struct {
-	Contract       string `json:"contract"`
-	StorageSlot    string `json:"storage_slot"`
-	ExpectedValue  string `json:"expected_value"`
+	Contract      string `json:"contract"`
+	StorageSlot   string `json:"storage_slot"`
+	ExpectedValue string `json:"expected_value"`
 }
 
 type TreasuryBoundPolicy struct {
@@ -232,7 +231,3 @@ func proxyCodehashEvidenceDigest(address, observedCodeSHA256 string) string {
 	digest, _ := policyDigest(evidence)
 	return digest
 }
-
-// Keep math/big linked explicitly to the uint256 policy contract; changing
-// these fields to machine-sized integers would be a security regression.
-var _ = (*big.Int)(nil)
