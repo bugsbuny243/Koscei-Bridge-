@@ -16,8 +16,10 @@ func TestHomepageIsSecurityControlPlaneNotTokenScanner(t *testing.T) {
 		"Koschei Web3 | Security Control Plane",
 		"Prove what will execute.",
 		"Execution Proof",
+		"Transaction Defense",
 		"Node Shield",
 		"Cross-Chain Trust",
+		"Security Operations",
 		"NO VALID PROOF = NO SIGNATURE",
 	} {
 		if !strings.Contains(text, required) {
@@ -30,6 +32,8 @@ func TestHomepageIsSecurityControlPlaneNotTokenScanner(t *testing.T) {
 		"Run a free preflight",
 		"Buy a token",
 		"homepage-score-label",
+		"Koschei ARVIS | Evidence-Backed Web3 Security",
+		"homepage-preflight-v2.js",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("homepage regressed to legacy scanner identity: found %q", forbidden)
