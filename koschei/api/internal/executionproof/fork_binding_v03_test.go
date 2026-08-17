@@ -12,7 +12,7 @@ type fixedVerifiedForkBackend struct {
 	err    error
 }
 
-func (f fixedVerifiedForkBackend) ExecuteVerifiedFork(context.Context, ForkSimulationRequest) (VerifiedForkBackendResult, error) {
+func (f fixedVerifiedForkBackend) ExecuteVerifiedFork(context.Context, PreparedVerifiedForkRequest) (VerifiedForkBackendResult, error) {
 	return f.result, f.err
 }
 
@@ -39,17 +39,16 @@ func validVerifiedForkRequest() VerifiedForkRequest {
 func validVerifiedForkBackendResult(t *testing.T, req VerifiedForkRequest) VerifiedForkBackendResult {
 	t.Helper()
 	prepared, ok := prepareVerifiedForkRequest(req)
-	if !ok {
-		t.Fatal("valid request did not prepare")
-	}
+	if !ok { t.Fatal("valid request did not prepare") }
+	sim := prepared.Simulation
 	return VerifiedForkBackendResult{
-		ObservedRunnerSHA256: prepared.RunnerSHA256,
+		ObservedRunnerSHA256: sim.RunnerSHA256,
 		Simulation: ForkBackendResult{
-			ChainID:                  prepared.ChainID,
-			ObservedReferenceBlock:   prepared.ReferenceBlock,
-			ObservedReferenceHash:    prepared.ReferenceBlockHash,
-			ObservedPayloadSHA256:    prepared.PayloadSHA256,
-			ObservedInvariantSetHash: prepared.InvariantSetSHA256,
+			ChainID:                  sim.ChainID,
+			ObservedReferenceBlock:   sim.ReferenceBlock,
+			ObservedReferenceHash:    sim.ReferenceBlockHash,
+			ObservedPayloadSHA256:    sim.PayloadSHA256,
+			ObservedInvariantSetHash: sim.InvariantSetSHA256,
 			Checks: []InvariantCheck{
 				{ID: "proxy-codehash", Class: InvariantProxyCodehash, Passed: true, Evidence: strings.Repeat("e", 64)},
 				{ID: "supply-bound", Class: InvariantAssetConservation, Passed: true, Evidence: strings.Repeat("f", 64)},
@@ -65,11 +64,11 @@ func TestVerifiedForkDerivesInvariantSetIdentity(t *testing.T) {
 	req.Invariants[0], req.Invariants[1] = req.Invariants[1], req.Invariants[0]
 	second, ok := prepareVerifiedForkRequest(req)
 	if !ok { t.Fatal("prepare failed after reorder") }
-	if first.InvariantSetSHA256 != second.InvariantSetSHA256 {
-		t.Fatalf("invariant digest depends on input order: %s != %s", first.InvariantSetSHA256, second.InvariantSetSHA256)
+	if first.Simulation.InvariantSetSHA256 != second.Simulation.InvariantSetSHA256 {
+		t.Fatalf("invariant digest depends on input order: %s != %s", first.Simulation.InvariantSetSHA256, second.Simulation.InvariantSetSHA256)
 	}
-	if first.RequiredCheckIDs[0] != "proxy-codehash" || first.RequiredCheckIDs[1] != "supply-bound" {
-		t.Fatalf("required IDs not canonical: %#v", first.RequiredCheckIDs)
+	if first.Simulation.RequiredCheckIDs[0] != "proxy-codehash" || first.Simulation.RequiredCheckIDs[1] != "supply-bound" {
+		t.Fatalf("required IDs not canonical: %#v", first.Simulation.RequiredCheckIDs)
 	}
 }
 
@@ -78,7 +77,7 @@ func TestVerifiedForkInvariantParameterMutationChangesIdentity(t *testing.T) {
 	first, _ := prepareVerifiedForkRequest(req)
 	req.Invariants[0].ParametersSHA256 = strings.Repeat("9", 64)
 	second, _ := prepareVerifiedForkRequest(req)
-	if first.InvariantSetSHA256 == second.InvariantSetSHA256 {
+	if first.Simulation.InvariantSetSHA256 == second.Simulation.InvariantSetSHA256 {
 		t.Fatal("mutated invariant parameters did not change invariant-set identity")
 	}
 }
@@ -90,17 +89,25 @@ func TestVerifiedForkPayloadMutationChangesDerivedIdentity(t *testing.T) {
 	req.Payload.DataHex = "0xabcd"
 	second, ok := prepareVerifiedForkRequest(req)
 	if !ok { t.Fatal("prepare failed after payload mutation") }
-	if first.PayloadSHA256 == second.PayloadSHA256 {
+	if first.Simulation.PayloadSHA256 == second.Simulation.PayloadSHA256 {
 		t.Fatal("mutated raw EVM payload did not change derived payload identity")
+	}
+}
+
+func TestVerifiedForkCanonicalPayloadIsCarriedToBackend(t *testing.T) {
+	req := validVerifiedForkRequest()
+	req.Payload.From = "0x" + strings.ToUpper(strings.Repeat("a", 40))
+	prepared, ok := prepareVerifiedForkRequest(req)
+	if !ok { t.Fatal("prepare failed") }
+	if prepared.Payload.From != "0x"+strings.Repeat("a", 40) {
+		t.Fatalf("payload not canonicalized: %#v", prepared.Payload)
 	}
 }
 
 func TestVerifiedForkRejectsMalformedRawPayload(t *testing.T) {
 	req := validVerifiedForkRequest()
 	req.Payload.DataHex = "0x123"
-	if _, ok := prepareVerifiedForkRequest(req); ok {
-		t.Fatal("odd-length EVM calldata accepted")
-	}
+	if _, ok := prepareVerifiedForkRequest(req); ok { t.Fatal("odd-length EVM calldata accepted") }
 }
 
 func TestRunVerifiedForkAllowsMatchingObservedRunnerAndDefinitions(t *testing.T) {
@@ -108,9 +115,7 @@ func TestRunVerifiedForkAllowsMatchingObservedRunnerAndDefinitions(t *testing.T)
 	backend := fixedVerifiedForkBackend{result: validVerifiedForkBackendResult(t, req)}
 	receipt, err := RunVerifiedForkInvariants(context.Background(), req, backend)
 	if err != nil { t.Fatal(err) }
-	if receipt.Decision != SimulationAllow {
-		t.Fatalf("decision = %s reasons = %v", receipt.Decision, receipt.Reasons)
-	}
+	if receipt.Decision != SimulationAllow { t.Fatalf("decision = %s reasons = %v", receipt.Decision, receipt.Reasons) }
 }
 
 func TestRunVerifiedForkBlocksObservedRunnerMismatch(t *testing.T) {
