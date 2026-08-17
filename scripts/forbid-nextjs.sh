@@ -24,11 +24,12 @@ find . -type f -name 'package.json' -not -path './node_modules/*' -print | while
 done
 
 # Runtime/config sources must not reintroduce browser-exposed NEXT_PUBLIC variables.
-# Documentation that explains the prohibition is intentionally excluded.
+# Documentation and this policy guard are intentionally excluded from marker scanning.
 find . -type f \
   \( -name '*.env' -o -name '.env' -o -name '.env.*' -o -name '*.go' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.sh' -o -name 'Dockerfile*' \) \
   -not -path './node_modules/*' \
   -not -path './.git/*' \
+  -not -path './scripts/forbid-nextjs.sh' \
   -print | while IFS= read -r source; do
     if grep -q 'NEXT_PUBLIC_' "$source"; then
       echo "Koschei Web3 policy violation: NEXT_PUBLIC_ runtime/config marker found in $source" >&2
