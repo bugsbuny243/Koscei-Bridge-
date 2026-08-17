@@ -1,57 +1,92 @@
 <!doctype html>
-<!-- Migration guard: the legacy literal <html lang="tr"> must never become the real document language again. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei ARVIS turns Solana token, wallet, transaction, and actor evidence into signed, explainable security investigations.">
+<meta name="description" content="Koschei Web3 is a cybersecurity control plane for execution proof, signing integrity, runtime defense, invariant verification, and cross-chain trust.">
 <meta name="theme-color" content="#02050a">
-<title>Koschei ARVIS | Evidence-Backed Web3 Security</title>
+<title>Koschei Web3 | Security Control Plane</title>
 <link rel="canonical" href="https://tradepigloball.co/">
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
 <link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
 <style>
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}button,textarea,select{font:inherit}.page{margin:auto;padding:18px 0 54px}.surface,.card,.scanner{border:1px solid var(--k-line);border-radius:26px}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:11px}.mark{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:#02110d;background:linear-gradient(135deg,var(--k-green),var(--k-cyan));font-weight:1000}.nav,.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 14px;border:1px solid var(--k-line);border-radius:999px;background:#ffffff09;color:var(--k-text);font-weight:900}.hero-copy h1{margin:18px 0 14px;font-size:clamp(48px,7.5vw,88px);line-height:.92}.sub{font-size:16px;line-height:1.72}.scanner h2{margin:12px 0;font-size:30px}.scanner textarea{width:100%;min-height:150px;resize:vertical;padding:15px;border-radius:18px;color:var(--k-text);font:14px var(--k-mono)}.scanner select{width:100%;margin-top:10px;padding:13px;border-radius:16px;color:var(--k-text)}.scanner .run{width:100%;min-height:54px;margin-top:10px;border:0;border-radius:16px;color:#02110d;font-weight:1000;cursor:pointer}.result{display:none;margin-top:12px;padding:14px;border:1px solid #ffffff14;border-radius:18px;background:#ffffff07}.result.show{display:block}.score{font-size:42px;font-weight:1000}.score.good{color:var(--k-green)}.score.warn{color:var(--k-amber)}.score.bad{color:var(--k-red)}.homepage-score-label{display:block;margin-top:2px;color:var(--k-muted);font:900 10px var(--k-mono)}.homepage-result-actions{margin-top:12px}.homepage-degraded{color:#ffc0cc}.line{margin-top:10px;padding-top:10px;border-top:1px solid #ffffff12;color:#cfe1eb;line-height:1.48}.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}.metric{padding:17px;border:1px solid #ffffff14;border-radius:20px;background:#ffffff07}.metric label{display:block;color:var(--k-muted);font:900 10px var(--k-mono);text-transform:uppercase;letter-spacing:.08em}.metric b{display:block;margin-top:7px;color:var(--k-green);font-size:31px}.metric small{display:block;margin-top:4px;color:var(--k-muted)}.section-title{margin:8px 0 0;font-size:clamp(34px,5vw,58px)}.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.trust>div{padding:18px;border-radius:22px}.trust b{display:block;color:#c9fff1;margin-bottom:7px}.trust span{color:var(--k-muted);font-size:13px;line-height:1.55}.evidence-banner{margin-top:16px;padding:18px;border:1px solid #ffcc6650;border-radius:22px;background:linear-gradient(135deg,#ffcc6610,#ff557709)}.evidence-banner strong{display:block;color:#ffe5a9;font-size:18px}.evidence-banner p{margin:8px 0 0;color:var(--k-muted);line-height:1.6}@media(max-width:900px){.proof,.trust{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.proof,.trust{grid-template-columns:1fr}.actions .btn{width:100%}.top{align-items:flex-start;flex-direction:column}.nav{width:100%;overflow-x:auto;flex-wrap:nowrap}.nav .btn{flex:0 0 auto}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#02050a;color:#edf7fb}a{color:inherit;text-decoration:none}.page{max-width:1240px;margin:auto;padding:20px 22px 64px}.surface{border:1px solid #ffffff16;border-radius:26px;background:linear-gradient(145deg,#071018,#04080d)}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;margin-bottom:18px;position:sticky;top:10px;z-index:10;backdrop-filter:blur(16px)}.brand{display:flex;align-items:center;gap:11px}.mark{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:#02110d;background:linear-gradient(135deg,#42f5b6,#55d9ff);font-weight:1000}.muted{color:#8fa8b4}.nav,.actions,.chips{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #ffffff1c;border-radius:999px;background:#ffffff08;font-weight:850}.btn.primary{background:linear-gradient(135deg,#42f5b6,#55d9ff);color:#02110d;border:0}.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.8fr);gap:16px}.hero-copy,.control-card{padding:30px}.eyebrow{font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#79f6cb}.hero h1{margin:14px 0 16px;font-size:clamp(48px,7vw,88px);line-height:.94;letter-spacing:-.05em}.hero p{max-width:780px;color:#a8bdc7;font-size:17px;line-height:1.75}.chips{margin-top:20px}.chip{padding:8px 11px;border:1px solid #42f5b633;border-radius:999px;background:#42f5b60b;color:#baffea;font:750 12px ui-monospace,SFMono-Regular,Menlo,monospace}.control-card h2{font-size:28px;margin:10px 0 18px}.chain{display:grid;gap:9px}.chain div{padding:13px 14px;border:1px solid #ffffff12;border-radius:16px;background:#ffffff05}.chain small{display:block;color:#6f8a98;font:750 10px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}.chain b{display:block;margin-top:4px}.decision{margin-top:14px;padding:16px;border:1px solid #42f5b64a;border-radius:18px;background:#42f5b60a}.decision strong{color:#6ff7ca}.section{margin-top:18px;padding:28px}.section h2{font-size:clamp(30px,4vw,48px);margin:8px 0 12px}.section-lead{max-width:780px;color:#9eb4bf;line-height:1.7}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.card{padding:20px;border:1px solid #ffffff13;border-radius:22px;background:#ffffff05}.card .status{display:inline-block;margin-bottom:12px;padding:6px 9px;border-radius:999px;background:#55d9ff12;color:#9feaff;font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}.card .status.preview{background:#ffcc6612;color:#ffe0a0}.card h3{margin:0 0 8px;font-size:20px}.card p{margin:0;color:#94abb6;line-height:1.6}.flow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:22px}.flow div{padding:14px 10px;text-align:center;border:1px solid #ffffff12;border-radius:16px;background:#061018;font-size:12px;font-weight:850}.legacy{margin-top:18px;padding:20px;border:1px dashed #ffffff22;border-radius:22px;color:#8ea5b0}.legacy strong{color:#cbdbe3}.footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:24px 4px 0;color:#708895;font-size:13px}@media(max-width:900px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 1fr}}@media(max-width:620px){.page{padding:12px 12px 44px}.top{position:static;align-items:flex-start;flex-direction:column}.nav{width:100%;overflow-x:auto;flex-wrap:nowrap}.nav .btn{flex:0 0 auto}.hero-copy,.control-card,.section{padding:20px}.grid,.flow{grid-template-columns:1fr}.hero h1{font-size:48px}}
 </style>
 </head>
-<body class="koschei-v2">
+<body>
 <main class="page">
 <nav class="top surface">
-<a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei ARVIS</strong><br><small class="muted">Evidence Intelligence System</small></span></a>
-<div class="nav"><a class="btn" href="/scan">Token Scan</a><a class="btn" href="/safe-check">Safe Check</a><a class="btn" href="/transaction-shield">Transaction Shield</a><a class="btn" href="/scan?mode=deep">Deep Scan</a><a class="btn" href="/dashboard">Workspace</a></div>
+<a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small class="muted">Security Control Plane</small></span></a>
+<div class="nav"><a class="btn" href="#execution-proof">Execution Proof</a><a class="btn" href="#transaction-defense">Transaction Defense</a><a class="btn" href="#node-shield">Node Shield</a><a class="btn" href="#cross-chain">Cross-Chain Trust</a><a class="btn" href="/dashboard">Security Operations</a></div>
 </nav>
-<section class="product-masthead" data-reveal>
+
+<section class="hero">
 <article class="surface hero-copy">
-<span class="eyebrow">Evidence-backed Web3 investigation system</span>
-<h1><span class="gradient">It does not guess intent.<br>It proves technical risk.</span></h1>
-<p class="sub">Koschei ARVIS turns token, wallet, transaction, market, and actor evidence into one signed investigation file. The same target examined in the same evidence window produces the same technical result for an individual, an organization, and an API client.</p>
-<div class="actions" style="margin-top:22px"><a class="btn primary" href="#instant-check">Run a free preflight</a><a class="btn hot" href="/scan?mode=deep">Open Deep Scan</a></div>
-<div class="product-proofline"><span class="evidence-chip">Deterministic verdict</span><span class="evidence-chip">Threat anticipation</span><span class="evidence-chip">Signed evidence</span><span class="evidence-chip warn">One truth for every user</span></div>
-<div class="evidence-banner"><strong>EVIDENCE BOUNDARY</strong><p>Missing evidence is never converted into safety. Unavailable, partial, bounded, observed, verified, and not-applicable states remain separate throughout the report.</p></div>
+<span class="eyebrow">Web3 cybersecurity control plane</span>
+<h1>Prove what will execute.<br>Block what cannot be proven.</h1>
+<p>Koschei Web3 is being built for the security gap between reviewed code and the exact transaction that reaches a signer and the chain. It binds source, build, runtime policy, payload, pinned chain state, invariant evidence, and signing authorization into one fail-closed security path.</p>
+<div class="actions" style="margin-top:22px"><a class="btn primary" href="#execution-proof">Explore Execution Proof</a><a class="btn" href="/architecture">View Architecture</a></div>
+<div class="chips"><span class="chip">NO VALID PROOF = NO SIGNATURE</span><span class="chip">FAIL CLOSED</span><span class="chip">NO CUSTODY</span><span class="chip">NO NEXT.JS</span></div>
 </article>
-<aside class="scanner" id="instant-check">
-<span class="eyebrow">Free Safe Check · zero model calls</span>
-<h2>Paste a suspicious target</h2>
-<p class="sub">Run a fast deterministic preflight on a URL, token mint, wallet, recipient, or transaction intent before connecting, signing, sending, or buying.</p>
-<textarea id="target" placeholder="Enter a URL, token mint, wallet, recipient, program, or signature request"></textarea>
-<select id="intent"><option value="claim">Airdrop or reward claim</option><option value="connect">Connect a wallet</option><option value="buy">Buy a token</option><option value="send">Transfer or recipient check</option><option value="sign">Signature or transaction</option><option value="research">Research only</option></select>
-<button class="run" id="run" type="button">Check with ARVIS</button>
-<div class="result" id="result" aria-live="polite"></div>
-<div class="signal-stack" style="margin-top:12px"><div class="signal-card"><strong class="live-indicator" data-koschei-live>Checking ARVIS status</strong><span>Koschei never asks for a seed phrase, private key, custody, or blind signature.</span></div></div>
+<aside class="surface control-card">
+<span class="eyebrow">Authorization path</span>
+<h2>Security before side effects</h2>
+<div class="chain">
+<div><small>01</small><b>Approved source + artifact identity</b></div>
+<div><small>02</small><b>Runtime policy + runner identity</b></div>
+<div><small>03</small><b>Exact payload + pinned chain state</b></div>
+<div><small>04</small><b>Fork execution + invariants</b></div>
+<div><small>05</small><b>Signer request recomputation</b></div>
+</div>
+<div class="decision"><strong>ALLOW</strong> only when the evidence chain is complete. Any mismatch becomes <strong>BLOCK</strong>.</div>
 </aside>
 </section>
-<section class="proof" data-reveal>
-<div class="metric"><label>Completed operations</label><b id="completed">—</b><small>processed evidence jobs</small></div>
-<div class="metric"><label>Signed verdicts</label><b id="verdicts">—</b><small>deterministic results</small></div>
-<div class="metric"><label>Retryable</label><b id="retryable">—</b><small>temporary collector failures</small></div>
-<div class="metric"><label>Exhausted</label><b id="exhausted">—</b><small>unresolved operations</small></div>
+
+<section class="surface section" id="execution-proof">
+<span class="eyebrow">Core product</span>
+<h2>Execution Proof</h2>
+<p class="section-lead">Koschei verifies that the transaction presented for signing is the transaction produced by the approved source/build/runtime path and tested against pinned chain state. A dashboard score is not an authorization primitive; reproducible evidence is.</p>
+<div class="grid">
+<article class="card"><span class="status">Core implemented</span><h3>Deterministic proof envelope</h3><p>Source identity, artifact hash, policy hash, calldata identity, invariant set and signer authorization are bound into canonical evidence.</p></article>
+<article class="card"><span class="status">Core implemented</span><h3>Safe signing gate</h3><p>Safe transaction identity is recomputed locally. A caller-supplied ALLOW value or presented transaction hash is never authoritative.</p></article>
+<article class="card"><span class="status preview">Verified fork in validation</span><h3>Pinned EVM execution</h3><p>An isolated Anvil fork executes the exact payload against a pinned block before signing and binds the execution receipt to the proof.</p></article>
+</div>
 </section>
-<section class="product-section" data-reveal><div class="product-section-head"><div><span class="eyebrow">How is an investigation built?</span><h2 class="section-title">From raw chain data to a reproducible decision.</h2><p>Koschei does not place a language model above the facts. It verifies evidence first, resolves control surfaces and technical pathways, then signs the deterministic decision.</p></div></div><div class="case-flow"><div class="case-step"><span class="step-no">1</span><small>Target</small><b>Resolve the target</b><p>Token, wallet, program, transaction, site, pool, or actor surface.</p></div><div class="case-step"><span class="step-no">2</span><small>Evidence</small><b>Run evidence collectors</b><p>Authority, holders, funding, creator, flow, launch, market, and program relations.</p></div><div class="case-step"><span class="step-no">3</span><small>Anticipation</small><b>Map open pathways</b><p>Dominant-holder exit, liquidity control, coordinated flows, transfer controls, and unresolved branches.</p></div><div class="case-step"><span class="step-no">4</span><small>Verdict</small><b>Produce the signed result</b><p>One deterministic ruleset. Missing evidence cannot contribute safety weight.</p></div><div class="case-step"><span class="step-no">5</span><small>Operations</small><b>Apply operating capacity</b><p>Quota, history, monitoring, teams, API, webhooks, and exports.</p></div></div></section>
-<section class="product-section" data-reveal><div class="product-section-head"><div><span class="eyebrow">What does Koschei expose?</span><h2 class="section-title">Not just a risk label—the evidence behind it.</h2></div></div><div class="proof-wall"><div class="proof-item"><span class="proof-icon">%</span><b>Control capacity</b><p>Owner-resolved distribution, protocol and burn exclusions, and the dominant position relative to visible liquidity.</p></div><div class="proof-item"><span class="proof-icon">⇢</span><b>Open technical pathways</b><p>Mint inflation, freeze abuse, Token-2022 controls, dominant-holder exits, and liquidity-removal capacity.</p></div><div class="proof-item"><span class="proof-icon">⌁</span><b>Actor and funding relations</b><p>Shared funding, repeated amounts, synchronized acquisition, internal transfers, and common exits with evidence boundaries.</p></div><div class="proof-item"><span class="proof-icon">↗</span><b>Early-warning signals</b><p>Owner balance decline, wallet fragmentation, LP movement, first DEX exit, and creator behavior changes.</p></div><div class="proof-item"><span class="proof-icon">✓</span><b>Explainable signed verdict</b><p>Every triggered rule, measured value, threshold, evidence state, and grade effect remains inspectable.</p></div><div class="proof-item"><span class="proof-icon">◫</span><b>Complete customer evidence</b><p>Top 1/3/10/20, authorities, modules, holders, creator, launch, graph, limitations, ruleset, signature, and canonical JSON.</p></div></div></section>
-<section class="product-section" data-reveal><div class="product-section-head"><div><span class="eyebrow">Product tiers</span><h2 class="section-title">The technical truth stays the same. Operating capacity grows.</h2></div></div><div class="tier-grid"><article class="tier-card"><span class="tier-kicker">Same evidence engine</span><div class="tier-name">Free</div><p>A complete technical result within public rate limits.</p><ul><li>Same collector results</li><li>Same deterministic verdict</li><li>Same open and closed pathways</li><li>Missing evidence remains visible</li></ul><div class="tier-foot">Difference: quota and short-lived use</div></article><article class="tier-card featured"><span class="tier-kicker">Save and publish</span><div class="tier-name">Basic</div><p>The same result with durable history and publishing tools.</p><ul><li>Report history</li><li>Shareable result assets</li><li>Rechecks</li><li>Notification preferences</li></ul><div class="tier-foot">Truth does not change; the workflow improves</div></article><article class="tier-card"><span class="tier-kicker">Monitor and scale</span><div class="tier-name">Pro</div><p>The same result with watchlists, alerts, and batch operations.</p><ul><li>Watchlists and alerts</li><li>Batch investigation</li><li>Actor-change monitoring</li><li>Higher operating quota</li></ul><div class="tier-foot">Difference: continuous operations</div></article><article class="tier-card enterprise"><span class="tier-kicker">Teams and integration</span><div class="tier-name">Enterprise</div><p>The same result with API, webhook, export, retention, and audit capacity.</p><ul><li>Team workspaces</li><li>API and webhooks</li><li>Enterprise exports</li><li>Audit and retention policy</li></ul><div class="tier-foot">No hidden or separate verdict</div></article></div></section>
-<section class="product-section" data-reveal><div class="statement">Koschei's promise is simple: <strong>“Do not guess intent. Prove technical risk.”</strong></div><div class="trust"><div class="surface"><b>Token buyers</b><span>Review control capacity, owner concentration, market depth, and open exit pathways before exposure.</span></div><div class="surface"><b>Everyday users</b><span>Receive the same technical investigation result as an organization.</span></div><div class="surface"><b>Developers</b><span>Integrate signed canonical investigations through the API.</span></div><div class="surface"><b>Security teams</b><span>Monitor actors, transactions, graph relations, and threat pathways from one evidence center.</span></div></div></section>
-<footer class="product-footer"><span>© Koschei ARVIS · Solana-first evidence intelligence</span><nav><a href="/scan">Free Scan</a><a href="/scan?mode=deep">Deep Scan</a><a href="/kosch">KOSCH</a><a href="/docs/api">API</a></nav></footer>
+
+<section class="surface section" id="transaction-defense">
+<span class="eyebrow">Transaction defense</span>
+<h2>Stop compromised execution paths before signing.</h2>
+<div class="grid">
+<article class="card"><span class="status">Implemented</span><h3>Payload integrity</h3><p>Chain, target, value and calldata must match the approved execution request. Different transaction context means BLOCK.</p></article>
+<article class="card"><span class="status">Implemented</span><h3>Invariant verification</h3><p>Proxy codehash, privileged-role state, treasury bounds, asset conservation and bridge reserve/supply policies are evaluated fail-closed.</p></article>
+<article class="card"><span class="status">Implemented</span><h3>Reorg / staleness gate</h3><p>Reference block identity and permitted head lag are rechecked immediately before any signing side effect.</p></article>
+</div>
+<div class="flow"><div>Intent</div><div>Build</div><div>Payload</div><div>Pinned State</div><div>Execute</div><div>Invariants</div><div>Sign / Block</div></div>
+</section>
+
+<section class="surface section" id="node-shield">
+<span class="eyebrow">Runtime defense</span>
+<h2>Node Shield</h2>
+<p class="section-lead">Node Shield is the runtime containment and attestation layer intended to prove that the artifact and effective runtime authority match the approved deployment policy. It remains behind its live Linux/BPF proof gate and is not presented here as production-complete.</p>
+<div class="grid"><article class="card"><span class="status preview">In validation</span><h3>Runtime identity</h3><p>Bind the approved artifact to the process that actually runs.</p></article><article class="card"><span class="status preview">In validation</span><h3>Capability containment</h3><p>Prevent runtime authority from silently expanding beyond local policy.</p></article><article class="card"><span class="status preview">In validation</span><h3>Kernel evidence</h3><p>Linux eBPF/LSM evidence is required before the runtime layer is treated as proven.</p></article></div>
+</section>
+
+<section class="surface section" id="cross-chain">
+<span class="eyebrow">Cross-chain trust</span>
+<h2>One proof model, chain-specific evidence.</h2>
+<p class="section-lead">Koschei is not a Solana-only scanner. The control plane is designed around execution and authority evidence that can be adapted to Ethereum/EVM, Solana and other chains. Bridge reserve/supply semantics are already represented in the invariant model; Pi ↔ Solana remains a separate chain-adapter implementation, not a fake EVM wrapper.</p>
+<div class="grid"><article class="card"><span class="status">Invariant semantics implemented</span><h3>Bridge reserve / supply</h3><p>Issued supply cannot exceed the locally approved reserve evidence boundary.</p></article><article class="card"><span class="status preview">Adapter planned</span><h3>Pi ↔ Solana</h3><p>Vault, mint and burn authorization will reuse cross-chain proof semantics with native evidence adapters.</p></article><article class="card"><span class="status preview">Expansion path</span><h3>Multi-chain control plane</h3><p>New chains join through evidence adapters without redefining the core ALLOW/BLOCK contract.</p></article></div>
+</section>
+
+<section class="surface section">
+<span class="eyebrow">Security operations</span>
+<h2>The old investigation engine becomes a tool, not the product.</h2>
+<p class="section-lead">Wallet, token, actor and transaction investigation still has value for evidence collection and incident response. It no longer defines Koschei Web3's identity or homepage.</p>
+<div class="legacy"><strong>Legacy investigation tools:</strong> <a href="/scan">Token / wallet investigation</a> · <a href="/scan?mode=deep">Deep investigation</a> · <a href="/safe-check">Safe Check</a>. These remain secondary operational tools.</div>
+</section>
+
+<footer class="footer"><span>© Koschei Web3 · Security Control Plane</span><span>Execution integrity · Runtime defense · Cross-chain trust · Security operations</span></footer>
 </main>
-<script src="/js/homepage-preflight-v2.js?v=1"></script>
 <script src="/js/koschei-global-shell.js?v=4"></script><script src="/js/koschei-product-v2.js?v=1"></script><script src="/js/feedback-button.js?v=1"></script>
-</body></html>
+</body>
+</html>
