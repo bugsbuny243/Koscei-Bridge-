@@ -33,6 +33,13 @@ func TestRPCForkCanonicalityVerifierPassesCanonicalFreshBlock(t *testing.T) {
 	if err := v.VerifyCanonical(context.Background(),1,100,hash); err != nil { t.Fatal(err) }
 }
 
+func TestRPCForkCanonicalityVerifierRejectsMissingFreshnessPolicy(t *testing.T) {
+	hash := "0x"+strings.Repeat("a",64)
+	server := canonicalityRPCServer(t,"0x1",hash,"0x64"); defer server.Close()
+	v := RPCForkCanonicalityVerifier{RPCURL:server.URL,MaxHeadLag:0}
+	if err := v.VerifyCanonical(context.Background(),1,100,hash); err == nil { t.Fatal("zero MaxHeadLag disabled freshness gate") }
+}
+
 func TestRPCForkCanonicalityVerifierRejectsReorgedBlock(t *testing.T) {
 	hash := "0x"+strings.Repeat("a",64)
 	server := canonicalityRPCServer(t,"0x1","0x"+strings.Repeat("b",64),"0x69"); defer server.Close()
