@@ -33,18 +33,21 @@ type VerifiedForkRequest struct {
 	Invariants         []ApprovedInvariantDefinition `json:"invariants"`
 }
 
+type PreparedVerifiedForkRequest struct {
+	Simulation ForkSimulationRequest
+	Payload    EVMPayload
+}
+
 type VerifiedForkBackendResult struct {
 	ObservedRunnerSHA256 string            `json:"observed_runner_sha256"`
 	Simulation           ForkBackendResult `json:"simulation"`
 }
 
 type VerifiedForkBackend interface {
-	ExecuteVerifiedFork(ctx context.Context, request ForkSimulationRequest) (VerifiedForkBackendResult, error)
+	ExecuteVerifiedFork(ctx context.Context, request PreparedVerifiedForkRequest) (VerifiedForkBackendResult, error)
 }
 
-type verifiedForkAdapter struct {
-	result ForkBackendResult
-}
+type verifiedForkAdapter struct { result ForkBackendResult }
 
 func (a verifiedForkAdapter) ExecuteForkSimulation(context.Context, ForkSimulationRequest) (ForkBackendResult, error) {
 	return a.result, nil
@@ -53,71 +56,63 @@ func (a verifiedForkAdapter) ExecuteForkSimulation(context.Context, ForkSimulati
 func RunVerifiedForkInvariants(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (ForkSimulationReceipt, error) {
 	prepared, ok := prepareVerifiedForkRequest(request)
 	if !ok || backend == nil {
-		return blockedSimulationReceipt(prepared, nil, SimulationInvalidRequest), ErrSimulationBlocked
+		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationInvalidRequest), ErrSimulationBlocked
 	}
 	if err := ctx.Err(); err != nil {
-		return blockedSimulationReceipt(prepared, nil, SimulationBackendFailure), err
+		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure), err
 	}
 
 	result, err := backend.ExecuteVerifiedFork(ctx, prepared)
 	if err != nil {
-		return blockedSimulationReceipt(prepared, nil, SimulationBackendFailure), err
+		return blockedSimulationReceipt(prepared.Simulation, nil, SimulationBackendFailure), err
 	}
-	if !equalDigest(result.ObservedRunnerSHA256, prepared.RunnerSHA256) {
-		return blockedSimulationReceipt(prepared, result.Simulation.Checks, SimulationRunnerMismatch), ErrSimulationBlocked
+	if !equalDigest(result.ObservedRunnerSHA256, prepared.Simulation.RunnerSHA256) {
+		return blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationRunnerMismatch), ErrSimulationBlocked
 	}
-	if !equalDigest(result.Simulation.ObservedInvariantSetHash, prepared.InvariantSetSHA256) {
-		return blockedSimulationReceipt(prepared, result.Simulation.Checks, SimulationInvariantDefinitionMismatch), ErrSimulationBlocked
+	if !equalDigest(result.Simulation.ObservedInvariantSetHash, prepared.Simulation.InvariantSetSHA256) {
+		return blockedSimulationReceipt(prepared.Simulation, result.Simulation.Checks, SimulationInvariantDefinitionMismatch), ErrSimulationBlocked
 	}
 
-	return RunForkInvariants(ctx, prepared, verifiedForkAdapter{result: result.Simulation})
+	return RunForkInvariants(ctx, prepared.Simulation, verifiedForkAdapter{result: result.Simulation})
 }
 
-func prepareVerifiedForkRequest(request VerifiedForkRequest) (ForkSimulationRequest, bool) {
-	if request.Version == "" {
-		request.Version = ExecutionProofForkBindingVersion
-	}
-	payloadSHA256, validPayload := evmPayloadDigest(request.Payload)
-	if request.Version != ExecutionProofForkBindingVersion || request.ChainID == 0 || request.ReferenceBlock == 0 || !validHex32(request.ReferenceBlockHash) || !validPayload || !validSHA256(request.RunnerSHA256) {
-		return ForkSimulationRequest{}, false
+func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedForkRequest, bool) {
+	if request.Version == "" { request.Version = ExecutionProofForkBindingVersion }
+	payload, validPayload := canonicalEVMPayload(request.Payload)
+	payloadSHA256, validPayloadDigest := evmPayloadDigest(payload)
+	if request.Version != ExecutionProofForkBindingVersion || request.ChainID == 0 || request.ReferenceBlock == 0 || !validHex32(request.ReferenceBlockHash) || !validPayload || !validPayloadDigest || !validSHA256(request.RunnerSHA256) {
+		return PreparedVerifiedForkRequest{}, false
 	}
 
 	invariants, ok := canonicalizeApprovedInvariantDefinitions(request.Invariants)
-	if !ok {
-		return ForkSimulationRequest{}, false
-	}
+	if !ok { return PreparedVerifiedForkRequest{}, false }
 	ids := make([]string, 0, len(invariants))
-	for _, invariant := range invariants {
-		ids = append(ids, invariant.ID)
-	}
+	for _, invariant := range invariants { ids = append(ids, invariant.ID) }
 
-	return ForkSimulationRequest{
-		Version:            InvariantRunnerVersion,
-		ChainID:            request.ChainID,
-		ReferenceBlock:     request.ReferenceBlock,
-		ReferenceBlockHash: normalizeHex32(request.ReferenceBlockHash),
-		PayloadSHA256:      payloadSHA256,
-		InvariantSetSHA256: approvedInvariantSetDigest(invariants),
-		RunnerSHA256:       strings.ToLower(request.RunnerSHA256),
-		RequiredCheckIDs:   ids,
+	return PreparedVerifiedForkRequest{
+		Simulation: ForkSimulationRequest{
+			Version:            InvariantRunnerVersion,
+			ChainID:            request.ChainID,
+			ReferenceBlock:     request.ReferenceBlock,
+			ReferenceBlockHash: normalizeHex32(request.ReferenceBlockHash),
+			PayloadSHA256:      payloadSHA256,
+			InvariantSetSHA256: approvedInvariantSetDigest(invariants),
+			RunnerSHA256:       strings.ToLower(request.RunnerSHA256),
+			RequiredCheckIDs:   ids,
+		},
+		Payload: payload,
 	}, true
 }
 
 func canonicalizeApprovedInvariantDefinitions(input []ApprovedInvariantDefinition) ([]ApprovedInvariantDefinition, bool) {
-	if len(input) == 0 {
-		return nil, false
-	}
+	if len(input) == 0 { return nil, false }
 	invariants := append([]ApprovedInvariantDefinition(nil), input...)
 	seen := make(map[string]struct{}, len(invariants))
 	for i := range invariants {
 		invariants[i].ID = strings.TrimSpace(invariants[i].ID)
 		invariants[i].ParametersSHA256 = strings.ToLower(strings.TrimSpace(invariants[i].ParametersSHA256))
-		if invariants[i].ID == "" || !validInvariantClass(invariants[i].Class) || !validSHA256(invariants[i].ParametersSHA256) {
-			return nil, false
-		}
-		if _, exists := seen[invariants[i].ID]; exists {
-			return nil, false
-		}
+		if invariants[i].ID == "" || !validInvariantClass(invariants[i].Class) || !validSHA256(invariants[i].ParametersSHA256) { return nil, false }
+		if _, exists := seen[invariants[i].ID]; exists { return nil, false }
 		seen[invariants[i].ID] = struct{}{}
 	}
 	sort.Slice(invariants, func(i, j int) bool { return invariants[i].ID < invariants[j].ID })
@@ -126,9 +121,7 @@ func canonicalizeApprovedInvariantDefinitions(input []ApprovedInvariantDefinitio
 
 func approvedInvariantSetDigest(invariants []ApprovedInvariantDefinition) string {
 	canonical, err := json.Marshal(invariants)
-	if err != nil {
-		panic("ApprovedInvariantDefinition must remain JSON serializable")
-	}
+	if err != nil { panic("ApprovedInvariantDefinition must remain JSON serializable") }
 	digest := sha256.Sum256(canonical)
 	return hex.EncodeToString(digest[:])
 }
