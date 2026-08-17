@@ -37,7 +37,8 @@ func validEnvelope() Envelope {
 			Result:             "PASS",
 		},
 		Authorization: AuthorizationEvidence{
-			SigningPolicySHA256: strings.Repeat("3", 64),
+			SigningPolicySHA256:      strings.Repeat("3", 64),
+			ApprovedSigningRequestID: "0x" + strings.Repeat("4", 64),
 		},
 	}
 }
@@ -101,6 +102,16 @@ func TestEvaluateBlocksInvariantFailure(t *testing.T) {
 func TestEvaluateRejectsMalformedSHA256Evidence(t *testing.T) {
 	e := validEnvelope()
 	e.Runtime.PolicySHA256 = strings.Repeat("z", 64)
+	proof, err := Evaluate(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertBlockedFor(t, proof, ReasonInvalidEvidence)
+}
+
+func TestEvaluateRejectsMissingSigningRequestIdentity(t *testing.T) {
+	e := validEnvelope()
+	e.Authorization.ApprovedSigningRequestID = ""
 	proof, err := Evaluate(e)
 	if err != nil {
 		t.Fatal(err)
