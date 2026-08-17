@@ -64,117 +64,82 @@ func TestRunForkInvariantsIsDeterministicAcrossBackendCheckOrder(t *testing.T) {
 	firstResult := validForkBackendResult(req)
 	secondResult := validForkBackendResult(req)
 	secondResult.Checks[0], secondResult.Checks[1] = secondResult.Checks[1], secondResult.Checks[0]
-
 	first, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: firstResult})
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	second, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: secondResult})
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	if first.ReceiptSHA256 != second.ReceiptSHA256 {
 		t.Fatalf("receipt digest depends on backend check order: %s != %s", first.ReceiptSHA256, second.ReceiptSHA256)
 	}
 }
 
-func TestRunForkInvariantsBlocksReferenceStateMismatch(t *testing.T) {
+func TestRunForkInvariantsNormalizesIDsBeforeCanonicalSort(t *testing.T) {
 	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.ObservedReferenceHash = "0x" + strings.Repeat("1", 64)
+	firstResult := validForkBackendResult(req)
+	secondResult := validForkBackendResult(req)
+	secondResult.Checks[0].ID = "  proxy-codehash  "
+	first, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: firstResult})
+	if err != nil { t.Fatal(err) }
+	second, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: secondResult})
+	if err != nil { t.Fatal(err) }
+	if first.ReceiptSHA256 != second.ReceiptSHA256 {
+		t.Fatalf("receipt digest depends on surrounding invariant ID whitespace: %s != %s", first.ReceiptSHA256, second.ReceiptSHA256)
+	}
+}
+
+func TestRunForkInvariantsBlocksReferenceStateMismatch(t *testing.T) {
+	req := validForkRequest(); result := validForkBackendResult(req); result.ObservedReferenceHash = "0x" + strings.Repeat("1", 64)
 	assertSimulationBlockedFor(t, req, result, SimulationStateMismatch)
 }
-
 func TestRunForkInvariantsBlocksPayloadMismatch(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.ObservedPayloadSHA256 = strings.Repeat("1", 64)
+	req := validForkRequest(); result := validForkBackendResult(req); result.ObservedPayloadSHA256 = strings.Repeat("1", 64)
 	assertSimulationBlockedFor(t, req, result, SimulationPayloadMismatch)
 }
-
 func TestRunForkInvariantsBlocksInvariantSetMismatch(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.ObservedInvariantSetHash = strings.Repeat("1", 64)
+	req := validForkRequest(); result := validForkBackendResult(req); result.ObservedInvariantSetHash = strings.Repeat("1", 64)
 	assertSimulationBlockedFor(t, req, result, SimulationInvariantDrift)
 }
-
 func TestRunForkInvariantsBlocksFailedInvariant(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.Checks[0].Passed = false
+	req := validForkRequest(); result := validForkBackendResult(req); result.Checks[0].Passed = false
 	assertSimulationBlockedFor(t, req, result, SimulationInvariantFailure)
 }
-
 func TestRunForkInvariantsBlocksMissingChecks(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.Checks = nil
+	req := validForkRequest(); result := validForkBackendResult(req); result.Checks = nil
 	assertSimulationBlockedFor(t, req, result, SimulationMissingChecks)
 }
-
 func TestRunForkInvariantsBlocksDuplicateCheckIDs(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.Checks[1].ID = result.Checks[0].ID
+	req := validForkRequest(); result := validForkBackendResult(req); result.Checks[1].ID = result.Checks[0].ID
 	assertSimulationBlockedFor(t, req, result, SimulationDuplicateCheck)
 }
-
 func TestRunForkInvariantsBlocksMalformedEvidence(t *testing.T) {
-	req := validForkRequest()
-	result := validForkBackendResult(req)
-	result.Checks[0].Evidence = "not-a-digest"
+	req := validForkRequest(); result := validForkBackendResult(req); result.Checks[0].Evidence = "not-a-digest"
 	assertSimulationBlockedFor(t, req, result, SimulationInvalidEvidence)
 }
-
 func TestRunForkInvariantsBlocksBackendFailure(t *testing.T) {
-	req := validForkRequest()
-	receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{err: errors.New("fork unavailable")})
-	if err == nil {
-		t.Fatal("expected backend error")
-	}
+	req := validForkRequest(); receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{err: errors.New("fork unavailable")})
+	if err == nil { t.Fatal("expected backend error") }
 	assertSimulationReceiptReason(t, receipt, SimulationBackendFailure)
 }
-
 func TestRunForkInvariantsBlocksCancelledContextBeforeBackend(t *testing.T) {
-	req := validForkRequest()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	req := validForkRequest(); ctx, cancel := context.WithCancel(context.Background()); cancel()
 	receipt, err := RunForkInvariants(ctx, req, fixedForkBackend{result: validForkBackendResult(req)})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("error = %v, want context.Canceled", err)
-	}
+	if !errors.Is(err, context.Canceled) { t.Fatalf("error = %v, want context.Canceled", err) }
 	assertSimulationReceiptReason(t, receipt, SimulationBackendFailure)
 }
-
 func TestRunForkInvariantsRejectsInvalidRequest(t *testing.T) {
-	req := validForkRequest()
-	req.ReferenceBlockHash = "bad"
+	req := validForkRequest(); req.ReferenceBlockHash = "bad"
 	receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{})
-	if !errors.Is(err, ErrSimulationBlocked) {
-		t.Fatalf("error = %v, want ErrSimulationBlocked", err)
-	}
+	if !errors.Is(err, ErrSimulationBlocked) { t.Fatalf("error = %v, want ErrSimulationBlocked", err) }
 	assertSimulationReceiptReason(t, receipt, SimulationInvalidRequest)
 }
 
 func assertSimulationBlockedFor(t *testing.T, req ForkSimulationRequest, result ForkBackendResult, reason SimulationReason) {
-	t.Helper()
-	receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: result})
-	if !errors.Is(err, ErrSimulationBlocked) {
-		t.Fatalf("error = %v, want ErrSimulationBlocked", err)
-	}
+	t.Helper(); receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: result})
+	if !errors.Is(err, ErrSimulationBlocked) { t.Fatalf("error = %v, want ErrSimulationBlocked", err) }
 	assertSimulationReceiptReason(t, receipt, reason)
 }
-
 func assertSimulationReceiptReason(t *testing.T, receipt ForkSimulationReceipt, reason SimulationReason) {
-	t.Helper()
-	if receipt.Decision != SimulationBlock {
-		t.Fatalf("decision = %s, want BLOCK", receipt.Decision)
-	}
-	for _, got := range receipt.Reasons {
-		if got == reason {
-			return
-		}
-	}
+	t.Helper(); if receipt.Decision != SimulationBlock { t.Fatalf("decision = %s, want BLOCK", receipt.Decision) }
+	for _, got := range receipt.Reasons { if got == reason { return } }
 	t.Fatalf("reason %s not present in %v", reason, receipt.Reasons)
 }
