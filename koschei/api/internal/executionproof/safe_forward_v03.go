@@ -12,21 +12,24 @@ const (
 	ReasonForkExecutionRequired ReasonCode = "EP-010-FORK-EXECUTION-REQUIRED"
 	ReasonForkPayloadMismatch   ReasonCode = "EP-011-FORK-PAYLOAD-MISMATCH"
 	ReasonForkReceiptMismatch   ReasonCode = "EP-012-FORK-RECEIPT-MISMATCH"
+	ReasonForkStateStale        ReasonCode = "EP-013-FORK-STATE-STALE"
 )
 
 // VerifyForkAndForwardSafeTransaction is the v0.3 production boundary. It does
 // not accept a caller-supplied simulation receipt. The verified fork is run
-// inside the same fail-closed control path immediately before the existing
-// native Safe hash gate and the side-effecting forwarder.
+// inside the same fail-closed control path, then independently rechecked for
+// canonicality/staleness immediately before the native Safe hash gate and the
+// side-effecting forwarder.
 func VerifyForkAndForwardSafeTransaction(
 	ctx context.Context,
 	proof Proof,
 	forkRequest VerifiedForkRequest,
 	backend VerifiedForkBackend,
+	canonicality ForkCanonicalityVerifier,
 	req SafeForwardRequest,
 	forwarder SafeForwarder,
 ) (SigningGateResult, VerifiedForkReceipt, error) {
-	if backend == nil || forwarder == nil {
+	if backend == nil || canonicality == nil || forwarder == nil {
 		return blockedForkSigning(ReasonForkExecutionRequired), VerifiedForkReceipt{}, ErrSigningBlocked
 	}
 	prepared, ok := prepareVerifiedForkRequest(forkRequest)
@@ -40,6 +43,9 @@ func VerifyForkAndForwardSafeTransaction(
 	}
 	if !forkReceiptMatchesProof(proof, forkReceipt, prepared) {
 		return blockedForkSigning(ReasonForkReceiptMismatch), forkReceipt, ErrSigningBlocked
+	}
+	if err := canonicality.VerifyCanonical(ctx, prepared.Simulation.ChainID, prepared.Simulation.ReferenceBlock, prepared.Simulation.ReferenceBlockHash); err != nil {
+		return blockedForkSigning(ReasonForkStateStale), forkReceipt, ErrSigningBlocked
 	}
 
 	decision, err := VerifyAndForwardSafeTransaction(ctx, proof, req, forwarder)
