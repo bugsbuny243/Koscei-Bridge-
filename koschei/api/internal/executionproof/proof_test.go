@@ -7,13 +7,14 @@ import (
 )
 
 func digest(ch byte) string { return strings.Repeat(string(ch), 64) }
+func gitID(ch byte) string  { return strings.Repeat(string(ch), 40) }
 
 func validEnvelope() Envelope {
 	return Envelope{
 		Version: Version,
 		Source: SourceEvidence{
-			CommitSHA256: digest('a'),
-			TreeSHA256:   digest('b'),
+			CommitID: gitID('a'),
+			TreeID:   gitID('b'),
 		},
 		Build: BuildEvidence{
 			ToolchainSHA256:        digest('c'),
@@ -97,9 +98,29 @@ func TestEvaluateBlocksInvariantFailure(t *testing.T) {
 	assertBlockedFor(t, proof, ReasonInvariantFailed)
 }
 
-func TestEvaluateRejectsMalformedDigest(t *testing.T) {
+func TestEvaluateRejectsMalformedSHA256Evidence(t *testing.T) {
 	e := validEnvelope()
-	e.Source.CommitSHA256 = strings.Repeat("z", 64)
+	e.Runtime.PolicySHA256 = strings.Repeat("z", 64)
+	proof, err := Evaluate(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertBlockedFor(t, proof, ReasonInvalidEvidence)
+}
+
+func TestEvaluateAcceptsGitSHA1ObjectIDs(t *testing.T) {
+	proof, err := Evaluate(validEnvelope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proof.Evaluation.Decision != DecisionAllow {
+		t.Fatalf("git sha1 object IDs rejected: %v", proof.Evaluation.Reasons)
+	}
+}
+
+func TestEvaluateRejectsMalformedGitObjectID(t *testing.T) {
+	e := validEnvelope()
+	e.Source.CommitID = strings.Repeat("z", 40)
 	proof, err := Evaluate(e)
 	if err != nil {
 		t.Fatal(err)
