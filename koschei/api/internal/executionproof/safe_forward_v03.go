@@ -9,12 +9,11 @@ import (
 )
 
 const (
-	ReasonForkExecutionRequired       ReasonCode = "EP-010-FORK-EXECUTION-REQUIRED"
-	ReasonForkPayloadMismatch         ReasonCode = "EP-011-FORK-PAYLOAD-MISMATCH"
-	ReasonForkReceiptMismatch         ReasonCode = "EP-012-FORK-RECEIPT-MISMATCH"
-	ReasonForkStateStale              ReasonCode = "EP-013-FORK-STATE-STALE"
-	ReasonSafeExecutionSemantics      ReasonCode = "EP-014-SAFE-EXECUTION-SEMANTICS-REQUIRED"
-	SafeExecutionModelSimulateTxV1              = "safe-simulate-tx-accessor/v1"
+	ReasonForkExecutionRequired  ReasonCode = "EP-010-FORK-EXECUTION-REQUIRED"
+	ReasonForkPayloadMismatch    ReasonCode = "EP-011-FORK-PAYLOAD-MISMATCH"
+	ReasonForkReceiptMismatch    ReasonCode = "EP-012-FORK-RECEIPT-MISMATCH"
+	ReasonForkStateStale         ReasonCode = "EP-013-FORK-STATE-STALE"
+	ReasonSafeExecutionSemantics ReasonCode = "EP-014-SAFE-EXECUTION-SEMANTICS-REQUIRED"
 )
 
 // SafeAwareVerifiedForkBackend is deliberately narrower than VerifiedForkBackend.
@@ -45,7 +44,7 @@ func VerifyForkAndForwardSafeTransaction(
 		return blockedForkSigning(ReasonForkExecutionRequired), VerifiedForkReceipt{}, ErrSigningBlocked
 	}
 	safeBackend, ok := backend.(SafeAwareVerifiedForkBackend)
-	if !ok || safeBackend.SafeExecutionModel() != SafeExecutionModelSimulateTxV1 {
+	if !ok || safeBackend.SafeExecutionModel() != ExecutionModelSafeSimulateTxV1 {
 		return blockedForkSigning(ReasonSafeExecutionSemantics), VerifiedForkReceipt{}, ErrSigningBlocked
 	}
 	prepared, ok := prepareVerifiedForkRequest(forkRequest)
@@ -56,6 +55,9 @@ func VerifyForkAndForwardSafeTransaction(
 	forkReceipt, err := RunVerifiedForkExecution(ctx, forkRequest, safeBackend)
 	if err != nil || !ValidVerifiedForkReceipt(forkReceipt) {
 		return blockedForkSigning(ReasonForkExecutionRequired), forkReceipt, ErrSigningBlocked
+	}
+	if forkReceipt.Execution.ExecutionModel != ExecutionModelSafeSimulateTxV1 {
+		return blockedForkSigning(ReasonSafeExecutionSemantics), forkReceipt, ErrSigningBlocked
 	}
 	if !forkReceiptMatchesProof(proof, forkReceipt, prepared) {
 		return blockedForkSigning(ReasonForkReceiptMismatch), forkReceipt, ErrSigningBlocked
