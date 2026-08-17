@@ -25,6 +25,7 @@ func validForkRequest() ForkSimulationRequest {
 		PayloadSHA256:      strings.Repeat("b", 64),
 		InvariantSetSHA256: strings.Repeat("c", 64),
 		RunnerSHA256:       strings.Repeat("d", 64),
+		RequiredCheckIDs:   []string{"supply-bound", "proxy-codehash"},
 	}
 }
 
@@ -57,6 +58,9 @@ func TestRunForkInvariantsAllowsPinnedMatchingEvidence(t *testing.T) {
 	if len(receipt.Checks) != 2 || receipt.Checks[0].ID != "proxy-codehash" || receipt.Checks[1].ID != "supply-bound" {
 		t.Fatalf("checks not canonicalized: %#v", receipt.Checks)
 	}
+	if len(receipt.RequiredCheckIDs) != 2 || receipt.RequiredCheckIDs[0] != "proxy-codehash" || receipt.RequiredCheckIDs[1] != "supply-bound" {
+		t.Fatalf("required checks not canonicalized: %#v", receipt.RequiredCheckIDs)
+	}
 }
 
 func TestRunForkInvariantsIsDeterministicAcrossBackendCheckOrder(t *testing.T) {
@@ -75,6 +79,7 @@ func TestRunForkInvariantsIsDeterministicAcrossBackendCheckOrder(t *testing.T) {
 
 func TestRunForkInvariantsNormalizesIDsBeforeCanonicalSort(t *testing.T) {
 	req := validForkRequest()
+	req.RequiredCheckIDs = []string{" supply-bound ", " proxy-codehash "}
 	firstResult := validForkBackendResult(req)
 	secondResult := validForkBackendResult(req)
 	secondResult.Checks[0].ID = "  proxy-codehash  "
@@ -85,6 +90,36 @@ func TestRunForkInvariantsNormalizesIDsBeforeCanonicalSort(t *testing.T) {
 	if first.ReceiptSHA256 != second.ReceiptSHA256 {
 		t.Fatalf("receipt digest depends on surrounding invariant ID whitespace: %s != %s", first.ReceiptSHA256, second.ReceiptSHA256)
 	}
+}
+
+func TestRunForkInvariantsBlocksMissingRequiredInvariant(t *testing.T) {
+	req := validForkRequest()
+	result := validForkBackendResult(req)
+	result.Checks = result.Checks[:1]
+	assertSimulationBlockedFor(t, req, result, SimulationCheckSetMismatch)
+}
+
+func TestRunForkInvariantsBlocksUnexpectedInvariant(t *testing.T) {
+	req := validForkRequest()
+	result := validForkBackendResult(req)
+	result.Checks = append(result.Checks, InvariantCheck{ID: "unexpected", Class: InvariantTreasuryBound, Passed: true, Evidence: strings.Repeat("1", 64)})
+	assertSimulationBlockedFor(t, req, result, SimulationCheckSetMismatch)
+}
+
+func TestRunForkInvariantsRejectsEmptyRequiredInvariantSet(t *testing.T) {
+	req := validForkRequest()
+	req.RequiredCheckIDs = nil
+	receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: validForkBackendResult(req)})
+	if !errors.Is(err, ErrSimulationBlocked) { t.Fatalf("error = %v, want ErrSimulationBlocked", err) }
+	assertSimulationReceiptReason(t, receipt, SimulationInvalidRequest)
+}
+
+func TestRunForkInvariantsRejectsDuplicateRequiredInvariantIDs(t *testing.T) {
+	req := validForkRequest()
+	req.RequiredCheckIDs = []string{"proxy-codehash", " proxy-codehash "}
+	receipt, err := RunForkInvariants(context.Background(), req, fixedForkBackend{result: validForkBackendResult(req)})
+	if !errors.Is(err, ErrSimulationBlocked) { t.Fatalf("error = %v, want ErrSimulationBlocked", err) }
+	assertSimulationReceiptReason(t, receipt, SimulationInvalidRequest)
 }
 
 func TestRunForkInvariantsBlocksReferenceStateMismatch(t *testing.T) {
