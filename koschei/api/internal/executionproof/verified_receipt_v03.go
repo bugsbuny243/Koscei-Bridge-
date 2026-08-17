@@ -22,10 +22,10 @@ const (
 // model from being reused as if it proved a stronger model (for example a
 // direct call being presented as Safe execTransaction semantics).
 type ForkExecutionEvidence struct {
-	ExecutionModel          string `json:"execution_model"`
-	TransactionHash         string `json:"transaction_hash"`
+	ExecutionModel           string `json:"execution_model"`
+	TransactionHash          string `json:"transaction_hash"`
 	TransactionReceiptSHA256 string `json:"transaction_receipt_sha256"`
-	InvariantEvidenceSHA256 string `json:"invariant_evidence_sha256"`
+	InvariantEvidenceSHA256  string `json:"invariant_evidence_sha256"`
 }
 
 // VerifiedForkReceipt is the v0.3 artifact that may be bound into an
@@ -48,8 +48,20 @@ func canonicalInvariantEvidenceDigest(checks []InvariantCheck) string {
 	return hex.EncodeToString(digest[:])
 }
 
+// canonicalExecutionModel deliberately maps an omitted model to the weakest
+// supported semantics. Legacy/generic backends can therefore remain usable as
+// direct-call evidence, but omission can never upgrade evidence into Safe-aware
+// execution semantics.
+func canonicalExecutionModel(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ExecutionModelEVMDirectCallV03
+	}
+	return model
+}
+
 func validExecutionModel(model string) bool {
-	switch strings.TrimSpace(model) {
+	switch canonicalExecutionModel(model) {
 	case ExecutionModelEVMDirectCallV03, ExecutionModelSafeSimulateTxV1:
 		return true
 	default:
@@ -68,7 +80,7 @@ func validForkExecutionEvidence(e ForkExecutionEvidence, checks []InvariantCheck
 func verifiedForkReceiptDigest(receipt VerifiedForkReceipt) string {
 	copyReceipt := receipt
 	copyReceipt.ReceiptSHA256 = ""
-	copyReceipt.Execution.ExecutionModel = strings.TrimSpace(copyReceipt.Execution.ExecutionModel)
+	copyReceipt.Execution.ExecutionModel = canonicalExecutionModel(copyReceipt.Execution.ExecutionModel)
 	copyReceipt.Execution.TransactionHash = normalizeHex32(copyReceipt.Execution.TransactionHash)
 	copyReceipt.Execution.TransactionReceiptSHA256 = strings.ToLower(strings.TrimSpace(copyReceipt.Execution.TransactionReceiptSHA256))
 	copyReceipt.Execution.InvariantEvidenceSHA256 = strings.ToLower(strings.TrimSpace(copyReceipt.Execution.InvariantEvidenceSHA256))
