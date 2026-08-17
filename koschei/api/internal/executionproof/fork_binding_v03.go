@@ -73,9 +73,10 @@ func RunVerifiedForkExecution(ctx context.Context, request VerifiedForkRequest, 
 		Version:    VerifiedForkReceiptVersion,
 		Simulation: simulation,
 		Execution: ForkExecutionEvidence{
-			TransactionHash:          normalizeHex32(result.Execution.TransactionHash),
+			ExecutionModel:          strings.TrimSpace(result.Execution.ExecutionModel),
+			TransactionHash:         normalizeHex32(result.Execution.TransactionHash),
 			TransactionReceiptSHA256: strings.ToLower(strings.TrimSpace(result.Execution.TransactionReceiptSHA256)),
-			InvariantEvidenceSHA256:  strings.ToLower(strings.TrimSpace(result.Execution.InvariantEvidenceSHA256)),
+			InvariantEvidenceSHA256: strings.ToLower(strings.TrimSpace(result.Execution.InvariantEvidenceSHA256)),
 		},
 	}
 	receipt.ReceiptSHA256 = verifiedForkReceiptDigest(receipt)
