@@ -36,6 +36,7 @@ type VerifiedForkRequest struct {
 type PreparedVerifiedForkRequest struct {
 	Simulation ForkSimulationRequest
 	Payload    EVMPayload
+	Invariants []ApprovedInvariantDefinition
 }
 
 type VerifiedForkBackendResult struct {
@@ -54,20 +55,11 @@ func (a verifiedForkAdapter) ExecuteForkSimulation(context.Context, ForkSimulati
 	return a.result, nil
 }
 
-// RunVerifiedForkInvariants preserves the v0.2-compatible simulation receipt
-// surface. New signing integrations must use RunVerifiedForkExecution so the
-// exact isolated transaction receipt is part of the authorization evidence.
 func RunVerifiedForkInvariants(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (ForkSimulationReceipt, error) {
-	prepared, result, receipt, err := runVerifiedForkCore(ctx, request, backend)
-	_ = prepared
-	_ = result
+	_, _, receipt, err := runVerifiedForkCore(ctx, request, backend)
 	return receipt, err
 }
 
-// RunVerifiedForkExecution produces the v0.3 execution-bound receipt. Backend
-// supplied execution evidence is not trusted: invariant evidence is recomputed
-// from canonical checks and both the inner and outer receipt digests are
-// verified deterministically before this artifact can be used by a signer gate.
 func RunVerifiedForkExecution(ctx context.Context, request VerifiedForkRequest, backend VerifiedForkBackend) (VerifiedForkReceipt, error) {
 	_, result, simulation, err := runVerifiedForkCore(ctx, request, backend)
 	if err != nil {
@@ -157,7 +149,8 @@ func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedFo
 			RunnerSHA256:       strings.ToLower(request.RunnerSHA256),
 			RequiredCheckIDs:   ids,
 		},
-		Payload: payload,
+		Payload:    payload,
+		Invariants: append([]ApprovedInvariantDefinition(nil), invariants...),
 	}, true
 }
 
