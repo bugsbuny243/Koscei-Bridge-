@@ -45,6 +45,10 @@ func containmentBindsExactSafeRequest(receipt matrixcontainment.Receipt, proof P
 	if err != nil || !equalHex32(computedSafeHash, req.PresentedSafeHash) {
 		return false
 	}
+	action, err := CanonicalSafeActionArtifact(req.Transaction)
+	if err != nil {
+		return false
+	}
 
 	calldataDigest := sha256.Sum256(req.Transaction.Data)
 	candidatePayload := hex.EncodeToString(calldataDigest[:])
@@ -56,5 +60,6 @@ func containmentBindsExactSafeRequest(receipt matrixcontainment.Receipt, proof P
 		equalHex32(input.CandidateIntentSHA256, computedSafeHash) &&
 		equalDigest(input.ApprovedPayloadSHA256, proof.Envelope.Payload.ApprovedCalldataSHA256) &&
 		equalDigest(input.CandidatePayloadSHA256, candidatePayload) &&
+		equalDigest(input.ActionSHA256, action.SHA256()) &&
 		equalDigest(input.InvariantSetSHA256, proof.Envelope.Simulation.InvariantSetSHA256)
 }
