@@ -24,6 +24,7 @@ func validInputFixture() CellInput {
 		CandidateIntentSHA256:  digestB,
 		ApprovedPayloadSHA256:  digestC,
 		CandidatePayloadSHA256: digestC,
+		ActionSHA256:           digestA,
 		InvariantSetSHA256:     digestD,
 		ApprovedRunnerSHA256:   digestE,
 	}
@@ -76,6 +77,21 @@ func TestEvaluateContainsMutatedPayload(t *testing.T) {
 	}
 	if !containsReason(receipt.Reasons, ReasonIntentMismatch) {
 		t.Fatalf("reasons=%v, want %s", receipt.Reasons, ReasonIntentMismatch)
+	}
+}
+
+func TestEvaluateRejectsMissingFullActionIdentity(t *testing.T) {
+	input := validInputFixture()
+	input.ActionSHA256 = ""
+	receipt, err := Evaluate(input, validObservationFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Decision != DecisionContain {
+		t.Fatalf("decision = %s, want CONTAIN", receipt.Decision)
+	}
+	if !containsReason(receipt.Reasons, ReasonInvalidEvidence) {
+		t.Fatalf("reasons=%v, want %s", receipt.Reasons, ReasonInvalidEvidence)
 	}
 }
 
