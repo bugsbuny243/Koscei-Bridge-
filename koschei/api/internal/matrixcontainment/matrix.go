@@ -21,46 +21,47 @@ const (
 type ReasonCode string
 
 const (
-	ReasonInvalidEvidence       ReasonCode = "MX-001-INVALID-EVIDENCE"
-	ReasonBackendUnavailable    ReasonCode = "MX-002-BACKEND-UNAVAILABLE"
-	ReasonPinnedStateMismatch   ReasonCode = "MX-003-PINNED-STATE-MISMATCH"
-	ReasonIntentMismatch        ReasonCode = "MX-004-INTENT-MISMATCH"
-	ReasonAuthorityChanged      ReasonCode = "MX-005-AUTHORITY-CHANGED"
-	ReasonAssetBoundsExceeded   ReasonCode = "MX-006-ASSET-BOUNDS-EXCEEDED"
-	ReasonCodeIntegrityChanged  ReasonCode = "MX-007-CODE-INTEGRITY-CHANGED"
-	ReasonHiddenExecutionPath   ReasonCode = "MX-008-HIDDEN-EXECUTION-PATH"
-	ReasonInvariantFailed       ReasonCode = "MX-009-INVARIANT-FAILED"
+	ReasonInvalidEvidence        ReasonCode = "MX-001-INVALID-EVIDENCE"
+	ReasonBackendUnavailable     ReasonCode = "MX-002-BACKEND-UNAVAILABLE"
+	ReasonPinnedStateMismatch    ReasonCode = "MX-003-PINNED-STATE-MISMATCH"
+	ReasonIntentMismatch         ReasonCode = "MX-004-INTENT-MISMATCH"
+	ReasonAuthorityChanged       ReasonCode = "MX-005-AUTHORITY-CHANGED"
+	ReasonAssetBoundsExceeded    ReasonCode = "MX-006-ASSET-BOUNDS-EXCEEDED"
+	ReasonCodeIntegrityChanged   ReasonCode = "MX-007-CODE-INTEGRITY-CHANGED"
+	ReasonHiddenExecutionPath    ReasonCode = "MX-008-HIDDEN-EXECUTION-PATH"
+	ReasonInvariantFailed        ReasonCode = "MX-009-INVARIANT-FAILED"
 	ReasonRunnerIdentityMismatch ReasonCode = "MX-010-RUNNER-IDENTITY-MISMATCH"
 )
 
 type CellInput struct {
-	Version                 string `json:"version"`
-	ChainID                 uint64 `json:"chain_id"`
-	BlockNumber             uint64 `json:"block_number"`
-	BlockHash               string `json:"block_hash"`
-	Target                  string `json:"target"`
-	ApprovedIntentSHA256    string `json:"approved_intent_sha256"`
-	CandidateIntentSHA256   string `json:"candidate_intent_sha256"`
-	ApprovedPayloadSHA256   string `json:"approved_payload_sha256"`
-	CandidatePayloadSHA256  string `json:"candidate_payload_sha256"`
-	InvariantSetSHA256      string `json:"invariant_set_sha256"`
-	ApprovedRunnerSHA256    string `json:"approved_runner_sha256"`
+	Version                string `json:"version"`
+	ChainID                uint64 `json:"chain_id"`
+	BlockNumber            uint64 `json:"block_number"`
+	BlockHash              string `json:"block_hash"`
+	Target                 string `json:"target"`
+	ApprovedIntentSHA256   string `json:"approved_intent_sha256"`
+	CandidateIntentSHA256  string `json:"candidate_intent_sha256"`
+	ApprovedPayloadSHA256  string `json:"approved_payload_sha256"`
+	CandidatePayloadSHA256 string `json:"candidate_payload_sha256"`
+	ActionSHA256           string `json:"action_sha256"`
+	InvariantSetSHA256     string `json:"invariant_set_sha256"`
+	ApprovedRunnerSHA256   string `json:"approved_runner_sha256"`
 }
 
 type Observation struct {
-	BackendAvailable          bool   `json:"backend_available"`
-	ObservedChainID           uint64 `json:"observed_chain_id"`
-	ObservedBlockNumber       uint64 `json:"observed_block_number"`
-	ObservedBlockHash         string `json:"observed_block_hash"`
-	ObservedRunnerSHA256      string `json:"observed_runner_sha256"`
-	PreStateSHA256            string `json:"pre_state_sha256"`
-	PostStateSHA256           string `json:"post_state_sha256"`
-	EffectSetSHA256           string `json:"effect_set_sha256"`
-	AuthorityPreserved        bool   `json:"authority_preserved"`
-	AssetBoundsPreserved      bool   `json:"asset_bounds_preserved"`
-	CodeIntegrityPreserved    bool   `json:"code_integrity_preserved"`
-	ExecutionPathFullyObserved bool  `json:"execution_path_fully_observed"`
-	InvariantsPass            bool   `json:"invariants_pass"`
+	BackendAvailable           bool   `json:"backend_available"`
+	ObservedChainID            uint64 `json:"observed_chain_id"`
+	ObservedBlockNumber        uint64 `json:"observed_block_number"`
+	ObservedBlockHash          string `json:"observed_block_hash"`
+	ObservedRunnerSHA256       string `json:"observed_runner_sha256"`
+	PreStateSHA256             string `json:"pre_state_sha256"`
+	PostStateSHA256            string `json:"post_state_sha256"`
+	EffectSetSHA256            string `json:"effect_set_sha256"`
+	AuthorityPreserved         bool   `json:"authority_preserved"`
+	AssetBoundsPreserved       bool   `json:"asset_bounds_preserved"`
+	CodeIntegrityPreserved     bool   `json:"code_integrity_preserved"`
+	ExecutionPathFullyObserved bool   `json:"execution_path_fully_observed"`
+	InvariantsPass             bool   `json:"invariants_pass"`
 }
 
 type Receipt struct {
@@ -191,6 +192,7 @@ func validInput(input CellInput) bool {
 		validSHA256(input.CandidateIntentSHA256) &&
 		validSHA256(input.ApprovedPayloadSHA256) &&
 		validSHA256(input.CandidatePayloadSHA256) &&
+		validSHA256(input.ActionSHA256) &&
 		validSHA256(input.InvariantSetSHA256) &&
 		validSHA256(input.ApprovedRunnerSHA256)
 }
