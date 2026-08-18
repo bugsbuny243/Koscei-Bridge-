@@ -47,7 +47,7 @@ func pinnedBackendFixture(t *testing.T) (matrixcontainment.CellInput, SafeTransa
 			PostAuthority: evidence.After,
 			PostStateSHA256: evidence.PostStateSHA256,
 			EffectSetSHA256: evidence.EffectSetSHA256,
-			CallPathFullyObserved: true,
+			Trace: evidence.Trace,
 		},
 	}
 	return input, tx, engine
@@ -57,12 +57,8 @@ func TestPinnedSafeBackendProducesEvidenceOnlyForExactPinnedState(t *testing.T) 
 	input, tx, engine := pinnedBackendFixture(t)
 	got, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
 	if err != nil { t.Fatal(err) }
-	if got.ChainID != input.ChainID || got.BlockNumber != input.BlockNumber {
-		t.Fatalf("unexpected identity: %+v", got)
-	}
-	if !got.CallPathFullyObserved || got.Before.Threshold != got.After.Threshold {
-		t.Fatalf("unexpected evidence: %+v", got)
-	}
+	if got.ChainID != input.ChainID || got.BlockNumber != input.BlockNumber { t.Fatalf("unexpected identity: %+v", got) }
+	if !(SafeTraceVerifier{}).Verify(got.Trace) || got.Before.Threshold != got.After.Threshold { t.Fatalf("unexpected evidence: %+v", got) }
 }
 
 func TestPinnedSafeBackendRejectsWrongBlock(t *testing.T) {
@@ -86,7 +82,15 @@ func TestPinnedSafeBackendRejectsTargetMutation(t *testing.T) {
 	if err == nil { t.Fatal("expected transaction/input mismatch") }
 }
 
-func TestPinnedSafeBackendPropagatesEngineFailure(t *testing.T) {
+func TestPinnedSafeBackendRejectsTruncatedTrace(t *testing.T) {
+	input, tx, engine := pinnedBackendFixture(t)
+	engine.result.Trace.Truncated = true
+	engine.result.Trace.TraceSHA256 = safeTraceDigest(engine.result.Trace)
+	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	if err == nil { t.Fatal("expected trace coverage failure") }
+}
+
+func TestPinnedSafeBackendRejectsEngineFailure(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	engine.err = errors.New("isolated runtime failed")
 	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
