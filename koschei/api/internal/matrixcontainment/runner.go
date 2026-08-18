@@ -23,13 +23,13 @@ func (a ActionArtifact) SHA256() string {
 func (a ActionArtifact) validFor(input CellInput) bool {
 	return strings.TrimSpace(a.Kind) != "" &&
 		len(a.Canonical) != 0 &&
-		equalDigest(a.SHA256(), input.CandidatePayloadSHA256)
+		equalDigest(a.SHA256(), input.ActionSHA256)
 }
 
 // Runner executes a candidate action only inside an isolated defensive runtime
 // and returns observed effects. A Runner has no production forwarding authority.
-// It receives the exact canonical action artifact whose digest is already bound
-// into CellInput.
+// It receives the exact canonical action artifact whose full-action digest is
+// bound independently from any calldata-only payload digest.
 type Runner interface {
 	Observe(ctx context.Context, input CellInput, action ActionArtifact) (Observation, error)
 }
