@@ -50,17 +50,17 @@ type SafeContainmentPolicy struct {
 const SafeContainmentPolicyVersion = "koschei-safe-containment-policy/v0.1"
 
 type SafeExecutionEvidence struct {
-	ChainID               uint64                `json:"chain_id"`
-	BlockNumber           uint64                `json:"block_number"`
-	BlockHash             string                `json:"block_hash"`
-	RunnerSHA256          string                `json:"runner_sha256"`
-	PreStateSHA256        string                `json:"pre_state_sha256"`
-	PostStateSHA256       string                `json:"post_state_sha256"`
-	EffectSetSHA256       string                `json:"effect_set_sha256"`
-	Before                SafeAuthoritySnapshot `json:"before"`
-	After                 SafeAuthoritySnapshot `json:"after"`
-	AssetMovements        []SafeAssetMovement   `json:"asset_movements"`
-	CallPathFullyObserved bool                  `json:"call_path_fully_observed"`
+	ChainID          uint64                `json:"chain_id"`
+	BlockNumber      uint64                `json:"block_number"`
+	BlockHash        string                `json:"block_hash"`
+	RunnerSHA256     string                `json:"runner_sha256"`
+	PreStateSHA256   string                `json:"pre_state_sha256"`
+	PostStateSHA256  string                `json:"post_state_sha256"`
+	EffectSetSHA256  string                `json:"effect_set_sha256"`
+	Before           SafeAuthoritySnapshot `json:"before"`
+	After            SafeAuthoritySnapshot `json:"after"`
+	AssetMovements   []SafeAssetMovement   `json:"asset_movements"`
+	Trace            SafeTraceEvidence     `json:"trace"`
 }
 
 // SafeIsolatedBackend is deliberately observation-only. It executes the exact
@@ -109,9 +109,8 @@ func (r SafeIsolatedRunner) Observe(ctx context.Context, input matrixcontainment
 	authorityPreserved := r.Policy.AllowAuthority || equalSafeAuthority(evidence.Before, evidence.After)
 	codePreserved := strings.EqualFold(normalizeHexOrAddress(evidence.Before.Implementation), normalizeHexOrAddress(evidence.After.Implementation)) &&
 		strings.EqualFold(strings.TrimSpace(evidence.Before.CodeHash), strings.TrimSpace(evidence.After.CodeHash))
-	// Transaction-wide cumulative accounting is mandatory. Multiple transfers
-	// that are individually below a bound must not be able to exceed it together.
 	assetBoundsPreserved := (SafeOutflowBudgetVerifier{}).Verify(r.Policy, evidence.AssetMovements)
+	traceObserved := (SafeTraceVerifier{}).Verify(evidence.Trace) && normalizeAddress(evidence.Trace.RootSafe) == normalizeAddress(tx.Safe)
 
 	return matrixcontainment.Observation{
 		BackendAvailable:           true,
@@ -125,8 +124,8 @@ func (r SafeIsolatedRunner) Observe(ctx context.Context, input matrixcontainment
 		AuthorityPreserved:         authorityPreserved,
 		AssetBoundsPreserved:       assetBoundsPreserved,
 		CodeIntegrityPreserved:     codePreserved,
-		ExecutionPathFullyObserved: evidence.CallPathFullyObserved,
-		InvariantsPass:             authorityPreserved && assetBoundsPreserved && codePreserved && evidence.CallPathFullyObserved,
+		ExecutionPathFullyObserved: traceObserved,
+		InvariantsPass:             authorityPreserved && assetBoundsPreserved && codePreserved && traceObserved,
 	}, nil
 }
 
@@ -176,6 +175,9 @@ func validateSafeExecutionEvidence(e SafeExecutionEvidence) error {
 		if !validAssetMovement(movement) {
 			return fmt.Errorf("invalid Safe asset movement")
 		}
+	}
+	if !(SafeTraceVerifier{}).Verify(e.Trace) {
+		return fmt.Errorf("invalid or incomplete Safe execution trace")
 	}
 	return nil
 }
@@ -227,8 +229,6 @@ func equalAddressSets(a, b []string) bool {
 	return true
 }
 
-// Retained as a narrow compatibility helper for existing package callers. New
-// authorization uses SafeOutflowBudgetVerifier, which enforces cumulative totals.
 func safeOutflowsWithinPolicy(policy SafeContainmentPolicy, movements []SafeAssetMovement) bool {
 	return (SafeOutflowBudgetVerifier{}).Verify(policy, movements)
 }
