@@ -23,33 +23,38 @@ func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) matri
 	if err != nil {
 		t.Fatal(err)
 	}
+	action, err := CanonicalSafeActionArtifact(req.Transaction)
+	if err != nil {
+		t.Fatal(err)
+	}
 	calldataDigest := sha256.Sum256(req.Transaction.Data)
 
 	receipt, err := matrixcontainment.Evaluate(matrixcontainment.CellInput{
-		ChainID:                 req.Transaction.ChainID,
-		BlockNumber:             23456789,
-		BlockHash:               blockHash,
-		Target:                  req.Transaction.To,
-		ApprovedIntentSHA256:    strings.TrimPrefix(proof.Envelope.Authorization.ApprovedSigningRequestID, "0x"),
-		CandidateIntentSHA256:   strings.TrimPrefix(computedSafeHash, "0x"),
-		ApprovedPayloadSHA256:   proof.Envelope.Payload.ApprovedCalldataSHA256,
-		CandidatePayloadSHA256:  hex.EncodeToString(calldataDigest[:]),
-		InvariantSetSHA256:      proof.Envelope.Simulation.InvariantSetSHA256,
-		ApprovedRunnerSHA256:    runnerHash,
+		ChainID:                req.Transaction.ChainID,
+		BlockNumber:            23456789,
+		BlockHash:              blockHash,
+		Target:                 req.Transaction.To,
+		ApprovedIntentSHA256:   strings.TrimPrefix(proof.Envelope.Authorization.ApprovedSigningRequestID, "0x"),
+		CandidateIntentSHA256:  strings.TrimPrefix(computedSafeHash, "0x"),
+		ApprovedPayloadSHA256:  proof.Envelope.Payload.ApprovedCalldataSHA256,
+		CandidatePayloadSHA256: hex.EncodeToString(calldataDigest[:]),
+		ActionSHA256:           action.SHA256(),
+		InvariantSetSHA256:     proof.Envelope.Simulation.InvariantSetSHA256,
+		ApprovedRunnerSHA256:   runnerHash,
 	}, matrixcontainment.Observation{
-		BackendAvailable:            true,
-		ObservedChainID:             req.Transaction.ChainID,
-		ObservedBlockNumber:         23456789,
-		ObservedBlockHash:           blockHash,
-		ObservedRunnerSHA256:        runnerHash,
-		PreStateSHA256:              preStateHash,
-		PostStateSHA256:             postStateHash,
-		EffectSetSHA256:             effectSetHash,
-		AuthorityPreserved:          true,
-		AssetBoundsPreserved:        true,
-		CodeIntegrityPreserved:      true,
-		ExecutionPathFullyObserved:  true,
-		InvariantsPass:              true,
+		BackendAvailable:           true,
+		ObservedChainID:            req.Transaction.ChainID,
+		ObservedBlockNumber:        23456789,
+		ObservedBlockHash:          blockHash,
+		ObservedRunnerSHA256:       runnerHash,
+		PreStateSHA256:             preStateHash,
+		PostStateSHA256:            postStateHash,
+		EffectSetSHA256:            effectSetHash,
+		AuthorityPreserved:         true,
+		AssetBoundsPreserved:       true,
+		CodeIntegrityPreserved:     true,
+		ExecutionPathFullyObserved: true,
+		InvariantsPass:             true,
 	})
 	if err != nil {
 		t.Fatal(err)
