@@ -28,8 +28,9 @@ func runnerFixtureInput() CellInput {
 		Target:                 "0x1111111111111111111111111111111111111111",
 		ApprovedIntentSHA256:   "2222222222222222222222222222222222222222222222222222222222222222",
 		CandidateIntentSHA256:  "2222222222222222222222222222222222222222222222222222222222222222",
-		ApprovedPayloadSHA256:  action.SHA256(),
-		CandidatePayloadSHA256: action.SHA256(),
+		ApprovedPayloadSHA256:  "3333333333333333333333333333333333333333333333333333333333333333",
+		CandidatePayloadSHA256: "3333333333333333333333333333333333333333333333333333333333333333",
+		ActionSHA256:           action.SHA256(),
 		InvariantSetSHA256:     "4444444444444444444444444444444444444444444444444444444444444444",
 		ApprovedRunnerSHA256:   "5555555555555555555555555555555555555555555555555555555555555555",
 	}
@@ -37,19 +38,19 @@ func runnerFixtureInput() CellInput {
 
 func runnerFixtureObservation() Observation {
 	return Observation{
-		BackendAvailable:            true,
-		ObservedChainID:             1,
-		ObservedBlockNumber:         23456789,
-		ObservedBlockHash:           "1111111111111111111111111111111111111111111111111111111111111111",
-		ObservedRunnerSHA256:        "5555555555555555555555555555555555555555555555555555555555555555",
-		PreStateSHA256:              "6666666666666666666666666666666666666666666666666666666666666666",
-		PostStateSHA256:             "7777777777777777777777777777777777777777777777777777777777777777",
-		EffectSetSHA256:             "8888888888888888888888888888888888888888888888888888888888888888",
-		AuthorityPreserved:          true,
-		AssetBoundsPreserved:        true,
-		CodeIntegrityPreserved:      true,
-		ExecutionPathFullyObserved:  true,
-		InvariantsPass:              true,
+		BackendAvailable:           true,
+		ObservedChainID:            1,
+		ObservedBlockNumber:        23456789,
+		ObservedBlockHash:          "1111111111111111111111111111111111111111111111111111111111111111",
+		ObservedRunnerSHA256:       "5555555555555555555555555555555555555555555555555555555555555555",
+		PreStateSHA256:             "6666666666666666666666666666666666666666666666666666666666666666",
+		PostStateSHA256:            "7777777777777777777777777777777777777777777777777777777777777777",
+		EffectSetSHA256:            "8888888888888888888888888888888888888888888888888888888888888888",
+		AuthorityPreserved:         true,
+		AssetBoundsPreserved:       true,
+		CodeIntegrityPreserved:     true,
+		ExecutionPathFullyObserved: true,
+		InvariantsPass:             true,
 	}
 }
 
@@ -115,5 +116,17 @@ func TestEvaluateWithRunnerRejectsMissingActionKindOrBytes(t *testing.T) {
 		if receipt.Decision != DecisionUnavailable {
 			t.Fatalf("action=%+v decision=%s, want UNAVAILABLE", action, receipt.Decision)
 		}
+	}
+}
+
+func TestEvaluateWithRunnerDoesNotConfuseCalldataDigestWithFullActionDigest(t *testing.T) {
+	input := runnerFixtureInput()
+	input.ActionSHA256 = input.CandidatePayloadSHA256
+	receipt, err := EvaluateWithRunner(context.Background(), input, runnerFixtureAction(), stubRunner{observation: runnerFixtureObservation()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Decision != DecisionUnavailable {
+		t.Fatalf("decision=%s, want UNAVAILABLE", receipt.Decision)
 	}
 }
