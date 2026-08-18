@@ -19,10 +19,10 @@ type SafeTraceFrame struct {
 }
 
 type SafeTraceEvidence struct {
-	RootSafe       string           `json:"root_safe"`
-	Frames         []SafeTraceFrame `json:"frames"`
-	Truncated      bool             `json:"truncated"`
-	TraceSHA256    string           `json:"trace_sha256"`
+	RootSafe    string           `json:"root_safe"`
+	Frames      []SafeTraceFrame `json:"frames"`
+	Truncated   bool             `json:"truncated"`
+	TraceSHA256 string           `json:"trace_sha256"`
 }
 
 type SafeTraceVerifier struct{}
@@ -34,7 +34,7 @@ func (SafeTraceVerifier) Verify(trace SafeTraceEvidence) bool {
 	if !validAddress(trace.RootSafe) || trace.Truncated || len(trace.Frames) == 0 || !validSHA256Text(trace.TraceSHA256) {
 		return false
 	}
-	if trace.Frames[0].Depth != 0 || normalizeAddress(trace.Frames[0].From) != normalizeAddress(trace.RootSafe) {
+	if trace.Frames[0].Depth != 0 || normalizeAddress(trace.Frames[0].From) != normalizeAddress(trace.RootSafe) || !trace.Frames[0].Success {
 		return false
 	}
 	for i, frame := range trace.Frames {
@@ -54,7 +54,6 @@ func (SafeTraceVerifier) Verify(trace SafeTraceEvidence) bool {
 
 func safeTraceDigest(trace SafeTraceEvidence) string {
 	frames := append([]SafeTraceFrame(nil), trace.Frames...)
-	// Preserve execution order while canonicalizing textual fields.
 	for i := range frames {
 		frames[i].Type = strings.ToLower(strings.TrimSpace(frames[i].Type))
 		frames[i].From = normalizeAddress(frames[i].From)
@@ -78,14 +77,9 @@ func safeTraceDigest(trace SafeTraceEvidence) string {
 
 func canonicalizeTraceFrames(frames []SafeTraceFrame) []SafeTraceFrame {
 	out := append([]SafeTraceFrame(nil), frames...)
-	// Utility for deterministic test fixtures that build traces as sets.
 	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Depth != out[j].Depth {
-			return out[i].Depth < out[j].Depth
-		}
-		if normalizeAddress(out[i].From) != normalizeAddress(out[j].From) {
-			return normalizeAddress(out[i].From) < normalizeAddress(out[j].From)
-		}
+		if out[i].Depth != out[j].Depth { return out[i].Depth < out[j].Depth }
+		if normalizeAddress(out[i].From) != normalizeAddress(out[j].From) { return normalizeAddress(out[i].From) < normalizeAddress(out[j].From) }
 		return normalizeAddress(out[i].To) < normalizeAddress(out[j].To)
 	})
 	return out
