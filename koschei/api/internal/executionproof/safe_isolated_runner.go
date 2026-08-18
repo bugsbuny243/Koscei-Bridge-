@@ -109,7 +109,9 @@ func (r SafeIsolatedRunner) Observe(ctx context.Context, input matrixcontainment
 	authorityPreserved := r.Policy.AllowAuthority || equalSafeAuthority(evidence.Before, evidence.After)
 	codePreserved := strings.EqualFold(normalizeHexOrAddress(evidence.Before.Implementation), normalizeHexOrAddress(evidence.After.Implementation)) &&
 		strings.EqualFold(strings.TrimSpace(evidence.Before.CodeHash), strings.TrimSpace(evidence.After.CodeHash))
-	assetBoundsPreserved := safeOutflowsWithinPolicy(r.Policy, evidence.AssetMovements)
+	// Transaction-wide cumulative accounting is mandatory. Multiple transfers
+	// that are individually below a bound must not be able to exceed it together.
+	assetBoundsPreserved := (SafeOutflowBudgetVerifier{}).Verify(r.Policy, evidence.AssetMovements)
 
 	return matrixcontainment.Observation{
 		BackendAvailable:           true,
@@ -225,34 +227,10 @@ func equalAddressSets(a, b []string) bool {
 	return true
 }
 
+// Retained as a narrow compatibility helper for existing package callers. New
+// authorization uses SafeOutflowBudgetVerifier, which enforces cumulative totals.
 func safeOutflowsWithinPolicy(policy SafeContainmentPolicy, movements []SafeAssetMovement) bool {
-	safe := normalizeAddress(policy.Safe)
-	for _, movement := range movements {
-		if normalizeAddress(movement.From) != safe {
-			continue
-		}
-		amount, ok := new(big.Int).SetString(movement.Amount, 10)
-		if !ok || amount.Sign() < 0 {
-			return false
-		}
-		matched := false
-		for _, bound := range policy.AllowedOutflow {
-			if strings.EqualFold(strings.TrimSpace(bound.Kind), strings.TrimSpace(movement.Kind)) &&
-				normalizeOptionalAddress(bound.Token) == normalizeOptionalAddress(movement.Token) &&
-				normalizeAddress(bound.To) == normalizeAddress(movement.To) &&
-				strings.TrimSpace(bound.ID) == strings.TrimSpace(movement.ID) {
-				max, ok := new(big.Int).SetString(bound.MaxAmount, 10)
-				if ok && max.Sign() >= 0 && amount.Cmp(max) <= 0 {
-					matched = true
-					break
-				}
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
+	return (SafeOutflowBudgetVerifier{}).Verify(policy, movements)
 }
 
 func validOutflowBound(b SafeOutflowBound) bool {
