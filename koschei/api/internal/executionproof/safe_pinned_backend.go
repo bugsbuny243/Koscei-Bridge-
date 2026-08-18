@@ -27,11 +27,13 @@ type SafeSimulationResult struct {
 }
 
 type PinnedSafeBackend struct {
-	Engine SafeSimulationEngine
+	Engine   SafeSimulationEngine
+	Accessor string
 }
 
 func (b PinnedSafeBackend) ExecuteSafe(ctx context.Context, input matrixcontainment.CellInput, tx SafeTransaction) (SafeExecutionEvidence, error) {
 	if b.Engine == nil { return SafeExecutionEvidence{}, fmt.Errorf("Safe simulation engine unavailable") }
+	if !validAddress(b.Accessor) { return SafeExecutionEvidence{}, fmt.Errorf("Safe simulation accessor unavailable") }
 	if err := ctx.Err(); err != nil { return SafeExecutionEvidence{}, err }
 	if tx.ChainID != input.ChainID || !strings.EqualFold(normalizeAddress(tx.To), normalizeAddress(input.Target)) {
 		return SafeExecutionEvidence{}, fmt.Errorf("Safe transaction/input mismatch")
@@ -60,8 +62,8 @@ func (b PinnedSafeBackend) ExecuteSafe(ctx context.Context, input matrixcontainm
 	for _, movement := range result.AssetMovements {
 		if !validAssetMovement(movement) { return SafeExecutionEvidence{}, fmt.Errorf("invalid Safe asset movement evidence") }
 	}
-	if !(SafeTraceVerifier{}).Verify(result.Trace) || normalizeAddress(result.Trace.RootSafe) != normalizeAddress(tx.Safe) {
-		return SafeExecutionEvidence{}, fmt.Errorf("invalid Safe execution trace evidence")
+	if !(SafeAccessorSemanticsVerifier{Accessor: b.Accessor}).Verify(tx, result.Trace) {
+		return SafeExecutionEvidence{}, fmt.Errorf("invalid Safe accessor execution semantics")
 	}
 
 	return SafeExecutionEvidence{
