@@ -1,6 +1,11 @@
 package executionproof
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"koschei/api/internal/matrixcontainment"
+)
 
 func TestSafeOutflowBudgetVerifierRejectsAggregateOverflow(t *testing.T) {
 	policy := SafeContainmentPolicy{
@@ -70,11 +75,11 @@ func TestSafeIsolatedRunnerContainsAggregateOutflowOverflow(t *testing.T) {
 		{Kind: "native", From: policy.Safe, To: policy.AllowedOutflow[0].To, Amount: "60"},
 	}
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixEvaluateSafeRunnerForBudgetTest(input, action, runner)
+	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != "CONTAIN" {
+	if receipt.Decision != matrixcontainment.DecisionContain {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
