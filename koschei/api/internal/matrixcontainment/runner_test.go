@@ -11,22 +11,27 @@ type stubRunner struct {
 	err         error
 }
 
-func (r stubRunner) Observe(context.Context, CellInput) (Observation, error) {
+func (r stubRunner) Observe(context.Context, CellInput, ActionArtifact) (Observation, error) {
 	return r.observation, r.err
 }
 
+func runnerFixtureAction() ActionArtifact {
+	return ActionArtifact{Kind: "safe-transaction/v1", Canonical: []byte("canonical-safe-action-v1")}
+}
+
 func runnerFixtureInput() CellInput {
+	action := runnerFixtureAction()
 	return CellInput{
-		ChainID:                 1,
-		BlockNumber:             23456789,
-		BlockHash:               "1111111111111111111111111111111111111111111111111111111111111111",
-		Target:                  "0x1111111111111111111111111111111111111111",
-		ApprovedIntentSHA256:    "2222222222222222222222222222222222222222222222222222222222222222",
-		CandidateIntentSHA256:   "2222222222222222222222222222222222222222222222222222222222222222",
-		ApprovedPayloadSHA256:   "3333333333333333333333333333333333333333333333333333333333333333",
-		CandidatePayloadSHA256:  "3333333333333333333333333333333333333333333333333333333333333333",
-		InvariantSetSHA256:      "4444444444444444444444444444444444444444444444444444444444444444",
-		ApprovedRunnerSHA256:    "5555555555555555555555555555555555555555555555555555555555555555",
+		ChainID:                1,
+		BlockNumber:            23456789,
+		BlockHash:              "1111111111111111111111111111111111111111111111111111111111111111",
+		Target:                 "0x1111111111111111111111111111111111111111",
+		ApprovedIntentSHA256:   "2222222222222222222222222222222222222222222222222222222222222222",
+		CandidateIntentSHA256:  "2222222222222222222222222222222222222222222222222222222222222222",
+		ApprovedPayloadSHA256:  action.SHA256(),
+		CandidatePayloadSHA256: action.SHA256(),
+		InvariantSetSHA256:     "4444444444444444444444444444444444444444444444444444444444444444",
+		ApprovedRunnerSHA256:   "5555555555555555555555555555555555555555555555555555555555555555",
 	}
 }
 
@@ -49,7 +54,7 @@ func runnerFixtureObservation() Observation {
 }
 
 func TestEvaluateWithRunnerVerifiedObservationCanRelease(t *testing.T) {
-	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), stubRunner{observation: runnerFixtureObservation()})
+	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), runnerFixtureAction(), stubRunner{observation: runnerFixtureObservation()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +64,7 @@ func TestEvaluateWithRunnerVerifiedObservationCanRelease(t *testing.T) {
 }
 
 func TestEvaluateWithRunnerNilRunnerIsUnavailable(t *testing.T) {
-	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), nil)
+	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), runnerFixtureAction(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +74,7 @@ func TestEvaluateWithRunnerNilRunnerIsUnavailable(t *testing.T) {
 }
 
 func TestEvaluateWithRunnerFailureIsUnavailable(t *testing.T) {
-	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), stubRunner{err: errors.New("isolated backend failed")})
+	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), runnerFixtureAction(), stubRunner{err: errors.New("isolated backend failed")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,11 +86,34 @@ func TestEvaluateWithRunnerFailureIsUnavailable(t *testing.T) {
 func TestEvaluateWithRunnerCancelledContextIsUnavailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	receipt, err := EvaluateWithRunner(ctx, runnerFixtureInput(), stubRunner{observation: runnerFixtureObservation()})
+	receipt, err := EvaluateWithRunner(ctx, runnerFixtureInput(), runnerFixtureAction(), stubRunner{observation: runnerFixtureObservation()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if receipt.Decision != DecisionUnavailable {
 		t.Fatalf("decision=%s, want UNAVAILABLE", receipt.Decision)
+	}
+}
+
+func TestEvaluateWithRunnerRejectsMismatchedActionBytes(t *testing.T) {
+	bad := ActionArtifact{Kind: "safe-transaction/v1", Canonical: []byte("tampered-action")}
+	receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), bad, stubRunner{observation: runnerFixtureObservation()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Decision != DecisionUnavailable {
+		t.Fatalf("decision=%s, want UNAVAILABLE", receipt.Decision)
+	}
+}
+
+func TestEvaluateWithRunnerRejectsMissingActionKindOrBytes(t *testing.T) {
+	for _, action := range []ActionArtifact{{Canonical: []byte("canonical-safe-action-v1")}, {Kind: "safe-transaction/v1"}} {
+		receipt, err := EvaluateWithRunner(context.Background(), runnerFixtureInput(), action, stubRunner{observation: runnerFixtureObservation()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if receipt.Decision != DecisionUnavailable {
+			t.Fatalf("action=%+v decision=%s, want UNAVAILABLE", action, receipt.Decision)
+		}
 	}
 }
