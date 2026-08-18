@@ -47,53 +47,70 @@ func pinnedBackendFixture(t *testing.T) (matrixcontainment.CellInput, SafeTransa
 			PostAuthority: evidence.After,
 			PostStateSHA256: evidence.PostStateSHA256,
 			EffectSetSHA256: evidence.EffectSetSHA256,
-			Trace: evidence.Trace,
+			Trace: validSafeAccessorTraceFixture(t, tx, testSafeAccessor),
 		},
 	}
 	return input, tx, engine
 }
 
+func pinnedBackend(engine SafeSimulationEngine) PinnedSafeBackend {
+	return PinnedSafeBackend{Engine: engine, Accessor: testSafeAccessor}
+}
+
 func TestPinnedSafeBackendProducesEvidenceOnlyForExactPinnedState(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
-	got, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	got, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err != nil { t.Fatal(err) }
 	if got.ChainID != input.ChainID || got.BlockNumber != input.BlockNumber { t.Fatalf("unexpected identity: %+v", got) }
-	if !(SafeTraceVerifier{}).Verify(got.Trace) || got.Before.Threshold != got.After.Threshold { t.Fatalf("unexpected evidence: %+v", got) }
+	if !(SafeAccessorSemanticsVerifier{Accessor: testSafeAccessor}).Verify(tx, got.Trace) || got.Before.Threshold != got.After.Threshold { t.Fatalf("unexpected evidence: %+v", got) }
 }
 
 func TestPinnedSafeBackendRejectsWrongBlock(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	engine.blockHash = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err == nil { t.Fatal("expected pinned block mismatch") }
 }
 
 func TestPinnedSafeBackendRejectsWrongRunner(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	engine.runnerSHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err == nil { t.Fatal("expected runner mismatch") }
 }
 
 func TestPinnedSafeBackendRejectsTargetMutation(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	tx.To = "0x9999999999999999999999999999999999999999"
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err == nil { t.Fatal("expected transaction/input mismatch") }
+}
+
+func TestPinnedSafeBackendRejectsGenericDirectCallEvidence(t *testing.T) {
+	input, tx, engine := pinnedBackendFixture(t)
+	engine.result.Trace = validSafeTraceFixture(tx.Safe, tx.To)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
+	if err == nil { t.Fatal("generic direct call must not satisfy Safe execution semantics") }
+}
+
+func TestPinnedSafeBackendRejectsWrongAccessorIdentity(t *testing.T) {
+	input, tx, engine := pinnedBackendFixture(t)
+	_, err := (PinnedSafeBackend{Engine: engine, Accessor: "0x5555555555555555555555555555555555555555"}).ExecuteSafe(context.Background(), input, tx)
+	if err == nil { t.Fatal("wrong accessor identity must fail") }
 }
 
 func TestPinnedSafeBackendRejectsTruncatedTrace(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	engine.result.Trace.Truncated = true
 	engine.result.Trace.TraceSHA256 = safeTraceDigest(engine.result.Trace)
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err == nil { t.Fatal("expected trace coverage failure") }
 }
 
 func TestPinnedSafeBackendRejectsEngineFailure(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	engine.err = errors.New("isolated runtime failed")
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(context.Background(), input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(context.Background(), input, tx)
 	if err == nil { t.Fatal("expected engine failure") }
 }
 
@@ -101,6 +118,6 @@ func TestPinnedSafeBackendRejectsCancelledContext(t *testing.T) {
 	input, tx, engine := pinnedBackendFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := (PinnedSafeBackend{Engine: engine}).ExecuteSafe(ctx, input, tx)
+	_, err := pinnedBackend(engine).ExecuteSafe(ctx, input, tx)
 	if err == nil { t.Fatal("expected cancellation") }
 }
