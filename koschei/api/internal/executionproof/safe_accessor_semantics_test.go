@@ -1,6 +1,9 @@
 package executionproof
 
-import "testing"
+import (
+	"math/big"
+	"testing"
+)
 
 const testSafeAccessor = "0x4444444444444444444444444444444444444444"
 
@@ -48,10 +51,8 @@ func TestSafeAccessorSemanticsVerifierRejectsWrongAccessor(t *testing.T) {
 func TestSafeAccessorSemanticsVerifierRejectsMutatedTransaction(t *testing.T) {
 	tx := validSafeForwardRequest().Transaction
 	trace := validSafeAccessorTraceFixture(t, tx, testSafeAccessor)
-	tx.Value = newBigIntForAccessorTest(1)
+	tx.Value = big.NewInt(1)
 	if (SafeAccessorSemanticsVerifier{Accessor: testSafeAccessor}).Verify(tx, trace) {
 		t.Fatal("trace for another Safe transaction accepted")
 	}
 }
-
-func newBigIntForAccessorTest(v int64) *big.Int { return big.NewInt(v) }
