@@ -1,26 +1,32 @@
-# Koschei Execution Proof v0.1
+# Koschei Execution Proof
 
-Execution Proof is a Security Control Plane boundary, separate from actor/Radar investigation behavior.
+## Current integration status
 
-## Authority rule
+Execution Proof is a substantial internal security subsystem, but it is **not currently wired into the deployed Koschei Web3 API/runtime path**. Repository-level callers for its signing/forwarding entrypoints remain inside `internal/executionproof` and its tests. Until an explicit handler/service/worker call chain and production evidence exist, this package must not be described as production-active enforcement.
+
+The package is therefore classified as **internal/experimental security control-plane code under connectivity audit**.
+
+## Intended authority rule
 
 `NO VALID EXECUTION PROOF = NO SIGNING FORWARD`
 
-The signing path must never trust a serialized `ALLOW`, a Transaction Service supplied Safe hash, or a runtime-provided artifact identity as authoritative by itself.
+If/when this subsystem is connected to a real signing path, that path must never trust a serialized `ALLOW`, a Transaction Service supplied Safe hash, or a runtime-provided artifact identity as authoritative by itself.
 
-## v0.1 evidence chain
+## Evidence chain
+
+The implemented model is:
 
 `source -> build -> runtime -> payload -> invariant -> signing request`
 
-Every mandatory edge fails closed. The final decision is only `ALLOW` or `BLOCK` with deterministic reason codes.
+Mandatory edges are designed to fail closed. Decisions are deterministic `ALLOW` or `BLOCK` reason-code outputs rather than a score or grade.
 
-## Safe boundary
+## Safe boundary implemented in this package
 
-For Safe transactions, Koschei recomputes `safeTxHash` locally from the complete raw Safe transaction using Safe EIP-712 semantics. The presented service hash is comparison-only evidence. Any mismatch blocks forwarding.
+For Safe transactions, the package recomputes `safeTxHash` locally from the complete raw Safe transaction using Safe EIP-712 semantics. The presented service hash is comparison-only evidence; mismatches block the package forwarding boundary.
 
-The production `VerifyAndForwardSafeTransaction` boundary owns the native Safe hash authority; callers cannot inject a Transaction Service supplied or pass-through hash implementation there.
+`VerifyAndForwardSafeTransaction` is the package's native Safe hash/forwarding boundary. It is **not a deployed production boundary merely because the function exists**. Production status requires a verified non-test caller from the deployed product plus runtime evidence that the path executes.
 
-A `BLOCK` decision is enforced before the side-effecting `SafeForwarder` boundary. The forwarder must not be called for invalid evidence, proof tampering, Safe hash mismatch, request mismatch, or a cancelled context. A downstream forward transport failure is returned as a failed/BLOCK result, never as ALLOW.
+Within the package, a `BLOCK` decision is enforced before the side-effecting `SafeForwarder` interface. The forwarder must not be called for invalid evidence, proof tampering, Safe hash mismatch, request mismatch, or a cancelled context. A downstream forward transport failure is returned as failed/BLOCK, never as ALLOW.
 
 ## Safe upstream conformance
 
@@ -28,20 +34,23 @@ The Safe EIP-712 schema tests are pinned to `safe-fndn/safe-smart-account` commi
 
 No static Safe-owned golden JSON fixture is claimed by this package.
 
-## Validation
+## Validation status
 
-The dedicated Railway validator is source-bound to `feat/execution-proof-v0.1`, builds `Dockerfile.execution-proof-validator` from the full repository snapshot, and requires:
+Package/unit/integration validation can prove implementation behavior, but it does **not** prove deployed reachability.
 
-```text
-go mod download
-go test ./...
-go test -race ./...
-go vet ./...
-CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/koschei-api .
-```
+The old `Dockerfile.execution-proof-validator` / dedicated external Railway validator path was removed from `main` by PR #853 and must not be referenced as a current validation dependency.
 
-Exact-head deployment metadata must match the PR head before a PASS is accepted. An older green deployment is not accepted after the branch head changes.
+Current acceptance for production wiring must include all of the following:
 
-## Non-goals
+1. a non-test deployed caller outside `internal/executionproof`;
+2. caller -> handler/service/worker -> route/startup wiring trace;
+3. explicit config/feature-gate ownership where applicable;
+4. tests covering the actual integration boundary;
+5. production evidence proving the call path executes;
+6. no bypass path that can forward/sign without the required proof boundary.
 
-No direct production Safe Transaction Service write adapter, mainnet-fork invariant runner, numeric score, letter grade, AI-generated decision, custody replacement, or fabricated production proof output is part of v0.1.
+## Non-goals / no current production claim
+
+No claim is made here that Koschei Web3 currently routes production signing, Safe Transaction Service writes, custody, or user funds through this package. Generic EVM/fork evidence and Safe-aware contracts present in this package remain implementation evidence until the connectivity audit closes.
+
+See issue #864 for the connectivity audit and classification work.
