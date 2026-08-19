@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-func TestHomepageIsSecurityWorldNotTokenScanner(t *testing.T) {
+func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 	body, err := os.ReadFile("public/index.html")
 	if err != nil {
 		t.Fatalf("read homepage: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Koschei Web3 | Security World",
+		"Koschei Web3 | Web3 Security",
 		"See the execution.",
-		"SECURITY WORLD / TOPOLOGY",
+		"WEB3 EXECUTION TOPOLOGY",
 		"koschei-security-world.js",
 		"Execution Proof",
 		"Transaction Defense",
@@ -27,21 +27,24 @@ func TestHomepageIsSecurityWorldNotTokenScanner(t *testing.T) {
 		"In validation",
 	} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("homepage missing Security World identity %q", required)
+			t.Fatalf("homepage missing Koschei Web3 identity %q", required)
 		}
 	}
 	for _, forbidden := range []string{
+		"Koschei Web3 | Security World",
+		">Security World<",
+		"SECURITY WORLD / TOPOLOGY",
+		"Koschei ARVIS | Evidence-Backed Web3 Security",
 		">Token Scan<",
 		"Solana-first evidence intelligence",
 		"Run a free preflight",
 		"Buy a token",
 		"homepage-score-label",
-		"Koschei ARVIS | Evidence-Backed Web3 Security",
 		"homepage-preflight-v2.js",
 		">Implemented<",
 	} {
 		if strings.Contains(text, forbidden) {
-			t.Fatalf("homepage regressed or overclaimed product status: found %q", forbidden)
+			t.Fatalf("homepage regressed or introduced a competing product identity: found %q", forbidden)
 		}
 	}
 }
