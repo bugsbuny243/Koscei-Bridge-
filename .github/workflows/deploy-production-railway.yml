@@ -28,21 +28,10 @@ jobs:
         shell: bash
         run: npm install --global @railway/cli
 
-      - name: Bind existing production service to GitHub main
-        shell: bash
-        run: |
-          railway service source connect \
-            --project "$PROJECT_ID" \
-            --environment "$ENVIRONMENT_ID" \
-            --service "$SERVICE_ID" \
-            --repo bugsbuny243/Koschei-Web3-Hub \
-            --branch main \
-            --json
-
       - name: Upload exact main checkout to existing production service
         shell: bash
         run: |
-          railway up \
+          railway up . \
             --project "$PROJECT_ID" \
             --environment "$ENVIRONMENT_ID" \
             --service "$SERVICE_ID" \
