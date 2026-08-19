@@ -106,9 +106,9 @@ A low-risk result is not a guarantee of safety. Missing or unsupported evidence 
 
 The user interface is **not** a security authority.
 
-A web frontend may be implemented with Next.js, vanilla JavaScript, another framework, or a native client. That choice must not change the trust model.
+**Next.js is permanently prohibited in Koschei Web3.** It is not an approved frontend, server runtime, build system, deployment path or future framework option. Repository automation must reject Next.js dependencies and artifacts if they reappear.
 
-The frontend must not become authoritative for:
+Any web, mobile or CLI client is an untrusted presentation surface and must not become authoritative for:
 
 - final allow / block decisions
 - signer private keys
@@ -121,17 +121,17 @@ The frontend must not become authoritative for:
 The UI renders decisions and evidence produced by trusted security services. It does not define them.
 
 ```text
-Next.js / web / mobile / CLI
-          │
-          │ untrusted presentation
-          ▼
+web / mobile / CLI
+       │
+       │ untrusted presentation
+       ▼
 Koschei Web3 trusted services
-          │
-          ├── execution verification
-          ├── signing defense
-          ├── evidence collection
-          ├── policy evaluation
-          └── infrastructure defense
+       │
+       ├── execution verification
+       ├── signing defense
+       ├── evidence collection
+       ├── policy evaluation
+       └── infrastructure defense
 ```
 
 ## Current Solana security core
@@ -166,9 +166,7 @@ See `docs/api-reference.md` for current production behavior.
 
 ## Architecture principle
 
-Security-critical decisions should live behind a narrow trusted boundary, preferably in deterministic services with explicit policy, evidence and auditability.
-
-Framework choice is a presentation and integration concern, not a trust decision.
+Security-critical decisions live behind a narrow trusted boundary in deterministic services with explicit policy, evidence and auditability. Presentation technology is never part of the authority model, and Next.js is not permitted anywhere in the Koschei Web3 repository or deployment architecture.
 
 The current production architecture includes:
 
