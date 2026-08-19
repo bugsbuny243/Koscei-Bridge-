@@ -10,9 +10,9 @@ import (
 type tokenScanResponseAlias tokenScanResponse
 
 type tokenScanResponseWire struct {
-	ResponseSchemaVersion string                  `json:"response_schema_version"`
+	ResponseSchemaVersion string `json:"response_schema_version"`
 	tokenScanResponseAlias
-	SecurityEvidence      *securityevidence.Event `json:"security_evidence,omitempty"`
+	SecurityEvidence *securityevidence.Event `json:"security_evidence,omitempty"`
 }
 
 func tokenScanResponseBase(response tokenScanResponse) tokenScanResponseWire {

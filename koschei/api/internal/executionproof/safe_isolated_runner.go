@@ -50,17 +50,17 @@ type SafeContainmentPolicy struct {
 const SafeContainmentPolicyVersion = "koschei-safe-containment-policy/v0.1"
 
 type SafeExecutionEvidence struct {
-	ChainID          uint64                `json:"chain_id"`
-	BlockNumber      uint64                `json:"block_number"`
-	BlockHash        string                `json:"block_hash"`
-	RunnerSHA256     string                `json:"runner_sha256"`
-	PreStateSHA256   string                `json:"pre_state_sha256"`
-	PostStateSHA256  string                `json:"post_state_sha256"`
-	EffectSetSHA256  string                `json:"effect_set_sha256"`
-	Before           SafeAuthoritySnapshot `json:"before"`
-	After            SafeAuthoritySnapshot `json:"after"`
-	AssetMovements   []SafeAssetMovement   `json:"asset_movements"`
-	Trace            SafeTraceEvidence     `json:"trace"`
+	ChainID         uint64                `json:"chain_id"`
+	BlockNumber     uint64                `json:"block_number"`
+	BlockHash       string                `json:"block_hash"`
+	RunnerSHA256    string                `json:"runner_sha256"`
+	PreStateSHA256  string                `json:"pre_state_sha256"`
+	PostStateSHA256 string                `json:"post_state_sha256"`
+	EffectSetSHA256 string                `json:"effect_set_sha256"`
+	Before          SafeAuthoritySnapshot `json:"before"`
+	After           SafeAuthoritySnapshot `json:"after"`
+	AssetMovements  []SafeAssetMovement   `json:"asset_movements"`
+	Trace           SafeTraceEvidence     `json:"trace"`
 }
 
 // SafeIsolatedBackend is deliberately observation-only. It executes the exact

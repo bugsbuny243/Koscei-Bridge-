@@ -123,7 +123,9 @@ func equalAddress(a, b string) bool {
 
 func parseHexUint256(value string) (*big.Int, bool) {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "0x")
-	if value == "" { value = "0" }
+	if value == "" {
+		value = "0"
+	}
 	v := new(big.Int)
 	if _, ok := v.SetString(value, 16); !ok || v.Sign() < 0 || v.BitLen() > 256 {
 		return nil, false
@@ -133,14 +135,20 @@ func parseHexUint256(value string) (*big.Int, bool) {
 
 func decodeCanonicalHexBytes(value string) ([]byte, error) {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "0x")
-	if len(value)%2 != 0 { value = "0" + value }
+	if len(value)%2 != 0 {
+		value = "0" + value
+	}
 	return hex.DecodeString(value)
 }
 
 func equalBytes(a, b []byte) bool {
-	if len(a) != len(b) { return false }
+	if len(a) != len(b) {
+		return false
+	}
 	var diff byte
-	for i := range a { diff |= a[i] ^ b[i] }
+	for i := range a {
+		diff |= a[i] ^ b[i]
+	}
 	return diff == 0
 }
 

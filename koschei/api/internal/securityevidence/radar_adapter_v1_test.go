@@ -5,11 +5,11 @@ import "testing"
 func TestBuildRadarEventBindsExactReportBytes(t *testing.T) {
 	base := RadarReportInput{
 		ReportJSON: []byte(`{"schema":"koschei-customer-investigation-response-v3","target":"abc"}`),
-		Subject: Subject{Chain: "solana", Type: "token", ID: "abc"},
-		Window: ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
+		Subject:    Subject{Chain: "solana", Type: "token", ID: "abc"},
+		Window:     ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
 		Findings: []Finding{{
-			ID: "authority",
-			Kind: "authority_state",
+			ID:    "authority",
+			Kind:  "authority_state",
 			State: StateObserved,
 		}},
 	}
@@ -38,8 +38,8 @@ func TestBuildRadarEventBindsExactReportBytes(t *testing.T) {
 func TestBuildRadarEventRejectsInvalidReport(t *testing.T) {
 	_, err := BuildRadarEventV1(RadarReportInput{
 		ReportJSON: []byte(`not-json`),
-		Subject: Subject{Chain: "solana", Type: "token", ID: "abc"},
-		Window: ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
+		Subject:    Subject{Chain: "solana", Type: "token", ID: "abc"},
+		Window:     ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
 	})
 	if err == nil {
 		t.Fatal("invalid radar report unexpectedly accepted")
@@ -50,9 +50,9 @@ func TestRadarAdapterPreservesLegacyOnlyAsBoundMetadata(t *testing.T) {
 	score := 11
 	e, err := BuildRadarEventV1(RadarReportInput{
 		ReportJSON: []byte(`{"target":"abc"}`),
-		Subject: Subject{Chain: "solana", Type: "token", ID: "abc"},
-		Window: ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
-		Legacy: &LegacyObservation{Grade: "f", Score: &score},
+		Subject:    Subject{Chain: "solana", Type: "token", ID: "abc"},
+		Window:     ObservationWindow{FromUnixMS: 10, ToUnixMS: 20},
+		Legacy:     &LegacyObservation{Grade: "f", Score: &score},
 	})
 	if err != nil {
 		t.Fatal(err)
