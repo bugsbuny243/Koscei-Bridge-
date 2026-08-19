@@ -9,10 +9,12 @@ import (
 func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 	files := map[string][]string{
 		"public/index.html": {
-			"Evidence-backed Web3 investigation system",
-			"It does not guess intent.",
-			"EVIDENCE BOUNDARY",
-			"id=\"verdicts\"",
+			"The security layer beneath Web3",
+			"See the execution.",
+			"NO VALID PROOF = NO SIGNATURE",
+			"visualization layer · not a synthetic live verdict",
+			"A dashboard score is not an authorization primitive",
+			"id=\"execution-proof\"",
 		},
 		"public/account.html": {
 			"Account & SaaS Access",
