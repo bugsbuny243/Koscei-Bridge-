@@ -5,6 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Deploy the exact main checkout to the existing Railway production service.
 concurrency:
   group: koschei-web3-production
   cancel-in-progress: true
