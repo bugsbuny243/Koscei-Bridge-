@@ -1,0 +1,60 @@
+name: Temporary gofmt for PR 868
+
+on:
+  push:
+    branches:
+      - fix/stale-report-trust-contract
+
+permissions:
+  contents: write
+
+jobs:
+  gofmt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/stale-report-trust-contract
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Format exact files reported by Release Gates
+        working-directory: koschei/api
+        run: |
+          gofmt -w \
+            internal/executionproof/anvil_backend_v03.go \
+            internal/executionproof/fork_binding_v03.go \
+            internal/executionproof/fork_binding_v03_test.go \
+            internal/executionproof/fork_canonicality_v03.go \
+            internal/executionproof/fork_canonicality_v03_test.go \
+            internal/executionproof/invariant_asset_conservation_v03_test.go \
+            internal/executionproof/invariant_bridge_v03_test.go \
+            internal/executionproof/invariant_evaluator_v03.go \
+            internal/executionproof/invariant_evaluator_v03_test.go \
+            internal/executionproof/invariant_policy_more_v03_test.go \
+            internal/executionproof/invariant_runner_test.go \
+            internal/executionproof/proof.go \
+            internal/executionproof/safe_accessor_semantics.go \
+            internal/executionproof/safe_accessor_semantics_test.go \
+            internal/executionproof/safe_forward_v03.go \
+            internal/executionproof/safe_forward_v03_test.go \
+            internal/executionproof/safe_isolated_runner.go \
+            internal/executionproof/safe_isolated_runner_test.go \
+            internal/executionproof/safe_pinned_backend.go \
+            internal/executionproof/safe_pinned_backend_test.go \
+            internal/executionproof/safe_trace_verifier.go \
+            internal/handlers/token_scan_response_contract.go \
+            internal/securityevidence/event_v1.go \
+            internal/securityevidence/radar_adapter_v1_test.go
+      - name: Commit formatting only
+        run: |
+          if git diff --quiet; then
+            echo 'No formatting changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/internal/executionproof koschei/api/internal/handlers/token_scan_response_contract.go koschei/api/internal/securityevidence
+          git commit -m 'style: gofmt files blocking release gate'
+          git push origin HEAD:fix/stale-report-trust-contract
