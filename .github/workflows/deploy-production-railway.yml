@@ -5,17 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Deploy the exact main checkout to the existing Railway production service.
-concurrency:
-  group: koschei-web3-production
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      PROJECT_ID: c6a5e53d-9bcb-4b2d-a0c0-8de013538b35
+      ENVIRONMENT_ID: 48ab5bb7-8135-4c60-bb47-57603a1678bd
+      SERVICE_ID: 74c9f3f8-19bf-40fe-89da-62002a72f025
     steps:
       - name: Checkout exact main commit
         uses: actions/checkout@v4
@@ -23,16 +20,32 @@ jobs:
           fetch-depth: 1
 
       - name: Refuse deploy without Railway token
-        shell: sh
+        shell: bash
         run: |
           test -n "$RAILWAY_TOKEN" || { echo "RAILWAY_TOKEN GitHub Actions secret is missing"; exit 1; }
 
-      - name: Deploy exact repository state to existing production service
-        shell: sh
+      - name: Install Railway CLI
+        shell: bash
+        run: npm install --global @railway/cli
+
+      - name: Bind existing production service to GitHub main
+        shell: bash
+        run: |
+          railway service source connect \
+            --project "$PROJECT_ID" \
+            --environment "$ENVIRONMENT_ID" \
+            --service "$SERVICE_ID" \
+            --repo bugsbuny243/Koschei-Web3-Hub \
+            --branch main \
+            --json
+
+      - name: Upload exact main checkout to existing production service
+        shell: bash
         run: |
           railway up \
-            --project c6a5e53d-9bcb-4b2d-a0c0-8de013538b35 \
-            --environment 48ab5bb7-8135-4c60-bb47-57603a1678bd \
-            --service 74c9f3f8-19bf-40fe-89da-62002a72f025 \
+            --project "$PROJECT_ID" \
+            --environment "$ENVIRONMENT_ID" \
+            --service "$SERVICE_ID" \
             --ci \
+            --verbose \
             --message "GitHub main $GITHUB_SHA"
