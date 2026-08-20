@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   full-verification:
-    name: Go 1.25.12, PostgreSQL 17, race and evidence gates
+    name: Go 1.25.13, PostgreSQL 17, race and evidence gates
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Go 1.25.12
+      - name: Set up Go 1.25.13
         uses: actions/setup-go@v5
         with:
           go-version-file: koschei/api/go.mod
