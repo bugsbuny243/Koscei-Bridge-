@@ -193,9 +193,6 @@ func holderIntelligenceCoreRepeatRisk(core holderIntelligenceCoreResult) int {
 	}
 	return strongest
 }
-func applyRepeatDominantRiskToLegacyScore(score int, _ holderIntelligenceCoreResult) int {
-	return score
-}
 func holderIntelligenceCoreEvidence(core holderIntelligenceCoreResult) []string {
 	values := []string{}
 	values = appendUniqueHolderCoreEvidence(values, core.Intelligence.Findings...)
