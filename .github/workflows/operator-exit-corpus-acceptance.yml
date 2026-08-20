@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.25.13
+          go-version: 1.26.7
           cache-dependency-path: koschei/api/go.sum
       - run: go mod download
       - name: Apply migrations on PostgreSQL 17
