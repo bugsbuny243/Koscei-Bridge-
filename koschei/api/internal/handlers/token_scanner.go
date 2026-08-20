@@ -183,7 +183,6 @@ func (h *Handler) TokenScan(w http.ResponseWriter, r *http.Request) {
 	if score < 0 {
 		score = 0
 	}
-	score = applyRepeatDominantRiskToLegacyScore(score, holderCore)
 	if repeatRisk := holderIntelligenceCoreRepeatRisk(holderCore); repeatRisk > 0 {
 		findings = appendUniqueHolderCoreEvidence(findings,
 			fmt.Sprintf("Repeat-dominant holder evidence applies a %d/100 cross-token actor risk weight from the stored Koschei observation window.", repeatRisk),
