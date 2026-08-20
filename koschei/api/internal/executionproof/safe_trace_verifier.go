@@ -66,8 +66,8 @@ func safeTraceDigest(trace SafeTraceEvidence) string {
 		Frames    []SafeTraceFrame `json:"frames"`
 		Truncated bool             `json:"truncated"`
 	}{
-		RootSafe: normalizeAddress(trace.RootSafe),
-		Frames: frames,
+		RootSafe:  normalizeAddress(trace.RootSafe),
+		Frames:    frames,
 		Truncated: trace.Truncated,
 	}
 	encoded, _ := json.Marshal(payload)
@@ -78,8 +78,12 @@ func safeTraceDigest(trace SafeTraceEvidence) string {
 func canonicalizeTraceFrames(frames []SafeTraceFrame) []SafeTraceFrame {
 	out := append([]SafeTraceFrame(nil), frames...)
 	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Depth != out[j].Depth { return out[i].Depth < out[j].Depth }
-		if normalizeAddress(out[i].From) != normalizeAddress(out[j].From) { return normalizeAddress(out[i].From) < normalizeAddress(out[j].From) }
+		if out[i].Depth != out[j].Depth {
+			return out[i].Depth < out[j].Depth
+		}
+		if normalizeAddress(out[i].From) != normalizeAddress(out[j].From) {
+			return normalizeAddress(out[i].From) < normalizeAddress(out[j].From)
+		}
 		return normalizeAddress(out[i].To) < normalizeAddress(out[j].To)
 	})
 	return out

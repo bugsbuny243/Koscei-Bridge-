@@ -49,7 +49,7 @@ type VerifiedForkBackend interface {
 	ExecuteVerifiedFork(ctx context.Context, request PreparedVerifiedForkRequest) (VerifiedForkBackendResult, error)
 }
 
-type verifiedForkAdapter struct { result ForkBackendResult }
+type verifiedForkAdapter struct{ result ForkBackendResult }
 
 func (a verifiedForkAdapter) ExecuteForkSimulation(context.Context, ForkSimulationRequest) (ForkBackendResult, error) {
 	return a.result, nil
@@ -73,10 +73,10 @@ func RunVerifiedForkExecution(ctx context.Context, request VerifiedForkRequest, 
 		Version:    VerifiedForkReceiptVersion,
 		Simulation: simulation,
 		Execution: ForkExecutionEvidence{
-			ExecutionModel:          strings.TrimSpace(result.Execution.ExecutionModel),
-			TransactionHash:         normalizeHex32(result.Execution.TransactionHash),
+			ExecutionModel:           strings.TrimSpace(result.Execution.ExecutionModel),
+			TransactionHash:          normalizeHex32(result.Execution.TransactionHash),
 			TransactionReceiptSHA256: strings.ToLower(strings.TrimSpace(result.Execution.TransactionReceiptSHA256)),
-			InvariantEvidenceSHA256: strings.ToLower(strings.TrimSpace(result.Execution.InvariantEvidenceSHA256)),
+			InvariantEvidenceSHA256:  strings.ToLower(strings.TrimSpace(result.Execution.InvariantEvidenceSHA256)),
 		},
 	}
 	receipt.ReceiptSHA256 = verifiedForkReceiptDigest(receipt)
@@ -127,7 +127,9 @@ func runVerifiedForkCore(ctx context.Context, request VerifiedForkRequest, backe
 }
 
 func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedForkRequest, bool) {
-	if request.Version == "" { request.Version = ExecutionProofForkBindingVersion }
+	if request.Version == "" {
+		request.Version = ExecutionProofForkBindingVersion
+	}
 	payload, validPayload := canonicalEVMPayload(request.Payload)
 	payloadSHA256, validPayloadDigest := evmPayloadDigest(payload)
 	if request.Version != ExecutionProofForkBindingVersion || request.ChainID == 0 || request.ReferenceBlock == 0 || !validHex32(request.ReferenceBlockHash) || !validPayload || !validPayloadDigest || !validSHA256(request.RunnerSHA256) {
@@ -135,9 +137,13 @@ func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedFo
 	}
 
 	invariants, ok := canonicalizeApprovedInvariantDefinitions(request.Invariants)
-	if !ok { return PreparedVerifiedForkRequest{}, false }
+	if !ok {
+		return PreparedVerifiedForkRequest{}, false
+	}
 	ids := make([]string, 0, len(invariants))
-	for _, invariant := range invariants { ids = append(ids, invariant.ID) }
+	for _, invariant := range invariants {
+		ids = append(ids, invariant.ID)
+	}
 
 	return PreparedVerifiedForkRequest{
 		Simulation: ForkSimulationRequest{
@@ -156,14 +162,20 @@ func prepareVerifiedForkRequest(request VerifiedForkRequest) (PreparedVerifiedFo
 }
 
 func canonicalizeApprovedInvariantDefinitions(input []ApprovedInvariantDefinition) ([]ApprovedInvariantDefinition, bool) {
-	if len(input) == 0 { return nil, false }
+	if len(input) == 0 {
+		return nil, false
+	}
 	invariants := append([]ApprovedInvariantDefinition(nil), input...)
 	seen := make(map[string]struct{}, len(invariants))
 	for i := range invariants {
 		invariants[i].ID = strings.TrimSpace(invariants[i].ID)
 		invariants[i].ParametersSHA256 = strings.ToLower(strings.TrimSpace(invariants[i].ParametersSHA256))
-		if invariants[i].ID == "" || !validInvariantClass(invariants[i].Class) || !validSHA256(invariants[i].ParametersSHA256) { return nil, false }
-		if _, exists := seen[invariants[i].ID]; exists { return nil, false }
+		if invariants[i].ID == "" || !validInvariantClass(invariants[i].Class) || !validSHA256(invariants[i].ParametersSHA256) {
+			return nil, false
+		}
+		if _, exists := seen[invariants[i].ID]; exists {
+			return nil, false
+		}
 		seen[invariants[i].ID] = struct{}{}
 	}
 	sort.Slice(invariants, func(i, j int) bool { return invariants[i].ID < invariants[j].ID })
@@ -172,7 +184,9 @@ func canonicalizeApprovedInvariantDefinitions(input []ApprovedInvariantDefinitio
 
 func approvedInvariantSetDigest(invariants []ApprovedInvariantDefinition) string {
 	canonical, err := json.Marshal(invariants)
-	if err != nil { panic("ApprovedInvariantDefinition must remain JSON serializable") }
+	if err != nil {
+		panic("ApprovedInvariantDefinition must remain JSON serializable")
+	}
 	digest := sha256.Sum256(canonical)
 	return hex.EncodeToString(digest[:])
 }

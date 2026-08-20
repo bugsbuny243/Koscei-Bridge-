@@ -49,14 +49,14 @@ type LegacyObservation struct {
 }
 
 type Event struct {
-	SchemaVersion string              `json:"schema_version"`
-	Producer      string              `json:"producer"`
-	Subject       Subject             `json:"subject"`
-	Window        ObservationWindow   `json:"window"`
-	SourceDigests []string            `json:"source_digests_sha256,omitempty"`
-	Findings      []Finding           `json:"findings"`
-	Legacy        *LegacyObservation  `json:"legacy_observation,omitempty"`
-	EventSHA256   string              `json:"event_sha256"`
+	SchemaVersion string             `json:"schema_version"`
+	Producer      string             `json:"producer"`
+	Subject       Subject            `json:"subject"`
+	Window        ObservationWindow  `json:"window"`
+	SourceDigests []string           `json:"source_digests_sha256,omitempty"`
+	Findings      []Finding          `json:"findings"`
+	Legacy        *LegacyObservation `json:"legacy_observation,omitempty"`
+	EventSHA256   string             `json:"event_sha256"`
 }
 
 func (e Event) Canonical() (Event, error) {

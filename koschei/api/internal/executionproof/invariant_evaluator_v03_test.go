@@ -35,7 +35,9 @@ func TestPolicyBoundInvariantEvaluatorPassesApprovedProxyCodehash(t *testing.T) 
 		ExpectedCodeSHA256: sha256Hex(code),
 	}
 	policyDigest, ok := ProxyCodehashPolicyDigest(policy)
-	if !ok { t.Fatal("policy digest failed") }
+	if !ok {
+		t.Fatal("policy digest failed")
+	}
 	registry := StaticInvariantPolicyRegistry{ProxyCodehash: map[string]ProxyCodehashPolicy{policyDigest: policy}}
 	server := proxyCodeRPCServer(t, "0x60006000")
 	defer server.Close()
@@ -44,7 +46,9 @@ func TestPolicyBoundInvariantEvaluatorPassesApprovedProxyCodehash(t *testing.T) 
 	checks, err := evaluator.EvaluatePostState(context.Background(), server.URL, PreparedVerifiedForkRequest{
 		Invariants: []ApprovedInvariantDefinition{{ID: "proxy-codehash", Class: InvariantProxyCodehash, ParametersSHA256: policyDigest}},
 	}, "0x"+strings.Repeat("3", 64))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(checks) != 1 || !checks[0].Passed || !validSHA256(checks[0].Evidence) {
 		t.Fatalf("unexpected checks: %#v", checks)
 	}
@@ -63,7 +67,9 @@ func TestPolicyBoundInvariantEvaluatorFailsChangedProxyCode(t *testing.T) {
 	checks, err := (PolicyBoundInvariantEvaluator{Registry: registry}).EvaluatePostState(context.Background(), server.URL, PreparedVerifiedForkRequest{
 		Invariants: []ApprovedInvariantDefinition{{ID: "proxy-codehash", Class: InvariantProxyCodehash, ParametersSHA256: policyDigest}},
 	}, "0x"+strings.Repeat("3", 64))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(checks) != 1 || checks[0].Passed {
 		t.Fatalf("changed proxy code incorrectly passed: %#v", checks)
 	}
@@ -76,7 +82,9 @@ func TestPolicyBoundInvariantEvaluatorRejectsUnknownPolicyDigest(t *testing.T) {
 	_, err := evaluator.EvaluatePostState(context.Background(), server.URL, PreparedVerifiedForkRequest{
 		Invariants: []ApprovedInvariantDefinition{{ID: "proxy-codehash", Class: InvariantProxyCodehash, ParametersSHA256: strings.Repeat("9", 64)}},
 	}, "0x"+strings.Repeat("3", 64))
-	if err == nil { t.Fatal("unknown policy digest was accepted") }
+	if err == nil {
+		t.Fatal("unknown policy digest was accepted")
+	}
 }
 
 func TestPolicyBoundInvariantEvaluatorRejectsUnsupportedInvariantClass(t *testing.T) {
@@ -86,5 +94,7 @@ func TestPolicyBoundInvariantEvaluatorRejectsUnsupportedInvariantClass(t *testin
 	_, err := evaluator.EvaluatePostState(context.Background(), server.URL, PreparedVerifiedForkRequest{
 		Invariants: []ApprovedInvariantDefinition{{ID: "supply", Class: InvariantAssetConservation, ParametersSHA256: strings.Repeat("1", 64)}},
 	}, "0x"+strings.Repeat("3", 64))
-	if err == nil { t.Fatal("unsupported invariant class was accepted") }
+	if err == nil {
+		t.Fatal("unsupported invariant class was accepted")
+	}
 }

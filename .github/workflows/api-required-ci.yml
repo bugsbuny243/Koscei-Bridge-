@@ -190,8 +190,8 @@ jobs:
           node scripts/verify-dossier-contract.mjs
       - name: Check public language and investigation contracts
         run: |
-          # The legacy landing page remains Turkish until its dedicated source-copy migration.
-          grep -q '<html lang="tr">' public/index.html
+          # The current product homepage is source-English; investigation surfaces remain source-English too.
+          grep -q '<html lang="en">' public/index.html
           grep -q '<html lang="en">' public/scan.html
           grep -q '<html lang="en">' public/safe-check.html
           grep -q '<html lang="en">' public/security-radar.html
@@ -258,15 +258,14 @@ jobs:
         run: |
           set -o pipefail
           # G703/G704 are tracked as a bounded legacy taint-analysis backlog.
-          # Every other high-severity/high-confidence rule remains blocking.
-          "${RUNNER_TEMP}/security-bin/gosec" -severity high -confidence high -exclude-generated -exclude=G703,G704 ./... 2>&1 | tee "${RUNNER_TEMP}/gosec.txt"
+          "${RUNNER_TEMP}/security-bin/gosec" -exclude=G703,G704 -severity high -confidence high -fmt=text ./... 2>&1 | tee "${RUNNER_TEMP}/gosec.txt"
       - name: Upload security scanner logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: security-scanner-logs
+          name: api-security-scans
           path: |
             ${{ runner.temp }}/govulncheck.txt
             ${{ runner.temp }}/gosec.txt
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7

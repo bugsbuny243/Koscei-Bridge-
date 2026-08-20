@@ -93,7 +93,9 @@ func (b AnvilForkBackend) ExecuteVerifiedFork(ctx context.Context, request Prepa
 	if err := client.callBool(ctx, "anvil_impersonateAccount", []any{request.Payload.From}); err != nil {
 		return VerifiedForkBackendResult{}, fmt.Errorf("impersonate simulation sender: %w", err)
 	}
-	defer func() { _ = client.callBool(context.Background(), "anvil_stopImpersonatingAccount", []any{request.Payload.From}) }()
+	defer func() {
+		_ = client.callBool(context.Background(), "anvil_stopImpersonatingAccount", []any{request.Payload.From})
+	}()
 
 	txHash, err := client.sendTransaction(ctx, request.Payload)
 	if err != nil {
@@ -136,16 +138,22 @@ func (b AnvilForkBackend) ExecuteVerifiedFork(ctx context.Context, request Prepa
 
 func fileSHA256(path string) (string, error) {
 	f, err := os.Open(path)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	defer f.Close()
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil { return "", err }
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func reserveLocalPort() (int, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	defer ln.Close()
 	return ln.Addr().(*net.TCPAddr).Port, nil
 }
@@ -155,14 +163,19 @@ func minimalRunnerEnv(input []string) []string {
 	out := make([]string, 0, len(allowed))
 	for _, item := range input {
 		for _, prefix := range allowed {
-			if strings.HasPrefix(item, prefix) { out = append(out, item); break }
+			if strings.HasPrefix(item, prefix) {
+				out = append(out, item)
+				break
+			}
 		}
 	}
 	return out
 }
 
 func durationOr(value, fallback time.Duration) time.Duration {
-	if value > 0 { return value }
+	if value > 0 {
+		return value
+	}
 	return fallback
 }
 
@@ -172,10 +185,14 @@ func waitForAnvil(ctx context.Context, client *evmRPCClient, timeout time.Durati
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		if _, err := client.chainID(ctx); err == nil { return nil }
+		if _, err := client.chainID(ctx); err == nil {
+			return nil
+		}
 		select {
-		case <-ctx.Done(): return ctx.Err()
-		case <-deadline.C: return errors.New("anvil startup timeout")
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-deadline.C:
+			return errors.New("anvil startup timeout")
 		case <-ticker.C:
 		}
 	}
@@ -198,47 +215,77 @@ type rpcResponse struct {
 
 func (c *evmRPCClient) call(ctx context.Context, method string, params any, out any) error {
 	body, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK { return fmt.Errorf("rpc http status %d", resp.StatusCode) }
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("rpc http status %d", resp.StatusCode)
+	}
 	var decoded rpcResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&decoded); err != nil { return err }
-	if decoded.Error != nil { return fmt.Errorf("rpc %s: %d %s", method, decoded.Error.Code, decoded.Error.Message) }
-	if out == nil { return nil }
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&decoded); err != nil {
+		return err
+	}
+	if decoded.Error != nil {
+		return fmt.Errorf("rpc %s: %d %s", method, decoded.Error.Code, decoded.Error.Message)
+	}
+	if out == nil {
+		return nil
+	}
 	return json.Unmarshal(decoded.Result, out)
 }
 
 func (c *evmRPCClient) chainID(ctx context.Context) (uint64, error) {
 	var value string
-	if err := c.call(ctx, "eth_chainId", []any{}, &value); err != nil { return 0, err }
+	if err := c.call(ctx, "eth_chainId", []any{}, &value); err != nil {
+		return 0, err
+	}
 	value = strings.TrimPrefix(value, "0x")
 	return strconv.ParseUint(value, 16, 64)
 }
 
 func (c *evmRPCClient) blockHash(ctx context.Context, block uint64) (string, error) {
-	var result struct{ Hash string `json:"hash"` }
-	if err := c.call(ctx, "eth_getBlockByNumber", []any{fmt.Sprintf("0x%x", block), false}, &result); err != nil { return "", err }
-	if !validHex32(result.Hash) { return "", errors.New("invalid block hash") }
+	var result struct {
+		Hash string `json:"hash"`
+	}
+	if err := c.call(ctx, "eth_getBlockByNumber", []any{fmt.Sprintf("0x%x", block), false}, &result); err != nil {
+		return "", err
+	}
+	if !validHex32(result.Hash) {
+		return "", errors.New("invalid block hash")
+	}
 	return normalizeHex32(result.Hash), nil
 }
 
 func (c *evmRPCClient) callBool(ctx context.Context, method string, params any) error {
 	var ok bool
-	if err := c.call(ctx, method, params, &ok); err != nil { return err }
-	if !ok { return errors.New("rpc returned false") }
+	if err := c.call(ctx, method, params, &ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("rpc returned false")
+	}
 	return nil
 }
 
 func (c *evmRPCClient) sendTransaction(ctx context.Context, payload EVMPayload) (string, error) {
 	var txHash string
 	tx := map[string]any{"from": payload.From, "to": payload.To, "value": payload.ValueHex, "data": payload.DataHex}
-	if err := c.call(ctx, "eth_sendTransaction", []any{tx}, &txHash); err != nil { return "", err }
-	if !validHex32(txHash) { return "", errors.New("invalid transaction hash") }
+	if err := c.call(ctx, "eth_sendTransaction", []any{tx}, &txHash); err != nil {
+		return "", err
+	}
+	if !validHex32(txHash) {
+		return "", errors.New("invalid transaction hash")
+	}
 	return normalizeHex32(txHash), nil
 }
 
@@ -255,7 +302,9 @@ type canonicalEVMReceipt struct {
 
 func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (canonicalEVMReceipt, error) {
 	var receipt canonicalEVMReceipt
-	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil { return receipt, err }
+	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil {
+		return receipt, err
+	}
 	if !equalHex32(receipt.TransactionHash, txHash) || !validHex32(receipt.BlockHash) {
 		return receipt, errors.New("invalid transaction receipt identity")
 	}
@@ -264,19 +313,29 @@ func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (c
 
 func (c *evmRPCClient) requireSuccessfulReceipt(ctx context.Context, txHash string) error {
 	receipt, err := c.transactionReceipt(ctx, txHash)
-	if err != nil { return err }
-	if strings.ToLower(receipt.Status) != "0x1" { return fmt.Errorf("receipt status %q", receipt.Status) }
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(receipt.Status) != "0x1" {
+		return fmt.Errorf("receipt status %q", receipt.Status)
+	}
 	return nil
 }
 
 func (c *evmRPCClient) transactionReceiptDigest(ctx context.Context, txHash string) (string, error) {
 	receipt, err := c.transactionReceipt(ctx, txHash)
-	if err != nil { return "", err }
-	if strings.ToLower(receipt.Status) != "0x1" { return "", fmt.Errorf("receipt status %q", receipt.Status) }
+	if err != nil {
+		return "", err
+	}
+	if strings.ToLower(receipt.Status) != "0x1" {
+		return "", fmt.Errorf("receipt status %q", receipt.Status)
+	}
 	receipt.TransactionHash = normalizeHex32(receipt.TransactionHash)
 	receipt.BlockHash = normalizeHex32(receipt.BlockHash)
 	encoded, err := json.Marshal(receipt)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:]), nil
 }

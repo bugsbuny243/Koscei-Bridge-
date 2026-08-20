@@ -60,15 +60,25 @@ func safeAccessorSimulateCalldataSHA256(tx SafeTransaction) (string, bool) {
 	}
 	selectorHash := keccak256([]byte("simulate(address,uint256,bytes,uint8)"))
 	toWord, err := addressWord(tx.To)
-	if err != nil { return "", false }
+	if err != nil {
+		return "", false
+	}
 	valueWord, err := uintWord(tx.Value)
-	if err != nil { return "", false }
+	if err != nil {
+		return "", false
+	}
 	offsetWord, err := uintWord(big.NewInt(128))
-	if err != nil { return "", false }
+	if err != nil {
+		return "", false
+	}
 	opWord, err := uintWord(new(big.Int).SetUint64(uint64(tx.Operation)))
-	if err != nil { return "", false }
+	if err != nil {
+		return "", false
+	}
 	lengthWord, err := uintWord(new(big.Int).SetUint64(uint64(len(tx.Data))))
-	if err != nil { return "", false }
+	if err != nil {
+		return "", false
+	}
 
 	padded := ((len(tx.Data) + 31) / 32) * 32
 	calldata := make([]byte, 0, 4+32*5+padded)

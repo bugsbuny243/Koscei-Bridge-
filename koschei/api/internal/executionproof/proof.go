@@ -20,7 +20,7 @@ const (
 type ReasonCode string
 
 const (
-	ReasonInvalidEvidence          ReasonCode = "EP-001-INVALID-EVIDENCE"
+	ReasonInvalidEvidence         ReasonCode = "EP-001-INVALID-EVIDENCE"
 	ReasonArtifactMismatch        ReasonCode = "EP-002-ARTIFACT-MISMATCH"
 	ReasonRuntimeArtifactMismatch ReasonCode = "EP-003-RUNTIME-ARTIFACT-MISMATCH"
 	ReasonPayloadMismatch         ReasonCode = "EP-004-PAYLOAD-MISMATCH"
