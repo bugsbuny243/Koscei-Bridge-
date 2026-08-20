@@ -68,7 +68,10 @@ for(const p of ['Starter','Professional','Enterprise'])requireText(pricing,`<h2>
 requireText(pricing,'data-koschei-checkout="starter"','Starter checkout');
 requireText(pricing,'data-koschei-checkout="professional"','Professional checkout');
 requireText(pricing,'data-koschei-checkout="enterprise"','Enterprise checkout');
-requireText(pricing,'Price to finalize','price decision remains explicit');
+requireText(pricing,'$299 / month','Starter price');
+requireText(pricing,'$999 / month','Professional price');
+requireText(pricing,'$4,999 / month','Enterprise price');
+forbid(pricing,/Price to finalize/i,'unfinalized price placeholder');
 forbid(pricing,/Official KOSCH mint|KOSCH Holder Access|\b(?:25K|250K|2M)\s+KOSCH/i,'token-backed pricing');
 
 requireText(account,'Account & SaaS Access','SaaS account surface');
