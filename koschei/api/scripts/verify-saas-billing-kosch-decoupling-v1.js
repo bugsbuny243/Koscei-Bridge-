@@ -51,7 +51,8 @@ requireText(apiKeys,'evaluation, evaluationErr := h.evaluatePlanAccess','API-key
 requireText(apiKeys,'planTierAuthorizes(plan, "enterprise")','API-key Enterprise requirement');
 forbid(apiKeys,/evaluateTokenAccess|token_tier/i,'token-backed API key issuance');
 
-requireText(billingRoutes,'/api/paddle/public-config','Paddle browser config route');
+requireText(billingRoutes,'/paddle/public-config','Paddle browser config route');
+forbid(billingRoutes,/\/api\/paddle\/public-config/,'browser config accidentally exposed as programmatic API');
 requireText(billingRoutes,'/api/paddle/checkout','Paddle checkout route');
 requireText(billingRoutes,'/api/paddle/webhook','Paddle webhook route');
 requireText(paddle,'Paddle-Signature','Paddle signature header');
@@ -98,7 +99,7 @@ requireText(hostedCheckout,'/privacy.html','checkout Privacy link');
 requireText(hostedCheckout,'/refund-policy.html','checkout Refund link');
 forbid(hostedCheckout,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline checkout script');
 forbid(hostedCheckout,/\son[a-z]+\s*=|\sstyle\s*=/i,'inline checkout event/style attributes');
-requireText(hostedCheckoutJS,"fetch('/api/paddle/public-config'",'hosted checkout browser config');
+requireText(hostedCheckoutJS,"fetch('/paddle/public-config'",'hosted checkout browser config');
 requireText(hostedCheckoutJS,'window.Paddle.Initialize','Paddle.js initialization');
 requireText(hostedCheckoutJS,"params.get('_ptxn')",'Paddle default payment transaction binding');
 requireText(hostedCheckoutJS,'transactionId:transactionID','transaction fallback opening');
