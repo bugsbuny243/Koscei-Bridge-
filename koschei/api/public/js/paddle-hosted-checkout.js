@@ -16,7 +16,7 @@
 
   async function boot(){
     try{
-      var response=await fetch('/api/paddle/public-config',{credentials:'same-origin',cache:'no-store'});
+      var response=await fetch('/paddle/public-config',{credentials:'same-origin',cache:'no-store'});
       var config=await readJSON(response);
       if(!response.ok||!config.ok){
         var missing=config&&config.paddle&&Array.isArray(config.paddle.missing_fields)?config.paddle.missing_fields:[];
