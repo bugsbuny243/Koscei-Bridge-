@@ -28,13 +28,16 @@ func (a ActionArtifact) validFor(input CellInput) bool {
 
 // Runner executes a candidate action only inside an isolated defensive runtime
 // and returns observed effects. A Runner has no production forwarding authority.
+// It receives the exact canonical action artifact whose full-action digest is
+// bound independently from any calldata-only payload digest.
 type Runner interface {
 	Observe(ctx context.Context, input CellInput, action ActionArtifact) (Observation, error)
 }
 
-// EvaluateWithRunner is the orchestration helper for a Web3 execution
-// containment cell. Runner absence, cancellation, invalid/mismatched action
-// material, timeout, or backend failure becomes UNAVAILABLE and never RELEASE.
+// EvaluateWithRunner is the only orchestration helper for a containment cell.
+// Runner absence, cancellation, invalid/mismatched action material, timeout, or
+// backend failure is represented as UNAVAILABLE evidence and therefore can
+// never become RELEASE.
 func EvaluateWithRunner(ctx context.Context, input CellInput, action ActionArtifact, runner Runner) (Receipt, error) {
 	if runner == nil || !action.validFor(input) {
 		return Evaluate(input, Observation{BackendAvailable: false})
