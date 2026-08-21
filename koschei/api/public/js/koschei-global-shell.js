@@ -66,7 +66,7 @@
     'Gerçek veri kullanılamıyor. Çıktı hakkı düşülmedi.':'Real data is unavailable. No capacity was consumed.','İmzalı ARVIS kararı':'Signed ARVIS verdict','Doğrulanmış karar':'Verified verdict','Rapor Kasası':'Report Vault',
     'Bir hedef girin.':'Enter a target.','Doğrulanmış kanıt toplanıyor…':'Collecting verified evidence…','Analiz başarısız.':'Analysis failed.','Doğrulanmış kanıt kullanılamıyor.':'Verified evidence is unavailable.','Çıktı hakkı düşülmedi.':'No capacity was consumed.','ARVIS yanıtı kullanılamıyor.':'ARVIS response is unavailable.',
     'Canlı SOC':'Live SOC','Vakalar':'Cases','Token Tara':'Token Scan','Ana menü':'Main navigation','Satın almadan veya imzalamadan önce Koschei’ye sor.':'Ask Koschei before buying or signing.','Token mintini canlı tara ya da Solana işlemini gönderilmeden önce simüle et.':'Scan the token mint live or simulate a Solana transaction before sending it.',
-    'Koschei ARVIS · Solana güvenlik merkezi':'Koschei ARVIS · Solana security center'
+    'Koschei ARVIS · Solana güvenlik merkezi':'Koschei Web3 · ARVIS Intelligence · Solana evidence arm'
   };
 
   function translateString(value){
@@ -112,11 +112,11 @@
     while(nav.firstChild)nav.removeChild(nav.firstChild);
     links.forEach(function(item){var anchor=document.createElement('a');anchor.href=item[0];anchor.textContent=item[1];if(isActiveNavItem(item[0],current))anchor.setAttribute('aria-current','page');nav.appendChild(anchor);});
     if(!existing){var top=document.querySelector('header.top,.top');if(top){nav.className+=' detached';top.parentNode.insertBefore(nav,top.nextSibling);}}
-    if(current==='/dashboard'&&!document.querySelector('.koschei-safety-strip')){var strip=document.createElement('section');strip.className='koschei-safety-strip';strip.innerHTML='<div><b>Ask Koschei before buying or signing.</b><span>Scan the token mint live or simulate a Solana transaction before sending it.</span></div><span><a href="/scan">Token Scan</a> <a href="/transaction-shield">Transaction Shield</a></span>';var stripAnchor=document.querySelector('.koschei-global-nav')||document.querySelector('header.top,.top');if(stripAnchor&&stripAnchor.parentNode){stripAnchor.parentNode.insertBefore(strip,stripAnchor.nextSibling);}}
+    if(current==='/dashboard'&&!document.querySelector('.koschei-safety-strip')){var strip=document.createElement('section');strip.className='koschei-safety-strip';strip.innerHTML='<div><b>Ask Koschei before buying or signing.</b><span>ARVIS investigation and transaction evidence stay inside the Koschei Web3 security workflow.</span></div><span><a href="/scan">ARVIS Investigation</a> <a href="/transaction-shield">Transaction Shield</a></span>';var stripAnchor=document.querySelector('.koschei-global-nav')||document.querySelector('header.top,.top');if(stripAnchor&&stripAnchor.parentNode){stripAnchor.parentNode.insertBefore(strip,stripAnchor.nextSibling);}}
     var bottom=document.querySelector('nav.bottom');if(bottom)bottom.remove();
-    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei ARVIS · Solana security center</span><span><a href="/live">Live SOC</a> · <a href="/cases">Cases</a> · <a href="/scan">Token Scan</a> · <a href="/transaction-shield">Transaction Shield</a> · <a href="/safe-check">Safe Check</a> · <a href="/kosch">KOSCH</a></span>';document.body.appendChild(footer);}
-    if(current==='/safe-check')document.title='Safe Check — Koschei ARVIS';
-    if(current==='/security-radar')document.title='Koschei ARVIS — Full Security Radar';
+    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei Web3 · ARVIS Intelligence</span><span><a href="/live">Live SOC</a> · <a href="/cases">Cases</a> · <a href="/scan">ARVIS Investigation</a> · <a href="/transaction-shield">Transaction Shield</a> · <a href="/safe-check">Safe Check</a> · <a href="/kosch">KOSCH</a></span>';document.body.appendChild(footer);}
+    if(current==='/safe-check')document.title='Safe Check — Koschei Web3 / ARVIS';
+    if(current==='/security-radar')document.title='ARVIS Security Radar — Koschei Web3';
     translate(document.body);
     loadInvestigationShare(current);
     var observer=new MutationObserver(function(records){records.forEach(function(record){record.addedNodes.forEach(function(node){if(node.nodeType===1)translate(node);else if(node.nodeType===3&&node.parentElement){var next=translateString(node.nodeValue);if(next!==node.nodeValue)node.nodeValue=next;}});});});
