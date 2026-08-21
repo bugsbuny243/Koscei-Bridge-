@@ -137,11 +137,11 @@ const exact=new Map(Object.entries({
   'Hesabınız yok mu?':'No account yet?',
   'Hesap oluştur':'Create an account',
   'Zaten hesabınız var mı?':'Already have an account?',
-  'Hesap oturumunu aç. Derin ARVIS araçları için girişten sonra Phantom cüzdanını doğrula ve KOSCH holder durumunu kontrol et.':'Open your account session. After signing in, verify your Phantom wallet and KOSCH holder status to unlock deep ARVIS tools.',
-  'Hesap ücretsiz oluşturulur. Public Safe Check açıktır; derin ürün erişimi doğrulanmış KOSCH bakiyesiyle açılır.':'Account creation is free. Public Safe Check remains open; deep product access unlocks through a verified KOSCH balance.',
-  '✓ Paket veya kart bilgisi gerekmez':'✓ No package or payment card is required',
-  '✓ Phantom yalnız mesaj imzalar':'✓ Phantom signs a message only',
-  "✓ KOSCH bakiyesi ürün tier'ını otomatik açar":'✓ Verified KOSCH balance unlocks the product tier automatically',
+  'Hesap oturumunu aç. Derin ARVIS araçları için girişten sonra Phantom cüzdanını doğrula ve KOSCH holder durumunu kontrol et.':'Open your account session to manage your Koschei SaaS entitlement and access features included in your active plan. Token holdings and wallet balances do not unlock paid access.',
+  'Hesap ücretsiz oluşturulur. Public Safe Check açıktır; derin ürün erişimi doğrulanmış KOSCH bakiyesiyle açılır.':'Account creation is free. Public Safe Check remains open; paid product features unlock through an active SaaS entitlement after Paddle checkout.',
+  '✓ Paket veya kart bilgisi gerekmez':'✓ No payment method is required to create an account',
+  '✓ Phantom yalnız mesaj imzalar':'✓ Phantom verification is identity-only',
+  "✓ KOSCH bakiyesi ürün tier'ını otomatik açar":'✓ Token holdings do not unlock paid access',
   'Giriş başarılı.':'Sign-in successful.',
   'Giriş yapılamadı.':'Sign-in failed.',
   'Geçerli e-posta girin.':'Enter a valid email address.',
@@ -160,8 +160,8 @@ function translateText(value){
     translated=trimmed
       .replace(/^Giriş Yap\s*[—-]\s*/,'Sign In — ')
       .replace(/^Hesap Oluştur\s*[—-]\s*/,'Create Account — ')
-      .replace(/Koschei ARVIS hesabınıza Neon Auth ile giriş yapın; derin araçlar doğrulanmış KOSCH holder access gerektirir\./g,'Sign in to Koschei ARVIS with Neon Auth. Deep investigation tools require verified KOSCH holder access.')
-      .replace(/Koschei ARVIS hesabınızı Neon Auth ile oluşturun; derin araçlar doğrulanmış KOSCH holder access ile açılır\./g,'Create a Koschei ARVIS account with Neon Auth. Deep tools unlock through verified KOSCH holder access.');
+      .replace(/Koschei ARVIS hesabınıza Neon Auth ile giriş yapın; derin araçlar doğrulanmış KOSCH holder access gerektirir\./g,'Sign in to Koschei ARVIS with Neon Auth. Paid features require an active SaaS entitlement.')
+      .replace(/Koschei ARVIS hesabınızı Neon Auth ile oluşturun; derin araçlar doğrulanmış KOSCH holder access ile açılır\./g,'Create a Koschei ARVIS account with Neon Auth. Paid features unlock after verified Paddle billing.');
   }
   if(translated===trimmed&&translated===source)return source;
   const leading=source.match(/^\s*/)?.[0]||'';
