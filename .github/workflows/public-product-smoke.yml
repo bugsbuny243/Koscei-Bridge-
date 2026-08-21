@@ -110,8 +110,8 @@ jobs:
           checked_page live_page /live "Canlı SOC"
           checked_page login_page /login "KOSCHEI ARVIS"
           checked_page register_page /register "KOSCHEI ARVIS"
-          checked_page account_page /account "KOSCHEI ARVIS"
-          checked_page reports_page /reports "KOSCHEI ARVIS"
+          checked_page account_page /account "Account & SaaS Access"
+          checked_page reports_page /reports "Investigation History"
           checked_page arvis_scan /scan "arvis-premium-contract.js"
           checked_page arvis_dashboard /dashboard "Security Workspace"
           checked_page safe_check /safe-check "Koschei ARVIS"
@@ -148,16 +148,16 @@ jobs:
             if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
               wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             fi
-            wait_expect_200 landing_page / "Evidence-backed Web3 investigation system"
+            wait_expect_200 landing_page / "Protect the transaction before the signature."
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
             wait_expect_200 account_page /account "Account & SaaS Access"
-            wait_expect_200 reports_page /reports "Report Vault"
-            wait_expect_200 arvis_scan /scan "Unified Scan Center"
-            wait_expect_200 arvis_dashboard /dashboard "Workspace, not another scanner"
-            wait_expect_200 safe_check /safe-check "Unified Scan Center"
-            wait_expect_200 transaction_shield /transaction-shield "Unified Scan Center"
-            wait_expect_200 security_radar /security-radar "Unified Scan Center"
+            wait_expect_200 reports_page /reports "Investigation History"
+            wait_expect_200 arvis_scan /scan "Evidence-backed investigation"
+            wait_expect_200 arvis_dashboard /dashboard "Security Workspace"
+            wait_expect_200 safe_check /safe-check "Evidence-backed investigation"
+            wait_expect_200 transaction_shield /transaction-shield "Evidence-backed investigation"
+            wait_expect_200 security_radar /security-radar "Evidence-backed investigation"
 
             grep -Fqi 'location: /scan?mode=quick' diagnostics/safe_check.headers || { echo 'SAFE_CHECK_REDIRECT_FAILURE' >&2; exit 40; }
             grep -Fqi 'location: /scan?mode=transaction' diagnostics/transaction_shield.headers || { echo 'TRANSACTION_REDIRECT_FAILURE' >&2; exit 41; }
