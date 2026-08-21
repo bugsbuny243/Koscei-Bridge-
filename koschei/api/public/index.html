@@ -3,63 +3,85 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei Web3 is a cybersecurity control plane for execution proof, signing integrity, runtime defense, invariant verification, and cross-chain trust.">
-<meta name="theme-color" content="#02050a">
+<meta name="description" content="Koschei Web3 is a no-custody Web3 security control plane for transaction intent, execution integrity, runtime defense and evidence-backed investigations.">
+<meta name="theme-color" content="#0b0f13">
 <title>Koschei Web3 | Web3 Security</title>
 <link rel="canonical" href="https://tradepigloball.co/">
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
-<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
+<link rel="stylesheet" href="/css/koschei-enterprise-v3.css?v=1">
 <style>
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#02050a;color:#edf7fb}a{color:inherit;text-decoration:none}.page{max-width:1280px;margin:auto;padding:20px 22px 64px}.surface{border:1px solid #ffffff16;border-radius:26px;background:linear-gradient(145deg,#071018,#04080d)}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;margin-bottom:18px;position:sticky;top:10px;z-index:10;backdrop-filter:blur(16px)}.brand{display:flex;align-items:center;gap:11px}.mark{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:#02110d;background:linear-gradient(135deg,#42f5b6,#55d9ff);font-weight:1000}.muted{color:#8fa8b4}.nav,.actions,.chips{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #ffffff1c;border-radius:999px;background:#ffffff08;font-weight:850}.btn.primary{background:linear-gradient(135deg,#42f5b6,#55d9ff);color:#02110d;border:0}.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(440px,.95fr);gap:16px}.hero-copy{padding:34px}.eyebrow{font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#79f6cb}.hero h1{margin:14px 0 16px;font-size:clamp(48px,7vw,88px);line-height:.94;letter-spacing:-.05em}.hero p{max-width:760px;color:#a8bdc7;font-size:17px;line-height:1.75}.chips{margin-top:20px}.chip{padding:8px 11px;border:1px solid #42f5b633;border-radius:999px;background:#42f5b60b;color:#baffea;font:750 12px ui-monospace,SFMono-Regular,Menlo,monospace}.world{position:relative;min-height:490px;overflow:hidden;background:radial-gradient(circle at 65% 35%,#0a2d2538,transparent 38%),linear-gradient(145deg,#02070b,#061118)}.world:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 65%,#02050ae8);pointer-events:none;z-index:2}.world-head{position:absolute;left:20px;right:20px;top:18px;display:flex;justify-content:space-between;gap:10px;z-index:3}.world-state{font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#7dffd0}.world-note{font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#7d929d;text-align:right}.world canvas{display:block;width:100%;height:490px}.world-legend{position:absolute;left:20px;right:20px;bottom:18px;z-index:3;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.world-legend div{padding:10px 11px;border:1px solid #ffffff13;border-radius:14px;background:#02070bd9}.world-legend small{display:block;color:#708b97;font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}.world-legend b{display:block;margin-top:3px;font-size:12px}.section{margin-top:18px;padding:28px}.section h2{font-size:clamp(30px,4vw,48px);margin:8px 0 12px}.section-lead{max-width:800px;color:#9eb4bf;line-height:1.7}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.card{padding:20px;border:1px solid #ffffff13;border-radius:22px;background:#ffffff05}.card .status{display:inline-block;margin-bottom:12px;padding:6px 9px;border-radius:999px;background:#55d9ff12;color:#9feaff;font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}.card .status.preview{background:#ffcc6612;color:#ffe0a0}.card h3{margin:0 0 8px;font-size:20px}.card p{margin:0;color:#94abb6;line-height:1.6}.flow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:22px}.flow div{padding:14px 10px;text-align:center;border:1px solid #ffffff12;border-radius:16px;background:#061018;font-size:12px;font-weight:850}.legacy{margin-top:18px;padding:20px;border:1px dashed #ffffff22;border-radius:22px;color:#8ea5b0}.legacy strong{color:#cbdbe3}.footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:24px 4px 0;color:#708895;font-size:13px}.footer nav{display:flex;gap:12px;flex-wrap:wrap}.footer a{color:#9bb9c7}@media(max-width:980px){.hero{grid-template-columns:1fr}.world{min-height:430px}.world canvas{height:430px}.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.page{padding:12px 12px 44px}.top{position:static;align-items:flex-start;flex-direction:column}.nav{width:100%;overflow-x:auto;flex-wrap:nowrap}.nav .btn{flex:0 0 auto}.hero-copy,.section{padding:20px}.grid,.flow,.world-legend{grid-template-columns:1fr}.hero h1{font-size:48px}.world{min-height:500px}.world canvas{height:500px}.world-note{display:none}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}.page{padding:20px 0 64px}.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:11px}.mark{display:grid;place-items:center}.nav,.actions{display:flex;gap:8px;flex-wrap:wrap}.hero{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(330px,.82fr);gap:14px}.hero-copy{padding:40px}.hero h1{margin:14px 0 18px}.hero p{max-width:760px;margin:0;font-size:17px}.surface{border:1px solid transparent}.control-boundary{align-self:stretch}.section{margin-top:14px;padding:32px}.section h2{margin:8px 0 10px;font-size:clamp(30px,4vw,46px)}.section-lead{max-width:800px;margin:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.card{padding:20px}.card small{display:block;color:#7f8d98;font:600 10px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em}.card h3{margin:10px 0 8px;font-size:19px}.card p{margin:0;color:#9ba8b4;line-height:1.58}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.principle{margin-top:14px;padding:24px;display:flex;justify-content:space-between;gap:24px;align-items:center}.principle strong{font-size:20px}.principle p{max-width:700px;margin:4px 0 0;color:#9ba8b4;line-height:1.55}.footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:24px 2px 0;color:#7f8c97;font-size:13px}.footer nav{display:flex;gap:14px;flex-wrap:wrap}@media(max-width:920px){.hero,.two{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.page{padding-bottom:42px}.top{align-items:flex-start;flex-direction:column}.nav{width:100%;overflow-x:auto;flex-wrap:nowrap}.nav .btn{flex:0 0 auto}.hero-copy,.section{padding:22px}.grid{grid-template-columns:1fr}.principle{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
-<body>
+<body class="koschei-enterprise">
 <main class="page">
-<nav class="top surface">
-<a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small class="muted">Web3 Security</small></span></a>
-<div class="nav"><a class="btn" href="#execution-proof">Execution Proof</a><a class="btn" href="#transaction-defense">Transaction Defense</a><a class="btn" href="#node-shield">Node Shield</a><a class="btn" href="#cross-chain">Cross-Chain Trust</a><a class="btn" href="/dashboard">Security Operations</a><a class="btn" href="/pricing">Pricing</a><a class="btn" href="/support">Support</a></div>
+<nav class="top">
+<a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small>Web3 Security</small></span></a>
+<div class="nav"><a class="btn" href="#execution-proof">Execution Proof</a><a class="btn" href="#transaction-defense">Transaction Defense</a><a class="btn" href="#runtime-defense">Runtime Defense</a><a class="btn" href="/scan">Investigations</a><a class="btn" href="/dashboard">Security Operations</a><a class="btn" href="/pricing">Pricing</a></div>
 </nav>
+
 <section class="hero">
 <article class="surface hero-copy">
-<span class="eyebrow">The security layer beneath Web3</span>
-<h1>See the execution.<br>Prove the reality.</h1>
-<p>Koschei Web3 exposes the execution path beneath wallets, signers, nodes, bridges and chains. It is being built to bind that path to evidence and stop side effects when the required reality cannot be proven.</p>
-<div class="actions" style="margin-top:22px"><a class="btn primary" href="#execution-proof">Enter Execution Proof</a><a class="btn" href="/architecture">View Architecture</a></div>
-<div class="chips"><span class="chip">NO VALID PROOF = NO SIGNATURE</span><span class="chip">FAIL CLOSED</span><span class="chip">NO CUSTODY</span><span class="chip">STATIC HTML + VANILLA JS</span></div>
+<span class="eyebrow">Web3 security control plane</span>
+<h1>Protect the transaction before the signature.</h1>
+<p>See the execution. Koschei binds approved intent to the payload that will actually execute, preserves the evidence behind that decision and withholds authority when required proof is missing.</p>
+<div class="actions" style="margin-top:24px"><a class="btn primary" href="/dashboard">Open Security Workspace</a><a class="btn" href="/architecture">Review Architecture</a></div>
+<div class="enterprise-trust">
+<div><small>Custody</small><b>No keys. No funds.</b><p>Koschei is designed to verify and defend without becoming the asset holder.</p></div>
+<div><small>Evidence</small><b>Reproducible decisions.</b><p>Inputs, policy identity and execution evidence are bound to the decision path.</p></div>
+<div><small>Authority</small><b>NO VALID PROOF = NO SIGNATURE</b><p>Unknown or incomplete evidence never becomes an implicit allow decision.</p></div>
+</div>
 </article>
-<aside class="surface world" aria-label="Koschei Web3 execution topology visualization">
-<div class="world-head"><span class="world-state">WEB3 EXECUTION TOPOLOGY</span><span class="world-note">visualization layer · not a synthetic live verdict</span></div>
-<canvas data-koschei-security-world aria-hidden="true"></canvas>
-<div class="world-legend"><div><small>Network</small><b>Chains + execution paths</b></div><div><small>Analysis</small><b>Observed execution focus</b></div><div><small>Authority</small><b>Proof decides side effects</b></div></div>
+<aside class="surface control-boundary">
+<span class="eyebrow">Control boundary</span><h2>What must remain true</h2>
+<div class="boundary-list">
+<div class="boundary-row"><span>Intent</span><b>The approved action is explicit and attributable.</b></div>
+<div class="boundary-row"><span>Payload</span><b>The executable bytes match the reviewed transaction.</b></div>
+<div class="boundary-row"><span>State</span><b>The decision is tied to a known chain state and invariant set.</b></div>
+<div class="boundary-row"><span>Execution</span><b>The exact action is evaluated before authority is released.</b></div>
+<div class="boundary-row"><span>Evidence</span><b>The result can be independently reviewed instead of trusted as a UI score.</b></div>
+</div>
 </aside>
 </section>
+
 <section class="surface section" id="execution-proof">
-<span class="eyebrow">Core product</span><h2>Execution Proof</h2>
-<p class="section-lead">Koschei verifies that the transaction presented for signing is bound to approved evidence. A dashboard score is not an authorization primitive; reproducible evidence is.</p>
-<div class="grid"><article class="card"><span class="status">Core available</span><h3>Deterministic proof envelope</h3><p>Source identity, artifact hash, policy hash, calldata identity, invariant set and signer authorization are bound into canonical evidence.</p></article><article class="card"><span class="status">Core available</span><h3>Safe signing gate</h3><p>Safe transaction identity is recomputed locally. A caller-supplied ALLOW value or presented transaction hash is never authoritative.</p></article><article class="card"><span class="status preview">In validation</span><h3>Pinned EVM execution</h3><p>The v0.3 work executes the exact payload on an isolated pinned fork and binds the execution receipt to authorization evidence.</p></article></div>
+<div class="enterprise-section-head"><div><span class="eyebrow">Execution integrity</span><h2>Execution Proof</h2><p class="section-lead">Verify that approved intent, transaction identity, policy and execution evidence describe the same action before a signing boundary is crossed.</p></div><a class="enterprise-link" href="/architecture">How the proof chain works →</a></div>
+<div class="grid">
+<article class="card"><small>01 · Identity</small><h3>Canonical transaction identity</h3><p>Recompute the transaction identity locally instead of trusting caller-supplied hashes, labels or allow flags.</p></article>
+<article class="card"><small>02 · Policy</small><h3>Bound authorization context</h3><p>Bind artifact, policy, calldata and signer authorization to the same evidence envelope.</p></article>
+<article class="card"><small>03 · Execution</small><h3>Pinned-state verification</h3><p>Evaluate the exact payload against a known execution state and preserve the result for later review.</p></article>
+</div>
+<div class="availability-note"><strong>Production enforcement is not yet enabled.</strong> Execution Proof remains behind runtime call-chain, integration and no-bypass signing verification. The public site does not represent package existence as production wiring.</div>
 </section>
+
 <section class="surface section" id="transaction-defense">
-<span class="eyebrow">Transaction defense</span><h2>Watch the path. Stop the mutation.</h2>
-<div class="grid"><article class="card"><span class="status preview">In validation</span><h3>Exact fork payload binding</h3><p>The v0.3 work requires chain, Safe-as-from, target, value and calldata to match the verified fork request before forwarding.</p></article><article class="card"><span class="status preview">In validation</span><h3>Concrete invariant verification</h3><p>Proxy codehash, privileged-role state, treasury bounds, asset conservation and bridge reserve/supply evaluators are under v0.3 review.</p></article><article class="card"><span class="status preview">In validation</span><h3>Reorg / staleness gate</h3><p>The v0.3 authorization path rechecks reference block identity and permitted head lag immediately before signing side effects.</p></article></div>
-<div class="flow"><div>Intent</div><div>Build</div><div>Payload</div><div>Pinned State</div><div>Execute</div><div>Invariants</div><div>Sign / Block</div></div>
+<span class="eyebrow">Transaction defense</span><h2>Detect the mutation before it becomes authority.</h2>
+<p class="section-lead">The transaction path is checked as a sequence of evidence boundaries rather than a single dashboard risk score.</p>
+<div class="grid">
+<article class="card"><small>Payload binding</small><h3>Intent versus executable action</h3><p>Compare the reviewed target, value and calldata with the action presented to the signing path.</p></article>
+<article class="card"><small>Invariant verification</small><h3>State that must not drift</h3><p>Evaluate privileged roles, treasury bounds, asset conservation and bridge reserve/supply rules where chain semantics support them.</p></article>
+<article class="card"><small>Freshness</small><h3>Reject stale assumptions</h3><p>Recheck reference state and permitted head lag before a decision can authorize a side effect.</p></article>
+</div>
 </section>
-<section class="surface section" id="node-shield">
-<span class="eyebrow">Runtime defense</span><h2>Node Shield</h2>
-<p class="section-lead">Node Shield is the runtime containment and attestation layer intended to prove that the artifact and effective runtime authority match the approved deployment policy. It remains behind its live Linux/BPF proof gate and is not presented here as production-complete.</p>
-<div class="grid"><article class="card"><span class="status preview">In validation</span><h3>Runtime identity</h3><p>Bind the approved artifact to the process that actually runs.</p></article><article class="card"><span class="status preview">In validation</span><h3>Capability containment</h3><p>Prevent runtime authority from silently expanding beyond local policy.</p></article><article class="card"><span class="status preview">In validation</span><h3>Kernel evidence</h3><p>Linux eBPF/LSM evidence is required before the runtime layer is treated as proven.</p></article></div>
+
+<div class="two">
+<section class="surface section" id="runtime-defense" style="margin-top:0">
+<span class="eyebrow">Runtime defense</span><h2>Node Shield</h2><p class="section-lead">Prove that the software actually running has not silently gained a different artifact identity or effective authority than the locally approved deployment policy.</p>
+<div class="grid" style="grid-template-columns:1fr;margin-top:18px"><article class="card"><small>Runtime identity</small><h3>Artifact to process binding</h3><p>Keep execution identity and effective capability evidence attached to the runtime rather than the deployment story.</p></article><article class="card"><small>Containment</small><h3>Authority cannot expand silently</h3><p>Runtime evidence must remain inside the approved local policy boundary.</p></article></div>
 </section>
-<section class="surface section" id="cross-chain">
-<span class="eyebrow">Cross-chain trust</span><h2>One security layer, chain-native evidence.</h2>
-<p class="section-lead">Koschei is not a Solana-only scanner. Ethereum/EVM, Solana and future chain adapters feed the same evidence model without pretending different chains have identical mechanics. Pi ↔ Solana remains a native adapter path, not a fake EVM wrapper.</p>
-<div class="grid"><article class="card"><span class="status">Semantics defined</span><h3>Bridge reserve / supply</h3><p>The invariant model includes reserve/supply semantics; the concrete EVM evaluator is in v0.3 validation and chain-specific adapters come separately.</p></article><article class="card"><span class="status preview">Adapter planned</span><h3>Pi ↔ Solana</h3><p>Vault, mint and burn authorization will reuse cross-chain proof semantics with native evidence adapters.</p></article><article class="card"><span class="status preview">Expansion path</span><h3>Multi-chain control plane</h3><p>New chains join through evidence adapters without redefining the core ALLOW/BLOCK contract.</p></article></div>
+<section class="surface section" id="cross-chain" style="margin-top:0">
+<span class="eyebrow">Cross-chain trust</span><h2>Chain-native evidence, one decision model.</h2><p class="section-lead">Ethereum/EVM, Solana and future adapters keep their native mechanics while feeding a common evidence and validation contract.</p>
+<div class="grid" style="grid-template-columns:1fr;margin-top:18px"><article class="card"><small>Bridge invariants</small><h3>Reserve and supply evidence</h3><p>Cross-chain controls are evaluated with chain-specific reserve, mint and burn semantics.</p></article><article class="card"><small>Adapter model</small><h3>No fake chain equivalence</h3><p>New ecosystems join through explicit adapters instead of pretending every chain behaves like EVM.</p></article></div>
 </section>
+</div>
+
 <section class="surface section">
-<span class="eyebrow">Security operations</span><h2>Investigation is a sensor, not the product identity.</h2>
-<p class="section-lead">Wallet, token, actor and transaction investigation remains useful for evidence collection and incident response, but it no longer defines Koschei Web3's identity or homepage.</p>
-<div class="legacy"><strong>Investigation tools:</strong> <a href="/scan">Token / wallet investigation</a> · <a href="/scan?mode=deep">Deep investigation</a> · <a href="/safe-check">Safe Check</a>.</div>
+<div class="enterprise-section-head"><div><span class="eyebrow">Security operations</span><h2>Investigate what the controls observe.</h2><p class="section-lead">Wallet, token, actor and transaction investigations remain evidence sensors for security operations and incident response. They are available as operational tools without being confused with signing authority.</p></div><div class="actions"><a class="btn primary" href="/scan">Start Investigation</a><a class="btn" href="/dashboard">Open Workspace</a></div></div>
 </section>
-<footer class="footer"><span>© Koschei Web3</span><nav><a href="/pricing">Pricing</a><a href="/support">Support</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/refund-policy.html">Refunds</a></nav><span>Execution integrity · Runtime defense · Cross-chain trust · Security operations</span></footer>
+
+<section class="principle surface"><div><strong>Fail closed by design.</strong><p>Missing evidence, incomplete observation or an unverified runtime boundary is surfaced as uncertainty. Koschei does not convert “unknown” into “safe.”</p></div><a class="btn" href="/cases">Review Evidence Cases</a></section>
+<footer class="footer"><span>© Koschei Web3</span><nav><a href="/architecture">Architecture</a><a href="/pricing">Pricing</a><a href="/support">Support</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav><span>Execution integrity · Runtime defense · Evidence-backed operations</span></footer>
 </main>
-<script src="/js/koschei-security-world.js?v=1"></script><script src="/js/koschei-global-shell.js?v=4"></script><script src="/js/koschei-product-v2.js?v=1"></script><script src="/js/feedback-button.js?v=1"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script><script src="/js/feedback-button.js?v=1"></script>
 </body>
 </html>

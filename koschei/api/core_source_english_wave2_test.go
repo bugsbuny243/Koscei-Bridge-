@@ -9,11 +9,11 @@ import (
 func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 	files := map[string][]string{
 		"public/index.html": {
-			"The security layer beneath Web3",
+			"Protect the transaction before the signature.",
 			"See the execution.",
 			"NO VALID PROOF = NO SIGNATURE",
-			"visualization layer · not a synthetic live verdict",
-			"A dashboard score is not an authorization primitive",
+			"Production enforcement is not yet enabled.",
+			"Fail closed by design.",
 			"id=\"execution-proof\"",
 		},
 		"public/account.html": {

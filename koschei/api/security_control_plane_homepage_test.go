@@ -14,20 +14,21 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 	text := string(body)
 	for _, required := range []string{
 		"Koschei Web3 | Web3 Security",
+		"Protect the transaction before the signature.",
 		"See the execution.",
-		"WEB3 EXECUTION TOPOLOGY",
-		"koschei-security-world.js",
 		"Execution Proof",
 		"Transaction Defense",
 		"Node Shield",
-		"Cross-Chain Trust",
+		"id=\"cross-chain\"",
+		"Chain-native evidence, one decision model.",
 		"Security Operations",
 		"NO VALID PROOF = NO SIGNATURE",
-		"Core available",
-		"In validation",
+		"Production enforcement is not yet enabled.",
+		"Fail closed by design.",
+		"koschei-enterprise-v3.css",
 	} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("homepage missing Koschei Web3 identity %q", required)
+			t.Fatalf("homepage missing Koschei Web3 product identity %q", required)
 		}
 	}
 	for _, forbidden := range []string{
@@ -41,10 +42,13 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		"Buy a token",
 		"homepage-score-label",
 		"homepage-preflight-v2.js",
-		">Implemented<",
+		"STATIC HTML + VANILLA JS",
+		"Core available",
+		"Adapter planned",
+		"Expansion path",
 	} {
 		if strings.Contains(text, forbidden) {
-			t.Fatalf("homepage regressed or introduced a competing product identity: found %q", forbidden)
+			t.Fatalf("homepage regressed or introduced a demo/competing product identity: found %q", forbidden)
 		}
 	}
 }

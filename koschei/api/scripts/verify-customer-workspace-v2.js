@@ -9,12 +9,13 @@ const css=fs.readFileSync(path.join(root,'public','css','customer-workspace-v2.c
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
 requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
+requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
 requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
-requireText(html,'id="workspaceMissionControl"','mission control mount');
+requireText(html,'id="workspaceMissionControl"','operations mount');
 requireText(html,'id="workspaceLatestReport"','latest investigation mount');
 requireText(html,'id="workspaceAlerts"','alerts mount');
-requireText(html,'LATEST CANONICAL INVESTIGATION','canonical history copy');
-requireText(html,'Investigation jobs','canonical history KPI copy');
+requireText(html,'RECENT INVESTIGATION','recent investigation copy');
+requireText(html,'Investigation jobs','history KPI copy');
 requireText(js,"read('/api/auth/premium-access')",'SaaS access source');
 requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
 requireText(js,"read('/api/watchlist')",'watchlist source');
@@ -34,7 +35,7 @@ requireText(js,'No active paid SaaS entitlement.','inactive SaaS boundary');
 requireText(js,'Professional plan required.','Professional watchlist boundary');
 requireText(js,"encodeURIComponent(target)",'safe target navigation');
 requireText(js,"!text(item.read_at)",'existing alert unread handling');
-requireText(css,'.workspace-live','mission control styles');
+requireText(css,'.workspace-live','operations styles');
 requireText(css,'.workspace-alert','alert styles');
 requireText(css,'.workspace-report-card','investigation card styles');
 
@@ -43,5 +44,5 @@ if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must
 if(/token_tier|token_amount|KOSCH holder access/i.test(js))throw new Error('workspace must not derive access from token holdings');
 if(js.includes('Math.random('))throw new Error('workspace must not fabricate live metrics');
 if(/fetch\s*\(/.test(js))throw new Error('workspace account data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
-if(!html.includes('Unavailable data stays unavailable; the UI does not invent operational state.'))throw new Error('dashboard must expose the no-fake-data boundary');
-console.log('customer workspace canonical history + SaaS access contract: ok');
+if(!html.includes('If a source is unavailable, the workspace leaves it unavailable instead of inventing a status.'))throw new Error('dashboard must expose the no-fake-data boundary');
+console.log('customer workspace evidence + SaaS access contract: ok');

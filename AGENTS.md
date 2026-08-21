@@ -1,10 +1,17 @@
 # Repository agent contract
 
-All Codex and automated implementation work in this repository must begin by reading and referencing [`ACTOR_INVESTIGATION_ENGINE.md`](./ACTOR_INVESTIGATION_ENGINE.md) when touching legacy actor/token investigation behavior. New Security Control Plane work must preserve the evidence-first rules below without treating the legacy Radar as the product boundary.
+All Codex and automated implementation work in this repository must select the applicable canonical contract before changing behavior:
+
+- product-wide defense validation and Security Control Plane work: [`WEB3_DEFENSE_VALIDATION_ENGINE.md`](./WEB3_DEFENSE_VALIDATION_ENGINE.md);
+- legacy actor/token investigation behavior: [`ACTOR_INVESTIGATION_ENGINE.md`](./ACTOR_INVESTIGATION_ENGINE.md).
+
+Work that crosses both surfaces must preserve their separate authority models. Radar/Actor evidence may inform a validation scenario, but it cannot self-produce a defense-validation result.
 
 ## Non-negotiable product mission
 
 Koschei Web3 is the market-facing Web3 cybersecurity product. Its target is to fill defensible security gaps across execution integrity, signing defense, infrastructure/node protection, cross-chain trust and evidence-backed containment. The legacy Solana investigation/Radar stack remains a supported security sensor; it does not define the future product boundary.
+
+The product-wide validation question is: **does this exact Web3 defense configuration actually catch or contain this controlled attack before impact without flagging the matched benign action?** Defense-validation outcomes are deterministic `VALIDATED`, `FAILED` or `INCOMPLETE` results scoped to exact configuration/scenario/evidence identity. They do not replace ALLOW/BLOCK authorization decisions at signing or containment boundaries.
 
 Koschei Lang and Koschei Sentinel are separate projects. Lang is intended to become a hardened programming/execution foundation for high-security crypto software. Sentinel is intended to become the security-intelligence brain across the crypto ecosystem. Web3 may consume their capabilities through explicit interfaces but must not collapse repository boundaries.
 
@@ -26,14 +33,18 @@ Web/mobile/CLI surfaces are untrusted presentation clients. They must never beco
 
 1. New Security Control Plane work is evidence-first, deterministic where possible, and fail-closed at authority boundaries.
 2. Execution/signing authorization must use explicit ALLOW/BLOCK semantics; no numeric risk score, weighted formula or AI-generated authority decision may replace verified evidence.
-3. Missing, malformed, unsupported or mismatched security evidence must never silently become a positive decision.
-4. AI may explain evidence or triggered rules but may not fabricate evidence or override deterministic security authority.
-5. Do not introduce demo, beta, placeholder, synthetic or fabricated production security outputs.
-6. Do not modify auth, Neon Auth, sessions, owner cookies, KOSCH entitlement or verified-wallet implementation unless the user explicitly requests that exact work.
-7. Do not delete a legacy production path until its replacement has proven behavioral parity and rollback safety.
-8. No production private key, seed phrase, custody secret or signing authority may be moved into UI code or an untrusted integration layer.
-9. Side effects that can sign, submit, mint, upgrade, transfer, pause/unpause or mutate privileged state must occur only after the relevant Koschei authorization boundary succeeds.
-10. Node Shield live-kernel claims require real compatible-kernel evidence; buildability or simulation alone is not a kernel enforcement proof.
+3. Defense validation must use exact attack + benign-control coverage, independently collected evidence and versioned deterministic rules. Attack-only or vendor-self-attested validation is incomplete.
+4. Missing, malformed, unsupported or mismatched security evidence must never silently become a positive decision.
+5. A package existing or compiling in `main` is not proof that it is production-wired. Production claims require a verified caller -> service/handler -> route/worker/startup path, explicit gate ownership, integration coverage and runtime evidence.
+6. AI may explain evidence or triggered rules but may not fabricate evidence, override deterministic security authority or produce a defense-validation verdict.
+7. Do not introduce demo, beta, placeholder, synthetic or fabricated production security outputs. Planned scenarios must be explicitly non-evidentiary until real execution and observation evidence exists.
+8. Controlled validation must not store wallet material, submit mainnet transactions, mutate tested production controls, accept arbitrary commands or enable autonomous intervention.
+9. Do not modify auth, Neon Auth, sessions, owner cookies, KOSCH entitlement or verified-wallet implementation unless the user explicitly requests that exact work.
+10. Do not delete a legacy production path until its replacement has proven behavioral parity and rollback safety.
+11. No production private key, seed phrase, custody secret or signing authority may be moved into UI code or an untrusted integration layer.
+12. Side effects that can sign, submit, mint, upgrade, transfer, pause/unpause or mutate privileged state must occur only after the relevant Koschei authorization boundary succeeds.
+13. Node Shield live-kernel claims require real compatible-kernel evidence; buildability or simulation alone is not a kernel enforcement proof.
+14. `internal/executionproof` remains non-production-wired until the #864 connectivity acceptance conditions are satisfied. Do not create a blind signing/forwarding dependency merely to demonstrate integration.
 
 ## Legacy actor/Radar rules
 
@@ -46,4 +57,4 @@ Web/mobile/CLI surfaces are untrusted presentation clients. They must never beco
 7. Actor index history is persistent. Raw-event retention must not delete durable actor memory.
 8. Quota-consuming automatic scanning is opt-in and disabled by default. Manual owner scans must never silently enable background workers.
 
-Every pull request must state which product/security boundary it changes and the evidence/authorization rule it preserves or strengthens. Pull requests touching legacy investigation behavior must additionally name the applicable actor/Radar ruleset versions.
+Every pull request must state which product/security boundary it changes and the evidence/authorization rule it preserves or strengthens. Defense-validation PRs must state whether they change scenario, execution, observation, evaluation, publication or production-enforcement authority and list the safety gates preserved. Pull requests touching legacy investigation behavior must additionally name the applicable actor/Radar ruleset versions.

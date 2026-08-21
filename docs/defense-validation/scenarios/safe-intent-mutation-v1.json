@@ -1,0 +1,121 @@
+{
+  "contract": "koschei-defense-validation-scenario/v0.2",
+  "scenario_ref": "scenario:evm:safe-intent-mutation",
+  "scenario_version": "v1.0.0",
+  "title": "Safe privileged transaction intent mutation",
+  "status": "planned",
+  "chain": "evm",
+  "ruleset_version": "koschei-defense-validation-rules-v0.2.0",
+  "claim_boundary": {
+    "is_execution_evidence": false,
+    "is_validation_result": false,
+    "production_claim_allowed": false,
+    "mainnet_transaction_sent": false,
+    "verdict_authority": false
+  },
+  "environment": {
+    "execution_mode": "isolated_pinned_fork",
+    "production_identity_used": false,
+    "wallet_custody": false,
+    "mainnet_submission_allowed": false,
+    "network_access_during_execution": false,
+    "owner_approval_required": true,
+    "default_off": true
+  },
+  "control_contract": {
+    "control_class": "pre_signing_execution_integrity",
+    "candidate_control": "koschei_execution_proof",
+    "independent_collector_required": true,
+    "adapter_version_required": true,
+    "configuration_hash_required": true,
+    "production_wiring_required_for_production_claim": true
+  },
+  "matrix": {
+    "pair_ref": "pair:evm:safe-treasury-transfer",
+    "matched_fields": [
+      "safe",
+      "chain_id",
+      "treasury_asset",
+      "transfer_amount",
+      "observation_window_ms"
+    ],
+    "single_security_difference": "approved_intent_and_executable_action_identity",
+    "cases": [
+      {
+        "case_ref": "case:evm:safe-intent-mutation-attack",
+        "case_kind": "attack",
+        "description": "Operator-approved treasury action is replaced by a different executable Safe action before signing.",
+        "approved_intent": {
+          "destination_class": "allowlisted_treasury_destination",
+          "operation": "CALL",
+          "value_policy": "within_approved_budget"
+        },
+        "candidate_action": {
+          "destination_class": "non_allowlisted_destination_or_privileged_target",
+          "must_differ_from_approved_action": true,
+          "safe_tx_hash_must_be_recomputed_locally": true,
+          "full_action_digest_required": true
+        },
+        "impact_deadline_ms": 1000,
+        "observation_window_ms": 3000,
+        "expected_control_behavior": {
+          "block_or_alert_required": true,
+          "latest_detection_offset_ms": 1000,
+          "expected_reasons": [
+            "intent_or_payload_mismatch",
+            "authority_asset_code_or_trace_invariant_failure_if_observed"
+          ]
+        }
+      },
+      {
+        "case_ref": "case:evm:safe-authorized-transfer-benign",
+        "case_kind": "benign",
+        "description": "The approved Safe treasury action and executable action are identical and remain within accepted invariants.",
+        "approved_intent": {
+          "destination_class": "allowlisted_treasury_destination",
+          "operation": "CALL",
+          "value_policy": "within_approved_budget"
+        },
+        "candidate_action": {
+          "destination_class": "allowlisted_treasury_destination",
+          "must_match_approved_action": true,
+          "safe_tx_hash_must_be_recomputed_locally": true,
+          "full_action_digest_required": true
+        },
+        "impact_deadline_ms": null,
+        "observation_window_ms": 3000,
+        "expected_control_behavior": {
+          "block_or_alert_required": false,
+          "false_positive_forbidden": true
+        }
+      }
+    ]
+  },
+  "required_run_evidence": [
+    "approved_intent_hash",
+    "canonical_safe_action_hash",
+    "locally_recomputed_safe_tx_hash",
+    "pinned_chain_id_block_number_block_hash",
+    "runner_identity_hash",
+    "pre_state_hash",
+    "post_state_hash",
+    "execution_trace_hash",
+    "invariant_set_hash",
+    "independent_observation_hash",
+    "alert_hash_if_alerted",
+    "control_configuration_hash",
+    "completed_observation_window"
+  ],
+  "acceptance_gate": {
+    "executionproof_connectivity_issue": 864,
+    "requires_concrete_isolated_evm_backend": true,
+    "requires_non_test_runtime_caller_for_production_claim": true,
+    "requires_no_bypass_signing_path": true
+  },
+  "limitations": [
+    "This file is a planned scenario definition and is not execution evidence.",
+    "No Safe transaction, mainnet transaction, wallet key or production signing identity is contained in this file.",
+    "The scenario cannot produce VALIDATED until real isolated execution and independent observation evidence are supplied to the deterministic evaluator.",
+    "Execution Proof remains non-production-wired until the repository connectivity gate is closed with runtime evidence."
+  ]
+}
