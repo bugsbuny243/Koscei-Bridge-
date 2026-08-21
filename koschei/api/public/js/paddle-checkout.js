@@ -26,6 +26,12 @@
       return;
     }
     if (!response.ok) {
+      if (payload.error === 'paddle_checkout_failed') {
+        const providerStatus = Number(payload.provider_status || 0);
+        if (providerStatus > 0) {
+          throw new Error('Paddle rejected the checkout request (provider HTTP ' + providerStatus + ').');
+        }
+      }
       throw new Error(String(payload.message || payload.error || 'Checkout is temporarily unavailable.'));
     }
     const checkoutURL = String(payload.checkout_url || '').trim();

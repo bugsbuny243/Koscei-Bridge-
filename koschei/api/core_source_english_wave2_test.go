@@ -73,6 +73,8 @@ func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
 		"'Şifre':'Password'",
 		"'Giriş başarılı.':'Sign-in successful.'",
 		"'Hesap oluşturuldu.':'Account created.'",
+		"Token holdings and wallet balances do not unlock paid access.",
+		"paid product features unlock through an active SaaS entitlement after Paddle checkout.",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("auth English presentation missing %q", required)
