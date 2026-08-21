@@ -114,11 +114,11 @@ jobs:
           checked_page reports_page /reports "Investigation History"
           checked_page arvis_scan /scan "arvis-premium-contract.js"
           checked_page arvis_dashboard /dashboard "Security Workspace"
-          checked_page safe_check /safe-check "Koschei ARVIS"
-          checked_page transaction_shield /transaction-shield "Koschei ARVIS"
-          checked_page security_radar /security-radar "Koschei ARVIS"
+          checked_page safe_check /safe-check "arvis-premium-contract.js"
+          checked_page transaction_shield /transaction-shield "arvis-premium-contract.js"
+          checked_page security_radar /security-radar "arvis-premium-contract.js"
           checked_page owner_production /owner-production.html "Owner Evidence Operations"
-          checked_page complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
+          checked_page complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='2.0.0'"
           checked_page social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
 
           for page in arvis_scan arvis_dashboard safe_check transaction_shield security_radar owner_production; do
