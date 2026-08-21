@@ -84,8 +84,20 @@ func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
 		if readErr != nil {
 			t.Fatalf("read frozen auth surface %s: %v", path, readErr)
 		}
-		if !strings.Contains(string(body), "/js/koschei-auth.js?v=33") {
+		page := string(body)
+		if !strings.Contains(page, "/js/koschei-auth.js?v=33") {
 			t.Errorf("%s lost the frozen Neon-auth client contract", path)
+		}
+		if !strings.Contains(page, `<html lang="en">`) {
+			t.Errorf("%s is not source-English", path)
+		}
+		if !strings.Contains(page, "SaaS entitlement") {
+			t.Errorf("%s does not explain entitlement-backed paid access", path)
+		}
+		for _, forbidden := range []string{"KOSCH holder", "KOSCH bakiyesi", "Phantom cüzdanını", "KOSCH ACCESS"} {
+			if strings.Contains(page, forbidden) {
+				t.Errorf("%s still contains legacy token-gated access copy %q", path, forbidden)
+			}
 		}
 	}
 }
