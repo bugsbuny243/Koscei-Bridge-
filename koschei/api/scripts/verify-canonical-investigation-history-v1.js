@@ -77,8 +77,8 @@ forbid(reportsJS,/\blocalStorage\b|\bsessionStorage\b/,'Vault browser auth persi
 forbid(reportsJS,/Math\.random\s*\(/,'Vault synthetic evidence');
 forbid(reportsJS,/\b(?:signMessage|signTransaction|signAllTransactions|signAndSendTransaction|sendTransaction)\b/,'Vault wallet authority');
 
-requireText(dashboard,'Investigation jobs','Workspace canonical-history KPI');
-requireText(dashboard,'LATEST CANONICAL INVESTIGATION','Workspace latest-history copy');
+requireText(dashboard,'Investigation jobs','Workspace history KPI');
+requireText(dashboard,'RECENT INVESTIGATION','Workspace latest-history copy');
 requireText(dashboard,'Investigation History','Workspace history navigation');
 requireText(dashboard,'/js/customer-workspace-v2.js?v=2','Workspace history controller');
 if(dashboard.includes('Signed Report Vault'))throw new Error('Workspace must not advertise every durable job as a signed report');

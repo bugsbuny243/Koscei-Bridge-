@@ -9,10 +9,12 @@ import (
 func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 	files := map[string][]string{
 		"public/index.html": {
-			"Evidence-backed Web3 investigation system",
-			"It does not guess intent.",
-			"EVIDENCE BOUNDARY",
-			"id=\"verdicts\"",
+			"Protect the transaction before the signature.",
+			"See the execution.",
+			"NO VALID PROOF = NO SIGNATURE",
+			"Production enforcement is not yet enabled.",
+			"Fail closed by design.",
+			"id=\"execution-proof\"",
 		},
 		"public/account.html": {
 			"Account & SaaS Access",
@@ -71,6 +73,8 @@ func TestFrozenAuthSurfacesHaveEnglishPresentationOverlay(t *testing.T) {
 		"'Şifre':'Password'",
 		"'Giriş başarılı.':'Sign-in successful.'",
 		"'Hesap oluşturuldu.':'Account created.'",
+		"Token holdings and wallet balances do not unlock paid access.",
+		"paid product features unlock through an active SaaS entitlement after Paddle checkout.",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("auth English presentation missing %q", required)

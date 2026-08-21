@@ -39,14 +39,15 @@ func TestPrimaryPublicSurfacesAreSourceEnglish(t *testing.T) {
 	}
 }
 
-func TestCanonicalScanCenterMountsCompleteARVISAndAllModes(t *testing.T) {
+func TestCanonicalInvestigationSurfaceMountsCompleteModesAndEvidenceControllers(t *testing.T) {
 	body, err := os.ReadFile("public/scan.html")
 	if err != nil {
-		t.Fatalf("read canonical scan page: %v", err)
+		t.Fatalf("read canonical investigation page: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Unified Scan Center",
+		"Evidence-backed investigation",
+		"Inspect a target before you trust it.",
 		"data-scan-mode=\"quick\"",
 		"data-scan-mode=\"token\"",
 		"data-scan-mode=\"transaction\"",
@@ -55,25 +56,32 @@ func TestCanonicalScanCenterMountsCompleteARVISAndAllModes(t *testing.T) {
 		"customer-arvis-premium-suite.js",
 		"data-customer-arvis-result",
 		"public-solana-scan.js?v=11",
+		"Missing evidence is shown as a limitation, not converted into a safety claim.",
 	} {
 		if !strings.Contains(text, required) {
-			t.Errorf("canonical scan page missing %q", required)
+			t.Errorf("canonical investigation page missing %q", required)
 		}
 	}
 	for _, forbidden := range []string{`href="/safe-check"`, `href="/transaction-shield"`, `href="/security-radar"`} {
 		if strings.Contains(text, forbidden) {
-			t.Errorf("canonical scan page still links to duplicate scanner %q", forbidden)
+			t.Errorf("canonical investigation page still links to duplicate scanner %q", forbidden)
 		}
 	}
 }
 
-func TestDashboardIsWorkspaceNotAnotherScanner(t *testing.T) {
+func TestDashboardIsSecurityWorkspaceNotAnotherScanner(t *testing.T) {
 	body, err := os.ReadFile("public/dashboard.html")
 	if err != nil {
 		t.Fatalf("read dashboard: %v", err)
 	}
 	text := string(body)
-	for _, required := range []string{"Workspace, not another scanner", "Open Deep Scan", "Canonical investigation history", "Monitoring and integration"} {
+	for _, required := range []string{
+		"Security Workspace",
+		"Investigations, monitoring and evidence in one workspace.",
+		"Start Investigation",
+		"Investigation history",
+		"Monitoring and integration",
+	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("dashboard missing workspace contract %q", required)
 		}

@@ -21,10 +21,11 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if !strings.Contains(body, `<html lang="en">`) {
 		t.Fatalf("document language was not rewritten: %s", body)
 	}
-	for _, script := range []string{"koschei-english-runtime.js", "unified-scan-navigation.js"} {
-		if strings.Count(body, script) != 1 {
-			t.Fatalf("expected exactly one %s reference: %s", script, body)
-		}
+	if strings.Count(body, "koschei-english-runtime.js") != 1 {
+		t.Fatalf("expected exactly one english runtime reference: %s", body)
+	}
+	if strings.Contains(body, "unified-scan-navigation.js") {
+		t.Fatalf("scan navigation must not be injected globally: %s", body)
 	}
 	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "english-auth-presentation.js") {
 		t.Fatalf("specialized extensions were injected into a generic page: %s", body)
@@ -42,11 +43,13 @@ func TestEnglishPublicHTMLInjectsARVISResultExtensionsExactlyOnce(t *testing.T) 
 		"arvis-social-render-v2-publish.js",
 		"arvis-complete-evidence-v3.js",
 		"koschei-english-runtime.js",
-		"unified-scan-navigation.js",
 	} {
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("expected exactly one %s reference: %s", script, second)
 		}
+	}
+	if strings.Contains(second, "unified-scan-navigation.js") {
+		t.Fatalf("legacy scan navigation must not be globally injected: %s", second)
 	}
 }
 
@@ -58,10 +61,13 @@ func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContr
 	if !strings.Contains(second, `<html lang="en">`) {
 		t.Fatalf("auth page language was not rewritten: %s", second)
 	}
-	for _, script := range []string{"koschei-auth.js?v=33", "english-auth-presentation.js", "koschei-english-runtime.js", "unified-scan-navigation.js"} {
+	for _, script := range []string{"koschei-auth.js?v=33", "english-auth-presentation.js", "koschei-english-runtime.js"} {
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("auth page expected exactly one %s reference: %s", script, second)
 		}
+	}
+	if strings.Contains(second, "unified-scan-navigation.js") {
+		t.Fatalf("legacy scan navigation must not be globally injected into auth: %s", second)
 	}
 	presentationIndex := strings.Index(second, "english-auth-presentation.js")
 	runtimeIndex := strings.Index(second, "koschei-english-runtime.js")

@@ -141,3 +141,50 @@ func TestCleanRoutesExposeAllPublicModules(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyRedirectHTMLRoutesAreOwnedByRouter(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("index"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(staticDir, "dashboard.html"), []byte("dashboard"), 0o644); err != nil {
+		t.Fatalf("write dashboard: %v", err)
+	}
+
+	// Deliberately do not create the legacy .html tombstone files. These URLs
+	// must remain compatible because the Go router owns them, not because the
+	// FileServer happens to find a stale asset on disk.
+	srv := httptest.NewServer(NewServer(nil, "", "", "", staticDir))
+	t.Cleanup(srv.Close)
+	client := &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+
+	routes := []string{
+		"/airdrop-checker.html",
+		"/cross-chain-risk.html",
+		"/funding-assistant.html",
+		"/grant-writer.html",
+		"/intelligence-graph.html",
+		"/jarvis.html",
+		"/mev-shield.html",
+		"/program-scanner.html",
+		"/radar.html",
+		"/smart-money.html",
+		"/unified.html",
+	}
+	for _, route := range routes {
+		route := route
+		t.Run(route, func(t *testing.T) {
+			resp, err := client.Get(srv.URL + route)
+			if err != nil {
+				t.Fatalf("get %s: %v", route, err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusPermanentRedirect {
+				t.Fatalf("GET %s = %d, want %d", route, resp.StatusCode, http.StatusPermanentRedirect)
+			}
+			if got := resp.Header.Get("Location"); got != "/dashboard" {
+				t.Fatalf("GET %s Location = %q, want /dashboard", route, got)
+			}
+		})
+	}
+}

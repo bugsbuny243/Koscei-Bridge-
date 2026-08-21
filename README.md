@@ -1,39 +1,32 @@
-# KOSCHEİ WEB3 — ARVIS
+# KOSCHEI WEB3
 
-Koschei ARVIS is a live, Solana-native pre-signing risk layer for developers, wallets, launchpads, dApps, DeFi protocols, research teams and security operators.
+Koschei Web3 is being built as a **Web3 security platform**: infrastructure that helps wallets, protocols, exchanges, bridges, validators, security teams and developers prove what is about to execute, detect hostile conditions, and stop unsafe actions before they become irreversible on-chain losses.
 
-## 30-second pitch
+The current production system is Solana-native and remains the first proving ground. The product direction is broader: **multi-chain execution integrity, signing safety, infrastructure defense and machine-readable security evidence**.
 
-Koschei ARVIS stops risky Solana interactions before users sign. Integrating products call one API and receive a machine-readable **allow, warn, block or withhold** decision backed by verified evidence, rule metadata and signed status.
+## Mission
 
-Instead of building separate token, wallet, transaction, monitoring and alert systems, Solana product teams integrate one reusable risk layer.
+Koschei Web3 exists to fill security gaps that remain between code review, wallet signing, infrastructure operation and final on-chain execution.
 
-## Who pays — and why
+The long-term product boundary is:
 
-| Customer | What ARVIS does | Why they pay |
-| --- | --- | --- |
-| Wallets | Adds evidence-backed pre-signing warnings | Reduce preventable risky interactions and support incidents |
-| Launchpads | Screens token behavior, authorities and concentration | Avoid maintaining several disconnected screening systems |
-| dApps and DeFi protocols | Simulates transactions and applies integration policy | Make consistent allow, warn, block or withhold decisions before execution |
-| Security and research teams | Monitors targets and delivers signed alerts | Replace manual monitoring with auditable evidence and reliable delivery |
+```text
+untrusted UI / wallet / operator surface
+                ↓
+      Koschei Web3 control plane
+                ↓
+   execution + signing verification
+                ↓
+ infrastructure / node / chain defense
+                ↓
+ evidence-backed allow / warn / block
+```
 
-Commercial access can be output-based API capacity, persistent monitoring capacity or a B2B integration agreement.
+Koschei Web3 is the product layer. Koschei Sentinel is intended to become the security-intelligence brain behind the ecosystem, while Koschei Lang is intended to provide hardened execution and authority primitives for high-security software. These are separate projects with explicit boundaries.
 
-## Why Solana
+## What exists today
 
-ARVIS is not a generic Web3 score with a Solana label. Its evidence model is built around:
-
-- Solana transaction instructions and account relationships
-- SPL Token and Token-2022 authorities, extensions and transfer behavior
-- mint and freeze authority evidence
-- program-specific relations and liquidity activity
-- priority-fee and pre-signing simulation context
-- Pump-style launch observations
-- Raydium-oriented liquidity evidence
-
-## Current proof and next proof
-
-Live today:
+The current live system provides a real Solana-native security foundation:
 
 - production Go API and worker pipeline
 - evidence-backed radar and signed verdict contract
@@ -42,105 +35,122 @@ Live today:
 - authenticated B2B batch screening with idempotency
 - asynchronous result lookup and usage accounting
 - TypeScript client, schemas, examples and CI checks
+- pre-signing transaction and token risk analysis
 
-The next proof is external adoption: integration pilots, measured reliability and published technical case studies. Pilot requests are collected at `/pilot`.
+This existing Solana stack is not being discarded. It is the first operational security domain on top of which broader Web3 security capabilities can be proven.
 
-## Technical scope
+## Product direction
 
-Koschei is an engineering and infrastructure project. Its concrete outputs are:
+Koschei Web3 is moving from a narrow risk-intelligence hub toward four security planes:
 
-1. a live Solana observation and risk-processing pipeline
-2. deterministic evidence collection and final verdict generation
-3. authenticated developer APIs
-4. a TypeScript SDK
-5. an open-source Solana event normalizer
-6. a machine-readable signed-verdict schema
-7. wallet and launchpad integration examples
-8. developer documentation and reproducible CI checks
+### 1. Execution Integrity
 
-Community events, general education and ecosystem promotion are not the product scope.
+Goal: independently prove that the transaction, payload, calldata or serialized instruction a user or operator is about to sign is the intended artifact.
 
-## Open-source developer kit
+Target capabilities include:
 
-| Component | Location | Status |
-| --- | --- | --- |
-| TypeScript API client | `sdk/typescript` | Shipped and tested |
-| Solana event normalizer | `oss/event-normalizer` | Shipped and tested |
-| Signed verdict schema | `oss/schemas/signed-verdict.schema.json` | Shipped |
-| Wallet warning example | `examples/wallet-warning` | Shipped |
-| Launchpad screening example | `examples/launchpad-screening` | Shipped |
-| API reference | `docs/api-reference.md` | Shipped |
-| Developer quickstart | `docs/DEVELOPER_QUICKSTART.md` | Shipped |
-| Grant evidence matrix | `docs/grant-evidence-matrix.md` | Shipped |
-| Pitch one-pager | `docs/pitch-one-pager.md` | Shipped |
+- canonical payload reconstruction
+- byte-level comparison
+- pre-signing simulation
+- policy-bound execution approval
+- deterministic evidence records
+- explicit mismatch blocking
 
-The open-source packages are MIT licensed and designed to remain useful without the hosted dashboard.
+### 2. Signing Defense
+
+Goal: reduce the chance that a compromised UI, developer machine, RPC path or integration can trick a signer into authorizing a different action.
+
+Target capabilities include:
+
+- human-readable intent vs serialized payload verification
+- signer-side evidence bundles
+- independent transaction reconstruction
+- policy-aware allow / warn / block decisions
+- replay and mutation detection
+
+### 3. Infrastructure Defense
+
+Goal: protect the systems that produce, relay, validate and execute Web3 actions.
+
+Target domains include:
+
+- RPC integrity
+- validator / node health and hostile-state detection
+- deployment authorization integrity
+- bridge and privileged-operation monitoring
+- supply-chain and operator-path evidence
+
+### 4. Cross-chain Security Evidence
+
+Goal: normalize security evidence across chains without pretending every chain has the same trust model.
+
+Solana remains the current production domain. Future chain support must preserve chain-specific semantics instead of flattening them into a generic score.
 
 ## Product rule
 
 ```text
-14 internal evidence arms
-        ↓
-one ARVIS core
-        ↓
-one customer-facing verdict
+evidence first
+      ↓
+independent verification
+      ↓
+policy evaluation
+      ↓
+allow / warn / block / withhold
 ```
 
-The evidence arms are internal verification layers, not separate products. Customers and integrations receive one structured output with evidence, risk level, rule version and recommended action.
+No verified evidence means no fabricated certainty.
 
-## Evidence policy
+A low-risk result is not a guarantee of safety. Missing or unsupported evidence must remain missing or withheld rather than silently becoming a positive score.
+
+## Security authority boundary
+
+The user interface is **not** a security authority.
+
+**Next.js is permanently prohibited in Koschei Web3.** It is not an approved frontend, server runtime, build system, deployment path or future framework option. Repository automation must reject Next.js dependencies and artifacts if they reappear.
+
+Any web, mobile or CLI client is an untrusted presentation surface and must not become authoritative for:
+
+- final allow / block decisions
+- signer private keys
+- canonical execution artifacts
+- security policy grants
+- privileged deployment authorization
+- Sentinel security decisions
+- bridge, validator or protocol authority
+
+The UI renders decisions and evidence produced by trusted security services. It does not define them.
 
 ```text
-verified evidence exists  → signed verdict may be produced
-verified evidence missing → no score, no grade, no signed verdict
+web / mobile / CLI
+       │
+       │ untrusted presentation
+       ▼
+Koschei Web3 trusted services
+       │
+       ├── execution verification
+       ├── signing defense
+       ├── evidence collection
+       ├── policy evaluation
+       └── infrastructure defense
 ```
 
-On-chain and off-chain observations are labeled separately. Parsed URLs are not presented as on-chain evidence. Wallet relations are not presented as real-world identity claims. A low-risk or monitor result is not a safety guarantee.
+## Current Solana security core
 
-## Core evidence arms
+The existing ARVIS implementation remains an internal/current product capability for Solana security analysis.
 
-1. Pump.fun Sybil Radar
-2. Raydium Pool Guardian
-3. Walletless Claim Shield
-4. Intelligence Graph
-5. MEV Shield
-6. Token Authority Scanner
-7. Holder Concentration
-8. Liquidity Movement
-9. Creator Link Analysis
-10. Funding Cluster Detector
-11. Sniper Timing Detector
-12. Claim Surface Risk
-13. Program Relation Scan
-14. Final Verdict Engine
+Current evidence includes:
 
-Each arm remains unsigned when its required evidence is unavailable.
+- Solana transaction instructions and account relationships
+- SPL Token and Token-2022 authorities and extensions
+- mint and freeze authority evidence
+- program-specific relations and liquidity activity
+- priority-fee and pre-signing simulation context
+- Pump-style launch observations
+- Raydium-oriented liquidity evidence
 
-## Live pipeline
+The legacy evidence arms remain useful inputs, but Koschei Web3 is no longer defined only by token or wallet scoring.
 
-```text
-Pump-style + Raydium-style observations
-        ↓
-transaction and account enrichment
-        ↓
-target normalization
-        ↓
-evidence-arm processing
-        ↓
-Final Verdict Engine
-        ↓
-signed risk, monitor or withheld output
-```
-
-The stream processor is idempotent. The same stream event and evidence arm cannot create duplicate final output. Processing states include healthy, processing, degraded, stale, retryable failure and exhausted failure.
-
-## Provider resilience
-
-ARVIS resolves one canonical Solana RPC provider at startup and applies process-wide pacing and retry controls. When the configured production provider is rate-limited or unavailable, standard Solana RPC calls automatically fall back to the public Solana mainnet endpoint.
-
-Provider-specific limits never authorize the system to fabricate evidence. Unsupported or unavailable evidence results in a withheld or partial analysis.
-
-## Developer routes
+## Current developer routes
 
 ```text
 POST /api/v1/radar/check        session-authenticated radar check
@@ -152,22 +162,24 @@ GET  /api/v1/usage              API-key usage and async results
 GET  /api/v1/risk/badge         public rate-limited risk badge
 ```
 
-See `docs/api-reference.md` for authentication boundaries and current production status.
+See `docs/api-reference.md` for current production behavior.
 
-## Integration pilot
+## Architecture principle
 
-The pilot flow is for wallets, dApps, launchpads, DeFi protocols and security teams with a real Solana integration surface.
+Security-critical decisions live behind a narrow trusted boundary in deterministic services with explicit policy, evidence and auditability. Presentation technology is never part of the authority model, and Next.js is not permitted anywhere in the Koschei Web3 repository or deployment architecture.
 
-A strong pilot has:
+The current production architecture includes:
 
-- one named integration owner
-- one explicit risk decision
-- one documented live API route
-- measurable decision latency and completed-check rate
-- reviewed false-positive and withheld-output samples
-- permission to publish anonymized technical integration notes
+```text
+Go API and workers
+Railway deployment
+Neon PostgreSQL
+Solana RPC provider with automatic public fallback
+Pump-style stream observations
+web customer surfaces
+```
 
-Apply through the production `/pilot` page.
+Secrets and production credentials live only in the deployment environment and are not committed to the repository.
 
 ## Local validation
 
@@ -201,32 +213,10 @@ npm test
 npm pack --dry-run
 ```
 
-## Production architecture
-
-```text
-Go API and workers
-Railway deployment
-Neon PostgreSQL
-Solana RPC provider with automatic public fallback
-Pump-style stream observations
-Vanilla HTML / CSS / JavaScript customer surfaces
-```
-
-Secrets and production credentials live only in the deployment environment and are not committed to the repository.
-
-## Access model
-
-Paid analysis is entitlement-backed. A profile label alone cannot unlock premium output.
-
-```text
-active entitlement + remaining output → analysis allowed
-failed evidence collection             → no output charged
-successful evidence-backed analysis    → one output consumed
-```
-
 ## Documentation
 
 - Architecture: `docs/ARCHITECTURE.md`
+- Product charter: `docs/SECURITY_PRODUCT_CHARTER.md`
 - Data flow: `docs/architecture/data-flow.md`
 - API reference: `docs/api-reference.md`
 - Developer quickstart: `docs/DEVELOPER_QUICKSTART.md`
@@ -234,9 +224,6 @@ successful evidence-backed analysis    → one output consumed
 - Limitations: `docs/limitations.md`
 - Technical whitepaper: `docs/technical-whitepaper.md`
 - Open-source roadmap: `docs/open-source-roadmap.md`
-- Pitch one-pager: `docs/pitch-one-pager.md`
-- Grant resubmission: `docs/grant-v3-proposal.md`
-- Grant evidence matrix: `docs/grant-evidence-matrix.md`
 
 ## License
 
@@ -244,4 +231,4 @@ MIT — see `LICENSE`.
 
 ---
 
-Built as live Solana-native pre-signing risk infrastructure and reusable developer tooling.
+**Koschei Web3 is not a dashboard with security features. The target is a security control plane for Web3 execution, signing and infrastructure.**

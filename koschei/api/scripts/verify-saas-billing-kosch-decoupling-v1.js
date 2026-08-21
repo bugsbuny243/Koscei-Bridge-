@@ -7,15 +7,20 @@ const server=read('internal','http','server.go');
 const watch=read('internal','http','watchlist_routes.go');
 const billingRoutes=read('internal','http','billing_routes.go');
 const routeInventory=read('internal','http','route_inventory.go');
+const staticAliases=read('internal','http','static_aliases.go');
+const securityHeaders=read('internal','http','security_headers.go');
 const plan=read('internal','handlers','plan_access.go');
 const premium=read('internal','handlers','premium_access_status.go');
 const retired=read('internal','handlers','kosch_retirement.go');
 const paddle=read('internal','handlers','paddle_billing.go');
+const paddlePublic=read('internal','handlers','paddle_public_config.go');
 const apiKeys=read('internal','handlers','api_keys.go');
 const migration=read('migrations','101_paddle_saas_billing_v1.sql');
 const pricing=read('public','pricing.html');
 const account=read('public','account.html');
 const checkout=read('public','js','paddle-checkout.js');
+const hostedCheckout=read('public','paddle-checkout.html');
+const hostedCheckoutJS=read('public','js','paddle-hosted-checkout.js');
 const workspace=read('public','js','customer-workspace-v2.js');
 const customerAccess=read('public','js','customer-access-v2.js');
 
@@ -46,6 +51,8 @@ requireText(apiKeys,'evaluation, evaluationErr := h.evaluatePlanAccess','API-key
 requireText(apiKeys,'planTierAuthorizes(plan, "enterprise")','API-key Enterprise requirement');
 forbid(apiKeys,/evaluateTokenAccess|token_tier/i,'token-backed API key issuance');
 
+requireText(billingRoutes,'/paddle/public-config','Paddle browser config route');
+forbid(billingRoutes,/\/api\/paddle\/public-config/,'browser config accidentally exposed as programmatic API');
 requireText(billingRoutes,'/api/paddle/checkout','Paddle checkout route');
 requireText(billingRoutes,'/api/paddle/webhook','Paddle webhook route');
 requireText(paddle,'Paddle-Signature','Paddle signature header');
@@ -57,6 +64,10 @@ requireText(paddle,'transaction_price_plan_mismatch','configured price to plan b
 requireText(paddle,'transaction_customer_binding_mismatch','account/payment binding');
 requireText(paddle,'ON CONFLICT (notification_id) DO NOTHING','webhook idempotency');
 requireText(paddle,'activatePackageEntitlementDetailedTx','entitlement activation');
+requireText(paddlePublic,'cfg.AutomationReady','browser config requires webhook-ready automation');
+requireText(paddlePublic,'cfg.AllPlansReady','browser config requires complete plan catalog');
+requireText(paddlePublic,'cfg.ClientToken','browser-safe Paddle client token');
+forbid(paddlePublic,/cfg\.(?:APIKey|WebhookSecret)\b/,'server Paddle secrets in browser config');
 
 requireText(migration,'CREATE TABLE IF NOT EXISTS paddle_billing_events','Paddle event ledger');
 requireText(migration,'raw_sha256 text NOT NULL','raw payload digest');
@@ -68,7 +79,10 @@ for(const p of ['Starter','Professional','Enterprise'])requireText(pricing,`<h2>
 requireText(pricing,'data-koschei-checkout="starter"','Starter checkout');
 requireText(pricing,'data-koschei-checkout="professional"','Professional checkout');
 requireText(pricing,'data-koschei-checkout="enterprise"','Enterprise checkout');
-requireText(pricing,'Price to finalize','price decision remains explicit');
+requireText(pricing,'$299 / month','Starter price');
+requireText(pricing,'$999 / month','Professional price');
+requireText(pricing,'$4,999 / month','Enterprise price');
+forbid(pricing,/Price to finalize/i,'unfinalized price placeholder');
 forbid(pricing,/Official KOSCH mint|KOSCH Holder Access|\b(?:25K|250K|2M)\s+KOSCH/i,'token-backed pricing');
 
 requireText(account,'Account & SaaS Access','SaaS account surface');
@@ -77,6 +91,25 @@ forbid(account,/TOKEN ACCESS EVIDENCE|Official mint snapshot|LIVE TOKEN POLICY/i
 requireText(checkout,"fetch('/api/paddle/checkout'",'browser Paddle checkout');
 requireText(checkout,"parsed.protocol !== 'https:'",'secure checkout redirect');
 forbid(checkout,/kosch_token|\/kosch-access/,'legacy token checkout');
+
+requireText(hostedCheckout,'https://cdn.paddle.com/paddle/v2/paddle.js','Paddle.js on default payment link');
+requireText(hostedCheckout,'/js/paddle-hosted-checkout.js?v=1','hosted checkout initializer');
+requireText(hostedCheckout,'/terms.html','checkout Terms link');
+requireText(hostedCheckout,'/privacy.html','checkout Privacy link');
+requireText(hostedCheckout,'/refund-policy.html','checkout Refund link');
+forbid(hostedCheckout,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline checkout script');
+forbid(hostedCheckout,/\son[a-z]+\s*=|\sstyle\s*=/i,'inline checkout event/style attributes');
+requireText(hostedCheckoutJS,"fetch('/paddle/public-config'",'hosted checkout browser config');
+requireText(hostedCheckoutJS,'window.Paddle.Initialize','Paddle.js initialization');
+requireText(hostedCheckoutJS,"params.get('_ptxn')",'Paddle default payment transaction binding');
+requireText(hostedCheckoutJS,'transactionId:transactionID','transaction fallback opening');
+forbid(hostedCheckoutJS,/PADDLE_API_KEY|pdl_live_apikey|PADDLE_WEBHOOK_SECRET/i,'server secret in hosted checkout JavaScript');
+requireText(staticAliases,'"/paddle-checkout"','canonical Paddle checkout route');
+requireText(staticAliases,'paddle-checkout.html','Paddle checkout static target');
+requireText(securityHeaders,'paddleCheckoutCSP','checkout-specific CSP');
+requireText(securityHeaders,'https://cdn.paddle.com','Paddle CDN CSP source');
+requireText(securityHeaders,'https://*.paddle.com','Paddle API/frame CSP source');
+
 forbid(workspace,/token_tier|token_amount|KOSCH holder access/i,'workspace token authorization state');
 forbid(customerAccess,/\/api\/auth\/token-access|token_tier|token_amount|mint_address/i,'account token authorization source');
 
