@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 const SafeActionArtifactKind = "safe-transaction/v1"
@@ -28,40 +28,25 @@ type canonicalSafeAction struct {
 }
 
 // CanonicalSafeActionArtifact returns the exact full Safe action material bound
-// into containment. This is deliberately stronger than calldata-only identity:
-// value, operation, nonce, gas/refund fields and Safe address all participate.
-func CanonicalSafeActionArtifact(tx SafeTransaction) (matrixcontainment.ActionArtifact, error) {
+// into execution containment. This is deliberately stronger than calldata-only
+// identity: value, operation, nonce, gas/refund fields and Safe address all participate.
+func CanonicalSafeActionArtifact(tx SafeTransaction) (executioncontainment.ActionArtifact, error) {
 	if !validSafeTransaction(tx) {
-		return matrixcontainment.ActionArtifact{}, fmt.Errorf("invalid Safe transaction")
+		return executioncontainment.ActionArtifact{}, fmt.Errorf("invalid Safe transaction")
 	}
 
-	wire := canonicalSafeAction{
-		ChainID:        tx.ChainID,
-		Safe:           normalizeAddress(tx.Safe),
-		To:             normalizeAddress(tx.To),
-		Value:          tx.Value.String(),
-		DataHex:        "0x" + hex.EncodeToString(tx.Data),
-		Operation:      tx.Operation,
-		SafeTxGas:      tx.SafeTxGas.String(),
-		BaseGas:        tx.BaseGas.String(),
-		GasPrice:       tx.GasPrice.String(),
-		GasToken:       normalizeAddress(tx.GasToken),
-		RefundReceiver: normalizeAddress(tx.RefundReceiver),
-		Nonce:          tx.Nonce.String(),
-	}
-
+	wire := canonicalSafeAction{ChainID: tx.ChainID, Safe: normalizeAddress(tx.Safe), To: normalizeAddress(tx.To), Value: tx.Value.String(), DataHex: "0x" + hex.EncodeToString(tx.Data), Operation: tx.Operation, SafeTxGas: tx.SafeTxGas.String(), BaseGas: tx.BaseGas.String(), GasPrice: tx.GasPrice.String(), GasToken: normalizeAddress(tx.GasToken), RefundReceiver: normalizeAddress(tx.RefundReceiver), Nonce: tx.Nonce.String()}
 	encoded, err := json.Marshal(wire)
 	if err != nil {
-		return matrixcontainment.ActionArtifact{}, fmt.Errorf("marshal canonical Safe action: %w", err)
+		return executioncontainment.ActionArtifact{}, fmt.Errorf("marshal canonical Safe action: %w", err)
 	}
-	return matrixcontainment.ActionArtifact{Kind: SafeActionArtifactKind, Canonical: encoded}, nil
+	return executioncontainment.ActionArtifact{Kind: SafeActionArtifactKind, Canonical: encoded}, nil
 }
 
-func decodeCanonicalSafeAction(action matrixcontainment.ActionArtifact) (SafeTransaction, error) {
+func decodeCanonicalSafeAction(action executioncontainment.ActionArtifact) (SafeTransaction, error) {
 	if action.Kind != SafeActionArtifactKind || len(action.Canonical) == 0 {
 		return SafeTransaction{}, fmt.Errorf("unsupported Safe action artifact")
 	}
-
 	var wire canonicalSafeAction
 	if err := json.Unmarshal(action.Canonical, &wire); err != nil {
 		return SafeTransaction{}, fmt.Errorf("decode canonical Safe action: %w", err)
@@ -71,28 +56,10 @@ func decodeCanonicalSafeAction(action matrixcontainment.ActionArtifact) (SafeTra
 	if err != nil {
 		return SafeTransaction{}, fmt.Errorf("decode Safe calldata: %w", err)
 	}
-
-	tx := SafeTransaction{
-		ChainID:        wire.ChainID,
-		Safe:           wire.Safe,
-		To:             wire.To,
-		Value:          parseUint256Decimal(wire.Value),
-		Data:           data,
-		Operation:      wire.Operation,
-		SafeTxGas:      parseUint256Decimal(wire.SafeTxGas),
-		BaseGas:        parseUint256Decimal(wire.BaseGas),
-		GasPrice:       parseUint256Decimal(wire.GasPrice),
-		GasToken:       wire.GasToken,
-		RefundReceiver: wire.RefundReceiver,
-		Nonce:          parseUint256Decimal(wire.Nonce),
-	}
+	tx := SafeTransaction{ChainID: wire.ChainID, Safe: wire.Safe, To: wire.To, Value: parseUint256Decimal(wire.Value), Data: data, Operation: wire.Operation, SafeTxGas: parseUint256Decimal(wire.SafeTxGas), BaseGas: parseUint256Decimal(wire.BaseGas), GasPrice: parseUint256Decimal(wire.GasPrice), GasToken: wire.GasToken, RefundReceiver: wire.RefundReceiver, Nonce: parseUint256Decimal(wire.Nonce)}
 	if !validSafeTransaction(tx) {
 		return SafeTransaction{}, fmt.Errorf("decoded Safe action is invalid")
 	}
-
-	// Reject non-canonical aliases/encodings by requiring byte-identical
-	// round-trip encoding. The runner therefore cannot accept semantically
-	// equivalent but differently encoded action material under one digest.
 	reencoded, err := CanonicalSafeActionArtifact(tx)
 	if err != nil || string(reencoded.Canonical) != string(action.Canonical) {
 		return SafeTransaction{}, fmt.Errorf("non-canonical Safe action encoding")
@@ -102,9 +69,7 @@ func decodeCanonicalSafeAction(action matrixcontainment.ActionArtifact) (SafeTra
 
 func parseUint256Decimal(value string) *big.Int {
 	v, ok := new(big.Int).SetString(value, 10)
-	if !ok {
-		return nil
-	}
+	if !ok { return nil }
 	return v
 }
 
