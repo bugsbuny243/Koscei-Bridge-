@@ -14,6 +14,11 @@ var ErrContainmentBlocked = errors.New("containment gate blocked Safe signing re
 
 // VerifyContainmentAndForwardSafeTransaction composes the defensive containment
 // receipt with the existing Execution Proof Safe forwarding boundary.
+//
+// A serialized RELEASE is never sufficient. The receipt must verify by full
+// recomputation and must bind to the exact Safe request and the exact approved
+// Execution Proof evidence. This prevents a valid RELEASE receipt for one Safe
+// transaction from being replayed to authorize a different transaction.
 func VerifyContainmentAndForwardSafeTransaction(
 	ctx context.Context,
 	receipt executioncontainment.Receipt,
@@ -24,6 +29,7 @@ func VerifyContainmentAndForwardSafeTransaction(
 	if !containmentBindsExactSafeRequest(receipt, proof, req) {
 		return SigningGateResult{Decision: DecisionBlock, Reasons: []ReasonCode{ReasonInvalidSigningRequest}}, ErrContainmentBlocked
 	}
+
 	return VerifyAndForwardSafeTransaction(ctx, proof, req, forwarder)
 }
 
@@ -34,12 +40,19 @@ func containmentBindsExactSafeRequest(receipt executioncontainment.Receipt, proo
 	if !validSafeTransaction(req.Transaction) || !validHex32(req.PresentedSafeHash) {
 		return false
 	}
+
 	computedSafeHash, err := (NativeSafeTxHashComputer{}).ComputeSafeTxHash(req.Transaction)
-	if err != nil || !equalHex32(computedSafeHash, req.PresentedSafeHash) { return false }
+	if err != nil || !equalHex32(computedSafeHash, req.PresentedSafeHash) {
+		return false
+	}
 	action, err := CanonicalSafeActionArtifact(req.Transaction)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
+
 	calldataDigest := sha256.Sum256(req.Transaction.Data)
 	candidatePayload := hex.EncodeToString(calldataDigest[:])
+
 	input := receipt.Input
 	return input.ChainID == req.Transaction.ChainID &&
 		strings.EqualFold(strings.TrimSpace(input.Target), strings.TrimSpace(req.Transaction.To)) &&
