@@ -23,7 +23,8 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		"Cross-Chain Trust",
 		"Security Operations",
 		"NO VALID PROOF = NO SIGNATURE",
-		"Core available",
+		"Core implemented · integration pending",
+		"Core implemented · not production-wired",
 		"In validation",
 	} {
 		if !strings.Contains(text, required) {
@@ -42,6 +43,7 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		"homepage-score-label",
 		"homepage-preflight-v2.js",
 		">Implemented<",
+		"Core available",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("homepage regressed or introduced a competing product identity: found %q", forbidden)
