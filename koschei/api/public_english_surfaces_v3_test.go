@@ -35,6 +35,7 @@ func TestPrimaryPublicSurfacesAreSourceEnglish(t *testing.T) {
 			if strings.Contains(text, forbidden) {
 				t.Errorf("%s still contains Turkish product copy %q", path, forbidden)
 			}
+		}
 	}
 }
 
