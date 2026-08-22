@@ -1,6 +1,6 @@
 # Safe Anvil Execution Evidence v0.4
 
-Status: **component evidence / isolated validation substrate**
+Status: **validated isolated component scenario / not production signing enforcement**
 
 This slice replaces a purely in-memory Safe backend fixture with a concrete local EVM execution engine while preserving the product truth boundary around Execution Proof connectivity issue #864.
 
@@ -8,7 +8,20 @@ This slice replaces a purely in-memory Safe backend fixture with a concrete loca
 
 `AnvilSafeSimulationEngine` starts a child Anvil process bound to `127.0.0.1`, forks an explicitly pinned source block, verifies chain and block identity, hashes the exact Anvil runner binary, snapshots Safe state, traces the Safe simulation path, materializes the supported effect on the isolated fork, and returns bound post-state/effect evidence.
 
-The dedicated `Defense Validation Anvil Evidence` workflow creates a deterministic local source chain, compiles and deploys the local Safe/accessor fixture, funds the fixture Safe, pins the resulting block, then makes the engine fork that source chain and execute the integration test. The acceptance therefore exercises real EVM bytecode, RPC, process spawning, fork state, `debug_traceCall`, receipt collection and state reads. It is not a mocked RPC acceptance.
+The dedicated `Defense Validation Anvil Evidence` workflow creates a deterministic local source chain, compiles and deploys the local Safe/accessor fixture, funds the fixture Safe, pins the resulting block, then makes the engine fork that source chain and execute the integration acceptance. The acceptance therefore exercises real EVM bytecode, RPC, process spawning, fork state, `debug_traceCall`, receipt collection and state reads. It is not a mocked RPC acceptance.
+
+The same workflow now feeds real isolated execution artifacts through Execution Containment, Execution Proof artifact verification, the independent collector contract, Security Evidence Bus adaptation and the deterministic Defense Validation evaluator.
+
+## Validated controlled scenario
+
+The v0.4 acceptance runs two matched cases against fresh child forks of the same pinned source state:
+
+1. **Benign control** — the approved 1 ETH Safe native transfer is executed exactly. The exact Safe intent matches, observed authority/code/trace/effect invariants hold, Execution Containment returns `RELEASE`, the independent observation is `NO_ALERT`, and Defense Validation returns `CLEAN`.
+2. **Intent mutation attack** — the approved Safe transaction is mutated from 1 ETH to 2 ETH while keeping the same Safe and target. The locally recomputed Safe EIP-712 transaction identity changes. Execution Containment returns `CONTAIN` with `EC-004-INTENT-MISMATCH`, the independent collector binds the signaled control to the completed observation window, and Defense Validation returns `CAUGHT_IN_TIME`.
+
+The matched benign + attack matrix produces the deterministic Defense Validation verdict `VALIDATED` under `koschei-defense-validation-rules-v0.2.0`.
+
+This is a validation result for the isolated local fixture and the exact tested control configuration only. It is not evidence that Koschei currently protects a production Safe deployment.
 
 ## Safe execution semantics
 
@@ -86,15 +99,10 @@ It does not:
 - close issue #864;
 - establish a deployed caller -> handler/service -> route/worker -> signing-enforcement call chain.
 
-The local Solidity fixture proves the mechanics of the evidence substrate. A validation claim for a particular production Safe deployment still requires a separately pinned real deployment/fork evidence run with deployment provenance and an operationally separate collector.
+The local Solidity fixture proves the mechanics of the evidence substrate and validates the exact isolated scenario above. A validation claim for a particular production Safe deployment still requires a separately pinned real deployment/fork evidence run with deployment provenance and an operationally separate collector.
 
 ## Next gate
 
-After this component is green, the next evidence slice is an end-to-end controlled scenario on the real Anvil substrate:
+The next evidence slice is a signed Defense Validation dossier that binds the exact scenario version, control configuration, Anvil binary identity, pinned block, pre/post state, Safe trace, materialized receipt/effect evidence, Execution Containment receipt, Execution Proof artifact, independent collector event and final deterministic report hash.
 
-- approved native transfer -> `RELEASE` / `CLEAN`;
-- mutated target outside the approved outflow policy -> `CONTAIN` / independently observed alert / `CAUGHT_IN_TIME`;
-- both cases fed through the deterministic Defense Validation evaluator;
-- signed dossier output with the exact runner, block, state, trace, receipt and collector digests.
-
-Production signing enforcement remains blocked on the #864 connectivity audit even if that scenario validates.
+After that, the same harness can be pointed at a separately approved and pinned real Safe deployment for provenance-backed validation. Production signing enforcement remains blocked on the #864 connectivity audit even if those validations succeed.
