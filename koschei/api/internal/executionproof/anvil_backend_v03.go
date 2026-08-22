@@ -300,10 +300,31 @@ type canonicalEVMReceipt struct {
 	Logs              []json.RawMessage `json:"logs"`
 }
 
+type rpcEVMReceipt struct {
+	TransactionHash   string            `json:"transactionHash"`
+	BlockHash         string            `json:"blockHash"`
+	BlockNumber       string            `json:"blockNumber"`
+	Status            string            `json:"status"`
+	GasUsed           string            `json:"gasUsed"`
+	CumulativeGasUsed string            `json:"cumulativeGasUsed"`
+	ContractAddress   *string           `json:"contractAddress"`
+	Logs              []json.RawMessage `json:"logs"`
+}
+
 func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (canonicalEVMReceipt, error) {
-	var receipt canonicalEVMReceipt
-	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil {
-		return receipt, err
+	var wire rpcEVMReceipt
+	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &wire); err != nil {
+		return canonicalEVMReceipt{}, err
+	}
+	receipt := canonicalEVMReceipt{
+		TransactionHash:   wire.TransactionHash,
+		BlockHash:         wire.BlockHash,
+		BlockNumber:       wire.BlockNumber,
+		Status:            wire.Status,
+		GasUsed:           wire.GasUsed,
+		CumulativeGasUsed: wire.CumulativeGasUsed,
+		ContractAddress:   wire.ContractAddress,
+		Logs:              wire.Logs,
 	}
 	if !equalHex32(receipt.TransactionHash, txHash) || !validHex32(receipt.BlockHash) {
 		return receipt, errors.New("invalid transaction receipt identity")
