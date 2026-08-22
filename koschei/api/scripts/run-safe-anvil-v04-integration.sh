@@ -5,7 +5,7 @@ for tool in anvil forge cast jq sha256sum; do
   command -v "$tool" >/dev/null 2>&1 || { echo "missing required tool: $tool" >&2; exit 1; }
 done
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 API_DIR="$ROOT/koschei/api"
 FIXTURE="$API_DIR/internal/executionproof/testdata/safe_anvil_v04/SafeHarness.sol"
 RPC="http://127.0.0.1:18545"
