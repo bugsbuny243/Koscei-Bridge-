@@ -104,3 +104,4 @@ export KOSCHEI_SAFE_CHAIN_ID=31337
 cd "$API_DIR"
 go test ./internal/executionproof -run '^TestAnvilSafeSimulationEngineV04Integration$' -count=1 -v
 go test ./internal/defensecollector -count=1
+go test ./internal/defense -run '^TestRealAnvilSafeIntentMutationValidationV04$' -count=1 -v
