@@ -1,0 +1,73 @@
+name: Defense Validation Anvil Evidence
+
+permissions: {}
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/internal/executionproof/safe_anvil_engine_v04.go'
+      - 'koschei/api/internal/executionproof/safe_anvil_engine_v04_test.go'
+      - 'koschei/api/internal/executionproof/testdata/safe_anvil_v04/**'
+      - 'koschei/api/internal/defensecollector/**'
+      - 'koschei/api/cmd/defense-validation-collector/**'
+      - 'koschei/api/scripts/run-safe-anvil-v04-integration.sh'
+      - '.github/workflows/defense-validation-anvil-evidence.yml'
+  workflow_dispatch:
+
+jobs:
+  safe-anvil-evidence:
+    name: Real pinned Safe Anvil execution evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+          cache: false
+
+      - name: Record execution toolchain
+        run: |
+          set -euo pipefail
+          go version
+          forge --version
+          cast --version
+          anvil --version
+          sha256sum "$(command -v anvil)"
+
+      - name: Require Go formatting
+        working-directory: koschei/api
+        run: |
+          set -euo pipefail
+          files=(
+            internal/executionproof/safe_anvil_engine_v04.go
+            internal/executionproof/safe_anvil_engine_v04_test.go
+            internal/defensecollector/collector_v03.go
+            internal/defensecollector/collector_v03_test.go
+            cmd/defense-validation-collector/main.go
+          )
+          test -z "$(gofmt -l "${files[@]}")"
+
+      - name: Run deterministic collector and unit evidence tests
+        working-directory: koschei/api
+        run: |
+          set -euo pipefail
+          go test ./internal/defensecollector -count=1
+          go test ./internal/executionproof -run '^(TestSafeAccessorEncodingV04MatchesExistingSemanticDigest|TestFindSafeAccessorFrameV04BuildsVerifiableTrace|TestAnvilSafeSimulationEngineV04RejectsUnsupportedEffects)$' -count=1
+          go build ./cmd/defense-validation-collector
+
+      - name: Execute real pinned Safe Anvil evidence harness
+        run: bash koschei/api/scripts/run-safe-anvil-v04-integration.sh

@@ -300,10 +300,36 @@ type canonicalEVMReceipt struct {
 	Logs              []json.RawMessage `json:"logs"`
 }
 
+type rpcEVMReceipt struct {
+	TransactionHash   string            `json:"transactionHash"`
+	BlockHash         string            `json:"blockHash"`
+	BlockNumber       string            `json:"blockNumber"`
+	Status            string            `json:"status"`
+	GasUsed           string            `json:"gasUsed"`
+	CumulativeGasUsed string            `json:"cumulativeGasUsed"`
+	ContractAddress   *string           `json:"contractAddress"`
+	Logs              []json.RawMessage `json:"logs"`
+}
+
+var errEVMReceiptPending = errors.New("EVM transaction receipt pending")
+
 func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (canonicalEVMReceipt, error) {
-	var receipt canonicalEVMReceipt
-	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &receipt); err != nil {
-		return receipt, err
+	var wire rpcEVMReceipt
+	if err := c.call(ctx, "eth_getTransactionReceipt", []any{txHash}, &wire); err != nil {
+		return canonicalEVMReceipt{}, err
+	}
+	if wire.TransactionHash == "" && wire.BlockHash == "" {
+		return canonicalEVMReceipt{}, errEVMReceiptPending
+	}
+	receipt := canonicalEVMReceipt{
+		TransactionHash:   wire.TransactionHash,
+		BlockHash:         wire.BlockHash,
+		BlockNumber:       wire.BlockNumber,
+		Status:            wire.Status,
+		GasUsed:           wire.GasUsed,
+		CumulativeGasUsed: wire.CumulativeGasUsed,
+		ContractAddress:   wire.ContractAddress,
+		Logs:              wire.Logs,
 	}
 	if !equalHex32(receipt.TransactionHash, txHash) || !validHex32(receipt.BlockHash) {
 		return receipt, errors.New("invalid transaction receipt identity")
@@ -312,14 +338,30 @@ func (c *evmRPCClient) transactionReceipt(ctx context.Context, txHash string) (c
 }
 
 func (c *evmRPCClient) requireSuccessfulReceipt(ctx context.Context, txHash string) error {
-	receipt, err := c.transactionReceipt(ctx, txHash)
-	if err != nil {
-		return err
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		receipt, err := c.transactionReceipt(ctx, txHash)
+		if err == nil {
+			if strings.ToLower(receipt.Status) != "0x1" {
+				return fmt.Errorf("receipt status %q", receipt.Status)
+			}
+			return nil
+		}
+		if !errors.Is(err, errEVMReceiptPending) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-deadline.C:
+			return errors.New("transaction receipt timeout")
+		case <-ticker.C:
+		}
 	}
-	if strings.ToLower(receipt.Status) != "0x1" {
-		return fmt.Errorf("receipt status %q", receipt.Status)
-	}
-	return nil
 }
 
 func (c *evmRPCClient) transactionReceiptDigest(ctx context.Context, txHash string) (string, error) {
