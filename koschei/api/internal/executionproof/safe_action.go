@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 const SafeActionArtifactKind = "safe-transaction/v1"
@@ -30,9 +30,9 @@ type canonicalSafeAction struct {
 // CanonicalSafeActionArtifact returns the exact full Safe action material bound
 // into containment. This is deliberately stronger than calldata-only identity:
 // value, operation, nonce, gas/refund fields and Safe address all participate.
-func CanonicalSafeActionArtifact(tx SafeTransaction) (matrixcontainment.ActionArtifact, error) {
+func CanonicalSafeActionArtifact(tx SafeTransaction) (executioncontainment.ActionArtifact, error) {
 	if !validSafeTransaction(tx) {
-		return matrixcontainment.ActionArtifact{}, fmt.Errorf("invalid Safe transaction")
+		return executioncontainment.ActionArtifact{}, fmt.Errorf("invalid Safe transaction")
 	}
 
 	wire := canonicalSafeAction{
@@ -52,12 +52,12 @@ func CanonicalSafeActionArtifact(tx SafeTransaction) (matrixcontainment.ActionAr
 
 	encoded, err := json.Marshal(wire)
 	if err != nil {
-		return matrixcontainment.ActionArtifact{}, fmt.Errorf("marshal canonical Safe action: %w", err)
+		return executioncontainment.ActionArtifact{}, fmt.Errorf("marshal canonical Safe action: %w", err)
 	}
-	return matrixcontainment.ActionArtifact{Kind: SafeActionArtifactKind, Canonical: encoded}, nil
+	return executioncontainment.ActionArtifact{Kind: SafeActionArtifactKind, Canonical: encoded}, nil
 }
 
-func decodeCanonicalSafeAction(action matrixcontainment.ActionArtifact) (SafeTransaction, error) {
+func decodeCanonicalSafeAction(action executioncontainment.ActionArtifact) (SafeTransaction, error) {
 	if action.Kind != SafeActionArtifactKind || len(action.Canonical) == 0 {
 		return SafeTransaction{}, fmt.Errorf("unsupported Safe action artifact")
 	}

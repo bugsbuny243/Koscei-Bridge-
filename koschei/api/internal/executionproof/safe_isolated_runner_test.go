@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 type stubSafeIsolatedBackend struct {
@@ -12,11 +12,11 @@ type stubSafeIsolatedBackend struct {
 	err      error
 }
 
-func (b stubSafeIsolatedBackend) ExecuteSafe(context.Context, matrixcontainment.CellInput, SafeTransaction) (SafeExecutionEvidence, error) {
+func (b stubSafeIsolatedBackend) ExecuteSafe(context.Context, executioncontainment.CellInput, SafeTransaction) (SafeExecutionEvidence, error) {
 	return b.evidence, b.err
 }
 
-func safeRunnerFixture(t *testing.T) (matrixcontainment.CellInput, matrixcontainment.ActionArtifact, SafeContainmentPolicy, SafeExecutionEvidence) {
+func safeRunnerFixture(t *testing.T) (executioncontainment.CellInput, executioncontainment.ActionArtifact, SafeContainmentPolicy, SafeExecutionEvidence) {
 	t.Helper()
 	req := validSafeForwardRequest()
 	action, err := CanonicalSafeActionArtifact(req.Transaction)
@@ -40,7 +40,7 @@ func safeRunnerFixture(t *testing.T) (matrixcontainment.CellInput, matrixcontain
 		Implementation: "0x2222222222222222222222222222222222222222",
 		CodeHash:       "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
-	input := matrixcontainment.CellInput{
+	input := executioncontainment.CellInput{
 		ChainID: req.Transaction.ChainID, BlockNumber: 23456789,
 		BlockHash:              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Target:                 req.Transaction.To,
@@ -66,11 +66,11 @@ func safeRunnerFixture(t *testing.T) (matrixcontainment.CellInput, matrixcontain
 func TestSafeIsolatedRunnerVerifiedEvidenceCanRelease(t *testing.T) {
 	input, action, policy, evidence := safeRunnerFixture(t)
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionRelease {
+	if receipt.Decision != executioncontainment.DecisionRelease {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
@@ -79,11 +79,11 @@ func TestSafeIsolatedRunnerContainsAuthorityChange(t *testing.T) {
 	input, action, policy, evidence := safeRunnerFixture(t)
 	evidence.After.Owners = []string{"0x3333333333333333333333333333333333333333"}
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionContain {
+	if receipt.Decision != executioncontainment.DecisionContain {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
@@ -92,11 +92,11 @@ func TestSafeIsolatedRunnerContainsUnapprovedOutflow(t *testing.T) {
 	input, action, policy, evidence := safeRunnerFixture(t)
 	evidence.AssetMovements = []SafeAssetMovement{{Kind: "native", From: policy.Safe, To: "0x9999999999999999999999999999999999999999", Amount: "1"}}
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionContain {
+	if receipt.Decision != executioncontainment.DecisionContain {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
@@ -106,11 +106,11 @@ func TestSafeIsolatedRunnerRejectsTruncatedTraceAsUnavailable(t *testing.T) {
 	evidence.Trace.Truncated = true
 	evidence.Trace.TraceSHA256 = safeTraceDigest(evidence.Trace)
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionUnavailable {
+	if receipt.Decision != executioncontainment.DecisionUnavailable {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
@@ -119,11 +119,11 @@ func TestSafeIsolatedRunnerRejectsForgedTraceDigestAsUnavailable(t *testing.T) {
 	input, action, policy, evidence := safeRunnerFixture(t)
 	evidence.Trace.TraceSHA256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionUnavailable {
+	if receipt.Decision != executioncontainment.DecisionUnavailable {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }
@@ -132,11 +132,11 @@ func TestSafeIsolatedRunnerPolicyIdentityMismatchIsUnavailable(t *testing.T) {
 	input, action, policy, evidence := safeRunnerFixture(t)
 	policy.AllowedOutflow[0].MaxAmount = "999"
 	runner := SafeIsolatedRunner{Backend: stubSafeIsolatedBackend{evidence: evidence}, Policy: policy}
-	receipt, err := matrixcontainment.EvaluateWithRunner(context.Background(), input, action, runner)
+	receipt, err := executioncontainment.EvaluateWithRunner(context.Background(), input, action, runner)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionUnavailable {
+	if receipt.Decision != executioncontainment.DecisionUnavailable {
 		t.Fatalf("decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 }

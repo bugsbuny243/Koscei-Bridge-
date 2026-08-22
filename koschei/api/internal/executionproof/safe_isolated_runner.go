@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 type SafeAuthoritySnapshot struct {
@@ -67,7 +67,7 @@ type SafeExecutionEvidence struct {
 // Safe action in an isolated pinned-state runtime and returns evidence. It has
 // no production forwarding, signing or custody authority.
 type SafeIsolatedBackend interface {
-	ExecuteSafe(ctx context.Context, input matrixcontainment.CellInput, tx SafeTransaction) (SafeExecutionEvidence, error)
+	ExecuteSafe(ctx context.Context, input executioncontainment.CellInput, tx SafeTransaction) (SafeExecutionEvidence, error)
 }
 
 type SafeIsolatedRunner struct {
@@ -75,35 +75,35 @@ type SafeIsolatedRunner struct {
 	Policy  SafeContainmentPolicy
 }
 
-func (r SafeIsolatedRunner) Observe(ctx context.Context, input matrixcontainment.CellInput, action matrixcontainment.ActionArtifact) (matrixcontainment.Observation, error) {
+func (r SafeIsolatedRunner) Observe(ctx context.Context, input executioncontainment.CellInput, action executioncontainment.ActionArtifact) (executioncontainment.Observation, error) {
 	if r.Backend == nil {
-		return matrixcontainment.Observation{}, fmt.Errorf("Safe isolated backend unavailable")
+		return executioncontainment.Observation{}, fmt.Errorf("Safe isolated backend unavailable")
 	}
 	policyHash, err := safeContainmentPolicySHA256(r.Policy)
 	if err != nil || !strings.EqualFold(policyHash, input.InvariantSetSHA256) {
-		return matrixcontainment.Observation{}, fmt.Errorf("Safe containment policy identity mismatch")
+		return executioncontainment.Observation{}, fmt.Errorf("Safe containment policy identity mismatch")
 	}
 	if !strings.EqualFold(action.SHA256(), input.ActionSHA256) {
-		return matrixcontainment.Observation{}, fmt.Errorf("Safe action identity mismatch")
+		return executioncontainment.Observation{}, fmt.Errorf("Safe action identity mismatch")
 	}
 
 	tx, err := decodeCanonicalSafeAction(action)
 	if err != nil {
-		return matrixcontainment.Observation{}, err
+		return executioncontainment.Observation{}, err
 	}
 	if tx.ChainID != input.ChainID || !strings.EqualFold(normalizeAddress(tx.To), normalizeAddress(input.Target)) {
-		return matrixcontainment.Observation{}, fmt.Errorf("Safe action/input identity mismatch")
+		return executioncontainment.Observation{}, fmt.Errorf("Safe action/input identity mismatch")
 	}
 	if normalizeAddress(tx.Safe) != normalizeAddress(r.Policy.Safe) {
-		return matrixcontainment.Observation{}, fmt.Errorf("Safe policy address mismatch")
+		return executioncontainment.Observation{}, fmt.Errorf("Safe policy address mismatch")
 	}
 
 	evidence, err := r.Backend.ExecuteSafe(ctx, input, tx)
 	if err != nil {
-		return matrixcontainment.Observation{}, err
+		return executioncontainment.Observation{}, err
 	}
 	if err := validateSafeExecutionEvidence(evidence); err != nil {
-		return matrixcontainment.Observation{}, err
+		return executioncontainment.Observation{}, err
 	}
 
 	authorityPreserved := r.Policy.AllowAuthority || equalSafeAuthority(evidence.Before, evidence.After)
@@ -112,7 +112,7 @@ func (r SafeIsolatedRunner) Observe(ctx context.Context, input matrixcontainment
 	assetBoundsPreserved := (SafeOutflowBudgetVerifier{}).Verify(r.Policy, evidence.AssetMovements)
 	traceObserved := (SafeTraceVerifier{}).Verify(evidence.Trace) && normalizeAddress(evidence.Trace.RootSafe) == normalizeAddress(tx.Safe)
 
-	return matrixcontainment.Observation{
+	return executioncontainment.Observation{
 		BackendAvailable:           true,
 		ObservedChainID:            evidence.ChainID,
 		ObservedBlockNumber:        evidence.BlockNumber,

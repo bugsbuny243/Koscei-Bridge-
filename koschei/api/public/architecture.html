@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei Web3 architecture: evidence collection, execution verification, defense validation, runtime containment and security operations.">
+<meta name="description" content="Koschei Web3 architecture: ARVIS intelligence and evidence, execution verification, defense validation, runtime containment and security operations.">
 <meta name="theme-color" content="#0b0f13">
 <title>Koschei Web3 | Architecture</title>
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
@@ -15,24 +15,24 @@
 <body class="koschei-enterprise">
 <main class="wrap">
 <nav class="top"><a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small>Architecture</small></span></a><div class="nav"><a class="btn" href="/">Product</a><a class="btn" href="/scan">Investigation</a><a class="btn" href="/dashboard">Workspace</a><a class="btn" href="/developers">Developers</a></div></nav>
-<section class="surface hero"><span class="eyebrow">Technical architecture</span><h1>One control plane. Independent evidence boundaries.</h1><p>Koschei Web3 separates observation, execution verification, validation and authority so that no dashboard, model or single collector can silently turn incomplete evidence into permission. Chain-specific adapters preserve native mechanics while the decision contract stays explicit and reviewable.</p></section>
-<section class="stat" aria-label="Solana operational telemetry">
-<div><b id="completed">—</b><span>completed Solana processing targets</span></div>
-<div><b id="verdicts">—</b><span>visible evidence verdicts in the active window</span></div>
-<div><b id="retryable">—</b><span>retryable processing items</span></div>
-<div><b id="sources">—</b><span>observed launch and liquidity sources</span></div>
+<section class="surface hero"><span class="eyebrow">Technical architecture</span><h1>One Web3 control plane. Independent evidence boundaries.</h1><p>ARVIS is the intelligence and evidence engine inside Koschei Web3. Its chain-native observations feed execution verification, defense validation, runtime containment and security operations without turning a dashboard, model or single collector into authorization authority.</p></section>
+<section class="stat" aria-label="ARVIS Solana operational telemetry">
+<div><b id="completed">—</b><span>completed ARVIS Solana processing targets</span></div>
+<div><b id="verdicts">—</b><span>visible ARVIS evidence verdicts in the active window</span></div>
+<div><b id="retryable">—</b><span>retryable ARVIS processing items</span></div>
+<div><b id="sources">—</b><span>observed ARVIS launch and liquidity sources</span></div>
 </section>
-<div class="telemetry-note"><strong>Solana operational telemetry.</strong> These values come from the existing production health endpoint and describe the current Solana evidence arm only. They are not presented as proof that every Web3 control or chain adapter is production-complete.</div>
+<div class="telemetry-note"><strong>ARVIS production telemetry.</strong> These values come from the existing production health endpoint and describe the current Solana evidence arm. ARVIS is a core Koschei Web3 engine; this telemetry is not presented as proof that every Web3 control or chain adapter is production-complete.</div>
 <section class="grid">
-<article class="card"><span class="step">Layer 01</span><h2>Evidence collection</h2><p>Chain-native collectors observe transactions, wallets, token state, launch behavior, liquidity, funding relations and other relevant security facts while preserving source identity and collection limits.</p></article>
+<article class="card"><span class="step">Layer 01</span><h2>ARVIS intelligence and evidence</h2><p>ARVIS observes transactions, wallets, tokens, actor/deployer/creator relations, funding and flow evidence, launch behavior, liquidity and other Web3-native security facts while preserving source identity and collection limits.</p></article>
 <article class="card"><span class="step">Layer 02</span><h2>Execution verification</h2><p>Execution Proof binds approved intent to transaction identity, policy context, calldata and known execution state before authority can cross a signing boundary.</p></article>
 <article class="card"><span class="step">Layer 03</span><h2>Defense validation</h2><p>Controlled attack and matched benign scenarios are evaluated against exact control configurations. Independent observation determines caught-in-time, late, missed, false-positive, clean or incomplete outcomes.</p></article>
 <article class="card"><span class="step">Layer 04</span><h2>Runtime containment</h2><p>Node Shield is intended to bind the approved artifact and effective runtime authority to local deployment policy, with live kernel-level evidence required before the runtime layer is treated as proven.</p></article>
-<article class="card"><span class="step">Layer 05</span><h2>Evidence and decision plane</h2><p>Shared evidence contracts keep source facts, observations, rule identity, limitations and deterministic decisions distinct from explanatory language or UI presentation.</p></article>
-<article class="card"><span class="step">Layer 06</span><h2>Security operations and integration</h2><p>Investigations, cases, monitoring, alerts, APIs, webhooks and exports consume the same evidence record so operational delivery does not create competing technical truth.</p></article>
+<article class="card"><span class="step">Layer 05</span><h2>Evidence and decision plane</h2><p>Shared evidence contracts keep ARVIS source facts, execution observations, rule identity, limitations and deterministic decisions distinct from explanatory language or UI presentation.</p></article>
+<article class="card"><span class="step">Layer 06</span><h2>Security operations and integration</h2><p>ARVIS investigations, cases, monitoring, alerts, APIs, webhooks and exports consume the same evidence record so operational delivery does not create competing technical truth.</p></article>
 </section>
 <section class="surface boundary"><span class="eyebrow">Authority boundaries</span><h2>What the architecture refuses to collapse</h2><div class="boundary-grid"><div><small>Custody</small><b>Not required</b><p>Security analysis is designed without private-key or asset custody.</p></div><div><small>Models</small><b>Not verdict authority</b><p>AI may explain evidence but cannot own the deterministic security decision.</p></div><div><small>UI</small><b>Not authorization</b><p>A score or rendered state cannot substitute for the underlying proof chain.</p></div><div><small>Unknowns</small><b>Fail closed</b><p>Incomplete evidence remains incomplete instead of silently becoming safe.</p></div></div></section>
-<footer class="footer"><span>Koschei Web3 · Architecture</span><span>Evidence collection → execution verification → defense validation → runtime containment → operations</span></footer>
+<footer class="footer"><span>Koschei Web3 · ARVIS Intelligence · Architecture</span><span>ARVIS intelligence → execution verification → defense validation → runtime containment → operations</span></footer>
 </main>
 <script>
 (()=>{const n=v=>Number(v||0).toLocaleString('en-US');async function load(){try{const r=await fetch('/health',{cache:'no-store'});if(!r.ok)return;const d=await r.json(),a=d.arvis||{},f=a.failures||{},s=a.sources||{};document.getElementById('completed').textContent=n(a.processing_completed);document.getElementById('verdicts').textContent=n(a.visible_verdicts||a.processing_completed_recent);document.getElementById('retryable').textContent=n(f.retryable);const live=[s.pump,s.raydium].filter(x=>x&&Number(x.recent||0)>0).length;document.getElementById('sources').textContent=live?live+' active':'checking';}catch{}}load();setInterval(load,15000)})();

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
-func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) matrixcontainment.Receipt {
+func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) executioncontainment.Receipt {
 	t.Helper()
 	blockHash := "1111111111111111111111111111111111111111111111111111111111111111"
 	runnerHash := "5555555555555555555555555555555555555555555555555555555555555555"
@@ -29,7 +29,7 @@ func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) matri
 	}
 	calldataDigest := sha256.Sum256(req.Transaction.Data)
 
-	receipt, err := matrixcontainment.Evaluate(matrixcontainment.CellInput{
+	receipt, err := executioncontainment.Evaluate(executioncontainment.CellInput{
 		ChainID:                req.Transaction.ChainID,
 		BlockNumber:            23456789,
 		BlockHash:              blockHash,
@@ -41,7 +41,7 @@ func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) matri
 		ActionSHA256:           action.SHA256(),
 		InvariantSetSHA256:     proof.Envelope.Simulation.InvariantSetSHA256,
 		ApprovedRunnerSHA256:   runnerHash,
-	}, matrixcontainment.Observation{
+	}, executioncontainment.Observation{
 		BackendAvailable:           true,
 		ObservedChainID:            req.Transaction.ChainID,
 		ObservedBlockNumber:        23456789,
@@ -59,7 +59,7 @@ func containmentFixture(t *testing.T, req SafeForwardRequest, proof Proof) matri
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Decision != matrixcontainment.DecisionRelease || !matrixcontainment.Verify(receipt) {
+	if receipt.Decision != executioncontainment.DecisionRelease || !executioncontainment.Verify(receipt) {
 		t.Fatalf("fixture is not verified RELEASE: decision=%s reasons=%v", receipt.Decision, receipt.Reasons)
 	}
 	return receipt
@@ -87,11 +87,11 @@ func TestVerifyContainmentAndForwardSafeTransactionRejectsReleaseForDifferentTar
 	release := containmentFixture(t, req, proof)
 	input := release.Input
 	input.Target = "0x9999999999999999999999999999999999999999"
-	unrelatedRelease, err := matrixcontainment.Evaluate(input, release.Observation)
+	unrelatedRelease, err := executioncontainment.Evaluate(input, release.Observation)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if unrelatedRelease.Decision != matrixcontainment.DecisionRelease || !matrixcontainment.Verify(unrelatedRelease) {
+	if unrelatedRelease.Decision != executioncontainment.DecisionRelease || !executioncontainment.Verify(unrelatedRelease) {
 		t.Fatalf("fixture must remain a structurally valid RELEASE")
 	}
 	forwarder := &recordingSafeForwarder{}
@@ -131,11 +131,11 @@ func TestVerifyContainmentAndForwardSafeTransactionNeverForwardsContain(t *testi
 	release := containmentFixture(t, req, proof)
 	input := release.Input
 	input.CandidatePayloadSHA256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	contained, err := matrixcontainment.Evaluate(input, release.Observation)
+	contained, err := executioncontainment.Evaluate(input, release.Observation)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if contained.Decision != matrixcontainment.DecisionContain {
+	if contained.Decision != executioncontainment.DecisionContain {
 		t.Fatalf("containment decision=%s, want CONTAIN", contained.Decision)
 	}
 	forwarder := &recordingSafeForwarder{}
@@ -152,11 +152,11 @@ func TestVerifyContainmentAndForwardSafeTransactionNeverForwardsContain(t *testi
 func TestVerifyContainmentAndForwardSafeTransactionNeverForwardsUnavailable(t *testing.T) {
 	req, proof := nativeSafeForwardFixture(t)
 	release := containmentFixture(t, req, proof)
-	unavailable, err := matrixcontainment.Evaluate(release.Input, matrixcontainment.Observation{BackendAvailable: false})
+	unavailable, err := executioncontainment.Evaluate(release.Input, executioncontainment.Observation{BackendAvailable: false})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if unavailable.Decision != matrixcontainment.DecisionUnavailable {
+	if unavailable.Decision != executioncontainment.DecisionUnavailable {
 		t.Fatalf("containment decision=%s, want UNAVAILABLE", unavailable.Decision)
 	}
 	forwarder := &recordingSafeForwarder{}

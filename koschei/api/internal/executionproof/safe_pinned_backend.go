@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 // SafeSimulationEngine is the narrow trusted adapter implemented by a concrete
@@ -15,7 +15,7 @@ type SafeSimulationEngine interface {
 	PinnedBlock(ctx context.Context, chainID, blockNumber uint64) (string, error)
 	RunnerSHA256(ctx context.Context) (string, error)
 	SnapshotSafe(ctx context.Context, chainID, blockNumber uint64, safe string) (SafeAuthoritySnapshot, string, error)
-	ExecuteExactSafe(ctx context.Context, input matrixcontainment.CellInput, tx SafeTransaction) (SafeSimulationResult, error)
+	ExecuteExactSafe(ctx context.Context, input executioncontainment.CellInput, tx SafeTransaction) (SafeSimulationResult, error)
 }
 
 type SafeSimulationResult struct {
@@ -31,7 +31,7 @@ type PinnedSafeBackend struct {
 	Accessor string
 }
 
-func (b PinnedSafeBackend) ExecuteSafe(ctx context.Context, input matrixcontainment.CellInput, tx SafeTransaction) (SafeExecutionEvidence, error) {
+func (b PinnedSafeBackend) ExecuteSafe(ctx context.Context, input executioncontainment.CellInput, tx SafeTransaction) (SafeExecutionEvidence, error) {
 	if b.Engine == nil {
 		return SafeExecutionEvidence{}, fmt.Errorf("Safe simulation engine unavailable")
 	}

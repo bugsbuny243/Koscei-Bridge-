@@ -1,4 +1,4 @@
-package matrixcontainment
+package executioncontainment
 
 import (
 	"crypto/sha256"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "koschei-matrix-containment/v0.1"
+const Version = "koschei-execution-containment/v0.1"
 
 type Decision string
 
@@ -21,16 +21,16 @@ const (
 type ReasonCode string
 
 const (
-	ReasonInvalidEvidence        ReasonCode = "MX-001-INVALID-EVIDENCE"
-	ReasonBackendUnavailable     ReasonCode = "MX-002-BACKEND-UNAVAILABLE"
-	ReasonPinnedStateMismatch    ReasonCode = "MX-003-PINNED-STATE-MISMATCH"
-	ReasonIntentMismatch         ReasonCode = "MX-004-INTENT-MISMATCH"
-	ReasonAuthorityChanged       ReasonCode = "MX-005-AUTHORITY-CHANGED"
-	ReasonAssetBoundsExceeded    ReasonCode = "MX-006-ASSET-BOUNDS-EXCEEDED"
-	ReasonCodeIntegrityChanged   ReasonCode = "MX-007-CODE-INTEGRITY-CHANGED"
-	ReasonHiddenExecutionPath    ReasonCode = "MX-008-HIDDEN-EXECUTION-PATH"
-	ReasonInvariantFailed        ReasonCode = "MX-009-INVARIANT-FAILED"
-	ReasonRunnerIdentityMismatch ReasonCode = "MX-010-RUNNER-IDENTITY-MISMATCH"
+	ReasonInvalidEvidence        ReasonCode = "EC-001-INVALID-EVIDENCE"
+	ReasonBackendUnavailable     ReasonCode = "EC-002-BACKEND-UNAVAILABLE"
+	ReasonPinnedStateMismatch    ReasonCode = "EC-003-PINNED-STATE-MISMATCH"
+	ReasonIntentMismatch         ReasonCode = "EC-004-INTENT-MISMATCH"
+	ReasonAuthorityChanged       ReasonCode = "EC-005-AUTHORITY-CHANGED"
+	ReasonAssetBoundsExceeded    ReasonCode = "EC-006-ASSET-BOUNDS-EXCEEDED"
+	ReasonCodeIntegrityChanged   ReasonCode = "EC-007-CODE-INTEGRITY-CHANGED"
+	ReasonHiddenExecutionPath    ReasonCode = "EC-008-HIDDEN-EXECUTION-PATH"
+	ReasonInvariantFailed        ReasonCode = "EC-009-INVARIANT-FAILED"
+	ReasonRunnerIdentityMismatch ReasonCode = "EC-010-RUNNER-IDENTITY-MISMATCH"
 )
 
 type CellInput struct {
@@ -81,7 +81,7 @@ func Evaluate(input CellInput, observation Observation) (Receipt, error) {
 
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
-		return Receipt{}, fmt.Errorf("marshal matrix input: %w", err)
+		return Receipt{}, fmt.Errorf("marshal execution-containment input: %w", err)
 	}
 	inputDigest := sha256.Sum256(inputBytes)
 
@@ -149,7 +149,7 @@ func Evaluate(input CellInput, observation Observation) (Receipt, error) {
 
 	canonical, err := json.Marshal(withoutDigest)
 	if err != nil {
-		return Receipt{}, fmt.Errorf("marshal matrix receipt: %w", err)
+		return Receipt{}, fmt.Errorf("marshal execution-containment receipt: %w", err)
 	}
 	receiptDigest := sha256.Sum256(canonical)
 

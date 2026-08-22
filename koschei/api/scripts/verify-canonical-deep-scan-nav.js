@@ -11,7 +11,7 @@ requireText(shell,"['/scan?mode=deep','Deep Scan']",'canonical deep scan global 
 requireText(shell,"if(href==='/scan?mode=deep')return current==='/scan'&&mode==='deep'",'deep scan active state');
 requireText(shell,"if(href==='/scan')return current==='/scan'&&mode!=='deep'",'token scan active state');
 requireText(shell,"if(current!=='/security-radar'||window.KoscheiInvestigationShare",'legacy share compatibility');
-requireText(shell,"if(current==='/security-radar')document.title='Koschei ARVIS — Full Security Radar'",'legacy route title compatibility');
+requireText(shell,"if(current==='/security-radar')document.title='ARVIS Security Radar — Koschei Web3'",'ARVIS radar title remains inside Koschei Web3');
 requireText(shell,'installBoundedAPIFetch();','bounded API fetch remains installed');
 requireText(shell,'translate(document.body);','translation compatibility remains installed');
 requireText(shell,"path.indexOf('/api/token/scan')===0",'token scan timeout policy remains supported');

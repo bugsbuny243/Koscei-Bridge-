@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 type stubSafeSimulationEngine struct {
@@ -35,14 +35,14 @@ func (s stubSafeSimulationEngine) SnapshotSafe(context.Context, uint64, uint64, 
 	}
 	return s.before, s.preSHA, nil
 }
-func (s stubSafeSimulationEngine) ExecuteExactSafe(context.Context, matrixcontainment.CellInput, SafeTransaction) (SafeSimulationResult, error) {
+func (s stubSafeSimulationEngine) ExecuteExactSafe(context.Context, executioncontainment.CellInput, SafeTransaction) (SafeSimulationResult, error) {
 	if s.err != nil {
 		return SafeSimulationResult{}, s.err
 	}
 	return s.result, nil
 }
 
-func pinnedBackendFixture(t *testing.T) (matrixcontainment.CellInput, SafeTransaction, stubSafeSimulationEngine) {
+func pinnedBackendFixture(t *testing.T) (executioncontainment.CellInput, SafeTransaction, stubSafeSimulationEngine) {
 	t.Helper()
 	input, _, _, evidence := safeRunnerFixture(t)
 	tx := validSafeForwardRequest().Transaction

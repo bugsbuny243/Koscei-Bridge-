@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	"koschei/api/internal/matrixcontainment"
+	"koschei/api/internal/executioncontainment"
 )
 
 var ErrContainmentBlocked = errors.New("containment gate blocked Safe signing request")
@@ -21,7 +21,7 @@ var ErrContainmentBlocked = errors.New("containment gate blocked Safe signing re
 // transaction from being replayed to authorize a different transaction.
 func VerifyContainmentAndForwardSafeTransaction(
 	ctx context.Context,
-	receipt matrixcontainment.Receipt,
+	receipt executioncontainment.Receipt,
 	proof Proof,
 	req SafeForwardRequest,
 	forwarder SafeForwarder,
@@ -33,8 +33,8 @@ func VerifyContainmentAndForwardSafeTransaction(
 	return VerifyAndForwardSafeTransaction(ctx, proof, req, forwarder)
 }
 
-func containmentBindsExactSafeRequest(receipt matrixcontainment.Receipt, proof Proof, req SafeForwardRequest) bool {
-	if !matrixcontainment.Verify(receipt) || receipt.Decision != matrixcontainment.DecisionRelease {
+func containmentBindsExactSafeRequest(receipt executioncontainment.Receipt, proof Proof, req SafeForwardRequest) bool {
+	if !executioncontainment.Verify(receipt) || receipt.Decision != executioncontainment.DecisionRelease {
 		return false
 	}
 	if !validSafeTransaction(req.Transaction) || !validHex32(req.PresentedSafeHash) {
