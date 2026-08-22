@@ -108,6 +108,8 @@ func TestUnifiedScanBehaviorUsesRealModeEndpoints(t *testing.T) {
 		"Simulate Transaction",
 		"Deep Radar",
 		"Missing evidence = no safety decision",
+		"window.__koscheiUnifiedScanNavigation",
+		"script.src='/js/unified-scan-navigation.js?v=1'",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("unified scan behavior missing %q", required)
