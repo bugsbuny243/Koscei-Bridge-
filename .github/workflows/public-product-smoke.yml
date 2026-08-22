@@ -145,6 +145,7 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
             wait_expect_200 auth_english_asset /js/english-auth-presentation.js "__koscheiAuthEnglishOverlayInstalled"
             wait_expect_200 unified_scan_navigation_asset /js/unified-scan-navigation.js "__koscheiUnifiedScanNavigation"
+            wait_expect_200 public_scan_runtime /js/public-solana-scan.js "script.src='/js/unified-scan-navigation.js?v=1'"
             if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
               wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             fi
@@ -166,9 +167,13 @@ jobs:
             for page in landing_page login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
               grep -Fq '<html lang="en">' "diagnostics/${page}.body" || { echo "CORE_LANGUAGE_FAILURE: ${page}" >&2; exit 37; }
             done
-            for page in arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
-              grep -Fq 'unified-scan-navigation.js' "diagnostics/${page}.body" || { echo "SCAN_NAVIGATION_FAILURE: ${page}" >&2; exit 43; }
+            for page in arvis_scan safe_check transaction_shield security_radar; do
+              grep -Fq 'public-solana-scan.js' "diagnostics/${page}.body" || { echo "SCAN_RUNTIME_FAILURE: ${page}" >&2; exit 43; }
             done
+            if grep -Fq 'public-solana-scan.js' diagnostics/arvis_dashboard.body; then
+              echo 'DASHBOARD_RUNTIME_FAILURE: workspace unexpectedly embeds the scanner runtime.' >&2
+              exit 44
+            fi
             for page in login_page register_page; do
               grep -Fq 'koschei-auth.js?v=33' "diagnostics/${page}.body" || { echo "AUTH_FREEZE_FAILURE: ${page}" >&2; exit 38; }
               grep -Fq 'english-auth-presentation.js' "diagnostics/${page}.body" || { echo "AUTH_PRESENTATION_FAILURE: ${page}" >&2; exit 39; }
