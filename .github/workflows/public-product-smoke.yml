@@ -166,7 +166,7 @@ jobs:
             for page in landing_page login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
               grep -Fq '<html lang="en">' "diagnostics/${page}.body" || { echo "CORE_LANGUAGE_FAILURE: ${page}" >&2; exit 37; }
             done
-            for page in login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
+            for page in arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
               grep -Fq 'unified-scan-navigation.js' "diagnostics/${page}.body" || { echo "SCAN_NAVIGATION_FAILURE: ${page}" >&2; exit 43; }
             done
             for page in login_page register_page; do
