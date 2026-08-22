@@ -166,7 +166,7 @@ func AdaptExecutionIntegrityCaseV02(in DefenseValidationExecutionAdapterInputV02
 	c := DefenseValidationCaseV02{
 		CaseRef: in.CaseRef, CaseKind: in.CaseKind, TechniqueID: in.TechniqueID, ExecutionMode: in.ExecutionMode,
 		ExecutionRef: "defense-execution:" + executionHash, ExecutionHash: executionHash,
-		PreStateHash: strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256), PostStateHash: strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256),
+		PreStateHash: defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PreStateSHA256), PostStateHash: defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PostStateSHA256),
 		EvidenceState: DefenseValidationEvidenceVerifiedV02, ImpactOffsetMS: cloneDefenseValidationInt64V02(in.ImpactOffsetMS),
 		ObservationWindowMS: in.ObservationWindowMS, MainnetTransactionSent: false,
 	}
@@ -206,7 +206,7 @@ func DefenseValidationObservationBindingDigestV02(b DefenseValidationObservation
 	default:
 		return "", fmt.Errorf("unsupported observation status %q", b.Status)
 	}
-	return defenseValidationCanonicalHashV02(b)
+	return defenseValidationCanonicalDigestV02(b)
 }
 
 func AdaptSecurityEvidenceObservationV02(control DefenseValidationControlV02, execution DefenseValidationExecutionEvidenceV02, binding DefenseValidationObservationBindingV02, event securityevidence.Event) (DefenseValidationObservationV02, error) {
@@ -268,10 +268,10 @@ func AdaptSecurityEvidenceObservationV02(control DefenseValidationControlV02, ex
 	if matched != 1 {
 		return DefenseValidationObservationV02{}, errors.New("exactly one canonical observation finding is required")
 	}
-	out := DefenseValidationObservationV02{ControlRef: control.ControlRef, CollectorRef: control.CollectorRef, CaseRef: execution.Case.CaseRef, Status: binding.Status, ObservationEvidenceRef: "security-evidence:event:" + strings.ToLower(event.EventSHA256), ObservationEvidenceHash: strings.ToLower(event.EventSHA256), AlertObservedOffsetMS: cloneDefenseValidationInt64V02(binding.AlertObservedOffsetMS), ObservationCompletedOffsetMS: binding.ObservationCompletedOffsetMS, EvidenceState: DefenseValidationEvidenceVerifiedV02}
+	out := DefenseValidationObservationV02{ControlRef: control.ControlRef, CollectorRef: control.CollectorRef, CaseRef: execution.Case.CaseRef, Status: binding.Status, ObservationEvidenceRef: "security-evidence:event:" + strings.ToLower(event.EventSHA256), ObservationEvidenceHash: defenseValidationHashRefV02(event.EventSHA256), AlertObservedOffsetMS: cloneDefenseValidationInt64V02(binding.AlertObservedOffsetMS), ObservationCompletedOffsetMS: binding.ObservationCompletedOffsetMS, EvidenceState: DefenseValidationEvidenceVerifiedV02}
 	if binding.Status == DefenseValidationObservationAlertedV02 {
 		out.AlertEvidenceRef = "security-evidence:finding:" + findingID
-		out.AlertEvidenceHash = digest
+		out.AlertEvidenceHash = defenseValidationHashRefV02(digest)
 	}
 	return out, nil
 }
@@ -315,10 +315,26 @@ func containsDefenseValidationDigestV02(values []string, expected string) bool {
 	return false
 }
 func defenseValidationCanonicalHashV02(value any) (string, error) {
+	digest, err := defenseValidationCanonicalDigestV02(value)
+	if err != nil {
+		return "", err
+	}
+	return defenseValidationHashRefV02(digest), nil
+}
+
+func defenseValidationCanonicalDigestV02(value any) (string, error) {
 	payload, err := json.Marshal(value)
 	if err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func defenseValidationHashRefV02(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if strings.HasPrefix(value, "sha256:") {
+		return value
+	}
+	return "sha256:" + value
 }
