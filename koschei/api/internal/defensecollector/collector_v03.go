@@ -14,30 +14,30 @@ import (
 const VersionV03 = "koschei-defense-independent-collector/v0.3"
 
 type RequestV03 struct {
-	Version                      string                               `json:"version"`
-	CollectorRef                 string                               `json:"collector_ref"`
+	Version                      string                              `json:"version"`
+	CollectorRef                 string                              `json:"collector_ref"`
 	Control                      defense.DefenseValidationControlV02 `json:"control"`
-	Chain                        string                               `json:"chain"`
-	CaseRef                      string                               `json:"case_ref"`
-	CaseKind                     string                               `json:"case_kind"`
-	TechniqueID                  string                               `json:"technique_id"`
-	ExecutionMode                string                               `json:"execution_mode"`
-	ImpactOffsetMS               *int64                               `json:"impact_offset_ms,omitempty"`
-	ObservationWindowMS          int64                                `json:"observation_window_ms"`
-	ObservationCompletedOffsetMS int64                                `json:"observation_completed_offset_ms"`
-	AlertObservedOffsetMS        *int64                               `json:"alert_observed_offset_ms,omitempty"`
-	WindowFromUnixMS             int64                                `json:"window_from_unix_ms"`
-	WindowToUnixMS               int64                                `json:"window_to_unix_ms"`
-	MainnetTransactionSent       bool                                 `json:"mainnet_transaction_sent"`
-	ContainmentReceipt           executioncontainment.Receipt         `json:"containment_receipt"`
-	ExecutionProof               executionproof.Proof                 `json:"execution_proof"`
+	Chain                        string                              `json:"chain"`
+	CaseRef                      string                              `json:"case_ref"`
+	CaseKind                     string                              `json:"case_kind"`
+	TechniqueID                  string                              `json:"technique_id"`
+	ExecutionMode                string                              `json:"execution_mode"`
+	ImpactOffsetMS               *int64                              `json:"impact_offset_ms,omitempty"`
+	ObservationWindowMS          int64                               `json:"observation_window_ms"`
+	ObservationCompletedOffsetMS int64                               `json:"observation_completed_offset_ms"`
+	AlertObservedOffsetMS        *int64                              `json:"alert_observed_offset_ms,omitempty"`
+	WindowFromUnixMS             int64                               `json:"window_from_unix_ms"`
+	WindowToUnixMS               int64                               `json:"window_to_unix_ms"`
+	MainnetTransactionSent       bool                                `json:"mainnet_transaction_sent"`
+	ContainmentReceipt           executioncontainment.Receipt        `json:"containment_receipt"`
+	ExecutionProof               executionproof.Proof                `json:"execution_proof"`
 }
 
 type ResultV03 struct {
-	Version   string                                          `json:"version"`
+	Version   string                                         `json:"version"`
 	Execution defense.DefenseValidationExecutionEvidenceV02  `json:"execution"`
 	Binding   defense.DefenseValidationObservationBindingV02 `json:"binding"`
-	Event     securityevidence.Event                          `json:"event"`
+	Event     securityevidence.Event                         `json:"event"`
 }
 
 func CollectV03(request RequestV03) (ResultV03, error) {
