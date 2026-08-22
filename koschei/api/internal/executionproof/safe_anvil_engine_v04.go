@@ -166,11 +166,11 @@ func (e AnvilSafeSimulationEngine) ExecuteExactSafe(ctx context.Context, input e
 		return SafeSimulationResult{}, errors.New("Safe Anvil accessor trace failed semantic verification")
 	}
 
-	if err := client.callBool(ctx, "anvil_impersonateAccount", []any{normalizeAddress(tx.Safe)}); err != nil {
+	if err := client.call(ctx, "anvil_impersonateAccount", []any{normalizeAddress(tx.Safe)}, nil); err != nil {
 		return SafeSimulationResult{}, fmt.Errorf("impersonate Safe for isolated state materialization: %w", err)
 	}
 	defer func() {
-		_ = client.callBool(context.Background(), "anvil_stopImpersonatingAccount", []any{normalizeAddress(tx.Safe)})
+		_ = client.call(context.Background(), "anvil_stopImpersonatingAccount", []any{normalizeAddress(tx.Safe)}, nil)
 	}()
 
 	txHash, err := client.sendNativeMaterializationV04(ctx, tx)
