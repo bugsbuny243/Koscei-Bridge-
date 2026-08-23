@@ -76,7 +76,7 @@ func TestArvisProgramAuthorityRejectsMalformedProgramData(t *testing.T) {
 		return programSecurityDecodeInto(map[string]any{
 			"context": map[string]any{"slot": 1},
 			"value": map[string]any{
-				"data": []string{base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "base64"},
+				"data":       []string{base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "base64"},
 				"executable": true, "owner": arvisUpgradeableLoaderID,
 			},
 		}, target)
