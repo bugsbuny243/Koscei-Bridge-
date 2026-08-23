@@ -16,7 +16,8 @@ const arvisSocialRendererScripts = `<script src="/js/arvis-social-render-v2-core
 <script src="/js/arvis-social-render-v2-publish.js?v=2" data-arvis-social-v2="publish"></script>`
 
 const arvisCompleteEvidenceScript = `<script src="/js/arvis-canonical-projection-v1.js?v=1" data-arvis-canonical-projection-v1="1"></script>
-<script src="/js/arvis-complete-evidence-v4.js?v=4" data-arvis-complete-evidence-v4="1"></script>`
+<script src="/js/arvis-complete-evidence-v4.js?v=4" data-arvis-complete-evidence-v4="1"></script>
+<script src="/js/arvis-complete-evidence-v3.js?v=3" data-arvis-complete-evidence-v3-compat="1"></script>`
 
 type bufferedHTMLResponse struct {
 	header http.Header
