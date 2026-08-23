@@ -31,15 +31,15 @@ func TestDefenseValidationScenarioContractV02AcceptsRepositoryScenarios(t *testi
 func TestDefenseValidationScenarioContractV02RejectsUnsafeClaimBoundary(t *testing.T) {
 	deadline := int64(1000)
 	scenario := DefenseValidationScenarioV02{
-		Contract: DefenseValidationScenarioContractV02,
-		ScenarioRef: "scenario:test:unsafe",
+		Contract:        DefenseValidationScenarioContractV02,
+		ScenarioRef:     "scenario:test:unsafe",
 		ScenarioVersion: "v1.0.0",
-		Title: "unsafe",
-		Status: "planned",
-		Chain: "sandbox",
-		RulesetVersion: DefenseValidationRulesetVersionV02,
-		ClaimBoundary: DefenseValidationScenarioClaimBoundaryV02{ProductionClaimAllowed: true},
-		Environment: DefenseValidationScenarioEnvironmentV02{ExecutionMode: "isolated_sandbox", OwnerApprovalRequired: true, DefaultOff: true},
+		Title:           "unsafe",
+		Status:          "planned",
+		Chain:           "sandbox",
+		RulesetVersion:  DefenseValidationRulesetVersionV02,
+		ClaimBoundary:   DefenseValidationScenarioClaimBoundaryV02{ProductionClaimAllowed: true},
+		Environment:     DefenseValidationScenarioEnvironmentV02{ExecutionMode: "isolated_sandbox", OwnerApprovalRequired: true, DefaultOff: true},
 		ControlContract: DefenseValidationScenarioControlContractV02{ControlClass: "test", CandidateControl: "test", IndependentCollectorRequired: true, AdapterVersionRequired: true, ConfigurationHashRequired: true, ProductionWiringRequiredForProductionClaim: true},
 		Matrix: DefenseValidationScenarioMatrixV02{
 			PairRef: "pair:test", MatchedFields: []string{"operation"}, SingleSecurityDifference: "authority",
@@ -49,8 +49,8 @@ func TestDefenseValidationScenarioContractV02RejectsUnsafeClaimBoundary(t *testi
 			},
 		},
 		RequiredRunEvidence: []string{"runner_identity_hash", "pre_state_hash", "post_state_hash", "independent_observation_hash", "control_configuration_hash", "completed_observation_window"},
-		AcceptanceGate: map[string]any{"test": true},
-		Limitations: []string{"test"},
+		AcceptanceGate:      map[string]any{"test": true},
+		Limitations:         []string{"test"},
 	}
 	if err := ValidateDefenseValidationScenarioV02(scenario); err == nil {
 		t.Fatal("unsafe production claim boundary accepted")
