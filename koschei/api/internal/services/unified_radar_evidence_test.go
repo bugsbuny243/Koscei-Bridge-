@@ -37,7 +37,7 @@ func TestHardenUnifiedCreatorSellRemainsObserved(t *testing.T) {
 	}
 }
 
-func TestHardenUnifiedDominantExitRequiresCompleteEvidenceLine(t *testing.T) {
+func TestHardenUnifiedDominantExitRequiresCompleteOutboundEvidenceLine(t *testing.T) {
 	now := time.Unix(1700000000, 0).UTC()
 	report := UnifiedRadarBehaviorReport{
 		Mint: "MintOne",
@@ -53,13 +53,16 @@ func TestHardenUnifiedDominantExitRequiresCompleteEvidenceLine(t *testing.T) {
 	cluster := HolderClusterAnalysis{Wallets: []HolderClusterWallet{{
 		Rank: 1, Wallet: "HolderOne",
 		FlowObservations: []HolderClusterFlowObservation{{
-			SourceWallet: "HolderOne", Destination: "PoolOne", Amount: 1000,
+			SourceWallet: "HolderOne", Destination: "PoolOne", Direction: "outbound", Amount: 1000,
 			Slot: 99, Signature: "sig-one", ProgramIDs: []string{"DexProgramOne"},
 		}},
 	}}}
 	got := HardenUnifiedRadarBehavior(report, CreatorSellVerification{}, cluster)
-	if got.Signals[0].EvidenceStatus != "verified" {
-		t.Fatalf("exit status=%q limitations=%v", got.Signals[0].EvidenceStatus, got.Signals[0].Limitations)
+	if got.Signals[0].EvidenceStatus != "verified" || !got.Signals[0].Triggered {
+		t.Fatalf("exit signal=%#v", got.Signals[0])
+	}
+	if got.Signals[0].Metrics["direction"] != "outbound" {
+		t.Fatalf("direction=%v", got.Signals[0].Metrics["direction"])
 	}
 	if len(got.Evidence) != 1 {
 		t.Fatalf("evidence rows=%d", len(got.Evidence))
@@ -70,6 +73,39 @@ func TestHardenUnifiedDominantExitRequiresCompleteEvidenceLine(t *testing.T) {
 	}
 	if line.SourceWallet != "HolderOne" || line.DestinationWallet != "PoolOne" || line.Program != "DexProgramOne" {
 		t.Fatalf("canonical line=%#v", line)
+	}
+}
+
+func TestHardenUnifiedDominantExitRejectsInboundHolderObservation(t *testing.T) {
+	now := time.Unix(1700000000, 0).UTC()
+	report := UnifiedRadarBehaviorReport{
+		Mint: "MintOne",
+		Signals: []UnifiedRadarSignal{{
+			RuleID: UnifiedRuleDominantHolderFirstExit, Title: "Dominant holder exit",
+			EvidenceStatus: "verified", Triggered: true, GradeEffect: "compounding_input",
+			Scope: "earliest_verified_exit_in_bounded_window", Summary: "candidate exit",
+			Metrics:      map[string]any{"holder_wallet": "HDix", "slot": int64(99), "amount": 0.003123},
+			EvidenceKeys: []string{"dominant-holder-exit:inbound-sig"},
+			Signatures:   []string{"inbound-sig"}, ObservedAt: now,
+		}},
+	}
+	cluster := HolderClusterAnalysis{Wallets: []HolderClusterWallet{{
+		Rank: 1, Wallet: "HDix",
+		FlowObservations: []HolderClusterFlowObservation{{
+			SourceWallet: "4pta", Destination: "HDix", Direction: "inbound", Kind: "inbound_token_sender_context",
+			Amount: 0.003123, Slot: 99, Signature: "inbound-sig", ProgramIDs: []string{"TokenProgram"},
+		}},
+	}}}
+	got := HardenUnifiedRadarBehavior(report, CreatorSellVerification{}, cluster)
+	signal := got.Signals[0]
+	if signal.Triggered {
+		t.Fatalf("inbound holder observation triggered URD-C004: %#v", signal)
+	}
+	if signal.GradeEffect != "none" || signal.EvidenceStatus != "observed" {
+		t.Fatalf("inbound downgrade=%#v", signal)
+	}
+	if len(signal.Signatures) != 0 || len(signal.EvidenceKeys) != 0 || len(got.Evidence) != 0 {
+		t.Fatalf("inbound observation retained grade-changing evidence: signal=%#v evidence=%#v", signal, got.Evidence)
 	}
 }
 
@@ -84,14 +120,15 @@ func TestHardenUnifiedDominantExitDowngradesIncompleteLine(t *testing.T) {
 		}},
 	}
 	cluster := HolderClusterAnalysis{Wallets: []HolderClusterWallet{{
+		Rank: 1, Wallet: "HolderOne",
 		FlowObservations: []HolderClusterFlowObservation{{
-			SourceWallet: "HolderOne", Destination: "", Amount: 1000,
+			SourceWallet: "HolderOne", Destination: "", Direction: "outbound", Amount: 1000,
 			Slot: 99, Signature: "sig-one", ProgramIDs: []string{},
 		}},
 	}}}
 	got := HardenUnifiedRadarBehavior(report, CreatorSellVerification{}, cluster)
-	if got.Signals[0].EvidenceStatus != "observed" {
-		t.Fatalf("incomplete exit status=%q", got.Signals[0].EvidenceStatus)
+	if got.Signals[0].Triggered {
+		t.Fatalf("incomplete exit remained triggered=%#v", got.Signals[0])
 	}
 	if len(got.Evidence) != 0 {
 		t.Fatalf("incomplete exit produced evidence=%#v", got.Evidence)
