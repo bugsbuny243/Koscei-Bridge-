@@ -36,7 +36,6 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 			"Canonical investigation jobs accept token mint, wallet or token-account targets and continue after the HTTP request ends.",
 			"Owner, customer and automatic Pump discovery routes feed the same canonical investigation worker.",
 			"Signed medium-or-higher ARVIS verdicts and non-allow transaction guard decisions enter the durable alert pipeline.",
-			"Defense OS routes are registered only when KOSCHEI_DEFENSE_OS_ENABLED=true.",
 		},
 	})
 }
@@ -87,11 +86,6 @@ func productionRouteInventory() []routeInventoryGroup {
 		{Name: "watchlist_and_webhooks", Auth: "professional_or_enterprise_saas_entitlement", Routes: []string{
 			"/api/watchlist", "POST /api/watchlist/refresh", "/api/watchlist/alerts", "/api/watchlist/",
 			"/api/webhooks", "/api/webhooks/", "/api/webhooks/security-alerts", "/api/webhooks/deliveries", "/api/webhooks/deliveries/",
-		}},
-		{Name: "defense_os_opt_in", Auth: "owner_session_and_feature_gate", Routes: []string{
-			"/api/owner/defense/artifacts", "/api/owner/defense/knowledge", "/api/owner/defense/lab", "/api/owner/defense/deployment",
-			"/api/owner/defense/source-import", "/api/owner/defense/worker-jobs", "/api/owner/defense/reproduction", "/api/owner/defense/sentinel",
-			"/api/owner/defense/harness", "/api/owner/defense/harness-execution", "/api/owner/defense/harness-materialization", "/api/owner/defense/litesvm-execution",
 		}},
 	}
 }
