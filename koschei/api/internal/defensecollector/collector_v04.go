@@ -129,11 +129,12 @@ func CollectLiveV04(ctx context.Context, request RequestV04, alerts <-chan secur
 			if err != nil {
 				return ResultV04{}, fmt.Errorf("bind live observation: %w", err)
 			}
+			configDigest := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(request.Control.ConfigurationHash)), "sha256:")
 			event, err := (securityevidence.Event{
 				Producer:      request.CollectorRef,
 				Subject:       securityevidence.Subject{Chain: request.Chain, Type: defense.DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
 				Window:        securityevidence.ObservationWindow{FromUnixMS: startedMS, ToUnixMS: endedMS},
-				SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, request.Control.ConfigurationHash},
+				SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, configDigest},
 				Findings:      []securityevidence.Finding{{ID: defense.DefenseValidationObservationFindingIDV02(request.Control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: bindingDigest, Summary: "Independent collector recomputed execution artifacts and observed the complete live window."}},
 			}).Seal()
 			if err != nil {
@@ -156,11 +157,12 @@ func SealAlertV04(observerRef string, control defense.DefenseValidationControlV0
 	if err != nil {
 		return securityevidence.Event{}, err
 	}
+	configDigest := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(control.ConfigurationHash)), "sha256:")
 	return (securityevidence.Event{
 		Producer:      observerRef,
 		Subject:       securityevidence.Subject{Chain: chain, Type: defense.DefenseValidationAlertSubjectTypeV03, ID: execution.Case.CaseRef},
 		Window:        securityevidence.ObservationWindow{FromUnixMS: observedMS, ToUnixMS: observedMS},
-		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, control.ConfigurationHash},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, configDigest},
 		Findings:      []securityevidence.Finding{{ID: defense.DefenseValidationAlertFindingIDV03(control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationAlertFindingKindV03, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent observer recorded a control alert for the exact execution and configuration."}},
 	}).Seal()
 }
