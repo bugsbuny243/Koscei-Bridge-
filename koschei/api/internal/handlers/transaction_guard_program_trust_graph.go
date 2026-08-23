@@ -34,20 +34,20 @@ type transactionGuardProgramTrustNode struct {
 }
 
 type transactionGuardProgramTrustGraph struct {
-	Version                string                              `json:"version"`
-	Network                string                              `json:"network"`
-	TransactionFingerprint string                              `json:"transaction_fingerprint"`
-	Status                 string                              `json:"status"`
-	Complete               bool                                `json:"complete"`
-	ProgramCount           int                                 `json:"program_count"`
-	BuiltinCount           int                                 `json:"builtin_count"`
-	SnapshotCount          int                                 `json:"defense_snapshot_count"`
-	MissingSnapshotCount   int                                 `json:"missing_snapshot_count"`
-	InvalidProgramCount    int                                 `json:"invalid_program_count"`
+	Version                string                             `json:"version"`
+	Network                string                             `json:"network"`
+	TransactionFingerprint string                             `json:"transaction_fingerprint"`
+	Status                 string                             `json:"status"`
+	Complete               bool                               `json:"complete"`
+	ProgramCount           int                                `json:"program_count"`
+	BuiltinCount           int                                `json:"builtin_count"`
+	SnapshotCount          int                                `json:"defense_snapshot_count"`
+	MissingSnapshotCount   int                                `json:"missing_snapshot_count"`
+	InvalidProgramCount    int                                `json:"invalid_program_count"`
 	Programs               []transactionGuardProgramTrustNode `json:"programs"`
-	Limitations            []string                            `json:"limitations"`
-	EvidenceHashSHA256     string                              `json:"evidence_hash_sha256"`
-	VerdictAuthority       bool                                `json:"verdict_authority"`
+	Limitations            []string                           `json:"limitations"`
+	EvidenceHashSHA256     string                             `json:"evidence_hash_sha256"`
+	VerdictAuthority       bool                               `json:"verdict_authority"`
 }
 
 func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, network, transactionFingerprintValue string, decoded transactionGuardDecodedTransaction, cpi transactionGuardCPIFlowAnalysis, authority transactionGuardAuthoritySurfaceAnalysis) transactionGuardProgramTrustGraph {
