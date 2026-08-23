@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
-
-	"koschei/api/internal/defense"
 )
 
 const transactionGuardProgramTrustGraphVersion = "koschei-program-trust-graph-v1"
@@ -36,20 +34,20 @@ type transactionGuardProgramTrustNode struct {
 }
 
 type transactionGuardProgramTrustGraph struct {
-	Version                string                             `json:"version"`
-	Network                string                             `json:"network"`
-	TransactionFingerprint string                             `json:"transaction_fingerprint"`
-	Status                 string                             `json:"status"`
-	Complete               bool                               `json:"complete"`
-	ProgramCount           int                                `json:"program_count"`
-	BuiltinCount           int                                `json:"builtin_count"`
-	SnapshotCount          int                                `json:"defense_snapshot_count"`
-	MissingSnapshotCount   int                                `json:"missing_snapshot_count"`
-	InvalidProgramCount    int                                `json:"invalid_program_count"`
+	Version                string                              `json:"version"`
+	Network                string                              `json:"network"`
+	TransactionFingerprint string                              `json:"transaction_fingerprint"`
+	Status                 string                              `json:"status"`
+	Complete               bool                                `json:"complete"`
+	ProgramCount           int                                 `json:"program_count"`
+	BuiltinCount           int                                 `json:"builtin_count"`
+	SnapshotCount          int                                 `json:"defense_snapshot_count"`
+	MissingSnapshotCount   int                                 `json:"missing_snapshot_count"`
+	InvalidProgramCount    int                                 `json:"invalid_program_count"`
 	Programs               []transactionGuardProgramTrustNode `json:"programs"`
-	Limitations            []string                           `json:"limitations"`
-	EvidenceHashSHA256     string                             `json:"evidence_hash_sha256"`
-	VerdictAuthority       bool                               `json:"verdict_authority"`
+	Limitations            []string                            `json:"limitations"`
+	EvidenceHashSHA256     string                              `json:"evidence_hash_sha256"`
+	VerdictAuthority       bool                                `json:"verdict_authority"`
 }
 
 func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, network, transactionFingerprintValue string, decoded transactionGuardDecodedTransaction, cpi transactionGuardCPIFlowAnalysis, authority transactionGuardAuthoritySurfaceAnalysis) transactionGuardProgramTrustGraph {
@@ -70,7 +68,7 @@ func (h *Handler) collectTransactionGuardProgramTrustGraph(ctx context.Context, 
 	if db == nil {
 		return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, nil, "deployment_snapshot_database_unavailable")
 	}
-	snapshots, err := defense.LatestDeploymentSnapshots(ctx, db, network, programIDs)
+	snapshots, err := latestTransactionGuardDeploymentSnapshots(ctx, db, network, programIDs)
 	if err != nil {
 		return buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue, observed, nil, "deployment_snapshot_lookup_unavailable")
 	}
@@ -108,7 +106,7 @@ func transactionGuardProgramTrustObservations(decoded transactionGuardDecodedTra
 	return out
 }
 
-func buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue string, observed map[string][]string, snapshots map[string]defense.DeploymentSnapshot, lookupLimitation string) transactionGuardProgramTrustGraph {
+func buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue string, observed map[string][]string, snapshots map[string]transactionGuardDeploymentSnapshot, lookupLimitation string) transactionGuardProgramTrustGraph {
 	network = strings.TrimSpace(network)
 	if network == "" {
 		network = "solana-mainnet"
@@ -199,10 +197,10 @@ func buildTransactionGuardProgramTrustGraph(network, transactionFingerprintValue
 		graph.Complete = false
 	}
 	if graph.MissingSnapshotCount > 0 {
-		graph.Limitations = append(graph.Limitations, "One or more invoked non-builtin programs have no persisted Defense OS deployment snapshot; no source or bytecode provenance is inferred for them.")
+		graph.Limitations = append(graph.Limitations, "One or more invoked non-builtin programs have no persisted deployment snapshot; no source or bytecode provenance is inferred for them.")
 	}
 	if graph.InvalidProgramCount > 0 {
-		graph.Limitations = append(graph.Limitations, "One or more observed program identifiers were not valid Solana public keys and were excluded from Defense OS provenance claims.")
+		graph.Limitations = append(graph.Limitations, "One or more observed program identifiers were not valid Solana public keys and were excluded from deployment provenance claims.")
 	}
 	if !graph.Complete {
 		graph.Status = "partial"

@@ -1,10 +1,6 @@
 package handlers
 
-import (
-	"testing"
-
-	"koschei/api/internal/defense"
-)
+import "testing"
 
 func TestBuildTransactionGuardProgramTrustGraphDeterministicAndEvidenceOnly(t *testing.T) {
 	observed := map[string][]string{
@@ -12,7 +8,7 @@ func TestBuildTransactionGuardProgramTrustGraphDeterministicAndEvidenceOnly(t *t
 		guardV3SPLTokenProgramID:  {"outer_instruction", "cpi"},
 		guardV3Token2022ProgramID: {"transfer_hook"},
 	}
-	snapshots := map[string]defense.DeploymentSnapshot{
+	snapshots := map[string]transactionGuardDeploymentSnapshot{
 		guardV3SPLTokenProgramID: {
 			SnapshotRef:          "KDS1-0123456789abcdef0123456789abcdef",
 			ProgramID:            guardV3SPLTokenProgramID,
