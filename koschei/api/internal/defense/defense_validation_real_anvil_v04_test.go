@@ -209,7 +209,7 @@ func realValidationCaseV05(t *testing.T, cfg realAnvilValidationConfigV05, contr
 		Runtime:       executionproof.RuntimeEvidence{ObservedArtifactSHA256: cfg.observedArtifact, PolicySHA256: cfg.policyHash},
 		Payload:       executionproof.PayloadEvidence{ChainID: cfg.chainID, Target: candidate.To, ApprovedCalldataSHA256: sha256HexDefenseV04(approved.Data), GeneratedCalldataSHA256: payloadHash, GeneratorSHA256: cfg.generatorHash},
 		Simulation:    executionproof.SimulationEvidence{InvariantSetSHA256: invariantHash, Result: "PASS"},
-		Authorization: executionproof.AuthorizationEvidence{SigningPolicySHA256: control.ConfigurationHash, ApprovedSigningRequestID: approvedHash},
+		Authorization: executionproof.AuthorizationEvidence{SigningPolicySHA256: strings.TrimPrefix(strings.ToLower(control.ConfigurationHash), "sha256:"), ApprovedSigningRequestID: approvedHash},
 	})
 	if err != nil {
 		t.Fatal(err)
