@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"koschei/api/internal/defense"
 	"koschei/api/internal/services"
 )
 
@@ -35,22 +34,22 @@ func TestClassifyRadarAccountObservationSeparatesSolanaTargetKinds(t *testing.T)
 		},
 		{
 			name:     "executable program",
-			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Executable: true},
+			account:  &services.SolanaAccountInfo{Owner: arvisUpgradeableLoaderID, Executable: true},
 			wantType: radarTargetProgram,
 		},
 		{
 			name:     "program data",
-			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(3)},
+			account:  &services.SolanaAccountInfo{Owner: arvisUpgradeableLoaderID, Data: loaderStateData(3)},
 			wantType: radarTargetProgramData, wantLoaderState: "program_data",
 		},
 		{
 			name:     "program buffer",
-			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: loaderStateData(1)},
+			account:  &services.SolanaAccountInfo{Owner: arvisUpgradeableLoaderID, Data: loaderStateData(1)},
 			wantType: radarTargetProgramBuffer, wantLoaderState: "buffer",
 		},
 		{
 			name:     "unresolved loader account fails closed",
-			account:  &services.SolanaAccountInfo{Owner: defense.UpgradeableLoaderID, Data: []any{"not-base64", "base64"}},
+			account:  &services.SolanaAccountInfo{Owner: arvisUpgradeableLoaderID, Data: []any{"not-base64", "base64"}},
 			wantType: radarTargetProgramLoaderAccount,
 		},
 		{
@@ -104,7 +103,7 @@ func TestRadarUpgradeableLoaderStateRejectsUnknownOrMalformedData(t *testing.T) 
 	}
 }
 
-func TestRadarTargetRejectionMessagesRouteProgramArtifactsToDefense(t *testing.T) {
+func TestRadarTargetRejectionMessagesRouteProgramArtifactsToArvisProgramIntelligence(t *testing.T) {
 	for _, targetType := range []string{radarTargetProgram, radarTargetProgramData, radarTargetProgramBuffer, radarTargetProgramLoaderAccount} {
 		message := radarTargetRejectionMessage(radarTargetClassification{Type: targetType})
 		if strings.Contains(strings.ToLower(message), "wallet intelligence") {
