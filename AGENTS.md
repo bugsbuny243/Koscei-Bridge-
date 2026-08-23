@@ -1,65 +1,49 @@
 # Repository agent contract
 
-All Codex and automated implementation work in this repository must select the applicable canonical contract before changing behavior:
+All implementation work in this repository must preserve the current Web3 boundary: **ARVIS is the security-intelligence and evidence engine owned by Koschei Web3.**
 
-- product-wide defense validation and Security Control Plane work: [`WEB3_DEFENSE_VALIDATION_ENGINE.md`](./WEB3_DEFENSE_VALIDATION_ENGINE.md);
-- ARVIS actor/token investigation and evidence behavior: [`ACTOR_INVESTIGATION_ENGINE.md`](./ACTOR_INVESTIGATION_ENGINE.md);
-- repository/product naming boundary: [`docs/web3-product-boundary.md`](./docs/web3-product-boundary.md).
+Canonical references:
 
-Work that crosses these surfaces must preserve their separate authority models. ARVIS Radar/Actor evidence may inform a validation scenario, but it cannot self-produce a defense-validation result.
+- ARVIS actor/token investigation and evidence behavior: [`ACTOR_INVESTIGATION_ENGINE.md`](./ACTOR_INVESTIGATION_ENGINE.md)
+- repository/product naming boundary: [`docs/web3-product-boundary.md`](./docs/web3-product-boundary.md)
 
-## Non-negotiable product mission
+## Repository boundary
 
-Koschei Web3 is the market-facing Web3 cybersecurity product. Its target is to fill defensible security gaps across on-chain intelligence, investigation, execution integrity, signing defense, infrastructure/node protection, cross-chain trust, monitoring and evidence-backed defense validation.
+This repository owns ARVIS-facing Web3 intelligence: wallet/token investigation, creator/deployer attribution, funding and flow analysis, launch/liquidity evidence, actor correlation, persistent actor memory, source-aware evidence and deterministic investigation verdicts.
 
-**ARVIS is a core intelligence and evidence engine inside Koschei Web3.** ARVIS is not a legacy subsystem, retired product, separate product family or temporary compatibility layer. Its Radar, actor/token investigation, source-aware evidence, funding/flow, creator/deployer, liquidity, launch and transaction-intelligence capabilities remain first-class Web3 capabilities. ARVIS does not define the entire Koschei Web3 product boundary by itself, but it is an integral engine inside that boundary.
+Koschei Lang and Koschei Sentinel are separate projects. Lang owns hardened language/runtime/authorization work. Sentinel owns model/intelligence work. Do not recreate their runtimes, namespaces or authority models inside this repository.
 
-The product-wide validation question is: **does this exact Web3 defense configuration actually catch or contain this controlled attack before impact without flagging the matched benign action?** Defense-validation outcomes are deterministic `VALIDATED`, `FAILED` or `INCOMPLETE` results scoped to exact configuration/scenario/evidence identity. They do not replace ALLOW/BLOCK authorization decisions at signing or containment boundaries.
+**Matrix belongs to Koschei Lang, not Koschei Web3.** Do not introduce Matrix as a Web3 module or namespace.
 
-Koschei Lang and Koschei Sentinel are separate projects. Lang is intended to become a hardened programming/execution foundation for high-security crypto software. Sentinel is intended to become the security-intelligence brain across the crypto ecosystem. Web3 may consume their capabilities through explicit interfaces but must not collapse repository boundaries.
-
-**Matrix belongs to Koschei Lang, not Koschei Web3.** Do not introduce Matrix as a Web3 product module, customer-facing capability, architecture layer, containment engine or namespace. Web3-native deterministic containment uses the `internal/executioncontainment` namespace. Future Lang/Matrix integration must arrive through an explicit cross-project interface rather than by moving Matrix into this repository.
+The removed Defense OS / Defense Validation / Execution Proof / execution-containment subsystems are not part of this repository boundary. Do not restore them indirectly through routes, handlers, migrations, workers, Dockerfiles, workflows, documentation or compatibility shims unless the repository boundary is explicitly changed first.
 
 ## Permanent frontend/runtime rule
 
 **Next.js is prohibited in Koschei Web3.**
 
-Do not introduce or restore:
+Do not introduce or restore the `next` package, `next.config.*`, `next-env.d.ts`, `.next/`, `NEXT_PUBLIC_*`, or a Next.js build/server/deployment path.
 
-- the `next` package or any Next.js dependency;
-- `next.config.*`, `next-env.d.ts` or `.next/` build output;
-- `NEXT_PUBLIC_*` environment variables;
-- Next.js server/runtime/build/deployment paths;
-- a Next.js frontend, even as a presentation-only option.
+Web/mobile/CLI surfaces are presentation clients and must not become authoritative for evidence classification, investigation verdicts, private keys or privileged authorization.
 
-Web/mobile/CLI surfaces are untrusted presentation clients. They must never become authoritative for signing decisions, Execution Proof, policy grants, private keys, bridge/validator authority, Node Shield policy, or Sentinel decisions.
+## ARVIS evidence rules
 
-## Non-negotiable security rules
-
-1. New Security Control Plane work is evidence-first, deterministic where possible, and fail-closed at authority boundaries.
-2. Execution/signing authorization must use explicit ALLOW/BLOCK semantics; no numeric risk score, weighted formula or AI-generated authority decision may replace verified evidence.
-3. Defense validation must use exact attack + benign-control coverage, independently collected evidence and versioned deterministic rules. Attack-only or vendor-self-attested validation is incomplete.
-4. Missing, malformed, unsupported or mismatched security evidence must never silently become a positive decision.
-5. A package existing or compiling in `main` is not proof that it is production-wired. Production claims require a verified caller -> service/handler -> route/worker/startup path, explicit gate ownership, integration coverage and runtime evidence.
-6. AI may explain evidence or triggered rules but may not fabricate evidence, override deterministic security authority or produce a defense-validation verdict.
-7. Do not introduce demo, beta, placeholder, synthetic or fabricated production security outputs. Planned scenarios must be explicitly non-evidentiary until real execution and observation evidence exists.
-8. Controlled validation must not store wallet material, submit mainnet transactions, mutate tested production controls, accept arbitrary commands or enable autonomous intervention.
-9. Do not modify auth, Neon Auth, sessions, owner cookies, KOSCH entitlement or verified-wallet implementation unless the user explicitly requests that exact work.
-10. Do not delete an established production path until its replacement has proven behavioral parity and rollback safety.
-11. No production private key, seed phrase, custody secret or signing authority may be moved into UI code or an untrusted integration layer.
-12. Side effects that can sign, submit, mint, upgrade, transfer, pause/unpause or mutate privileged state must occur only after the relevant Koschei authorization boundary succeeds.
-13. Node Shield live-kernel claims require real compatible-kernel evidence; buildability or simulation alone is not a kernel enforcement proof.
-14. `internal/executionproof` remains non-production-wired until the #864 connectivity acceptance conditions are satisfied. Do not create a blind signing/forwarding dependency merely to demonstrate integration.
-
-## ARVIS actor/Radar rules
-
-1. New ARVIS actor/token investigation work must answer at least one question from the canonical document's ten-question filter.
+1. New actor/token investigation work must answer a concrete investigation question defined by the canonical actor engine contract.
 2. ARVIS actor and unified Radar verdicts use versioned deterministic rules. Weighted formulas, probabilities and `0–100` final scores are prohibited.
-3. The owner-facing primary ARVIS Radar remains the existing manual pipeline until explicitly replaced with proven parity and rollback safety.
-4. `INFERRED` evidence is watch-only. `UNVERIFIED` evidence cannot affect a grade or appear as a verified claim.
-5. Serious claims require evidence rows with signature, slot, timestamp, source, destination, amount, program and verification status.
-6. Initial-distribution and holder follow-up must be mint-specific/ATA-based; recipient-wide full wallet history scans are prohibited in broad pipelines.
-7. ARVIS actor index history is persistent. Raw-event retention must not delete durable actor memory.
-8. Quota-consuming automatic scanning is opt-in and disabled by default. Manual owner scans must never silently enable background workers.
+3. `VERIFIED`, `OBSERVED`, `INFERRED` and `UNVERIFIED` evidence levels must remain distinct. `INFERRED` is watch-only; `UNVERIFIED` cannot affect a grade or be presented as verified truth.
+4. Serious claims require evidence rows that bind the relevant signature/transaction, slot or chain position, timestamp, source, destination, amount or asset, program/protocol and verification status where those fields exist for the chain.
+5. Missing or unsupported evidence must remain missing; do not fabricate certainty.
+6. Initial-distribution and holder follow-up on Solana must remain mint-specific/ATA-based. Broad recipient-wide wallet-history scans are prohibited in normal pipelines.
+7. Persistent actor memory is durable product state. Raw-event retention must not erase durable actor history.
+8. Quota-consuming automatic scans are opt-in and disabled by default. Manual owner scans must not silently enable background scanning.
+9. AI may explain evidence and deterministic rules but may not fabricate evidence or become the final verdict authority.
+10. A package merely existing or compiling is not proof of production wiring. Production claims require an actual caller -> service/handler -> route/worker/startup path and runtime evidence.
 
-Every pull request must state which product/security boundary it changes and the evidence/authorization rule it preserves or strengthens. Defense-validation PRs must state whether they change scenario, execution, observation, evaluation, publication or production-enforcement authority and list the safety gates preserved. Pull requests touching ARVIS investigation behavior must additionally name the applicable actor/Radar ruleset versions.
+## Stability rules
+
+- Do not modify auth, Neon Auth, sessions, owner cookies, billing/entitlement behavior or verified-wallet implementation unless the task explicitly requires it.
+- Do not delete a working ARVIS production path until replacement parity and rollback safety are demonstrated.
+- Do not move private keys, seed phrases, custody secrets or signing authority into UI code.
+- Preserve source provenance and canonical evidence projection across owner, customer and API surfaces.
+- Chain-specific implementation belongs at adapters/data collectors. New core investigation concepts should not unnecessarily hard-code Solana semantics; Solana is the current production domain, not the definition of the whole future product.
+
+Every pull request must state which ARVIS investigation/evidence boundary it changes, which ruleset or contract it preserves or updates, and what evidence demonstrates the change.
