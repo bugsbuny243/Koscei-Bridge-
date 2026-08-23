@@ -158,13 +158,26 @@ func AdaptSecurityEvidenceObservationV03(control DefenseValidationControlV02, ex
 		if !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, execution.ExecutionProofSHA256) || !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, control.ConfigurationHash) {
 			return DefenseValidationObservationV02{}, errors.New("alert event is not bound to exact execution and control configuration")
 		}
+		expectedAlertDigest, err := DefenseValidationAlertBindingDigestV03(DefenseValidationAlertBindingV03{
+			Version:                  DefenseValidationAlertBindingVersionV03,
+			Chain:                    alertCanonical.Subject.Chain,
+			ObserverRef:              alertCanonical.Producer,
+			ControlRef:               control.ControlRef,
+			ControlConfigurationHash: control.ConfigurationHash,
+			CaseRef:                  execution.Case.CaseRef,
+			ExecutionHash:            execution.Case.ExecutionHash,
+			ObservedUnixMS:           alertCanonical.Window.ToUnixMS,
+		})
+		if err != nil {
+			return DefenseValidationObservationV02{}, fmt.Errorf("recompute alert binding: %w", err)
+		}
 		alertFindingID := DefenseValidationAlertFindingIDV03(control.ControlRef, execution.Case.CaseRef)
 		alertMatched := 0
 		for _, f := range alertCanonical.Findings {
 			if f.ID == alertFindingID && f.Kind == DefenseValidationAlertFindingKindV03 {
 				alertMatched++
-				if f.State != securityevidence.StateVerified {
-					return DefenseValidationObservationV02{}, errors.New("alert finding is not verified")
+				if f.State != securityevidence.StateVerified || !strings.EqualFold(f.EvidenceSHA256, expectedAlertDigest) {
+					return DefenseValidationObservationV02{}, errors.New("alert finding is not verified against independently recomputed binding")
 				}
 			}
 		}
