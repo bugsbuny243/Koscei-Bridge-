@@ -25,6 +25,7 @@ func registeredAPIRoutesFromSource(t *testing.T) map[string]struct{} {
 		"watchlist_routes.go",
 		"dossier_routes.go",
 		"defense_routes.go",
+		"arvis_owner_memory_routes.go",
 	}
 	out := map[string]struct{}{}
 	for _, name := range files {
