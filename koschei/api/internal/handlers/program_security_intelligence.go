@@ -38,6 +38,17 @@ type arvisProgramAuthoritySnapshot struct {
 	Limitations          []string
 }
 
+type arvisProgramAccountInfoResponse struct {
+	Context struct {
+		Slot uint64 `json:"slot"`
+	} `json:"context"`
+	Value *struct {
+		Owner      string `json:"owner"`
+		Executable bool   `json:"executable"`
+		Data       any    `json:"data"`
+	} `json:"value"`
+}
+
 func (h *Handler) collectProgramSecuritySurface(ctx context.Context, network string, source map[string]any, lp services.LPControlEvidence, market services.TokenMarketSnapshot) services.ProgramSecuritySurface {
 	if h == nil {
 		return newProgramSecuritySurface("rpc_unavailable")
@@ -131,8 +142,8 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 	if programID == "" {
 		return arvisProgramAuthoritySnapshot{}, errors.New("program_id is required")
 	}
-	read := func(address string, length int) (rpcAccountInfoResponse, error) {
-		var result rpcAccountInfoResponse
+	read := func(address string, length int) (arvisProgramAccountInfoResponse, error) {
+		var result arvisProgramAccountInfoResponse
 		config := map[string]any{"encoding": "base64", "commitment": "confirmed", "dataSlice": map[string]any{"offset": 0, "length": length}}
 		if err := rpc(ctx, network, "getAccountInfo", []any{address, config}, &result); err != nil {
 			return result, err
