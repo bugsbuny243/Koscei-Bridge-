@@ -8,17 +8,10 @@ import (
 	"koschei/api/internal/handlers"
 )
 
-func registerDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
-	// Live-system integrity, persistent actor memory and provider witness memory
-	// are owner control-plane surfaces, not optional Defense OS laboratory features.
-	mux.HandleFunc("/api/owner/radar/continuity", requiresDB(h, ownerOnly(h, method("GET", h.OwnerRadarContinuity))))
-	mux.HandleFunc("/api/owner/radar/provider-memory", requiresDB(h, ownerOnly(h, method("GET", h.OwnerProviderWitnessMemory))))
-	mux.HandleFunc("/api/owner/actor-memory/matches", requiresDB(h, ownerOnly(h, method("GET", h.OwnerActorOperationalMemory))))
-
+func registerDormantDefenseOSRoutes(mux *http.ServeMux, h *handlers.Handler) {
 	// Defense OS is intentionally dormant by default while Koschei is in its
-	// revenue-first product phase. Keeping registration opt-in prevents its lab,
-	// reproduction, harness and worker surfaces from becoming accidental
-	// production dependencies or operational cost drivers.
+	// ARVIS-only product phase. This function contains only Defense OS routes;
+	// ARVIS continuity and persistent-memory routes live separately.
 	if !strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_DEFENSE_OS_ENABLED")), "true") {
 		return
 	}
