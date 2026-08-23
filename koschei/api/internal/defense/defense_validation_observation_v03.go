@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -62,7 +63,7 @@ func DefenseValidationObservationBindingDigestV03(b DefenseValidationObservation
 	}
 	switch b.Status {
 	case DefenseValidationObservationAlertedV02:
-		if !validDefenseValidationHashV02(b.AlertEventSHA256) || b.AlertObservedOffsetMS == nil || *b.AlertObservedOffsetMS < 0 || *b.AlertObservedOffsetMS > b.ObservationCompletedOffsetMS {
+		if !validSecurityEvidenceEventSHA256V03(b.AlertEventSHA256) || b.AlertObservedOffsetMS == nil || *b.AlertObservedOffsetMS < 0 || *b.AlertObservedOffsetMS > b.ObservationCompletedOffsetMS {
 			return "", errors.New("v0.3 alerted observation requires bound alert evidence")
 		}
 	case DefenseValidationObservationNoAlertV02:
@@ -116,7 +117,7 @@ func AdaptSecurityEvidenceObservationV03(control DefenseValidationControlV02, ex
 	if canonical.Window.FromUnixMS != binding.ObservationStartedUnixMS || canonical.Window.ToUnixMS != binding.ObservationEndedUnixMS {
 		return DefenseValidationObservationV02{}, errors.New("collector event window does not match observed clock evidence")
 	}
-	if !containsDefenseValidationDigestV02(canonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV02(canonical.SourceDigests, execution.ExecutionProofSHA256) || !containsDefenseValidationDigestV02(canonical.SourceDigests, control.ConfigurationHash) {
+	if !containsDefenseValidationDigestV03(canonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV03(canonical.SourceDigests, execution.ExecutionProofSHA256) || !containsDefenseValidationDigestV03(canonical.SourceDigests, control.ConfigurationHash) {
 		return DefenseValidationObservationV02{}, errors.New("collector event is not bound to execution artifacts and control configuration")
 	}
 	findingID := DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef)
@@ -155,7 +156,7 @@ func AdaptSecurityEvidenceObservationV03(control DefenseValidationControlV02, ex
 		if alertCanonical.Window.ToUnixMS < binding.ObservationStartedUnixMS || alertCanonical.Window.ToUnixMS > binding.ObservationEndedUnixMS || alertCanonical.Window.ToUnixMS-binding.ObservationStartedUnixMS != *binding.AlertObservedOffsetMS {
 			return DefenseValidationObservationV02{}, errors.New("alert evidence timestamp is outside the live observation window")
 		}
-		if !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, execution.ExecutionProofSHA256) || !containsDefenseValidationDigestV02(alertCanonical.SourceDigests, control.ConfigurationHash) {
+		if !containsDefenseValidationDigestV03(alertCanonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV03(alertCanonical.SourceDigests, execution.ExecutionProofSHA256) || !containsDefenseValidationDigestV03(alertCanonical.SourceDigests, control.ConfigurationHash) {
 			return DefenseValidationObservationV02{}, errors.New("alert event is not bound to exact execution and control configuration")
 		}
 		expectedAlertDigest, err := DefenseValidationAlertBindingDigestV03(DefenseValidationAlertBindingV03{
@@ -190,4 +191,33 @@ func AdaptSecurityEvidenceObservationV03(control DefenseValidationControlV02, ex
 		return DefenseValidationObservationV02{}, errors.New("no-alert observation cannot carry alert event")
 	}
 	return out, nil
+}
+
+func containsDefenseValidationDigestV03(values []string, expected string) bool {
+	expected = normalizeDefenseValidationDigestV03(expected)
+	if expected == "" {
+		return false
+	}
+	for _, value := range values {
+		if strings.EqualFold(normalizeDefenseValidationDigestV03(value), expected) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeDefenseValidationDigestV03(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.TrimPrefix(value, "sha256:")
+	value = strings.TrimPrefix(value, "0x")
+	return value
+}
+
+func validSecurityEvidenceEventSHA256V03(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if strings.HasPrefix(value, "sha256:") || strings.HasPrefix(value, "0x") || len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
