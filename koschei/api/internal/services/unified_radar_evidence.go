@@ -44,31 +44,72 @@ func hardenUnifiedDominantHolderExit(signal *UnifiedRadarSignal, cluster HolderC
 	}
 	signature := strings.TrimSpace(signal.Signatures[0])
 	for _, wallet := range cluster.Wallets {
+		if wallet.Rank != 1 || strings.TrimSpace(wallet.Wallet) == "" {
+			continue
+		}
 		for _, observation := range wallet.FlowObservations {
 			if strings.TrimSpace(observation.Signature) != signature {
 				continue
+			}
+			direction := strings.ToLower(strings.TrimSpace(observation.Direction))
+			source := strings.TrimSpace(observation.SourceWallet)
+			destination := strings.TrimSpace(observation.Destination)
+			if direction != "outbound" || !strings.EqualFold(source, strings.TrimSpace(wallet.Wallet)) || destination == "" || observation.Amount <= 0 {
+				invalidateUnifiedDominantHolderExit(signal, observation, "The matched transaction is not a verified outbound transfer from the rank-one holder; inbound or direction-ambiguous observations cannot trigger URD-C004.")
+				return
 			}
 			program := firstUnifiedProgram(observation.ProgramIDs)
 			if signal.Metrics == nil {
 				signal.Metrics = map[string]any{}
 			}
-			signal.Metrics["source_wallet"] = strings.TrimSpace(observation.SourceWallet)
-			signal.Metrics["destination_wallet"] = strings.TrimSpace(observation.Destination)
+			signal.Metrics["source_wallet"] = source
+			signal.Metrics["destination_wallet"] = destination
+			signal.Metrics["direction"] = direction
 			signal.Metrics["program"] = program
 			signal.Metrics["program_ids"] = append([]string{}, observation.ProgramIDs...)
 			signal.Metrics["slot"] = observation.Slot
 			signal.Metrics["amount"] = observation.Amount
-			if strings.TrimSpace(observation.SourceWallet) == "" || strings.TrimSpace(observation.Destination) == "" || program == "" || observation.Slot <= 0 {
+			if program == "" || observation.Slot <= 0 {
 				signal.EvidenceStatus = "observed"
-				signal.Limitations = append(signal.Limitations, "Exit imzası görüldü ancak source, destination, program veya slot kanıt satırı eksik olduğu için VERIFIED kullanılmadı.")
+				signal.Limitations = append(signal.Limitations, "Outbound holder transfer signature was observed, but program or slot evidence is incomplete; VERIFIED is withheld.")
 			} else {
 				signal.EvidenceStatus = "verified"
 			}
 			return
 		}
 	}
+	invalidateUnifiedDominantHolderExit(signal, HolderClusterFlowObservation{}, "The candidate exit signature could not be rematched to an outbound rank-one holder flow observation; URD-C004 was withdrawn.")
+}
+
+func invalidateUnifiedDominantHolderExit(signal *UnifiedRadarSignal, observation HolderClusterFlowObservation, reason string) {
+	if signal == nil {
+		return
+	}
+	signal.Triggered = false
+	signal.GradeEffect = "none"
 	signal.EvidenceStatus = "observed"
-	signal.Limitations = append(signal.Limitations, "Exit signature holder-flow observations içinde yeniden eşleştirilemediği için VERIFIED kullanılmadı.")
+	signal.EvidenceKeys = []string{}
+	signal.Signatures = []string{}
+	if signal.Metrics == nil {
+		signal.Metrics = map[string]any{}
+	}
+	if source := strings.TrimSpace(observation.SourceWallet); source != "" {
+		signal.Metrics["source_wallet"] = source
+	}
+	if destination := strings.TrimSpace(observation.Destination); destination != "" {
+		signal.Metrics["destination_wallet"] = destination
+	}
+	if direction := strings.ToLower(strings.TrimSpace(observation.Direction)); direction != "" {
+		signal.Metrics["direction"] = direction
+	}
+	if observation.Slot > 0 {
+		signal.Metrics["slot"] = observation.Slot
+	}
+	if observation.Amount > 0 {
+		signal.Metrics["amount"] = observation.Amount
+	}
+	signal.Summary = "Rank-one holder history was inspected, but no transaction-backed outbound holder exit satisfied URD-C004."
+	signal.Limitations = append(signal.Limitations, reason)
 }
 
 func canonicalUnifiedSignalEvidence(mint string, signal UnifiedRadarSignal) (ActorDefenseEvidenceRecord, bool) {
@@ -77,10 +118,11 @@ func canonicalUnifiedSignalEvidence(mint string, signal UnifiedRadarSignal) (Act
 	}
 	source := unifiedMetricString(signal.Metrics, "source_wallet")
 	destination := unifiedMetricString(signal.Metrics, "destination_wallet")
+	direction := strings.ToLower(unifiedMetricString(signal.Metrics, "direction"))
 	program := unifiedMetricString(signal.Metrics, "program")
 	slot, slotOK := unifiedInt64(signal.Metrics["slot"])
 	amount := unifiedMetricFloat(signal.Metrics, "amount")
-	if source == "" || destination == "" || program == "" || !slotOK || slot <= 0 || signal.ObservedAt.IsZero() {
+	if source == "" || destination == "" || direction != "outbound" || program == "" || !slotOK || slot <= 0 || amount <= 0 || signal.ObservedAt.IsZero() {
 		return ActorDefenseEvidenceRecord{}, false
 	}
 	item := ActorDefenseEvidenceRecord{
@@ -91,7 +133,7 @@ func canonicalUnifiedSignalEvidence(mint string, signal UnifiedRadarSignal) (Act
 		TokenMint: strings.TrimSpace(mint), TokenAmount: amount,
 		Metadata: map[string]any{
 			"actor_role": "dominant_holder", "source_wallet": source, "destination_wallet": destination,
-			"program": program, "unified_rule_id": signal.RuleID, "scope": signal.Scope,
+			"direction": direction, "program": program, "unified_rule_id": signal.RuleID, "scope": signal.Scope,
 			"summary": signal.Summary, "manual_only": true, "metrics": signal.Metrics,
 		},
 	}
