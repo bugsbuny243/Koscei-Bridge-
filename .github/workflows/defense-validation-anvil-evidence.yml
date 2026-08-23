@@ -9,12 +9,14 @@ on:
       - 'koschei/api/internal/executionproof/anvil_receipt_wire_v03_test.go'
       - 'koschei/api/internal/executionproof/safe_anvil_engine_v04.go'
       - 'koschei/api/internal/executionproof/safe_anvil_engine_v04_test.go'
+      - 'koschei/api/internal/executionproof/safe_anvil_inert_target_v05.go'
       - 'koschei/api/internal/executionproof/testdata/safe_anvil_v04/**'
       - 'koschei/api/internal/defense/defense_validation_adapters_v02.go'
       - 'koschei/api/internal/defense/defense_validation_observation_v03.go'
       - 'koschei/api/internal/defense/defense_validation_real_anvil_v04_test.go'
       - 'koschei/api/internal/defensecollector/**'
       - 'koschei/api/cmd/defense-validation-collector/**'
+      - 'koschei/api/cmd/defense-validation-alert-observer/**'
       - 'koschei/api/scripts/run-safe-anvil-v04-integration.sh'
       - 'docs/defense-validation/SAFE_ANVIL_EXECUTION_EVIDENCE_V04.md'
       - '.github/workflows/defense-validation-anvil-evidence.yml'
@@ -67,12 +69,15 @@ jobs:
             internal/executionproof/anvil_receipt_wire_v03_test.go
             internal/executionproof/safe_anvil_engine_v04.go
             internal/executionproof/safe_anvil_engine_v04_test.go
+            internal/executionproof/safe_anvil_inert_target_v05.go
             internal/defense/defense_validation_observation_v03.go
             internal/defense/defense_validation_real_anvil_v04_test.go
             internal/defensecollector/collector_v03.go
             internal/defensecollector/collector_v03_test.go
             internal/defensecollector/collector_v04.go
+            internal/defensecollector/collector_v04_test.go
             cmd/defense-validation-collector/main.go
+            cmd/defense-validation-alert-observer/main.go
           )
           test -z "$(gofmt -l "${files[@]}")"
 
@@ -83,6 +88,7 @@ jobs:
           go test ./internal/defensecollector -count=1
           go test ./internal/executionproof -run '^(TestSafeAccessorEncodingV04MatchesExistingSemanticDigest|TestFindSafeAccessorFrameV04BuildsVerifiableTrace|TestAnvilSafeSimulationEngineV04RejectsUnsupportedEffects|TestTransactionReceiptDecodesRPCWireWithoutChangingCanonicalShape|TestRequireSuccessfulReceiptPollsPendingNullResult)$' -count=1
           go build ./cmd/defense-validation-collector
+          go build ./cmd/defense-validation-alert-observer
 
       - name: Execute real pinned Safe Anvil evidence harness
         run: bash koschei/api/scripts/run-safe-anvil-v04-integration.sh
