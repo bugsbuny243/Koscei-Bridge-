@@ -75,14 +75,14 @@ func inspectArvisProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 	}
 
 	out := arvisProgramAuthoritySnapshot{
-		ProgramID: programID,
-		Network: network,
-		LoaderID: programAccount.Value.Owner,
-		AccountSlot: programAccount.Context.Slot,
-		Executable: programAccount.Value.Executable,
-		ObservedAt: time.Now().UTC(),
+		ProgramID:    programID,
+		Network:      network,
+		LoaderID:     programAccount.Value.Owner,
+		AccountSlot:  programAccount.Context.Slot,
+		Executable:   programAccount.Value.Executable,
+		ObservedAt:   time.Now().UTC(),
 		EvidenceRefs: []string{"rpc:getAccountInfo:" + programID},
-		Limitations: []string{},
+		Limitations:  []string{},
 	}
 
 	switch programAccount.Value.Owner {
@@ -138,9 +138,9 @@ func inspectArvisProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 func getArvisProgramAuthorityAccount(ctx context.Context, rpc solanaRPCCall, network, address string, dataLength int) (arvisProgramAuthorityAccount, error) {
 	var result arvisProgramAuthorityAccount
 	config := map[string]any{
-		"encoding": "base64",
+		"encoding":   "base64",
 		"commitment": "confirmed",
-		"dataSlice": map[string]any{"offset": 0, "length": dataLength},
+		"dataSlice":  map[string]any{"offset": 0, "length": dataLength},
 	}
 	err := rpc(ctx, network, "getAccountInfo", []any{address, config}, &result)
 	return result, err
