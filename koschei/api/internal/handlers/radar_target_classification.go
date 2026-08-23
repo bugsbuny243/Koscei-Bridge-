@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"koschei/api/internal/defense"
 	"koschei/api/internal/services"
 )
 
@@ -104,7 +103,7 @@ func classifyRadarAccountObservation(account *services.SolanaAccountInfo) radarT
 		out.Type = radarTargetProgram
 		out.Status = "verified_rpc_observation"
 		out.Evidence = "Executable Solana program account verified; token-mint scoring is not applicable."
-	case out.AccountOwner == defense.UpgradeableLoaderID:
+	case out.AccountOwner == arvisUpgradeableLoaderID:
 		out.LoaderState = radarUpgradeableLoaderState(account.Data)
 		switch out.LoaderState {
 		case "program_data":
