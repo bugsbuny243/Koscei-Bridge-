@@ -16,19 +16,19 @@ import (
 const VersionV04 = "koschei-defense-independent-collector/v0.4"
 
 type RequestV04 struct {
-	Version                string                               `json:"version"`
-	CollectorRef           string                               `json:"collector_ref"`
+	Version                string                              `json:"version"`
+	CollectorRef           string                              `json:"collector_ref"`
 	Control                defense.DefenseValidationControlV02 `json:"control"`
-	Chain                  string                               `json:"chain"`
-	CaseRef                string                               `json:"case_ref"`
-	CaseKind               string                               `json:"case_kind"`
-	TechniqueID            string                               `json:"technique_id"`
-	ExecutionMode          string                               `json:"execution_mode"`
-	ImpactOffsetMS         *int64                               `json:"impact_offset_ms,omitempty"`
-	ObservationWindowMS    int64                                `json:"observation_window_ms"`
-	MainnetTransactionSent bool                                 `json:"mainnet_transaction_sent"`
-	ContainmentReceipt     executioncontainment.Receipt         `json:"containment_receipt"`
-	ExecutionProof         executionproof.Proof                 `json:"execution_proof"`
+	Chain                  string                              `json:"chain"`
+	CaseRef                string                              `json:"case_ref"`
+	CaseKind               string                              `json:"case_kind"`
+	TechniqueID            string                              `json:"technique_id"`
+	ExecutionMode          string                              `json:"execution_mode"`
+	ImpactOffsetMS         *int64                              `json:"impact_offset_ms,omitempty"`
+	ObservationWindowMS    int64                               `json:"observation_window_ms"`
+	MainnetTransactionSent bool                                `json:"mainnet_transaction_sent"`
+	ContainmentReceipt     executioncontainment.Receipt        `json:"containment_receipt"`
+	ExecutionProof         executionproof.Proof                `json:"execution_proof"`
 }
 
 type ResultV04 struct {
@@ -130,11 +130,11 @@ func CollectLiveV04(ctx context.Context, request RequestV04, alerts <-chan secur
 				return ResultV04{}, fmt.Errorf("bind live observation: %w", err)
 			}
 			event, err := (securityevidence.Event{
-				Producer: request.CollectorRef,
-				Subject: securityevidence.Subject{Chain: request.Chain, Type: defense.DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
-				Window: securityevidence.ObservationWindow{FromUnixMS: startedMS, ToUnixMS: endedMS},
+				Producer:      request.CollectorRef,
+				Subject:       securityevidence.Subject{Chain: request.Chain, Type: defense.DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
+				Window:        securityevidence.ObservationWindow{FromUnixMS: startedMS, ToUnixMS: endedMS},
 				SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, request.Control.ConfigurationHash},
-				Findings: []securityevidence.Finding{{ID: defense.DefenseValidationObservationFindingIDV02(request.Control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: bindingDigest, Summary: "Independent collector recomputed execution artifacts and observed the complete live window."}},
+				Findings:      []securityevidence.Finding{{ID: defense.DefenseValidationObservationFindingIDV02(request.Control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: bindingDigest, Summary: "Independent collector recomputed execution artifacts and observed the complete live window."}},
 			}).Seal()
 			if err != nil {
 				return ResultV04{}, fmt.Errorf("seal live observation event: %w", err)
@@ -157,10 +157,10 @@ func SealAlertV04(observerRef string, control defense.DefenseValidationControlV0
 		return securityevidence.Event{}, err
 	}
 	return (securityevidence.Event{
-		Producer: observerRef,
-		Subject: securityevidence.Subject{Chain: chain, Type: defense.DefenseValidationAlertSubjectTypeV03, ID: execution.Case.CaseRef},
-		Window: securityevidence.ObservationWindow{FromUnixMS: observedMS, ToUnixMS: observedMS},
+		Producer:      observerRef,
+		Subject:       securityevidence.Subject{Chain: chain, Type: defense.DefenseValidationAlertSubjectTypeV03, ID: execution.Case.CaseRef},
+		Window:        securityevidence.ObservationWindow{FromUnixMS: observedMS, ToUnixMS: observedMS},
 		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256, control.ConfigurationHash},
-		Findings: []securityevidence.Finding{{ID: defense.DefenseValidationAlertFindingIDV03(control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationAlertFindingKindV03, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent observer recorded a control alert for the exact execution and configuration."}},
+		Findings:      []securityevidence.Finding{{ID: defense.DefenseValidationAlertFindingIDV03(control.ControlRef, execution.Case.CaseRef), Kind: defense.DefenseValidationAlertFindingKindV03, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent observer recorded a control alert for the exact execution and configuration."}},
 	}).Seal()
 }
