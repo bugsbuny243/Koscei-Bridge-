@@ -1,11 +1,15 @@
 package defense_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,21 +19,31 @@ import (
 	"koschei/api/internal/defensecollector"
 	"koschei/api/internal/executioncontainment"
 	"koschei/api/internal/executionproof"
+	"koschei/api/internal/securityevidence"
 )
 
-func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
+func TestRealAnvilSafeIntentMutationValidationV05(t *testing.T) {
 	if os.Getenv("KOSCHEI_SAFE_ANVIL_INTEGRATION") != "1" {
 		t.Skip("real Anvil integration is opt-in")
 	}
 
-	cfg := realAnvilValidationConfigV04{
-		anvilPath:  mustEnvDefenseV04(t, "KOSCHEI_ANVIL_PATH"),
-		forkURL:    mustEnvDefenseV04(t, "KOSCHEI_SAFE_FORK_URL"),
-		safe:       mustEnvDefenseV04(t, "KOSCHEI_SAFE_ADDRESS"),
-		accessor:   mustEnvDefenseV04(t, "KOSCHEI_SAFE_ACCESSOR_ADDRESS"),
-		target:     mustEnvDefenseV04(t, "KOSCHEI_SAFE_TARGET_ADDRESS"),
-		blockHash:  strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_SAFE_BLOCK_HASH"), "0x"),
-		runnerHash: strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_ANVIL_SHA256"), "0x"),
+	cfg := realAnvilValidationConfigV05{
+		anvilPath:       mustEnvDefenseV04(t, "KOSCHEI_ANVIL_PATH"),
+		forkURL:         mustEnvDefenseV04(t, "KOSCHEI_SAFE_FORK_URL"),
+		safe:            mustEnvDefenseV04(t, "KOSCHEI_SAFE_ADDRESS"),
+		accessor:        mustEnvDefenseV04(t, "KOSCHEI_SAFE_ACCESSOR_ADDRESS"),
+		target:          mustEnvDefenseV04(t, "KOSCHEI_SAFE_TARGET_ADDRESS"),
+		blockHash:       strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_SAFE_BLOCK_HASH"), "0x"),
+		runnerHash:      strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_ANVIL_SHA256"), "0x"),
+		sourceCommit:    mustEnvDefenseV04(t, "KOSCHEI_SOURCE_COMMIT"),
+		sourceTree:      mustEnvDefenseV04(t, "KOSCHEI_SOURCE_TREE"),
+		toolchainHash:   mustEnvDefenseV04(t, "KOSCHEI_TOOLCHAIN_SHA256"),
+		approvedArtifact: mustEnvDefenseV04(t, "KOSCHEI_APPROVED_ARTIFACT_SHA256"),
+		builtArtifact:    mustEnvDefenseV04(t, "KOSCHEI_BUILT_ARTIFACT_SHA256"),
+		observedArtifact: mustEnvDefenseV04(t, "KOSCHEI_OBSERVED_ARTIFACT_SHA256"),
+		policyHash:       mustEnvDefenseV04(t, "KOSCHEI_POLICY_SHA256"),
+		generatorHash:    mustEnvDefenseV04(t, "KOSCHEI_GENERATOR_SHA256"),
+		observerPath:     mustEnvDefenseV04(t, "KOSCHEI_ALERT_OBSERVER_PATH"),
 	}
 	var err error
 	cfg.blockNumber, err = strconv.ParseUint(mustEnvDefenseV04(t, "KOSCHEI_SAFE_BLOCK_NUMBER"), 10, 64)
@@ -42,19 +56,19 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 	}
 
 	control, err := defense.NewExecutionIntegrityControlV02(
-		"control:execution-integrity-real-anvil",
-		"collector:independent-real-anvil",
+		"control:execution-integrity-real-anvil-v05",
+		"collector:independent-real-anvil-v05",
 		defense.DefenseValidationExecutionIntegrityConfigV02{IndependentCollectorRequired: true},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	approved := realSafeTxV04(cfg, big.NewInt(1_000_000_000_000_000_000))
-	mutated := realSafeTxV04(cfg, big.NewInt(2_000_000_000_000_000_000))
+	approved := realSafeTxV05(cfg, big.NewInt(1_000_000_000_000_000_000))
+	mutated := realSafeTxV05(cfg, big.NewInt(2_000_000_000_000_000_000))
 
-	benign := realValidationCaseV04(t, cfg, control, approved, approved, defense.DefenseValidationCaseBenignV02)
-	attack := realValidationCaseV04(t, cfg, control, approved, mutated, defense.DefenseValidationCaseAttackV02)
+	benign := realValidationCaseV05(t, cfg, control, approved, approved, defense.DefenseValidationCaseBenignV02)
+	attack := realValidationCaseV05(t, cfg, control, approved, mutated, defense.DefenseValidationCaseAttackV02)
 
 	if benign.execution.ContainmentDecision != executioncontainment.DecisionRelease || benign.execution.ControlSignaled {
 		t.Fatalf("benign control signal=%s/%v", benign.execution.ContainmentDecision, benign.execution.ControlSignaled)
@@ -67,7 +81,7 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 	}
 
 	report, err := defense.EvaluateDefenseValidationV02(defense.DefenseValidationInputV02{
-		RunRef:          "run:real-anvil-safe-intent-mutation-v04",
+		RunRef:          "run:real-anvil-safe-intent-mutation-v05",
 		ScenarioRef:     "scenario:evm:safe-intent-mutation",
 		ScenarioVersion: "v1.0.0",
 		Chain:           "evm",
@@ -80,13 +94,13 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 		t.Fatal(err)
 	}
 	if report.Verdict != defense.DefenseValidationVerdictValidatedV02 {
-		t.Fatalf("real Anvil verdict=%s", report.Verdict)
+		t.Fatalf("real Anvil hardened verdict=%s", report.Verdict)
 	}
 	attackResult := realCaseResultV04(t, report, attack.execution.Case.CaseRef)
 	if attackResult.Outcome != defense.DefenseValidationOutcomeCaughtInTimeV02 {
 		t.Fatalf("real attack outcome=%s", attackResult.Outcome)
 	}
-	if attackResult.LeadTimeMS == nil || *attackResult.LeadTimeMS != 880 {
+	if attackResult.LeadTimeMS == nil || *attackResult.LeadTimeMS <= 0 {
 		t.Fatalf("real attack lead time=%v", attackResult.LeadTimeMS)
 	}
 	if got := realCaseResultV04(t, report, benign.execution.Case.CaseRef); got.Outcome != defense.DefenseValidationOutcomeCleanV02 {
@@ -94,25 +108,34 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 	}
 }
 
-type realAnvilValidationConfigV04 struct {
-	anvilPath   string
-	forkURL     string
-	safe        string
-	accessor    string
-	target      string
-	blockHash   string
-	runnerHash  string
-	blockNumber uint64
-	chainID     uint64
+type realAnvilValidationConfigV05 struct {
+	anvilPath        string
+	forkURL          string
+	safe             string
+	accessor         string
+	target           string
+	blockHash        string
+	runnerHash       string
+	sourceCommit     string
+	sourceTree       string
+	toolchainHash    string
+	approvedArtifact string
+	builtArtifact    string
+	observedArtifact string
+	policyHash       string
+	generatorHash    string
+	observerPath     string
+	blockNumber      uint64
+	chainID          uint64
 }
 
-type realValidationCaseResultV04 struct {
+type realValidationCaseResultV05 struct {
 	receipt     executioncontainment.Receipt
 	execution   defense.DefenseValidationExecutionEvidenceV02
 	observation defense.DefenseValidationObservationV02
 }
 
-func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, control defense.DefenseValidationControlV02, approved, candidate executionproof.SafeTransaction, kind string) realValidationCaseResultV04 {
+func realValidationCaseV05(t *testing.T, cfg realAnvilValidationConfigV05, control defense.DefenseValidationControlV02, approved, candidate executionproof.SafeTransaction, kind string) realValidationCaseResultV05 {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -130,7 +153,7 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		t.Fatal(err)
 	}
 	payloadHash := sha256HexDefenseV04(candidate.Data)
-	invariantHash := sha256HexDefenseV04([]byte("koschei-real-anvil-safe-native-call-invariants/v0.4"))
+	invariantHash := sha256HexDefenseV04([]byte("koschei-real-anvil-safe-inert-target-invariants/v0.5"))
 
 	input := executioncontainment.CellInput{
 		ChainID:                cfg.chainID,
@@ -146,10 +169,10 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		ApprovedRunnerSHA256:   cfg.runnerHash,
 	}
 	backend := executionproof.PinnedSafeBackend{
-		Engine: executionproof.AnvilSafeSimulationEngine{
+		Engine: executionproof.AnvilSafeInertTargetEngineV05{AnvilSafeSimulationEngine: executionproof.AnvilSafeSimulationEngine{
 			AnvilPath: cfg.anvilPath, ForkURL: cfg.forkURL, Accessor: cfg.accessor,
 			StartupTimeout: 20 * time.Second, RPCTimeout: 10 * time.Second,
-		},
+		}},
 		Accessor: cfg.accessor,
 	}
 	evidence, err := backend.ExecuteSafe(ctx, input, candidate)
@@ -181,57 +204,111 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 	}
 
 	proof, err := executionproof.Evaluate(executionproof.Envelope{
-		Source:        executionproof.SourceEvidence{CommitID: strings.Repeat("a", 40), TreeID: strings.Repeat("b", 40)},
-		Build:         executionproof.BuildEvidence{ToolchainSHA256: strings.Repeat("3", 64), ApprovedArtifactSHA256: strings.Repeat("1", 64), BuiltArtifactSHA256: strings.Repeat("1", 64)},
-		Runtime:       executionproof.RuntimeEvidence{ObservedArtifactSHA256: strings.Repeat("1", 64), PolicySHA256: strings.Repeat("4", 64)},
-		Payload:       executionproof.PayloadEvidence{ChainID: cfg.chainID, Target: candidate.To, ApprovedCalldataSHA256: sha256HexDefenseV04(approved.Data), GeneratedCalldataSHA256: payloadHash, GeneratorSHA256: strings.Repeat("5", 64)},
-		Simulation:    executionproof.SimulationEvidence{InvariantSetSHA256: invariantHash, Result: "PASS"},
-		Authorization: executionproof.AuthorizationEvidence{SigningPolicySHA256: strings.Repeat("6", 64), ApprovedSigningRequestID: approvedHash},
+		Source: executionproof.SourceEvidence{CommitID: cfg.sourceCommit, TreeID: cfg.sourceTree},
+		Build: executionproof.BuildEvidence{ToolchainSHA256: cfg.toolchainHash, ApprovedArtifactSHA256: cfg.approvedArtifact, BuiltArtifactSHA256: cfg.builtArtifact},
+		Runtime: executionproof.RuntimeEvidence{ObservedArtifactSHA256: cfg.observedArtifact, PolicySHA256: cfg.policyHash},
+		Payload: executionproof.PayloadEvidence{ChainID: cfg.chainID, Target: candidate.To, ApprovedCalldataSHA256: sha256HexDefenseV04(approved.Data), GeneratedCalldataSHA256: payloadHash, GeneratorSHA256: cfg.generatorHash},
+		Simulation: executionproof.SimulationEvidence{InvariantSetSHA256: invariantHash, Result: "PASS"},
+		Authorization: executionproof.AuthorizationEvidence{SigningPolicySHA256: control.ConfigurationHash, ApprovedSigningRequestID: approvedHash},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	const observationWindowMS = int64(800)
 	var impact *int64
-	caseRef := "case:evm:safe-authorized-native-transfer-real-anvil"
-	var alert *int64
+	caseRef := "case:evm:safe-authorized-native-transfer-real-anvil-v05"
 	if kind == defense.DefenseValidationCaseAttackV02 {
-		impactValue := int64(1000)
+		impactValue := int64(600)
 		impact = &impactValue
-		caseRef = "case:evm:safe-intent-value-mutation-real-anvil"
-		alertValue := int64(120)
-		alert = &alertValue
+		caseRef = "case:evm:safe-intent-value-mutation-real-anvil-v05"
 	}
-	collected, err := defensecollector.CollectV03(defensecollector.RequestV03{
-		Version:                      defensecollector.VersionV03,
-		CollectorRef:                 control.CollectorRef,
-		Control:                      control,
-		Chain:                        "evm",
-		CaseRef:                      caseRef,
-		CaseKind:                     kind,
-		TechniqueID:                  "safe-intent-mutation",
-		ExecutionMode:                defense.DefenseValidationExecutionForkV02,
-		ImpactOffsetMS:               impact,
-		ObservationWindowMS:          3000,
-		ObservationCompletedOffsetMS: 3000,
-		AlertObservedOffsetMS:        alert,
-		WindowFromUnixMS:             0,
-		WindowToUnixMS:               3000,
-		MainnetTransactionSent:       false,
-		ContainmentReceipt:           receipt,
-		ExecutionProof:               proof,
-	})
+
+	request := defensecollector.RequestV04{
+		Version: defensecollector.VersionV04, CollectorRef: control.CollectorRef, Control: control, Chain: "evm",
+		CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ExecutionMode: defense.DefenseValidationExecutionForkV02,
+		ImpactOffsetMS: impact, ObservationWindowMS: observationWindowMS, MainnetTransactionSent: false,
+		ContainmentReceipt: receipt, ExecutionProof: proof,
+	}
+
+	var alerts chan securityevidence.Event
+	var observerDone chan error
+	if kind == defense.DefenseValidationCaseAttackV02 {
+		alerts = make(chan securityevidence.Event, 1)
+		observerDone = make(chan error, 1)
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			event, observeErr := runIndependentAlertObserverV05(ctx, cfg.observerPath, control, receipt, proof, caseRef, kind, impact, observationWindowMS)
+			if observeErr == nil {
+				alerts <- event
+			}
+			close(alerts)
+			observerDone <- observeErr
+		}()
+	}
+
+	collected, err := defensecollector.CollectLiveV04(ctx, request, alerts)
 	if err != nil {
-		t.Fatalf("collect independent real execution %s: %v", kind, err)
+		t.Fatalf("collect live independent execution %s: %v", kind, err)
 	}
-	adaptedObservation, err := defense.AdaptSecurityEvidenceObservationV02(control, collected.Execution, collected.Binding, collected.Event)
+	if observerDone != nil {
+		if observeErr := <-observerDone; observeErr != nil {
+			t.Fatalf("independent alert observer: %v", observeErr)
+		}
+	}
+	adaptedObservation, err := defense.AdaptSecurityEvidenceObservationV03(control, collected.Execution, collected.Binding, collected.Event, collected.AlertEvent)
 	if err != nil {
-		t.Fatalf("adapt independent real observation %s: %v", kind, err)
+		t.Fatalf("adapt hardened independent observation %s: %v", kind, err)
 	}
-	return realValidationCaseResultV04{receipt: receipt, execution: collected.Execution, observation: adaptedObservation}
+	if collected.Binding.ObservationCompletedOffsetMS < observationWindowMS {
+		t.Fatalf("real observation window did not elapse: %dms", collected.Binding.ObservationCompletedOffsetMS)
+	}
+	if kind == defense.DefenseValidationCaseAttackV02 {
+		if collected.AlertEvent == nil || collected.Binding.AlertObservedOffsetMS == nil || *collected.Binding.AlertObservedOffsetMS <= 0 || *collected.Binding.AlertObservedOffsetMS >= *impact {
+			t.Fatalf("independent alert timing is not before impact: event=%v offset=%v impact=%v", collected.AlertEvent != nil, collected.Binding.AlertObservedOffsetMS, impact)
+		}
+	} else if collected.AlertEvent != nil || collected.Binding.AlertObservedOffsetMS != nil {
+		t.Fatal("benign case unexpectedly carried alert evidence")
+	}
+	return realValidationCaseResultV05{receipt: receipt, execution: collected.Execution, observation: adaptedObservation}
 }
 
-func realSafeTxV04(cfg realAnvilValidationConfigV04, value *big.Int) executionproof.SafeTransaction {
+func runIndependentAlertObserverV05(ctx context.Context, path string, control defense.DefenseValidationControlV02, receipt executioncontainment.Receipt, proof executionproof.Proof, caseRef, kind string, impact *int64, windowMS int64) (securityevidence.Event, error) {
+	request := struct {
+		ObserverRef         string                               `json:"observer_ref"`
+		Chain               string                               `json:"chain"`
+		Control             defense.DefenseValidationControlV02 `json:"control"`
+		CaseRef             string                               `json:"case_ref"`
+		CaseKind            string                               `json:"case_kind"`
+		TechniqueID         string                               `json:"technique_id"`
+		ExecutionMode       string                               `json:"execution_mode"`
+		ImpactOffsetMS      *int64                               `json:"impact_offset_ms,omitempty"`
+		ObservationWindowMS int64                                `json:"observation_window_ms"`
+		ContainmentReceipt  executioncontainment.Receipt         `json:"containment_receipt"`
+		ExecutionProof      executionproof.Proof                 `json:"execution_proof"`
+	}{
+		ObserverRef: "observer:real-anvil-alert-v05", Chain: "evm", Control: control, CaseRef: caseRef, CaseKind: kind,
+		TechniqueID: "safe-intent-mutation", ExecutionMode: defense.DefenseValidationExecutionForkV02, ImpactOffsetMS: impact,
+		ObservationWindowMS: windowMS, ContainmentReceipt: receipt, ExecutionProof: proof,
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return securityevidence.Event{}, err
+	}
+	cmd := exec.CommandContext(ctx, path)
+	cmd.Stdin = bytes.NewReader(payload)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return securityevidence.Event{}, fmt.Errorf("observer process: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	var event securityevidence.Event
+	if err := json.Unmarshal(output, &event); err != nil {
+		return securityevidence.Event{}, fmt.Errorf("decode observer event: %w", err)
+	}
+	return event, nil
+}
+
+func realSafeTxV05(cfg realAnvilValidationConfigV05, value *big.Int) executionproof.SafeTransaction {
 	return executionproof.SafeTransaction{
 		ChainID: cfg.chainID, Safe: cfg.safe, To: cfg.target, Value: new(big.Int).Set(value), Data: nil, Operation: 0,
 		SafeTxGas: big.NewInt(0), BaseGas: big.NewInt(0), GasPrice: big.NewInt(0),
