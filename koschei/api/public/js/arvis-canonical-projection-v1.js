@@ -50,7 +50,7 @@ function creatorWallet(report,envelope){
 function evidenceLabel(item){
  if(typeof item==='string')return item.trim();
  const value=obj(item),metadata=obj(value.metadata);
- const direct=text(first(value.summary,value.claim,value.message,value.title,value.reason,value.description,value.evidence_key,value.relation));
+ const direct=text(first(value.summary,value.claim,value.message,value.title,value.reason,value.description));
  if(direct)return direct;
  const source=text(first(value.source_wallet,metadata.source_wallet,value.actor_wallet));
  const destination=text(first(value.destination_wallet,metadata.destination_wallet,value.counterpart_id));
@@ -58,7 +58,7 @@ function evidenceLabel(item){
  if(source&&destination)return`${source} → ${destination}${relation?` · ${relation}`:''}`;
  const signature=text(first(value.signature,metadata.signature));
  if(signature)return`Transaction evidence · ${signature}`;
- return'';
+ return text(first(value.evidence_key,value.relation));
 }
 function evidenceFrom(report,envelope){
  const actor=obj(report.actor_investigation||envelope.actor_investigation),dossier=obj(actor.dossier),behavior=obj(report.behavior_signals||envelope.behavior_signals);
