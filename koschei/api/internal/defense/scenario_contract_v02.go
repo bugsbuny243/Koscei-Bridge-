@@ -10,70 +10,70 @@ import (
 const DefenseValidationScenarioContractV02 = "koschei-defense-validation-scenario/v0.2"
 
 type DefenseValidationScenarioClaimBoundaryV02 struct {
-	IsExecutionEvidence      bool `json:"is_execution_evidence"`
-	IsValidationResult       bool `json:"is_validation_result"`
-	ProductionClaimAllowed   bool `json:"production_claim_allowed"`
-	MainnetTransactionSent   bool `json:"mainnet_transaction_sent"`
-	VerdictAuthority         bool `json:"verdict_authority"`
+	IsExecutionEvidence    bool `json:"is_execution_evidence"`
+	IsValidationResult     bool `json:"is_validation_result"`
+	ProductionClaimAllowed bool `json:"production_claim_allowed"`
+	MainnetTransactionSent bool `json:"mainnet_transaction_sent"`
+	VerdictAuthority       bool `json:"verdict_authority"`
 }
 
 type DefenseValidationScenarioEnvironmentV02 struct {
-	ExecutionMode              string `json:"execution_mode"`
-	ProductionIdentityUsed     bool   `json:"production_identity_used"`
-	WalletCustody              bool   `json:"wallet_custody"`
-	MainnetSubmissionAllowed   bool   `json:"mainnet_submission_allowed"`
-	NetworkAccessDuringExecution bool `json:"network_access_during_execution"`
-	OwnerApprovalRequired      bool   `json:"owner_approval_required"`
-	DefaultOff                 bool   `json:"default_off"`
+	ExecutionMode                string `json:"execution_mode"`
+	ProductionIdentityUsed       bool   `json:"production_identity_used"`
+	WalletCustody                bool   `json:"wallet_custody"`
+	MainnetSubmissionAllowed     bool   `json:"mainnet_submission_allowed"`
+	NetworkAccessDuringExecution bool   `json:"network_access_during_execution"`
+	OwnerApprovalRequired        bool   `json:"owner_approval_required"`
+	DefaultOff                   bool   `json:"default_off"`
 }
 
 type DefenseValidationScenarioControlContractV02 struct {
-	ControlClass                            string `json:"control_class"`
-	CandidateControl                        string `json:"candidate_control"`
-	IndependentCollectorRequired            bool   `json:"independent_collector_required"`
-	AdapterVersionRequired                  bool   `json:"adapter_version_required"`
-	ConfigurationHashRequired               bool   `json:"configuration_hash_required"`
-	ProductionWiringRequiredForProductionClaim bool `json:"production_wiring_required_for_production_claim"`
+	ControlClass                               string `json:"control_class"`
+	CandidateControl                           string `json:"candidate_control"`
+	IndependentCollectorRequired               bool   `json:"independent_collector_required"`
+	AdapterVersionRequired                     bool   `json:"adapter_version_required"`
+	ConfigurationHashRequired                  bool   `json:"configuration_hash_required"`
+	ProductionWiringRequiredForProductionClaim bool   `json:"production_wiring_required_for_production_claim"`
 }
 
 type DefenseValidationScenarioExpectedBehaviorV02 struct {
-	BlockOrAlertRequired     bool     `json:"block_or_alert_required"`
-	LatestDetectionOffsetMS  *int64   `json:"latest_detection_offset_ms,omitempty"`
-	FalsePositiveForbidden   bool     `json:"false_positive_forbidden,omitempty"`
-	ExpectedReasons          []string `json:"expected_reasons,omitempty"`
+	BlockOrAlertRequired    bool     `json:"block_or_alert_required"`
+	LatestDetectionOffsetMS *int64   `json:"latest_detection_offset_ms,omitempty"`
+	FalsePositiveForbidden  bool     `json:"false_positive_forbidden,omitempty"`
+	ExpectedReasons         []string `json:"expected_reasons,omitempty"`
 }
 
 type DefenseValidationScenarioCaseV02 struct {
-	CaseRef                 string                                      `json:"case_ref"`
-	CaseKind                string                                      `json:"case_kind"`
-	Description             string                                      `json:"description"`
-	ImpactDeadlineMS        *int64                                      `json:"impact_deadline_ms"`
-	ObservationWindowMS     int64                                       `json:"observation_window_ms"`
+	CaseRef                 string                                       `json:"case_ref"`
+	CaseKind                string                                       `json:"case_kind"`
+	Description             string                                       `json:"description"`
+	ImpactDeadlineMS        *int64                                       `json:"impact_deadline_ms"`
+	ObservationWindowMS     int64                                        `json:"observation_window_ms"`
 	ExpectedControlBehavior DefenseValidationScenarioExpectedBehaviorV02 `json:"expected_control_behavior"`
 }
 
 type DefenseValidationScenarioMatrixV02 struct {
-	PairRef                  string                               `json:"pair_ref"`
-	MatchedFields            []string                             `json:"matched_fields"`
-	SingleSecurityDifference string                               `json:"single_security_difference"`
-	Cases                    []DefenseValidationScenarioCaseV02   `json:"cases"`
+	PairRef                  string                             `json:"pair_ref"`
+	MatchedFields            []string                           `json:"matched_fields"`
+	SingleSecurityDifference string                             `json:"single_security_difference"`
+	Cases                    []DefenseValidationScenarioCaseV02 `json:"cases"`
 }
 
 type DefenseValidationScenarioV02 struct {
-	Contract          string                                      `json:"contract"`
-	ScenarioRef       string                                      `json:"scenario_ref"`
-	ScenarioVersion   string                                      `json:"scenario_version"`
-	Title             string                                      `json:"title"`
-	Status            string                                      `json:"status"`
-	Chain             string                                      `json:"chain"`
-	RulesetVersion    string                                      `json:"ruleset_version"`
-	ClaimBoundary     DefenseValidationScenarioClaimBoundaryV02    `json:"claim_boundary"`
-	Environment       DefenseValidationScenarioEnvironmentV02      `json:"environment"`
-	ControlContract   DefenseValidationScenarioControlContractV02  `json:"control_contract"`
-	Matrix            DefenseValidationScenarioMatrixV02           `json:"matrix"`
-	RequiredRunEvidence []string                                   `json:"required_run_evidence"`
-	AcceptanceGate    map[string]any                               `json:"acceptance_gate"`
-	Limitations       []string                                     `json:"limitations"`
+	Contract            string                                      `json:"contract"`
+	ScenarioRef         string                                      `json:"scenario_ref"`
+	ScenarioVersion     string                                      `json:"scenario_version"`
+	Title               string                                      `json:"title"`
+	Status              string                                      `json:"status"`
+	Chain               string                                      `json:"chain"`
+	RulesetVersion      string                                      `json:"ruleset_version"`
+	ClaimBoundary       DefenseValidationScenarioClaimBoundaryV02   `json:"claim_boundary"`
+	Environment         DefenseValidationScenarioEnvironmentV02     `json:"environment"`
+	ControlContract     DefenseValidationScenarioControlContractV02 `json:"control_contract"`
+	Matrix              DefenseValidationScenarioMatrixV02          `json:"matrix"`
+	RequiredRunEvidence []string                                    `json:"required_run_evidence"`
+	AcceptanceGate      map[string]any                              `json:"acceptance_gate"`
+	Limitations         []string                                    `json:"limitations"`
 }
 
 func ParseDefenseValidationScenarioV02(data []byte) (DefenseValidationScenarioV02, error) {
