@@ -8,7 +8,9 @@ const creator='D9gQ6RhKEpnobPBUdWY5bPQt2p3zGk3iVz6ChpUi2ArA';
 const target='Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump';
 
 function productionShape(){
- const modules=Array.from({length:13},(_,index)=>({module_id:`module_${index}`,signals:{execution_status:'completed',evidence_status:'verified_rpc_observation',applicable:true}}));
+ const modules=Array.from({length:11},(_,index)=>({module_id:`verified_module_${index}`,signals:{execution_status:'completed',evidence_status:'verified_rpc_observation',applicable:true}}));
+ modules.push({module_id:'walletless_claim_shield',signals:{evidence_status:'insufficient_evidence',applicable:true}});
+ modules.push({module_id:'claim_surface_risk',signals:{evidence_status:'insufficient_evidence',applicable:true}});
  modules.push({module_id:'repeat_actor_scan',signals:{execution_status:'completed',evidence_status:'verified_actor_lifecycle',creator_wallet:creator,creator_active_tokens:2,creator_inactive_or_dead_tokens:15,creator_total_tokens:17,creator_token_recurrence:true,actor_lifecycle_status:'verified_recurrence'}});
  return{
   target,modules,
@@ -27,7 +29,8 @@ function productionShape(){
 test('canonical projection reads nested module state and actor truth from production-shaped payload',()=>{
  const vm=project(productionShape());
  assert.equal(vm.coverage.total,14);
- assert.equal(vm.coverage.complete,14);
+ assert.equal(vm.coverage.complete,12);
+ assert.equal(vm.coverage.partial,2);
  assert.equal(vm.coverage.unavailable,0);
  assert.equal(vm.creator_wallet,creator);
  assert.deepEqual(vm.creator_lifecycle,{active:2,inactive:15,total:17,recurrence:true,status:'verified_recurrence'});
