@@ -14,7 +14,7 @@ import (
 func TestCollectProgramSecuritySurfaceReportsAuthorityAndAge(t *testing.T) {
 	programHeader := make([]byte, 36)
 	binary.LittleEndian.PutUint32(programHeader[:4], 2)
-	programDataAddress := "11111111111111111111111111111111"
+	programDataAddress := base58Encode(programHeader[4:36])
 	programDataHeader := make([]byte, 45)
 	binary.LittleEndian.PutUint32(programDataHeader[:4], 3)
 	binary.LittleEndian.PutUint64(programDataHeader[4:12], 456)
