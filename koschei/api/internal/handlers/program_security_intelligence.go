@@ -173,7 +173,7 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		if decodeErr != nil || len(data) < 36 || binary.LittleEndian.Uint32(data[:4]) != 2 {
 			return arvisProgramAuthoritySnapshot{}, errors.New("invalid upgradeable program account header")
 		}
-		out.ProgramDataAddress = base58Encode(data[4:36])
+		out.ProgramDataAddress = arvisProgramBase58Encode(data[4:36])
 		programData, lookupErr := read(out.ProgramDataAddress, 45)
 		if lookupErr != nil {
 			return arvisProgramAuthoritySnapshot{}, fmt.Errorf("programdata lookup failed: %w", lookupErr)
@@ -191,7 +191,7 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 			out.Immutable = true
 			out.Status = "immutable_upgradeable_program"
 		case 1:
-			out.UpgradeAuthority = base58Encode(header[13:45])
+			out.UpgradeAuthority = arvisProgramBase58Encode(header[13:45])
 			out.UpgradeAuthorityOpen = true
 			out.Status = "upgrade_authority_open"
 		default:
@@ -213,6 +213,37 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		return arvisProgramAuthoritySnapshot{}, fmt.Errorf("unsupported program loader: %s", out.LoaderID)
 	}
 	return out, nil
+}
+
+func arvisProgramBase58Encode(input []byte) string {
+	const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+	if len(input) == 0 {
+		return ""
+	}
+	digits := []byte{}
+	for _, value := range input {
+		carry := int(value)
+		for i := 0; i < len(digits); i++ {
+			carry += int(digits[i]) << 8
+			digits[i] = byte(carry % 58)
+			carry /= 58
+		}
+		for carry > 0 {
+			digits = append(digits, byte(carry%58))
+			carry /= 58
+		}
+	}
+	for _, value := range input {
+		if value != 0 {
+			break
+		}
+		digits = append(digits, 0)
+	}
+	var builder strings.Builder
+	for i := len(digits) - 1; i >= 0; i-- {
+		builder.WriteByte(alphabet[digits[i]])
+	}
+	return builder.String()
 }
 
 func newProgramSecuritySurface(status string) services.ProgramSecuritySurface {
