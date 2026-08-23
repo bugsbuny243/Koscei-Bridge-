@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"koschei/api/internal/defense"
 	"koschei/api/internal/services"
 )
 
@@ -36,7 +35,7 @@ func TestCollectProgramSecuritySurfaceReportsAuthorityAndAge(t *testing.T) {
 				"context": map[string]any{"slot": 999},
 				"value": map[string]any{
 					"data":       []string{base64.StdEncoding.EncodeToString(data), "base64"},
-					"executable": true, "owner": defense.UpgradeableLoaderID, "space": len(data),
+					"executable": true, "owner": arvisUpgradeableLoaderID, "space": len(data),
 				},
 			}, target)
 		case "getBlockTime":
@@ -66,6 +65,24 @@ func TestProgramSecurityCandidatesDeduplicateProgramRoles(t *testing.T) {
 	)
 	if len(items) != 1 {
 		t.Fatalf("expected one deduplicated program, got %+v", items)
+	}
+}
+
+func TestArvisProgramAuthorityRejectsMalformedProgramData(t *testing.T) {
+	rpc := func(_ context.Context, _ string, method string, params any, target any) error {
+		if method != "getAccountInfo" {
+			t.Fatalf("unexpected RPC method %s", method)
+		}
+		return programSecurityDecodeInto(map[string]any{
+			"context": map[string]any{"slot": 1},
+			"value": map[string]any{
+				"data": []string{base64.StdEncoding.EncodeToString([]byte{1, 2, 3, 4}), "base64"},
+				"executable": true, "owner": arvisUpgradeableLoaderID,
+			},
+		}, target)
+	}
+	if _, err := inspectArvisProgramAuthority(context.Background(), rpc, "solana-mainnet", programSecurityPumpFun); err == nil {
+		t.Fatal("malformed upgradeable program header must fail closed")
 	}
 }
 
