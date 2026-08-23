@@ -16,17 +16,17 @@ import (
 const maxInputBytes = 2 << 20
 
 type request struct {
-	ObserverRef         string                               `json:"observer_ref"`
-	Chain               string                               `json:"chain"`
+	ObserverRef         string                              `json:"observer_ref"`
+	Chain               string                              `json:"chain"`
 	Control             defense.DefenseValidationControlV02 `json:"control"`
-	CaseRef             string                               `json:"case_ref"`
-	CaseKind            string                               `json:"case_kind"`
-	TechniqueID         string                               `json:"technique_id"`
-	ExecutionMode       string                               `json:"execution_mode"`
-	ImpactOffsetMS      *int64                               `json:"impact_offset_ms,omitempty"`
-	ObservationWindowMS int64                                `json:"observation_window_ms"`
-	ContainmentReceipt  executioncontainment.Receipt         `json:"containment_receipt"`
-	ExecutionProof      executionproof.Proof                 `json:"execution_proof"`
+	CaseRef             string                              `json:"case_ref"`
+	CaseKind            string                              `json:"case_kind"`
+	TechniqueID         string                              `json:"technique_id"`
+	ExecutionMode       string                              `json:"execution_mode"`
+	ImpactOffsetMS      *int64                              `json:"impact_offset_ms,omitempty"`
+	ObservationWindowMS int64                               `json:"observation_window_ms"`
+	ContainmentReceipt  executioncontainment.Receipt        `json:"containment_receipt"`
+	ExecutionProof      executionproof.Proof                `json:"execution_proof"`
 }
 
 func main() {
