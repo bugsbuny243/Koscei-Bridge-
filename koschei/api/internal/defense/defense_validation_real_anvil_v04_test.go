@@ -28,16 +28,16 @@ func TestRealAnvilSafeIntentMutationValidationV05(t *testing.T) {
 	}
 
 	cfg := realAnvilValidationConfigV05{
-		anvilPath:       mustEnvDefenseV04(t, "KOSCHEI_ANVIL_PATH"),
-		forkURL:         mustEnvDefenseV04(t, "KOSCHEI_SAFE_FORK_URL"),
-		safe:            mustEnvDefenseV04(t, "KOSCHEI_SAFE_ADDRESS"),
-		accessor:        mustEnvDefenseV04(t, "KOSCHEI_SAFE_ACCESSOR_ADDRESS"),
-		target:          mustEnvDefenseV04(t, "KOSCHEI_SAFE_TARGET_ADDRESS"),
-		blockHash:       strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_SAFE_BLOCK_HASH"), "0x"),
-		runnerHash:      strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_ANVIL_SHA256"), "0x"),
-		sourceCommit:    mustEnvDefenseV04(t, "KOSCHEI_SOURCE_COMMIT"),
-		sourceTree:      mustEnvDefenseV04(t, "KOSCHEI_SOURCE_TREE"),
-		toolchainHash:   mustEnvDefenseV04(t, "KOSCHEI_TOOLCHAIN_SHA256"),
+		anvilPath:        mustEnvDefenseV04(t, "KOSCHEI_ANVIL_PATH"),
+		forkURL:          mustEnvDefenseV04(t, "KOSCHEI_SAFE_FORK_URL"),
+		safe:             mustEnvDefenseV04(t, "KOSCHEI_SAFE_ADDRESS"),
+		accessor:         mustEnvDefenseV04(t, "KOSCHEI_SAFE_ACCESSOR_ADDRESS"),
+		target:           mustEnvDefenseV04(t, "KOSCHEI_SAFE_TARGET_ADDRESS"),
+		blockHash:        strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_SAFE_BLOCK_HASH"), "0x"),
+		runnerHash:       strings.TrimPrefix(mustEnvDefenseV04(t, "KOSCHEI_ANVIL_SHA256"), "0x"),
+		sourceCommit:     mustEnvDefenseV04(t, "KOSCHEI_SOURCE_COMMIT"),
+		sourceTree:       mustEnvDefenseV04(t, "KOSCHEI_SOURCE_TREE"),
+		toolchainHash:    mustEnvDefenseV04(t, "KOSCHEI_TOOLCHAIN_SHA256"),
 		approvedArtifact: mustEnvDefenseV04(t, "KOSCHEI_APPROVED_ARTIFACT_SHA256"),
 		builtArtifact:    mustEnvDefenseV04(t, "KOSCHEI_BUILT_ARTIFACT_SHA256"),
 		observedArtifact: mustEnvDefenseV04(t, "KOSCHEI_OBSERVED_ARTIFACT_SHA256"),
@@ -204,11 +204,11 @@ func realValidationCaseV05(t *testing.T, cfg realAnvilValidationConfigV05, contr
 	}
 
 	proof, err := executionproof.Evaluate(executionproof.Envelope{
-		Source: executionproof.SourceEvidence{CommitID: cfg.sourceCommit, TreeID: cfg.sourceTree},
-		Build: executionproof.BuildEvidence{ToolchainSHA256: cfg.toolchainHash, ApprovedArtifactSHA256: cfg.approvedArtifact, BuiltArtifactSHA256: cfg.builtArtifact},
-		Runtime: executionproof.RuntimeEvidence{ObservedArtifactSHA256: cfg.observedArtifact, PolicySHA256: cfg.policyHash},
-		Payload: executionproof.PayloadEvidence{ChainID: cfg.chainID, Target: candidate.To, ApprovedCalldataSHA256: sha256HexDefenseV04(approved.Data), GeneratedCalldataSHA256: payloadHash, GeneratorSHA256: cfg.generatorHash},
-		Simulation: executionproof.SimulationEvidence{InvariantSetSHA256: invariantHash, Result: "PASS"},
+		Source:        executionproof.SourceEvidence{CommitID: cfg.sourceCommit, TreeID: cfg.sourceTree},
+		Build:         executionproof.BuildEvidence{ToolchainSHA256: cfg.toolchainHash, ApprovedArtifactSHA256: cfg.approvedArtifact, BuiltArtifactSHA256: cfg.builtArtifact},
+		Runtime:       executionproof.RuntimeEvidence{ObservedArtifactSHA256: cfg.observedArtifact, PolicySHA256: cfg.policyHash},
+		Payload:       executionproof.PayloadEvidence{ChainID: cfg.chainID, Target: candidate.To, ApprovedCalldataSHA256: sha256HexDefenseV04(approved.Data), GeneratedCalldataSHA256: payloadHash, GeneratorSHA256: cfg.generatorHash},
+		Simulation:    executionproof.SimulationEvidence{InvariantSetSHA256: invariantHash, Result: "PASS"},
 		Authorization: executionproof.AuthorizationEvidence{SigningPolicySHA256: control.ConfigurationHash, ApprovedSigningRequestID: approvedHash},
 	})
 	if err != nil {
@@ -275,17 +275,17 @@ func realValidationCaseV05(t *testing.T, cfg realAnvilValidationConfigV05, contr
 
 func runIndependentAlertObserverV05(ctx context.Context, path string, control defense.DefenseValidationControlV02, receipt executioncontainment.Receipt, proof executionproof.Proof, caseRef, kind string, impact *int64, windowMS int64) (securityevidence.Event, error) {
 	request := struct {
-		ObserverRef         string                               `json:"observer_ref"`
-		Chain               string                               `json:"chain"`
+		ObserverRef         string                              `json:"observer_ref"`
+		Chain               string                              `json:"chain"`
 		Control             defense.DefenseValidationControlV02 `json:"control"`
-		CaseRef             string                               `json:"case_ref"`
-		CaseKind            string                               `json:"case_kind"`
-		TechniqueID         string                               `json:"technique_id"`
-		ExecutionMode       string                               `json:"execution_mode"`
-		ImpactOffsetMS      *int64                               `json:"impact_offset_ms,omitempty"`
-		ObservationWindowMS int64                                `json:"observation_window_ms"`
-		ContainmentReceipt  executioncontainment.Receipt         `json:"containment_receipt"`
-		ExecutionProof      executionproof.Proof                 `json:"execution_proof"`
+		CaseRef             string                              `json:"case_ref"`
+		CaseKind            string                              `json:"case_kind"`
+		TechniqueID         string                              `json:"technique_id"`
+		ExecutionMode       string                              `json:"execution_mode"`
+		ImpactOffsetMS      *int64                              `json:"impact_offset_ms,omitempty"`
+		ObservationWindowMS int64                               `json:"observation_window_ms"`
+		ContainmentReceipt  executioncontainment.Receipt        `json:"containment_receipt"`
+		ExecutionProof      executionproof.Proof                `json:"execution_proof"`
 	}{
 		ObserverRef: "observer:real-anvil-alert-v05", Chain: "evm", Control: control, CaseRef: caseRef, CaseKind: kind,
 		TechniqueID: "safe-intent-mutation", ExecutionMode: defense.DefenseValidationExecutionForkV02, ImpactOffsetMS: impact,
