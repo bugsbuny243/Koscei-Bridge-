@@ -5,12 +5,18 @@ permissions: {}
 on:
   pull_request:
     paths:
+      - 'koschei/api/internal/executionproof/anvil_backend_v03.go'
+      - 'koschei/api/internal/executionproof/anvil_receipt_wire_v03_test.go'
       - 'koschei/api/internal/executionproof/safe_anvil_engine_v04.go'
       - 'koschei/api/internal/executionproof/safe_anvil_engine_v04_test.go'
       - 'koschei/api/internal/executionproof/testdata/safe_anvil_v04/**'
+      - 'koschei/api/internal/defense/defense_validation_adapters_v02.go'
+      - 'koschei/api/internal/defense/defense_validation_observation_v03.go'
+      - 'koschei/api/internal/defense/defense_validation_real_anvil_v04_test.go'
       - 'koschei/api/internal/defensecollector/**'
       - 'koschei/api/cmd/defense-validation-collector/**'
       - 'koschei/api/scripts/run-safe-anvil-v04-integration.sh'
+      - 'docs/defense-validation/SAFE_ANVIL_EXECUTION_EVIDENCE_V04.md'
       - '.github/workflows/defense-validation-anvil-evidence.yml'
   workflow_dispatch:
 
@@ -21,11 +27,14 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    env:
+      KOSCHEI_APPROVED_ANVIL_SHA256: 10c1c727d6c1de973aeb160e59875b9a9a23464d6e74149ee8abb30b3500311b
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 1
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -33,30 +42,36 @@ jobs:
           go-version-file: koschei/api/go.mod
           cache-dependency-path: koschei/api/go.sum
 
-      - name: Install Foundry
+      - name: Install pinned Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: stable
+          version: v1.7.1
           cache: false
 
-      - name: Record execution toolchain
+      - name: Verify approved execution toolchain
         run: |
           set -euo pipefail
           go version
           forge --version
           cast --version
           anvil --version
-          sha256sum "$(command -v anvil)"
+          observed="$(sha256sum "$(command -v anvil)" | awk '{print $1}')"
+          test "$observed" = "$KOSCHEI_APPROVED_ANVIL_SHA256"
 
       - name: Require Go formatting
         working-directory: koschei/api
         run: |
           set -euo pipefail
           files=(
+            internal/executionproof/anvil_backend_v03.go
+            internal/executionproof/anvil_receipt_wire_v03_test.go
             internal/executionproof/safe_anvil_engine_v04.go
             internal/executionproof/safe_anvil_engine_v04_test.go
+            internal/defense/defense_validation_observation_v03.go
+            internal/defense/defense_validation_real_anvil_v04_test.go
             internal/defensecollector/collector_v03.go
             internal/defensecollector/collector_v03_test.go
+            internal/defensecollector/collector_v04.go
             cmd/defense-validation-collector/main.go
           )
           test -z "$(gofmt -l "${files[@]}")"
@@ -66,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           go test ./internal/defensecollector -count=1
-          go test ./internal/executionproof -run '^(TestSafeAccessorEncodingV04MatchesExistingSemanticDigest|TestFindSafeAccessorFrameV04BuildsVerifiableTrace|TestAnvilSafeSimulationEngineV04RejectsUnsupportedEffects)$' -count=1
+          go test ./internal/executionproof -run '^(TestSafeAccessorEncodingV04MatchesExistingSemanticDigest|TestFindSafeAccessorFrameV04BuildsVerifiableTrace|TestAnvilSafeSimulationEngineV04RejectsUnsupportedEffects|TestTransactionReceiptDecodesRPCWireWithoutChangingCanonicalShape|TestRequireSuccessfulReceiptPollsPendingNullResult)$' -count=1
           go build ./cmd/defense-validation-collector
 
       - name: Execute real pinned Safe Anvil evidence harness
