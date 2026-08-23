@@ -223,6 +223,7 @@ func programSecurityCandidates(source map[string]any, lp services.LPControlEvide
 			if existing.ProgramID == programID {
 				return
 			}
+		}
 		if len(out) < 4 {
 			out = append(out, programSecurityCandidate{ProgramID: programID, Role: role})
 		}
