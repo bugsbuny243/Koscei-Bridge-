@@ -36,14 +36,6 @@
       "060_api_key_tier_caps.sql",
       "060_kosch_daily_quota_ledger_index.sql"
     ],
-    "078": [
-      "078_defense_harness_execution_gate.sql",
-      "078_defense_safe_execution_policies.sql"
-    ],
-    "081": [
-      "081_actor_transaction_evidence_idempotency.sql",
-      "081_defense_litesvm_execution_attempts.sql"
-    ],
     "091": [
       "091_security_actor_exit_events.sql",
       "091_slot_gap_healer.sql"
@@ -59,6 +51,19 @@
     "051",
     "052",
     "061",
+    "065",
+    "066",
+    "067",
+    "068",
+    "069",
+    "070",
+    "071",
+    "072",
+    "073",
+    "074",
+    "075",
+    "078",
+    "079",
     "082",
     "085"
   ],
