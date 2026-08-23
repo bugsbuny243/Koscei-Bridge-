@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"koschei/api/internal/defense"
 	"koschei/api/internal/services"
 )
 
@@ -18,19 +17,6 @@ const (
 type programSecurityCandidate struct {
 	ProgramID string
 	Role      string
-}
-
-type programAuthorityRPCAdapter struct {
-	call solanaRPCCall
-}
-
-func (a programAuthorityRPCAdapter) Call(ctx context.Context, network, method string, params any, target any, ttl time.Duration) error {
-	if ttl > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, ttl)
-		defer cancel()
-	}
-	return a.call(ctx, network, method, params, target)
 }
 
 func (h *Handler) collectProgramSecuritySurface(ctx context.Context, network string, source map[string]any, lp services.LPControlEvidence, market services.TokenMarketSnapshot) services.ProgramSecuritySurface {
@@ -50,7 +36,6 @@ func collectProgramSecuritySurface(ctx context.Context, rpc solanaRPCCall, netwo
 		out.Status = "rpc_unavailable"
 		return out
 	}
-	adapter := programAuthorityRPCAdapter{call: rpc}
 	authorityComplete := true
 	ageComplete := true
 	availableCount := 0
@@ -60,7 +45,7 @@ func collectProgramSecuritySurface(ctx context.Context, rpc solanaRPCCall, netwo
 			Status: "inspection_failed", AgeSemantics: "latest ProgramData deployment or upgrade age; not original program creation age",
 			EvidenceRefs: []string{}, Limitations: []string{},
 		}
-		snapshot, err := defense.InspectProgramAuthority(ctx, adapter, defense.DeploymentResolveInput{ProgramID: candidate.ProgramID, Network: network})
+		snapshot, err := inspectArvisProgramAuthority(ctx, rpc, network, candidate.ProgramID)
 		if err != nil {
 			authorityComplete = false
 			ageComplete = false
