@@ -27,7 +27,7 @@ func TestEnglishPublicHTMLRewritesDocumentAndInjectsRuntime(t *testing.T) {
 	if strings.Contains(body, "unified-scan-navigation.js") {
 		t.Fatalf("scan navigation must not be injected globally: %s", body)
 	}
-	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-complete-evidence-v3.js") || strings.Contains(body, "english-auth-presentation.js") {
+	if strings.Contains(body, "arvis-social-render-v2-core.js") || strings.Contains(body, "arvis-canonical-projection-v1.js") || strings.Contains(body, "arvis-complete-evidence-v4.js") || strings.Contains(body, "english-auth-presentation.js") {
 		t.Fatalf("specialized extensions were injected into a generic page: %s", body)
 	}
 }
@@ -41,12 +41,21 @@ func TestEnglishPublicHTMLInjectsARVISResultExtensionsExactlyOnce(t *testing.T) 
 		"arvis-social-render-v2-core.js",
 		"arvis-social-render-v2-cards.js",
 		"arvis-social-render-v2-publish.js",
-		"arvis-complete-evidence-v3.js",
+		"arvis-canonical-projection-v1.js",
+		"arvis-complete-evidence-v4.js",
 		"koschei-english-runtime.js",
 	} {
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("expected exactly one %s reference: %s", script, second)
 		}
+	}
+	if strings.Contains(second, "arvis-complete-evidence-v3.js") {
+		t.Fatalf("legacy evidence v3 must not be injected after canonical projection v4: %s", second)
+	}
+	projectionIndex := strings.Index(second, "arvis-canonical-projection-v1.js")
+	v4Index := strings.Index(second, "arvis-complete-evidence-v4.js")
+	if projectionIndex < 0 || v4Index < 0 || projectionIndex > v4Index {
+		t.Fatalf("canonical projection must load before evidence v4: %s", second)
 	}
 	if strings.Contains(second, "unified-scan-navigation.js") {
 		t.Fatalf("legacy scan navigation must not be globally injected: %s", second)
@@ -65,6 +74,9 @@ func TestEnglishPublicHTMLInjectsAuthPresentationOverlayWithoutChangingAuthContr
 		if strings.Count(second, script) != 1 {
 			t.Fatalf("auth page expected exactly one %s reference: %s", script, second)
 		}
+	}
+	if strings.Contains(second, "arvis-canonical-projection-v1.js") || strings.Contains(second, "arvis-complete-evidence-v4.js") {
+		t.Fatalf("ARVIS evidence extensions must not be injected into auth: %s", second)
 	}
 	if strings.Contains(second, "unified-scan-navigation.js") {
 		t.Fatalf("legacy scan navigation must not be globally injected into auth: %s", second)
