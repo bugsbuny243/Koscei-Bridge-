@@ -7,6 +7,7 @@ const js=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'
 const css=fs.readFileSync(path.join(root,'public','css','customer-workspace-v2.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
+function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden ${pattern}`);}
 
 requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
 requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
@@ -16,6 +17,12 @@ requireText(html,'id="workspaceLatestReport"','latest investigation mount');
 requireText(html,'id="workspaceAlerts"','alerts mount');
 requireText(html,'RECENT INVESTIGATION','recent investigation copy');
 requireText(html,'Investigation jobs','history KPI copy');
+requireText(html,'SaaS plan','SaaS access KPI');
+requireText(html,'ARVIS early access','ARVIS readiness disclosure');
+requireText(html,'Preview monitored targets','watchlist preview disclosure');
+requireText(html,'Their presence in the workspace is not a claim of full production readiness.','unfinished surface boundary');
+forbid(html,/KOSCH access|KOSCH Account|KOSCH holder access|Checking holder access/i,'legacy holder access workspace copy');
+
 requireText(js,"read('/api/auth/premium-access')",'SaaS access source');
 requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
 requireText(js,"read('/api/watchlist')",'watchlist source');
