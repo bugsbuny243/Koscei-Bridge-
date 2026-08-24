@@ -53,20 +53,25 @@ type DefenseValidationControlV02 struct {
 }
 
 type DefenseValidationCaseV02 struct {
-	CaseRef                string `json:"case_ref"`
-	CaseKind               string `json:"case_kind"`
-	TechniqueID            string `json:"technique_id"`
-	Chain                  string `json:"chain,omitempty"`
-	ChainID                uint64 `json:"chain_id,omitempty"`
-	ExecutionMode          string `json:"execution_mode"`
-	ExecutionRef           string `json:"execution_ref"`
-	ExecutionHash          string `json:"execution_hash"`
-	PreStateHash           string `json:"pre_state_hash"`
-	PostStateHash          string `json:"post_state_hash"`
-	EvidenceState          string `json:"evidence_state"`
-	ImpactOffsetMS         *int64 `json:"impact_offset_ms,omitempty"`
-	ObservationWindowMS    int64  `json:"observation_window_ms"`
-	MainnetTransactionSent bool   `json:"mainnet_transaction_sent"`
+	CaseRef                  string `json:"case_ref"`
+	CaseKind                 string `json:"case_kind"`
+	TechniqueID              string `json:"technique_id"`
+	ControlRef               string `json:"control_ref,omitempty"`
+	ControlConfigurationHash string `json:"control_configuration_hash,omitempty"`
+	ScenarioRef              string `json:"scenario_ref,omitempty"`
+	ScenarioVersion          string `json:"scenario_version,omitempty"`
+	ScenarioContractHash     string `json:"scenario_contract_hash,omitempty"`
+	Chain                    string `json:"chain,omitempty"`
+	ChainID                  uint64 `json:"chain_id,omitempty"`
+	ExecutionMode            string `json:"execution_mode"`
+	ExecutionRef             string `json:"execution_ref"`
+	ExecutionHash            string `json:"execution_hash"`
+	PreStateHash             string `json:"pre_state_hash"`
+	PostStateHash            string `json:"post_state_hash"`
+	EvidenceState            string `json:"evidence_state"`
+	ImpactOffsetMS           *int64 `json:"impact_offset_ms,omitempty"`
+	ObservationWindowMS      int64  `json:"observation_window_ms"`
+	MainnetTransactionSent   bool   `json:"mainnet_transaction_sent"`
 }
 
 type DefenseValidationObservationV02 struct {
@@ -84,15 +89,16 @@ type DefenseValidationObservationV02 struct {
 }
 
 type DefenseValidationInputV02 struct {
-	RunRef          string                            `json:"run_ref"`
-	ScenarioRef     string                            `json:"scenario_ref"`
-	ScenarioVersion string                            `json:"scenario_version"`
-	Chain           string                            `json:"chain"`
-	ChainID         uint64                            `json:"chain_id,omitempty"`
-	RulesetVersion  string                            `json:"ruleset_version"`
-	Controls        []DefenseValidationControlV02     `json:"controls"`
-	Cases           []DefenseValidationCaseV02        `json:"cases"`
-	Observations    []DefenseValidationObservationV02 `json:"observations"`
+	RunRef               string                            `json:"run_ref"`
+	ScenarioRef          string                            `json:"scenario_ref"`
+	ScenarioVersion      string                            `json:"scenario_version"`
+	ScenarioContractHash string                            `json:"scenario_contract_hash,omitempty"`
+	Chain                string                            `json:"chain"`
+	ChainID              uint64                            `json:"chain_id,omitempty"`
+	RulesetVersion       string                            `json:"ruleset_version"`
+	Controls             []DefenseValidationControlV02     `json:"controls"`
+	Cases                []DefenseValidationCaseV02        `json:"cases"`
+	Observations         []DefenseValidationObservationV02 `json:"observations"`
 }
 
 type DefenseValidationCaseResultV02 struct {
@@ -141,6 +147,7 @@ type DefenseValidationReportV02 struct {
 	RunRef                 string                              `json:"run_ref"`
 	ScenarioRef            string                              `json:"scenario_ref"`
 	ScenarioVersion        string                              `json:"scenario_version"`
+	ScenarioContractHash   string                              `json:"scenario_contract_hash,omitempty"`
 	Chain                  string                              `json:"chain"`
 	ChainID                uint64                              `json:"chain_id,omitempty"`
 	RulesetVersion         string                              `json:"ruleset_version"`
@@ -194,6 +201,7 @@ func EvaluateDefenseValidationV02(input DefenseValidationInputV02) (DefenseValid
 		RunRef:                 input.RunRef,
 		ScenarioRef:            input.ScenarioRef,
 		ScenarioVersion:        input.ScenarioVersion,
+		ScenarioContractHash:   input.ScenarioContractHash,
 		Chain:                  input.Chain,
 		ChainID:                input.ChainID,
 		RulesetVersion:         input.RulesetVersion,
@@ -346,10 +354,13 @@ func validateDefenseValidationInputV02(input DefenseValidationInputV02) error {
 	if input.RulesetVersion != DefenseValidationRulesetVersionV02 {
 		return fmt.Errorf("unsupported defense validation ruleset %q", input.RulesetVersion)
 	}
+	if input.ScenarioContractHash != "" && !validDefenseValidationHashV02(input.ScenarioContractHash) {
+		return errors.New("scenario contract hash is invalid")
+	}
 	if len(input.Controls) == 0 || len(input.Cases) == 0 {
 		return errors.New("at least one control and one case are required")
 	}
-	seenControls := map[string]struct{}{}
+	seenControls := map[string]DefenseValidationControlV02{}
 	for _, control := range input.Controls {
 		if control.ControlRef == "" || control.AdapterVersion == "" || control.CollectorRef == "" || !validDefenseValidationHashV02(control.ConfigurationHash) {
 			return fmt.Errorf("control %q has incomplete identity evidence", control.ControlRef)
@@ -360,7 +371,7 @@ func validateDefenseValidationInputV02(input DefenseValidationInputV02) error {
 		if _, ok := seenControls[control.ControlRef]; ok {
 			return fmt.Errorf("duplicate control %q", control.ControlRef)
 		}
-		seenControls[control.ControlRef] = struct{}{}
+		seenControls[control.ControlRef] = control
 	}
 	seenCases := map[string]struct{}{}
 	for _, item := range input.Cases {
@@ -373,6 +384,20 @@ func validateDefenseValidationInputV02(input DefenseValidationInputV02) error {
 		seenCases[item.CaseRef] = struct{}{}
 		if item.CaseKind != DefenseValidationCaseAttackV02 && item.CaseKind != DefenseValidationCaseBenignV02 {
 			return fmt.Errorf("case %q has unsupported kind %q", item.CaseRef, item.CaseKind)
+		}
+		hasControlBinding := item.ControlRef != "" || item.ControlConfigurationHash != ""
+		if hasControlBinding {
+			control, ok := seenControls[item.ControlRef]
+			if !ok || !validDefenseValidationHashV02(item.ControlConfigurationHash) || !strings.EqualFold(item.ControlConfigurationHash, control.ConfigurationHash) {
+				return fmt.Errorf("case %q control configuration does not match report control", item.CaseRef)
+			}
+		}
+		hasScenarioBinding := item.ScenarioRef != "" || item.ScenarioVersion != "" || item.ScenarioContractHash != ""
+		if input.ScenarioContractHash != "" && !hasScenarioBinding {
+			return fmt.Errorf("case %q is not bound to the report scenario contract", item.CaseRef)
+		}
+		if hasScenarioBinding && (item.ScenarioRef != input.ScenarioRef || item.ScenarioVersion != input.ScenarioVersion || !validDefenseValidationHashV02(item.ScenarioContractHash) || !strings.EqualFold(item.ScenarioContractHash, input.ScenarioContractHash)) {
+			return fmt.Errorf("case %q scenario contract does not match report scenario", item.CaseRef)
 		}
 		if (item.Chain == "") != (item.ChainID == 0) {
 			return fmt.Errorf("case %q has incomplete execution chain identity", item.CaseRef)
@@ -428,6 +453,7 @@ func normalizeDefenseValidationInputV02(input DefenseValidationInputV02) Defense
 	input.RunRef = strings.TrimSpace(input.RunRef)
 	input.ScenarioRef = strings.TrimSpace(input.ScenarioRef)
 	input.ScenarioVersion = strings.TrimSpace(input.ScenarioVersion)
+	input.ScenarioContractHash = strings.ToLower(strings.TrimSpace(input.ScenarioContractHash))
 	input.Chain = strings.ToLower(strings.TrimSpace(input.Chain))
 	input.RulesetVersion = strings.TrimSpace(input.RulesetVersion)
 	input.Controls = append([]DefenseValidationControlV02(nil), input.Controls...)
@@ -443,6 +469,11 @@ func normalizeDefenseValidationInputV02(input DefenseValidationInputV02) Defense
 		input.Cases[i].CaseRef = strings.TrimSpace(input.Cases[i].CaseRef)
 		input.Cases[i].CaseKind = strings.ToLower(strings.TrimSpace(input.Cases[i].CaseKind))
 		input.Cases[i].TechniqueID = strings.TrimSpace(input.Cases[i].TechniqueID)
+		input.Cases[i].ControlRef = strings.TrimSpace(input.Cases[i].ControlRef)
+		input.Cases[i].ControlConfigurationHash = strings.ToLower(strings.TrimSpace(input.Cases[i].ControlConfigurationHash))
+		input.Cases[i].ScenarioRef = strings.TrimSpace(input.Cases[i].ScenarioRef)
+		input.Cases[i].ScenarioVersion = strings.TrimSpace(input.Cases[i].ScenarioVersion)
+		input.Cases[i].ScenarioContractHash = strings.ToLower(strings.TrimSpace(input.Cases[i].ScenarioContractHash))
 		input.Cases[i].Chain = strings.ToLower(strings.TrimSpace(input.Cases[i].Chain))
 		input.Cases[i].ExecutionMode = strings.ToLower(strings.TrimSpace(input.Cases[i].ExecutionMode))
 		input.Cases[i].ExecutionRef = strings.TrimSpace(input.Cases[i].ExecutionRef)

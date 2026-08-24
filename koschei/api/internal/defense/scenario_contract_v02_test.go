@@ -116,6 +116,60 @@ func TestDefenseValidationScenarioContractV02RejectsUnsupportedControlClass(t *t
 	}
 }
 
+func TestDefenseValidationScenarioContractV02VerifiesMatchedFieldValues(t *testing.T) {
+	tests := map[string]func(*DefenseValidationScenarioV02){
+		"missing_value": func(scenario *DefenseValidationScenarioV02) {
+			delete(scenario.Matrix.Cases[1].MatchedValues, "amount")
+		},
+		"different_value": func(scenario *DefenseValidationScenarioV02) {
+			scenario.Matrix.Cases[1].MatchedValues["amount"] = 2
+		},
+		"contradictory_observation_window": func(scenario *DefenseValidationScenarioV02) {
+			scenario.Matrix.Cases[1].MatchedValues["observation_window_ms"] = 2999
+		},
+		"undeclared_value": func(scenario *DefenseValidationScenarioV02) {
+			scenario.Matrix.MatchedFields = append(scenario.Matrix.MatchedFields, "undeclared_pair_field")
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			scenario := readDefenseValidationScenarioFixtureV02(t, "unauthorized-source-account-v1.json")
+			mutate(&scenario)
+			if err := ValidateDefenseValidationScenarioV02(scenario); err == nil {
+				t.Fatal("unproven matched-field claim was accepted")
+			}
+		})
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RejectsEvidentiaryStatus(t *testing.T) {
+	for _, status := range []string{"validated", "executed", "active", "production"} {
+		t.Run(status, func(t *testing.T) {
+			scenario := readDefenseValidationScenarioFixtureV02(t, "unauthorized-source-account-v1.json")
+			scenario.Status = status
+			if err := ValidateDefenseValidationScenarioV02(scenario); err == nil {
+				t.Fatalf("evidentiary scenario status %q was accepted", status)
+			}
+		})
+	}
+}
+
+func TestDefenseValidationScenarioDigestV02BindsValidatedContent(t *testing.T) {
+	scenario := readDefenseValidationScenarioFixtureV02(t, "unauthorized-source-account-v1.json")
+	first, err := DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario.Matrix.Cases[0].Description += " Content-bound revision."
+	second, err := DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatal("validated scenario content did not affect the scenario digest")
+	}
+}
+
 func readDefenseValidationScenarioFixtureV02(t *testing.T, name string) DefenseValidationScenarioV02 {
 	t.Helper()
 	path := filepath.Join("..", "..", "..", "..", "docs", "defense-validation", "scenarios", name)

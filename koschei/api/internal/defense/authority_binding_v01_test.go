@@ -10,6 +10,95 @@ import (
 	"koschei/api/internal/securityevidence"
 )
 
+const (
+	authorityAttackCaseRefV01 = "case:cosmos-evm:unauthorized-source-account-attack"
+	authorityBenignCaseRefV01 = "case:cosmos-evm:authorized-source-account-benign"
+)
+
+func authorityIntegrityControl(t *testing.T) DefenseValidationControlV02 {
+	t.Helper()
+	control, err := NewAuthorityIntegrityControlV01(
+		"control:authority-integrity",
+		"collector:independent-authority-observer",
+		DefenseAuthorityIntegrityConfigV01{
+			EvidenceTrust:                authorityBindingTrust(),
+			IndependentCollectorRequired: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return control
+}
+
+func authorityIntegrityScenario(t *testing.T) DefenseValidationScenarioV02 {
+	t.Helper()
+	return readDefenseValidationScenarioFixtureV02(t, "unauthorized-source-account-v1.json")
+}
+
+func authorityIntegrityScenarioHash(t *testing.T) string {
+	t.Helper()
+	digest, err := DefenseValidationScenarioDigestV02(authorityIntegrityScenario(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return digest
+}
+
+func authorityIntegrityAdapterInput(
+	t *testing.T,
+	control DefenseValidationControlV02,
+	caseRef, caseKind string,
+	binding DefenseAuthorityBindingResultV01,
+	receipt executioncontainment.Receipt,
+) DefenseAuthorityExecutionAdapterInputV01 {
+	t.Helper()
+	input := DefenseAuthorityExecutionAdapterInputV01{
+		CaseRef:             caseRef,
+		CaseKind:            caseKind,
+		TechniqueID:         "unauthorized-source-account",
+		ExecutionMode:       DefenseValidationExecutionSandboxV02,
+		ObservationWindowMS: 3000,
+		Control:             control,
+		Scenario:            authorityIntegrityScenario(t),
+		EvidenceTrust:       authorityBindingTrust(),
+		Binding:             binding,
+		ContainmentReceipt:  receipt,
+	}
+	if caseKind == DefenseValidationCaseAttackV02 {
+		impact := int64(1000)
+		input.ImpactOffsetMS = &impact
+	}
+	return input
+}
+
+func authorityIntegrityValidationInput(
+	t *testing.T,
+	runRef string,
+	control DefenseValidationControlV02,
+	cases []DefenseValidationCaseV02,
+	observations []DefenseValidationObservationV02,
+) DefenseValidationInputV02 {
+	t.Helper()
+	scenario := authorityIntegrityScenario(t)
+	digest, err := DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return DefenseValidationInputV02{
+		RunRef:               runRef,
+		ScenarioRef:          scenario.ScenarioRef,
+		ScenarioVersion:      scenario.ScenarioVersion,
+		ScenarioContractHash: digest,
+		Chain:                scenario.Chain,
+		ChainID:              9001,
+		RulesetVersion:       DefenseValidationRulesetVersionV02,
+		Controls:             []DefenseValidationControlV02{control},
+		Cases:                cases,
+		Observations:         observations,
+	}
+}
+
 func TestAuthorityBindingMismatchContainsWhileMatchedSourceReleases(t *testing.T) {
 	attackBinding := authorityBindingResult(t, "account:victim", "account:caller")
 	benignBinding := authorityBindingResult(t, "account:caller", "account:caller")
@@ -40,44 +129,21 @@ func TestAuthorityBindingMismatchContainsWhileMatchedSourceReleases(t *testing.T
 }
 
 func TestAuthorityIntegrityComponentPairValidatesWithIndependentEvidence(t *testing.T) {
-	control, err := NewAuthorityIntegrityControlV01(
-		"control:authority-integrity",
-		"collector:independent-authority-observer",
-		DefenseAuthorityIntegrityConfigV01{IndependentCollectorRequired: true},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	control := authorityIntegrityControl(t)
 
 	attackBinding := authorityBindingResult(t, "account:victim", "account:caller")
 	benignBinding := authorityBindingResult(t, "account:caller", "account:caller")
 	attackReceipt := authorityContainmentReceipt(t, attackBinding)
 	benignReceipt := authorityContainmentReceipt(t, benignBinding)
-	impact := int64(1000)
-	attack, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef:             "case:cosmos-evm:unauthorized-source-account-attack",
-		CaseKind:            DefenseValidationCaseAttackV02,
-		TechniqueID:         "unauthorized-source-account",
-		ExecutionMode:       DefenseValidationExecutionSandboxV02,
-		ImpactOffsetMS:      &impact,
-		ObservationWindowMS: 3000,
-		EvidenceTrust:       authorityBindingTrust(),
-		Binding:             attackBinding,
-		ContainmentReceipt:  attackReceipt,
-	})
+	attack, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, attackBinding, attackReceipt,
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
-	benign, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef:             "case:cosmos-evm:authorized-source-account-benign",
-		CaseKind:            DefenseValidationCaseBenignV02,
-		TechniqueID:         "unauthorized-source-account",
-		ExecutionMode:       DefenseValidationExecutionSandboxV02,
-		ObservationWindowMS: 3000,
-		EvidenceTrust:       authorityBindingTrust(),
-		Binding:             benignBinding,
-		ContainmentReceipt:  benignReceipt,
-	})
+	benign, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityBenignCaseRefV01, DefenseValidationCaseBenignV02, benignBinding, benignReceipt,
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,17 +154,13 @@ func TestAuthorityIntegrityComponentPairValidatesWithIndependentEvidence(t *test
 	alert := int64(120)
 	attackObservation := authorityIndependentObservation(t, control, attack, &alert)
 	benignObservation := authorityIndependentObservation(t, control, benign, nil)
-	report, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef:          "run:authority-component",
-		ScenarioRef:     "scenario:cosmos-evm:unauthorized-source-account",
-		ScenarioVersion: "v1.0.0",
-		Chain:           "cosmos-evm",
-		ChainID:         9001,
-		RulesetVersion:  DefenseValidationRulesetVersionV02,
-		Controls:        []DefenseValidationControlV02{control},
-		Cases:           []DefenseValidationCaseV02{attack.Case, benign.Case},
-		Observations:    []DefenseValidationObservationV02{attackObservation, benignObservation},
-	})
+	report, err := EvaluateDefenseValidationV02(authorityIntegrityValidationInput(
+		t,
+		"run:authority-component",
+		control,
+		[]DefenseValidationCaseV02{attack.Case, benign.Case},
+		[]DefenseValidationObservationV02{attackObservation, benignObservation},
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,14 +185,12 @@ func TestAuthorityBindingRejectsUnverifiedEvidence(t *testing.T) {
 }
 
 func TestAuthorityObservationRejectsSelfAttestation(t *testing.T) {
-	control, err := NewAuthorityIntegrityControlV01("control:authority-integrity", "collector:independent-authority-observer", DefenseAuthorityIntegrityConfigV01{IndependentCollectorRequired: true})
-	if err != nil {
-		t.Fatal(err)
-	}
+	control := authorityIntegrityControl(t)
 	binding := authorityBindingResult(t, "account:victim", "account:caller")
 	receipt := authorityContainmentReceipt(t, binding)
-	impact := int64(1000)
-	execution, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account", ExecutionMode: DefenseValidationExecutionSandboxV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000, EvidenceTrust: authorityBindingTrust(), Binding: binding, ContainmentReceipt: receipt})
+	execution, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, receipt,
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,6 +242,80 @@ func TestAuthorityBindingRequiresAuthenticatedEvidenceAndExternalTrust(t *testin
 	}
 }
 
+func TestAuthorityIntegrityControlPinsEvidenceTrust(t *testing.T) {
+	principalSeed := make([]byte, ed25519.SeedSize)
+	authorizationSeed := make([]byte, ed25519.SeedSize)
+	for i := range principalSeed {
+		principalSeed[i] = 0x31
+		authorizationSeed[i] = 0x52
+	}
+	principalPrivateKey := ed25519.NewKeyFromSeed(principalSeed)
+	authorizationPrivateKey := ed25519.NewKeyFromSeed(authorizationSeed)
+	alternateTrust := DefenseAuthorityEvidenceTrustV01{
+		PrincipalProducerRef:     "collector:principal-execution",
+		PrincipalPublicKey:       base64.RawURLEncoding.EncodeToString(principalPrivateKey.Public().(ed25519.PublicKey)),
+		AuthorizationProducerRef: "collector:authorization-state",
+		AuthorizationPublicKey:   base64.RawURLEncoding.EncodeToString(authorizationPrivateKey.Public().(ed25519.PublicKey)),
+	}
+	evidence := authorityBindingEvidenceWithTrustAndKeys(
+		t, "account:victim", "account:caller", alternateTrust, principalPrivateKey, authorizationPrivateKey,
+	)
+	binding, err := EvaluateDefenseAuthorityBindingV01(evidence, alternateTrust)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := authorityContainmentReceiptWithTrust(t, binding, alternateTrust)
+	alternateControl, err := NewAuthorityIntegrityControlV01(
+		"control:authority-integrity",
+		"collector:independent-authority-observer",
+		DefenseAuthorityIntegrityConfigV01{EvidenceTrust: alternateTrust, IndependentCollectorRequired: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := authorityIntegrityAdapterInput(
+		t, alternateControl, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, receipt,
+	)
+	input.EvidenceTrust = alternateTrust
+	if _, err := AdaptAuthorityIntegrityCaseV01(input); err != nil {
+		t.Fatalf("alternate trust fixture is not otherwise valid: %v", err)
+	}
+
+	input.Control = authorityIntegrityControl(t)
+	if _, err := AdaptAuthorityIntegrityCaseV01(input); err == nil || !strings.Contains(err.Error(), "does not match control configuration") {
+		t.Fatalf("execution trust was not pinned to the control configuration: %v", err)
+	}
+}
+
+func TestAuthorityAdapterRequiresExactScenarioCaseMembership(t *testing.T) {
+	control := authorityIntegrityControl(t)
+	binding := authorityBindingResult(t, "account:victim", "account:caller")
+	input := authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, authorityContainmentReceipt(t, binding),
+	)
+	input.CaseRef = "case:cosmos-evm:unlisted-authority-attack"
+	if _, err := AdaptAuthorityIntegrityCaseV01(input); err == nil || !strings.Contains(err.Error(), "not an exact scenario member") {
+		t.Fatalf("unlisted scenario case was accepted: %v", err)
+	}
+}
+
+func TestAuthorityReportRequiresExactControlConfigurationBinding(t *testing.T) {
+	control := authorityIntegrityControl(t)
+	binding := authorityBindingResult(t, "account:victim", "account:caller")
+	execution, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, authorityContainmentReceipt(t, binding),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tamperedControl := control
+	tamperedControl.ConfigurationHash = defenseValidationV02TestHash("e")
+	input := authorityIntegrityValidationInput(t, "run:wrong-control-config", tamperedControl, []DefenseValidationCaseV02{execution.Case}, nil)
+	if _, err := EvaluateDefenseValidationV02(input); err == nil || !strings.Contains(err.Error(), "does not match report control") {
+		t.Fatalf("control-bound execution was accepted under another configuration: %v", err)
+	}
+}
+
 func TestApplyAuthorityBindingPreservesBackendAuthorityFailure(t *testing.T) {
 	binding := authorityBindingResult(t, "account:caller", "account:caller")
 	observation := executioncontainment.Observation{AuthorityPreserved: false, InvariantsPass: true}
@@ -195,9 +329,9 @@ func TestApplyAuthorityBindingPreservesBackendAuthorityFailure(t *testing.T) {
 }
 
 func TestAuthorityAdapterRejectsReceiptFromDifferentExecution(t *testing.T) {
+	control := authorityIntegrityControl(t)
 	binding := authorityBindingResult(t, "account:victim", "account:caller")
 	receipt := authorityContainmentReceipt(t, binding)
-	impact := int64(1000)
 	mutations := map[string]func(*executioncontainment.CellInput, *executioncontainment.Observation){
 		"chain": func(input *executioncontainment.CellInput, observation *executioncontainment.Observation) {
 			input.ChainID++
@@ -228,11 +362,9 @@ func TestAuthorityAdapterRejectsReceiptFromDifferentExecution(t *testing.T) {
 			if !executioncontainment.Verify(unrelated) {
 				t.Fatal("unrelated receipt fixture did not verify")
 			}
-			_, err = AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-				CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account",
-				ExecutionMode: DefenseValidationExecutionSandboxV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000,
-				EvidenceTrust: authorityBindingTrust(), Binding: binding, ContainmentReceipt: unrelated,
-			})
+			_, err = AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+				t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, unrelated,
+			))
 			if err == nil {
 				t.Fatal("verified receipt from a different execution was accepted")
 			}
@@ -241,14 +373,12 @@ func TestAuthorityAdapterRejectsReceiptFromDifferentExecution(t *testing.T) {
 }
 
 func TestAuthorityAdapterRequiresAuthoritySpecificAttackSignal(t *testing.T) {
-	impact := int64(1000)
+	control := authorityIntegrityControl(t)
 	preserved := authorityBindingResult(t, "account:caller", "account:caller")
 	release := authorityContainmentReceipt(t, preserved)
-	if _, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account",
-		ExecutionMode: DefenseValidationExecutionSandboxV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000,
-		EvidenceTrust: authorityBindingTrust(), Binding: preserved, ContainmentReceipt: release,
-	}); err == nil {
+	if _, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, preserved, release,
+	)); err == nil {
 		t.Fatal("preserved authority execution was accepted as an attack")
 	}
 
@@ -260,27 +390,19 @@ func TestAuthorityAdapterRequiresAuthoritySpecificAttackSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account",
-		ExecutionMode: DefenseValidationExecutionSandboxV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000,
-		EvidenceTrust: authorityBindingTrust(), Binding: failed, ContainmentReceipt: unrelated,
-	}); err == nil {
+	if _, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, failed, unrelated,
+	)); err == nil {
 		t.Fatal("authority attack with unrelated containment reasons was accepted")
 	}
 }
 
 func TestAuthorityChainIdentityCannotBeRelabeled(t *testing.T) {
-	control, err := NewAuthorityIntegrityControlV01("control:authority-integrity", "collector:independent-authority-observer", DefenseAuthorityIntegrityConfigV01{IndependentCollectorRequired: true})
-	if err != nil {
-		t.Fatal(err)
-	}
+	control := authorityIntegrityControl(t)
 	binding := authorityBindingResult(t, "account:victim", "account:caller")
-	impact := int64(1000)
-	execution, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account",
-		ExecutionMode: DefenseValidationExecutionSandboxV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000,
-		EvidenceTrust: authorityBindingTrust(), Binding: binding, ContainmentReceipt: authorityContainmentReceipt(t, binding),
-	})
+	execution, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, authorityContainmentReceipt(t, binding),
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,50 +424,65 @@ func TestAuthorityChainIdentityCannotBeRelabeled(t *testing.T) {
 	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, observationBinding, event); err == nil {
 		t.Fatal("execution was relabeled to a different observation chain")
 	}
-	if _, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:wrong-chain", ScenarioRef: "scenario:wrong-chain", ScenarioVersion: "v1", Chain: "other-chain", ChainID: execution.ChainID,
-		RulesetVersion: DefenseValidationRulesetVersionV02, Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{execution.Case},
-	}); err == nil {
+	base := authorityIntegrityValidationInput(t, "run:authority-binding", control, []DefenseValidationCaseV02{execution.Case}, nil)
+	wrongChain := base
+	wrongChain.RunRef = "run:wrong-chain"
+	wrongChain.Chain = "other-chain"
+	if _, err := EvaluateDefenseValidationV02(wrongChain); err == nil {
 		t.Fatal("chain-bound execution was relabeled in the validation report")
 	}
-	if _, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:wrong-chain-id", ScenarioRef: "scenario:wrong-chain-id", ScenarioVersion: "v1", Chain: execution.Chain, ChainID: execution.ChainID + 1,
-		RulesetVersion: DefenseValidationRulesetVersionV02, Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{execution.Case},
-	}); err == nil {
+	wrongChainID := base
+	wrongChainID.RunRef = "run:wrong-chain-id"
+	wrongChainID.ChainID++
+	if _, err := EvaluateDefenseValidationV02(wrongChainID); err == nil {
 		t.Fatal("chain-bound execution ID was relabeled in the validation report")
+	}
+	wrongScenario := base
+	wrongScenario.RunRef = "run:wrong-scenario"
+	wrongScenario.ScenarioRef = "scenario:cosmos-evm:relabeled"
+	if _, err := EvaluateDefenseValidationV02(wrongScenario); err == nil {
+		t.Fatal("scenario-bound execution was relabeled in the validation report")
+	}
+	wrongScenarioVersion := base
+	wrongScenarioVersion.RunRef = "run:wrong-scenario-version"
+	wrongScenarioVersion.ScenarioVersion = "v9.9.9"
+	if _, err := EvaluateDefenseValidationV02(wrongScenarioVersion); err == nil {
+		t.Fatal("scenario-bound execution version was relabeled in the validation report")
+	}
+	wrongScenarioHash := base
+	wrongScenarioHash.RunRef = "run:wrong-scenario-hash"
+	wrongScenarioHash.ScenarioContractHash = defenseValidationV02TestHash("f")
+	if _, err := EvaluateDefenseValidationV02(wrongScenarioHash); err == nil {
+		t.Fatal("scenario-bound execution contract hash was relabeled in the validation report")
 	}
 }
 
 func TestIndependentAuthorityDisagreementProducesMissAndFalsePositive(t *testing.T) {
-	control, err := NewAuthorityIntegrityControlV01("control:authority-integrity", "collector:independent-authority-observer", DefenseAuthorityIntegrityConfigV01{IndependentCollectorRequired: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	impact := int64(1000)
+	control := authorityIntegrityControl(t)
 	attackBinding := authorityBindingResult(t, "account:victim", "account:caller")
-	attack, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "unauthorized-source-account", ExecutionMode: DefenseValidationExecutionSandboxV02,
-		ImpactOffsetMS: &impact, ObservationWindowMS: 3000, EvidenceTrust: authorityBindingTrust(), Binding: attackBinding, ContainmentReceipt: authorityContainmentReceipt(t, attackBinding),
-	})
+	attack, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, attackBinding, authorityContainmentReceipt(t, attackBinding),
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	benignBinding := authorityBindingResult(t, "account:caller", "account:caller")
-	benign, err := AdaptAuthorityIntegrityCaseV01(DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef: "case:benign", CaseKind: DefenseValidationCaseBenignV02, TechniqueID: "unauthorized-source-account", ExecutionMode: DefenseValidationExecutionSandboxV02,
-		ObservationWindowMS: 3000, EvidenceTrust: authorityBindingTrust(), Binding: benignBinding, ContainmentReceipt: authorityContainmentReceipt(t, benignBinding),
-	})
+	benign, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityBenignCaseRefV01, DefenseValidationCaseBenignV02, benignBinding, authorityContainmentReceipt(t, benignBinding),
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	falsePositiveOffset := int64(150)
 	attackObservation := authorityIndependentObservationWithStatus(t, control, attack, DefenseValidationObservationNoAlertV02, nil)
 	benignObservation := authorityIndependentObservationWithStatus(t, control, benign, DefenseValidationObservationAlertedV02, &falsePositiveOffset)
-	report, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:disagreement", ScenarioRef: "scenario:authority", ScenarioVersion: "v1", Chain: attack.Chain, ChainID: attack.ChainID,
-		RulesetVersion: DefenseValidationRulesetVersionV02, Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{attack.Case, benign.Case},
-		Observations: []DefenseValidationObservationV02{attackObservation, benignObservation},
-	})
+	report, err := EvaluateDefenseValidationV02(authorityIntegrityValidationInput(
+		t,
+		"run:disagreement",
+		control,
+		[]DefenseValidationCaseV02{attack.Case, benign.Case},
+		[]DefenseValidationObservationV02{attackObservation, benignObservation},
+	))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,6 +498,17 @@ func TestIndependentAuthorityDisagreementProducesMissAndFalsePositive(t *testing
 }
 
 func authorityBindingEvidence(t *testing.T, declaredSource, authorizedSource string) DefenseAuthorityBindingEvidenceV01 {
+	t.Helper()
+	trust, principalPrivateKey, authorizationPrivateKey := authorityBindingTestTrustAndKeys()
+	return authorityBindingEvidenceWithTrustAndKeys(t, declaredSource, authorizedSource, trust, principalPrivateKey, authorizationPrivateKey)
+}
+
+func authorityBindingEvidenceWithTrustAndKeys(
+	t *testing.T,
+	declaredSource, authorizedSource string,
+	trust DefenseAuthorityEvidenceTrustV01,
+	principalPrivateKey, authorizationPrivateKey ed25519.PrivateKey,
+) DefenseAuthorityBindingEvidenceV01 {
 	t.Helper()
 	evidence := DefenseAuthorityBindingEvidenceV01{
 		EvidenceState:           DefenseValidationEvidenceVerifiedV02,
@@ -379,7 +527,6 @@ func authorityBindingEvidence(t *testing.T, declaredSource, authorizedSource str
 		PostStateSHA256:         strings.Repeat("5", 64),
 		DebitEffectSHA256:       strings.Repeat("6", 64),
 	}
-	trust, principalPrivateKey, authorizationPrivateKey := authorityBindingTestTrustAndKeys()
 	evidence.PrincipalEvidence = authoritySignedEvidenceArtifact(t, evidence, false, DefenseAuthorityEvidencePrincipalV01, trust.PrincipalProducerRef, principalPrivateKey)
 	evidence.AuthorizationEvidence = authoritySignedEvidenceArtifact(t, evidence, true, DefenseAuthorityEvidenceAuthorizationV01, trust.AuthorizationProducerRef, authorizationPrivateKey)
 	var err error
@@ -461,6 +608,11 @@ func authorityBindingResult(t *testing.T, declaredSource, authorizedSource strin
 
 func authorityContainmentReceipt(t *testing.T, binding DefenseAuthorityBindingResultV01) executioncontainment.Receipt {
 	t.Helper()
+	return authorityContainmentReceiptWithTrust(t, binding, authorityBindingTrust())
+}
+
+func authorityContainmentReceiptWithTrust(t *testing.T, binding DefenseAuthorityBindingResultV01, trust DefenseAuthorityEvidenceTrustV01) executioncontainment.Receipt {
+	t.Helper()
 	input := executioncontainment.CellInput{
 		ChainID:                9001,
 		BlockNumber:            123456,
@@ -489,7 +641,7 @@ func authorityContainmentReceipt(t *testing.T, binding DefenseAuthorityBindingRe
 		ExecutionPathFullyObserved: true,
 		InvariantsPass:             true,
 	}
-	observation, err := ApplyDefenseAuthorityBindingToContainmentV01(observation, binding, authorityBindingTrust())
+	observation, err := ApplyDefenseAuthorityBindingToContainmentV01(observation, binding, trust)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,6 +53,14 @@
         "case_ref": "case:cosmos-evm:unauthorized-source-account-attack",
         "case_kind": "attack",
         "description": "An authorized contract caller submits an otherwise valid action but declares a different account as the debit source without a grant binding that source account to the caller and operation.",
+        "matched_values": {
+          "caller_principal": "principal:contract-a",
+          "module_route": "native:authorization-module",
+          "operation": "debit",
+          "asset": "asset:bb",
+          "amount": 1,
+          "observation_window_ms": 3000
+        },
         "caller": {
           "principal_class": "authorized_contract_caller"
         },
@@ -86,6 +94,14 @@
         "case_ref": "case:cosmos-evm:authorized-source-account-benign",
         "case_kind": "benign",
         "description": "The same caller, route, operation, asset and amount debit the caller-bound source account or an explicitly delegated source whose grant binds the exact principal, source, operation and asset.",
+        "matched_values": {
+          "caller_principal": "principal:contract-a",
+          "module_route": "native:authorization-module",
+          "operation": "debit",
+          "asset": "asset:bb",
+          "amount": 1,
+          "observation_window_ms": 3000
+        },
         "caller": {
           "principal_class": "authorized_contract_caller"
         },

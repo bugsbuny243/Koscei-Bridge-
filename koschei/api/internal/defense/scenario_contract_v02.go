@@ -77,6 +77,7 @@ type DefenseValidationScenarioCaseV02 struct {
 	CaseRef                 string                                       `json:"case_ref"`
 	CaseKind                string                                       `json:"case_kind"`
 	Description             string                                       `json:"description"`
+	MatchedValues           map[string]any                               `json:"matched_values"`
 	ImpactDeadlineMS        *int64                                       `json:"impact_deadline_ms"`
 	ObservationWindowMS     int64                                        `json:"observation_window_ms"`
 	ExpectedControlBehavior DefenseValidationScenarioExpectedBehaviorV02 `json:"expected_control_behavior"`
@@ -117,6 +118,13 @@ func ParseDefenseValidationScenarioV02(data []byte) (DefenseValidationScenarioV0
 	return scenario, nil
 }
 
+func DefenseValidationScenarioDigestV02(scenario DefenseValidationScenarioV02) (string, error) {
+	if err := ValidateDefenseValidationScenarioV02(scenario); err != nil {
+		return "", err
+	}
+	return defenseValidationCanonicalHashV02(scenario)
+}
+
 func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error {
 	if strings.TrimSpace(s.Contract) != DefenseValidationScenarioContractV02 {
 		return fmt.Errorf("unsupported scenario contract %q", s.Contract)
@@ -127,8 +135,10 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 	if strings.TrimSpace(s.RulesetVersion) != DefenseValidationRulesetVersionV02 {
 		return fmt.Errorf("scenario ruleset must be %s", DefenseValidationRulesetVersionV02)
 	}
-	if strings.TrimSpace(s.Status) == "" {
-		return errors.New("scenario status is required")
+	switch strings.ToLower(strings.TrimSpace(s.Status)) {
+	case "draft", "planned":
+	default:
+		return errors.New("scenario status must be a non-evidentiary lifecycle state")
 	}
 	if s.ClaimBoundary.IsExecutionEvidence || s.ClaimBoundary.IsValidationResult || s.ClaimBoundary.ProductionClaimAllowed || s.ClaimBoundary.MainnetTransactionSent || s.ClaimBoundary.VerdictAuthority {
 		return errors.New("scenario definition cannot claim execution, validation, production authority or mainnet submission")
@@ -152,7 +162,7 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 	if strings.TrimSpace(s.Matrix.PairRef) == "" || len(s.Matrix.MatchedFields) == 0 || strings.TrimSpace(s.Matrix.SingleSecurityDifference) == "" {
 		return errors.New("scenario attack/benign pair contract is incomplete")
 	}
-	if err := validateDefenseValidationScenarioCasesV02(s.Matrix.Cases); err != nil {
+	if err := validateDefenseValidationScenarioCasesV02(s.Matrix.Cases, s.Matrix.MatchedFields); err != nil {
 		return err
 	}
 	for _, required := range []string{"runner_identity_hash", "pre_state_hash", "post_state_hash", "independent_observation_hash", "control_configuration_hash", "completed_observation_window"} {
@@ -169,13 +179,30 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 	return nil
 }
 
-func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenarioCaseV02) error {
+func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenarioCaseV02, matchedFields []string) error {
 	if len(cases) < 2 {
 		return errors.New("scenario must include matched attack and benign cases")
 	}
+	matched := make([]string, 0, len(matchedFields))
+	seenMatched := map[string]struct{}{}
+	for _, field := range matchedFields {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			return errors.New("scenario matched fields must be non-empty")
+		}
+		if _, exists := seenMatched[field]; exists {
+			return fmt.Errorf("scenario matched field %q is duplicated", field)
+		}
+		seenMatched[field] = struct{}{}
+		matched = append(matched, field)
+	}
+	if len(matched) == 0 {
+		return errors.New("scenario matched fields are required")
+	}
+	baseline := map[string]string{}
 	seen := map[string]bool{}
 	attackCount, benignCount := 0, 0
-	for _, c := range cases {
+	for caseIndex, c := range cases {
 		ref := strings.TrimSpace(c.CaseRef)
 		if ref == "" || seen[ref] {
 			return errors.New("scenario case refs must be unique and non-empty")
@@ -183,6 +210,28 @@ func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenario
 		seen[ref] = true
 		if strings.TrimSpace(c.Description) == "" || c.ObservationWindowMS <= 0 {
 			return fmt.Errorf("scenario case %q is incomplete", ref)
+		}
+		for _, field := range matched {
+			value, exists := c.MatchedValues[field]
+			if !exists || value == nil {
+				return fmt.Errorf("scenario case %q missing matched value %q", ref, field)
+			}
+			encoded, err := json.Marshal(value)
+			if err != nil {
+				return fmt.Errorf("scenario case %q matched value %q is invalid: %w", ref, field, err)
+			}
+			canonical := string(encoded)
+			if field == "observation_window_ms" {
+				expected, _ := json.Marshal(c.ObservationWindowMS)
+				if canonical != string(expected) {
+					return fmt.Errorf("scenario case %q matched observation window contradicts case contract", ref)
+				}
+			}
+			if caseIndex == 0 {
+				baseline[field] = canonical
+			} else if baseline[field] != canonical {
+				return fmt.Errorf("scenario case %q does not match pair field %q", ref, field)
+			}
 		}
 		switch c.CaseKind {
 		case DefenseValidationCaseAttackV02:

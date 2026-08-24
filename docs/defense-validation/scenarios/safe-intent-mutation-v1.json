@@ -45,6 +45,13 @@
         "case_ref": "case:evm:safe-intent-mutation-attack",
         "case_kind": "attack",
         "description": "Operator-approved treasury action is replaced by a different executable Safe action before signing.",
+        "matched_values": {
+          "safe": "fixture:safe:treasury",
+          "chain_id": 31337,
+          "treasury_asset": "fixture:asset:treasury",
+          "transfer_amount": 1000000,
+          "observation_window_ms": 3000
+        },
         "approved_intent": {
           "destination_class": "allowlisted_treasury_destination",
           "operation": "CALL",
@@ -71,6 +78,13 @@
         "case_ref": "case:evm:safe-authorized-transfer-benign",
         "case_kind": "benign",
         "description": "The approved Safe treasury action and executable action are identical and remain within accepted invariants.",
+        "matched_values": {
+          "safe": "fixture:safe:treasury",
+          "chain_id": 31337,
+          "treasury_asset": "fixture:asset:treasury",
+          "transfer_amount": 1000000,
+          "observation_window_ms": 3000
+        },
         "approved_intent": {
           "destination_class": "allowlisted_treasury_destination",
           "operation": "CALL",
