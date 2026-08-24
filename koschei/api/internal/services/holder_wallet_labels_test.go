@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -112,7 +113,10 @@ func TestHeliusWalletIdentityPositiveResultIsCached(t *testing.T) {
 
 	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"name":"Binance Hot Wallet","entity":"Binance","category":"CEX","labels":["exchange"],"tags":["custodial"]}`))
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name": "Binance Hot Wallet", "entity": "Binance", "category": "CEX",
+			"labels": []string{"exchange"}, "tags": []string{"custodial"},
+		})
 	}))
 
 	address := "Wallet4444444444444444444444444444444444444"
@@ -137,7 +141,7 @@ func TestHeliusWalletIdentityMissingKeyIsNotCachedAsUnlabeled(t *testing.T) {
 
 	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"entity":"Known Entity","category":"PROTOCOL"}`))
+		_ = json.NewEncoder(w).Encode(map[string]any{"entity": "Known Entity", "category": "PROTOCOL"})
 	}))
 
 	address := "Wallet5555555555555555555555555555555555555"
