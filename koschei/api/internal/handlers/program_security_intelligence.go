@@ -223,7 +223,7 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 }
 
 func decodeARVISProgramAccountData(value []string) ([]byte, error) {
-	if len(value) < 2 || strings.TrimSpace(value[1]) != "base64" {
+	if len(value) != 2 || value[1] != "base64" {
 		return nil, errors.New("account data is not base64 encoded")
 	}
 	decoded, err := base64.StdEncoding.DecodeString(value[0])

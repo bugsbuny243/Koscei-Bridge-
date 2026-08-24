@@ -76,6 +76,8 @@ func TestInspectARVISProgramAuthorityRejectsMalformedLegacyLoaderData(t *testing
 		{name: "missing", data: nil},
 		{name: "invalid base64", data: []string{"%%%", "base64"}},
 		{name: "wrong encoding", data: []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), "base58"}},
+		{name: "padded encoding", data: []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), " base64 "}},
+		{name: "extra tuple element", data: []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), "base64", "unexpected"}},
 		{name: "empty", data: []string{"", "base64"}},
 	}
 
