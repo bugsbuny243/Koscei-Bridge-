@@ -121,7 +121,7 @@ jobs:
           checked_page safe_check /safe-check "arvis-premium-contract.js"
           checked_page transaction_shield /transaction-shield "arvis-premium-contract.js"
           checked_page security_radar /security-radar "arvis-premium-contract.js"
-          checked_page owner_production /owner-production.html "Owner Evidence Operations"
+          checked_page owner_production /owner-production.html "owner-control-center.js?v=12"
           checked_page complete_evidence_asset /js/arvis-complete-evidence-v3.js "completeEvidenceVersion='3.0.0'"
           checked_page social_renderer_asset /js/arvis-social-render-v2-publish.js "socialRendererVersion='2.0.0'"
 
@@ -153,7 +153,7 @@ jobs:
             if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
               wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             fi
-            wait_expect_200 landing_page / "Protect the transaction before the signature."
+            wait_expect_200 landing_page / "Check it before you trust it."
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
             wait_expect_200 account_page /account "Account & SaaS Access"

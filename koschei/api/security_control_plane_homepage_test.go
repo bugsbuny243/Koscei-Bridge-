@@ -6,29 +6,29 @@ import (
 	"testing"
 )
 
-func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
+func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
 	body, err := os.ReadFile("public/index.html")
 	if err != nil {
 		t.Fatalf("read homepage: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Koschei Web3 | Web3 Security",
-		"Protect the transaction before the signature.",
-		"See the execution.",
-		"Execution Proof",
-		"Transaction Defense",
-		"Node Shield",
-		"id=\"cross-chain\"",
-		"Chain-native evidence, one decision model.",
-		"Security Operations",
-		"NO VALID PROOF = NO SIGNATURE",
-		"Production enforcement is not yet enabled.",
-		"Fail closed by design.",
+		"Koschei Web3 | Check before you trust",
+		"Check it before you trust it.",
+		"data-koschei-home-scan",
+		"Token mint, wallet, site URL, or transaction context",
+		"One scan. Four questions answered.",
+		"Should I proceed?",
+		"What changed the decision?",
+		"Can I verify it?",
+		"id=\"execution-proof\"",
+		"The proof still matters.",
+		"Production signing enforcement remains a separate validation milestone",
+		"Starter, Professional and Enterprise",
 		"koschei-enterprise-v3.css",
 	} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("homepage missing Koschei Web3 product identity %q", required)
+			t.Fatalf("homepage missing customer-first Koschei Web3 contract %q", required)
 		}
 	}
 	for _, forbidden := range []string{
@@ -36,10 +36,9 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		">Security World<",
 		"SECURITY WORLD / TOPOLOGY",
 		"Koschei ARVIS | Evidence-Backed Web3 Security",
-		">Token Scan<",
-		"Solana-first evidence intelligence",
-		"Run a free preflight",
-		"Buy a token",
+		"Open Security Workspace",
+		"Review Architecture",
+		"NO VALID PROOF = NO SIGNATURE",
 		"homepage-score-label",
 		"homepage-preflight-v2.js",
 		"STATIC HTML + VANILLA JS",
@@ -48,7 +47,7 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		"Expansion path",
 	} {
 		if strings.Contains(text, forbidden) {
-			t.Fatalf("homepage regressed or introduced a demo/competing product identity: found %q", forbidden)
+			t.Fatalf("homepage regressed into architecture/demo-first presentation: found %q", forbidden)
 		}
 	}
 }

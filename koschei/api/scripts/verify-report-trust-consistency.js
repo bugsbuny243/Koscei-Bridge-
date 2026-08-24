@@ -25,13 +25,15 @@ need('public/scan.html', 'Missing evidence is shown as a limitation, not convert
 need('public/scan.html', 'Transaction simulation never signs or broadcasts.');
 need('public/scan.html', '/css/koschei-enterprise-v3.css?v=1');
 
-// The homepage is the Koschei Web3 security-control-plane surface. Preserve
-// the evidence/authority boundary without depending on decorative simulation
-// or the retired scanner-first homepage preflight script.
-need('public/index.html', 'See the execution.');
-need('public/index.html', 'NO VALID PROOF = NO SIGNATURE');
-need('public/index.html', 'Production enforcement is not yet enabled.');
-need('public/index.html', 'Missing evidence, incomplete observation or an unverified runtime boundary is surfaced as uncertainty.');
+// The homepage is now customer-first while preserving the same evidence and
+// authority boundaries. The contract must protect those boundaries instead of
+// freezing retired architecture-first marketing copy.
+need('public/index.html', 'Check it before you trust it.');
+need('public/index.html', 'One scan. Four questions answered.');
+need('public/index.html', 'The proof still matters.');
+need('public/index.html', 'Production signing enforcement remains a separate validation milestone');
+need('public/index.html', 'Unknown stays unknown');
+need('public/index.html', 'no synthetic certainty');
 need('public/index.html', '/css/koschei-enterprise-v3.css?v=1');
 reject('public/index.html', '/js/homepage-preflight-v2.js?v=1');
 reject('public/index.html', '/js/koschei-security-world.js?v=1');

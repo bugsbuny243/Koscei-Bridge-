@@ -9,11 +9,11 @@ import (
 func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 	files := map[string][]string{
 		"public/index.html": {
-			"Protect the transaction before the signature.",
-			"See the execution.",
-			"NO VALID PROOF = NO SIGNATURE",
-			"Production enforcement is not yet enabled.",
-			"Fail closed by design.",
+			"Check it before you trust it.",
+			"One scan. Four questions answered.",
+			"The proof still matters.",
+			"Production signing enforcement remains a separate validation milestone",
+			"Unknown stays unknown",
 			"id=\"execution-proof\"",
 		},
 		"public/account.html": {
