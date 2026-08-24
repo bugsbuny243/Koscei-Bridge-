@@ -15,7 +15,8 @@ const (
 )
 
 // enrichHolderClusterFlowObservations attaches positively-resolved Helius
-// identity metadata to bounded transfer observations. Unknown addresses remain
+// identity metadata to bounded transfer observations only when the paid-plan
+// capability is explicitly enabled. Unknown/disabled addresses remain
 // unlabeled; no entity or risk flag is guessed from transfer behavior alone.
 func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, holderWallets map[string]bool, observations []HolderClusterFlowObservation, budget *holderScanRPCBudget) []HolderClusterFlowObservation {
 	if len(observations) == 0 {
@@ -25,6 +26,7 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 	labels := map[string]*WalletLabel{}
 	pending := []string{}
 	seen := map[string]bool{}
+	identityLookupAllowed := heliusWalletIdentityEnabled() && !heliusWalletIdentityUnavailable()
 	for _, observation := range observations {
 		for _, address := range holderFlowIdentityAddresses(observation) {
 			if seen[address] {
@@ -33,6 +35,9 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 			seen[address] = true
 			if cached, ok := labelCacheGet(address); ok {
 				labels[address] = cached
+				continue
+			}
+			if !identityLookupAllowed {
 				continue
 			}
 			if budget != nil && !budget.ReserveIdentity(1) {
