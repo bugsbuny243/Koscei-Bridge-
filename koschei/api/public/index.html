@@ -3,85 +3,83 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei Web3 is a no-custody Web3 security control plane for transaction intent, execution integrity, runtime defense and evidence-backed investigations.">
-<meta name="theme-color" content="#0b0f13">
-<title>Koschei Web3 | Web3 Security</title>
+<meta name="description" content="Koschei Web3 helps users inspect wallets, tokens, sites and transactions with evidence-backed security analysis before they trust, buy, connect or sign.">
+<meta name="theme-color" content="#0a0f14">
+<title>Koschei Web3 | Check before you trust</title>
 <link rel="canonical" href="https://tradepigloball.co/">
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/koschei-product-v2.css?v=1">
 <link rel="stylesheet" href="/css/koschei-enterprise-v3.css?v=1">
 <style>
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}.page{padding:20px 0 64px}.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:11px}.mark{display:grid;place-items:center}.nav,.actions{display:flex;gap:8px;flex-wrap:wrap}.hero{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(330px,.82fr);gap:14px}.hero-copy{padding:40px}.hero h1{margin:14px 0 18px}.hero p{max-width:760px;margin:0;font-size:17px}.surface{border:1px solid transparent}.control-boundary{align-self:stretch}.section{margin-top:14px;padding:32px}.section h2{margin:8px 0 10px;font-size:clamp(30px,4vw,46px)}.section-lead{max-width:800px;margin:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.card{padding:20px}.card small{display:block;color:#7f8d98;font:600 10px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em}.card h3{margin:10px 0 8px;font-size:19px}.card p{margin:0;color:#9ba8b4;line-height:1.58}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.principle{margin-top:14px;padding:24px;display:flex;justify-content:space-between;gap:24px;align-items:center}.principle strong{font-size:20px}.principle p{max-width:700px;margin:4px 0 0;color:#9ba8b4;line-height:1.55}.footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:24px 2px 0;color:#7f8c97;font-size:13px}.footer nav{display:flex;gap:14px;flex-wrap:wrap}@media(max-width:920px){.hero,.two{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.page{padding-bottom:42px}.top{align-items:flex-start;flex-direction:column}.nav{width:100%;overflow-x:auto;flex-wrap:nowrap}.nav .btn{flex:0 0 auto}.hero-copy,.section{padding:22px}.grid{grid-template-columns:1fr}.principle{align-items:flex-start;flex-direction:column}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}.page{margin:auto;padding:18px 0 64px;width:min(1180px,calc(100% - 28px))}.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:14px;padding:10px 12px}.brand{display:flex;align-items:center;gap:10px}.mark{display:grid;place-items:center;width:38px;height:38px}.nav,.actions{display:flex;gap:8px;flex-wrap:wrap}.hero{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(300px,.68fr);gap:14px}.hero-copy,.hero-side,.section{padding:clamp(24px,4vw,42px)}h1,h2,h3,p{margin:0}.hero h1{margin:14px 0 16px;font-size:clamp(48px,7vw,82px);line-height:.94}.hero-copy>p{max-width:760px;color:#95a2ab;font-size:16px;line-height:1.65}.hero-side h2{margin:9px 0 6px;font-size:25px}.section{margin-top:14px}.section h2{margin:8px 0 9px;font-size:clamp(30px,4vw,45px)}.section-lead{max-width:780px;color:#8f9ca6;line-height:1.65}.result-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}.result-flow article{padding:18px;border:1px solid #27313a;border-radius:10px;background:#0d1419}.result-flow span{display:block;color:#6e7d87;font:650 10px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em}.result-flow b{display:block;margin-top:9px;font-size:16px}.result-flow p{margin-top:7px;color:#87949e;font-size:12px;line-height:1.55}.technical-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}.technical-grid article{padding:18px;border:1px solid #27313a;border-radius:10px;background:#0d1419}.technical-grid small{display:block;color:#6f7d87;font:650 9px ui-monospace,monospace;text-transform:uppercase}.technical-grid h3{margin:8px 0 6px;font-size:17px}.technical-grid p{color:#83919a;font-size:12px;line-height:1.55}.boundary-note{margin-top:18px;padding:14px 16px;border-left:2px solid #4aa982;background:#0d1612;color:#9bb0a7;font-size:12px;line-height:1.55}.footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:26px 2px 0;color:#74828c;font-size:12px}.footer nav{display:flex;gap:14px;flex-wrap:wrap}@media(max-width:900px){.hero{grid-template-columns:1fr}.result-flow,.technical-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.page{width:calc(100% - 14px);padding-bottom:96px}.hero-copy,.hero-side,.section{padding:22px}.hero h1{font-size:clamp(44px,14vw,64px)}.result-flow,.technical-grid{grid-template-columns:1fr}}
 </style>
 </head>
-<body class="koschei-enterprise">
+<body class="koschei-v2 koschei-enterprise">
 <main class="page">
 <nav class="top">
 <a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small>Web3 Security</small></span></a>
-<div class="nav"><a class="btn" href="#execution-proof">Execution Proof</a><a class="btn" href="#transaction-defense">Transaction Defense</a><a class="btn" href="#runtime-defense">Runtime Defense</a><a class="btn" href="/scan">Investigations</a><a class="btn" href="/dashboard">Security Operations</a><a class="btn" href="/pricing">Pricing</a></div>
+<div class="nav"><a class="btn" href="/scan">Scan</a><a class="btn" href="/dashboard">Workspace</a><a class="btn" href="/pricing">Plans</a></div>
 </nav>
 
 <section class="hero">
 <article class="surface hero-copy">
-<span class="eyebrow">Web3 security control plane</span>
-<h1>Protect the transaction before the signature.</h1>
-<p>See the execution. Koschei binds approved intent to the payload that will actually execute, preserves the evidence behind that decision and withholds authority when required proof is missing.</p>
-<div class="actions" style="margin-top:24px"><a class="btn primary" href="/dashboard">Open Security Workspace</a><a class="btn" href="/architecture">Review Architecture</a></div>
-<div class="enterprise-trust">
-<div><small>Custody</small><b>No keys. No funds.</b><p>Koschei is designed to verify and defend without becoming the asset holder.</p></div>
-<div><small>Evidence</small><b>Reproducible decisions.</b><p>Inputs, policy identity and execution evidence are bound to the decision path.</p></div>
-<div><small>Authority</small><b>NO VALID PROOF = NO SIGNATURE</b><p>Unknown or incomplete evidence never becomes an implicit allow decision.</p></div>
+<span class="eyebrow">Evidence-backed Web3 security</span>
+<h1>Check it before you trust it.</h1>
+<p>Paste a token, wallet, site or transaction context. Koschei collects the evidence it can verify, keeps missing evidence explicit, and shows what matters before you buy, connect or sign.</p>
+<div class="customer-home-check">
+<form action="/scan" method="get" data-koschei-home-scan>
+<input name="target" autocomplete="off" aria-label="Target to inspect" placeholder="Token mint, wallet, site URL, or transaction context">
+<button class="primary" type="submit">Check now</button>
+</form>
+<div class="customer-home-hints"><span>No private keys</span><span>No custody</span><span>Unknown stays unknown</span></div>
 </div>
+<div class="actions" style="margin-top:18px"><a class="btn" href="/cases">See evidence cases</a><a class="btn" href="/architecture">How evidence works</a></div>
 </article>
-<aside class="surface control-boundary">
-<span class="eyebrow">Control boundary</span><h2>What must remain true</h2>
-<div class="boundary-list">
-<div class="boundary-row"><span>Intent</span><b>The approved action is explicit and attributable.</b></div>
-<div class="boundary-row"><span>Payload</span><b>The executable bytes match the reviewed transaction.</b></div>
-<div class="boundary-row"><span>State</span><b>The decision is tied to a known chain state and invariant set.</b></div>
-<div class="boundary-row"><span>Execution</span><b>The exact action is evaluated before authority is released.</b></div>
-<div class="boundary-row"><span>Evidence</span><b>The result can be independently reviewed instead of trusted as a UI score.</b></div>
+<aside class="surface hero-side">
+<span class="eyebrow">What you get</span>
+<h2>One decision path.</h2>
+<p class="section-lead">The customer view starts with the answer you need. Technical proof remains available underneath it.</p>
+<div class="customer-proof-list">
+<div><span>Verdict</span><b>What Koschei recommends right now.</b></div>
+<div><span>Why</span><b>The material findings behind that recommendation.</b></div>
+<div><span>Unknowns</span><b>Evidence gaps that must not become a safety claim.</b></div>
+<div><span>Proof</span><b>Source-aware technical evidence for independent review.</b></div>
 </div>
 </aside>
 </section>
 
+<section class="surface section">
+<span class="eyebrow">Customer workflow</span>
+<h2>One scan. Four questions answered.</h2>
+<p class="section-lead">Koschei keeps the underlying ARVIS collectors and deterministic evidence contracts, but the customer does not need to operate the backend architecture by hand.</p>
+<div class="result-flow">
+<article><span>01 · Decision</span><b>Should I proceed?</b><p>Allow, review, withhold or block stays tied to deterministic evidence rules where a decision is available.</p></article>
+<article><span>02 · Cause</span><b>What changed the decision?</b><p>Material controls, relationships, transaction behavior and other verified findings are surfaced first.</p></article>
+<article><span>03 · Exposure</span><b>What could happen?</b><p>Transaction and investigation surfaces show the relevant consequence or unresolved path without inventing certainty.</p></article>
+<article><span>04 · Evidence</span><b>Can I verify it?</b><p>Technical evidence, provenance, signatures and limitations remain available below the customer summary.</p></article>
+</div>
+</section>
+
 <section class="surface section" id="execution-proof">
-<div class="enterprise-section-head"><div><span class="eyebrow">Execution integrity</span><h2>Execution Proof</h2><p class="section-lead">Verify that approved intent, transaction identity, policy and execution evidence describe the same action before a signing boundary is crossed.</p></div><a class="enterprise-link" href="/architecture">How the proof chain works →</a></div>
-<div class="grid">
-<article class="card"><small>01 · Identity</small><h3>Canonical transaction identity</h3><p>Recompute the transaction identity locally instead of trusting caller-supplied hashes, labels or allow flags.</p></article>
-<article class="card"><small>02 · Policy</small><h3>Bound authorization context</h3><p>Bind artifact, policy, calldata and signer authorization to the same evidence envelope.</p></article>
-<article class="card"><small>03 · Execution</small><h3>Pinned-state verification</h3><p>Evaluate the exact payload against a known execution state and preserve the result for later review.</p></article>
+<span class="eyebrow">Security validation foundation</span>
+<h2>The proof still matters.</h2>
+<p class="section-lead">The simpler customer interface does not weaken the security model. Koschei still separates reviewed intent, executable payload, chain state and evidence so a UI label cannot silently replace proof.</p>
+<div class="technical-grid">
+<article><small>Identity</small><h3>Canonical action identity</h3><p>Recompute and bind the action being reviewed instead of trusting caller-supplied labels.</p></article>
+<article><small>Execution</small><h3>Pinned-state verification</h3><p>Evaluate supported actions against a known state and retain the evidence needed for review.</p></article>
+<article><small>Evidence</small><h3>Fail closed on gaps</h3><p>Unavailable or incomplete evidence remains unavailable or incomplete; it never becomes an implicit safe result.</p></article>
 </div>
-<div class="availability-note"><strong>Production enforcement is not yet enabled.</strong> Execution Proof remains behind runtime call-chain, integration and no-bypass signing verification. The public site does not represent package existence as production wiring.</div>
+<div class="boundary-note"><strong>Production boundary:</strong> ARVIS investigation is available today. Transaction simulation is read-only and never signs or broadcasts. Production signing enforcement remains a separate validation milestone and is not claimed by this page.</div>
 </section>
-
-<section class="surface section" id="transaction-defense">
-<span class="eyebrow">Transaction defense</span><h2>Detect the mutation before it becomes authority.</h2>
-<p class="section-lead">The transaction path is checked as a sequence of evidence boundaries rather than a single dashboard risk score.</p>
-<div class="grid">
-<article class="card"><small>Payload binding</small><h3>Intent versus executable action</h3><p>Compare the reviewed target, value and calldata with the action presented to the signing path.</p></article>
-<article class="card"><small>Invariant verification</small><h3>State that must not drift</h3><p>Evaluate privileged roles, treasury bounds, asset conservation and bridge reserve/supply rules where chain semantics support them.</p></article>
-<article class="card"><small>Freshness</small><h3>Reject stale assumptions</h3><p>Recheck reference state and permitted head lag before a decision can authorize a side effect.</p></article>
-</div>
-</section>
-
-<div class="two">
-<section class="surface section" id="runtime-defense" style="margin-top:0">
-<span class="eyebrow">Runtime defense</span><h2>Node Shield</h2><p class="section-lead">Prove that the software actually running has not silently gained a different artifact identity or effective authority than the locally approved deployment policy.</p>
-<div class="grid" style="grid-template-columns:1fr;margin-top:18px"><article class="card"><small>Runtime identity</small><h3>Artifact to process binding</h3><p>Keep execution identity and effective capability evidence attached to the runtime rather than the deployment story.</p></article><article class="card"><small>Containment</small><h3>Authority cannot expand silently</h3><p>Runtime evidence must remain inside the approved local policy boundary.</p></article></div>
-</section>
-<section class="surface section" id="cross-chain" style="margin-top:0">
-<span class="eyebrow">Cross-chain trust</span><h2>Chain-native evidence, one decision model.</h2><p class="section-lead">Ethereum/EVM, Solana and future adapters keep their native mechanics while feeding a common evidence and validation contract.</p>
-<div class="grid" style="grid-template-columns:1fr;margin-top:18px"><article class="card"><small>Bridge invariants</small><h3>Reserve and supply evidence</h3><p>Cross-chain controls are evaluated with chain-specific reserve, mint and burn semantics.</p></article><article class="card"><small>Adapter model</small><h3>No fake chain equivalence</h3><p>New ecosystems join through explicit adapters instead of pretending every chain behaves like EVM.</p></article></div>
-</section>
-</div>
 
 <section class="surface section">
-<div class="enterprise-section-head"><div><span class="eyebrow">Security operations</span><h2>Investigate what the controls observe.</h2><p class="section-lead">Wallet, token, actor and transaction investigations remain evidence sensors for security operations and incident response. They are available as operational tools without being confused with signing authority.</p></div><div class="actions"><a class="btn primary" href="/scan">Start Investigation</a><a class="btn" href="/dashboard">Open Workspace</a></div></div>
+<div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-end;flex-wrap:wrap"><div><span class="eyebrow">Workspace</span><h2>Start simple. Go deeper when you need it.</h2><p class="section-lead">Starter, Professional and Enterprise change account capacity and eligible operational surfaces. They do not change the underlying technical facts of a result.</p></div><div class="actions"><a class="btn primary" href="/scan">Start a scan</a><a class="btn" href="/pricing">Compare plans</a></div></div>
 </section>
 
-<section class="principle surface"><div><strong>Fail closed by design.</strong><p>Missing evidence, incomplete observation or an unverified runtime boundary is surfaced as uncertainty. Koschei does not convert “unknown” into “safe.”</p></div><a class="btn" href="/cases">Review Evidence Cases</a></section>
-<footer class="footer"><span>© Koschei Web3</span><nav><a href="/architecture">Architecture</a><a href="/pricing">Pricing</a><a href="/support">Support</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/refund-policy.html">Refunds</a></nav><span>Execution integrity · Runtime defense · Evidence-backed operations</span></footer>
+<footer class="footer"><span>© Koschei Web3</span><nav><a href="/architecture">Architecture</a><a href="/pricing">Pricing</a><a href="/support">Support</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/refund-policy.html">Refunds</a></nav><span>Evidence first · no custody · no synthetic certainty</span></footer>
 </main>
-<script src="/js/koschei-global-shell.js?v=4"></script><script src="/js/feedback-button.js?v=1"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+<script src="/js/koschei-product-v2.js?v=2"></script>
+<script src="/js/feedback-button.js?v=1"></script>
 </body>
 </html>
