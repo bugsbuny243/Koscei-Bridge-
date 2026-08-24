@@ -31,7 +31,7 @@ requireText(store,'ORDER BY queued_at DESC,id DESC','canonical history ordering'
 requireText(store,'scanJob(rows)','shared job scanner contract');
 
 requireText(handler,'func (h *Handler) CustomerInvestigationHistory','customer history handler');
-requireText(handler,'h.RequireTokenTier("basic", h.customerInvestigationHistoryRead)(w, r)','Basic access-only history gate');
+requireText(handler,'h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)','Starter SaaS history gate');
 requireText(handler,'h.JobStore.ListByUser(r.Context(), claims.Sub, CanonicalInvestigationJobType, 100)','canonical account history query');
 requireText(handler,'ResultAvailable bool','result availability evidence');
 requireText(handler,'if json.Unmarshal(job.ResultPayload, &result) == nil && result != nil','result payload parse boundary');
@@ -39,7 +39,7 @@ requireText(handler,'"schema_version": "koschei-customer-investigation-history-v
 requireText(handler,'"source": "web3_jobs"','durable source marker');
 requireText(handler,'"job_type": CanonicalInvestigationJobType','canonical job-type marker');
 requireText(handler,'"history": items','history collection envelope');
-forbid(handler,/EnforceScanQuota/,'history handler must not consume scan quota');
+forbid(handler,/RequireTokenTier|KOSCH access|EnforceScanQuota/,'history handler must use SaaS entitlement without token or quota coupling');
 
 requireText(jobsHandler,'if id == "" {','empty job-id dispatch boundary');
 requireText(jobsHandler,'if canonicalHistoryCollectionPath(r.URL.Path) {','radar jobs collection isolation');
@@ -52,11 +52,14 @@ if(server.includes('/api/v1/investigations/history'))throw new Error('server: do
 requireText(inventory,'"GET /api/v1/radar/jobs/"','machine-readable radar jobs GET route');
 if(inventory.includes('/api/v1/investigations/history'))throw new Error('inventory: parallel history endpoint must not be advertised');
 
-requireText(reportsHTML,'BASIC+ KOSCH · DURABLE CANONICAL JOB HISTORY','Vault access copy');
-requireText(reportsHTML,'reading history does not consume a scan unit','Vault read-only quota copy');
+requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','Vault SaaS access copy');
+requireText(reportsHTML,'History access requires an active Starter SaaS entitlement or higher.','Vault entitlement boundary');
+requireText(reportsHTML,'reading history does not consume a premium output','Vault read-only quota copy');
+requireText(reportsHTML,'KOSCH holdings do not authorize this surface.','Vault token separation copy');
 requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');
 requireText(reportsHTML,'/scan?mode=deep','Vault canonical investigation route');
+forbid(reportsHTML,/BASIC\+ KOSCH|Basic KOSCH tier/i,'legacy holder-gated history copy');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'Vault history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'Vault schema gate');
