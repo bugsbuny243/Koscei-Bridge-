@@ -17,9 +17,9 @@ type securityRadarCourtRequest struct {
 }
 
 // SecurityRadarCourt builds the same immutable evidence packet used by the
-// owner Tribunal, but applies the authenticated KOSCH tier. Pro receives two
-// prosecutors and the conditional first-instance panel. Enterprise may also
-// receive the senior panel. Free and Basic never reach this route.
+// owner Tribunal, but applies the authenticated SaaS plan. Professional receives
+// two prosecutors and the conditional first-instance panel. Enterprise may also
+// receive the senior panel. Starter never reaches this Professional-gated route.
 func (h *Handler) SecurityRadarCourt(w http.ResponseWriter, r *http.Request) {
 	var input securityRadarCourtRequest
 	if err := decodeJSON(r, &input); err != nil {
@@ -123,7 +123,7 @@ func (h *Handler) SecurityRadarCourt(w http.ResponseWriter, r *http.Request) {
 }
 
 func courtRequestIdentity(ctx context.Context) string {
-	if access, ok := tokenAccessRequestFromContext(ctx); ok {
+	if access, ok := planAccessRequestFromContext(ctx); ok {
 		return firstNonEmptyString(access.AuthSubject, access.Email)
 	}
 	if claims, ok := userFromContext(ctx); ok {
