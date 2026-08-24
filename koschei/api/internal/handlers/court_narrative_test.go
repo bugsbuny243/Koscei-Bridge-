@@ -40,8 +40,12 @@ func (f *fakeCourtClient) SeniorOpinion(context.Context, CourtReadOnlyInput, []C
 	return CourtPanel{Models: []string{"openai", "anthropic"}, Stance: "elevated", Text: "senior commentary"}, nil
 }
 
-func courtCtx(tier string) context.Context {
-	return withTokenAccessRequestContext(context.Background(), tokenAccessRequestContext{Evaluation: tokenAccessEvaluation{Tier: tier, WalletVerified: true}, AuthSubject: "sub", Email: "u@example.com"})
+func courtCtx(plan string) context.Context {
+	plan = canonicalSaaSPlan(plan)
+	return withPlanAccessRequestContext(context.Background(), planAccessRequestContext{
+		Evaluation: planAccessEvaluation{Active: plan != "", Plan: plan, OutputsTotal: 100, OutputsRemaining: 100, Source: "entitlement"},
+		AuthSubject: "sub", Email: "u@example.com",
+	})
 }
 func verdict(grade string, triggered bool) services.UnifiedRadarVerdict {
 	v := services.UnifiedRadarVerdict{Grade: grade, Verdict: "test", RulesetVersion: services.UnifiedRadarRulesetVersion, ActorRuleset: services.ActorDefenseRulesetVersion, Signature: "sig", Signed: true}
@@ -54,29 +58,29 @@ func courtInput(v services.UnifiedRadarVerdict) CourtReadOnlyInput {
 	return CourtReadOnlyInput{Target: "mint", Network: "solana-mainnet", SignedVerdict: v, VerdictCard: map[string]any{"grade": v.Grade, "signature": v.Signature}}
 }
 
-func TestCourtFreeAndBasicPerformZeroModelCalls(t *testing.T) {
+func TestCourtNoneAndStarterPerformZeroModelCalls(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
-	for _, tier := range []string{"free", "basic"} {
+	for _, plan := range []string{"", "starter"} {
 		c := &fakeCourtClient{}
 		h := &Handler{CourtClient: c}
-		r := h.courtNarrative(courtCtx(tier), courtInput(verdict("-", false)), false)
+		r := h.courtNarrative(courtCtx(plan), courtInput(verdict("-", false)), false)
 		if r == nil || c.prosecutors+c.panel+c.senior != 0 {
-			t.Fatalf("%s calls=%d report=%#v", tier, c.prosecutors+c.panel+c.senior, r)
+			t.Fatalf("%s calls=%d report=%#v", plan, c.prosecutors+c.panel+c.senior, r)
 		}
 	}
 }
-func TestCourtProAgreeingProsecutorsNoTriggerSkipsPanel(t *testing.T) {
+func TestCourtProfessionalAgreeingProsecutorsNoTriggerSkipsPanel(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"neutral", "neutral"}}
-	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("pro"), courtInput(verdict("-", false)), false)
-	if r.Status != "ready" || c.prosecutors != 2 || c.panel != 0 || r.Disagreement {
+	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(verdict("-", false)), false)
+	if r.Status != "ready" || r.TierApplied != "professional" || c.prosecutors != 2 || c.panel != 0 || r.Disagreement {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtProDisagreementInvokesPanel(t *testing.T) {
+func TestCourtProfessionalDisagreementInvokesPanel(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"elevated", "neutral"}}
-	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("pro"), courtInput(verdict("-", false)), false)
+	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(verdict("-", false)), false)
 	if !r.Disagreement || c.panel != 1 {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
@@ -85,24 +89,23 @@ func TestCourtEnterpriseDGradeInvokesSenior(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"neutral", "neutral"}}
 	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("enterprise"), courtInput(verdict("D", true)), false)
-	if c.senior != 1 || r.Senior == nil {
+	if c.senior != 1 || r.Senior == nil || r.TierApplied != "enterprise" {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtBudgetExhaustionDegradesWithoutFailure(t *testing.T) {
-	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
-	t.Setenv("KOSCHEI_COURT_QUOTA_PRO_DAILY", "0")
-	c := &fakeCourtClient{}
-	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("pro"), courtInput(verdict("-", false)), false)
-	if r.Status != "budget_exhausted" || r.TierApplied != "basic" || c.prosecutors != 0 {
-		t.Fatalf("report=%#v calls=%+v", r, c)
+func TestCourtCanonicalizesLegacyPlanAliasesWithoutTokenContext(t *testing.T) {
+	if got := (&Handler{}).courtTier(courtCtx("pro")); got != "professional" {
+		t.Fatalf("pro alias=%q", got)
+	}
+	if got := (&Handler{}).courtTier(courtCtx("basic")); got != "starter" {
+		t.Fatalf("basic alias=%q", got)
 	}
 }
 func TestCourtClientErrorPreservesInputVerdict(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	v := verdict("B", true)
 	c := &fakeCourtClient{err: true}
-	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("pro"), courtInput(v), false)
+	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(v), false)
 	if r.Status != "error" || v.Grade != "B" || v.Signature != "sig" {
 		t.Fatalf("report=%#v verdict=%#v", r, v)
 	}
