@@ -1,6 +1,10 @@
 package securityevidence
 
-import "testing"
+import (
+	"crypto/ed25519"
+	"encoding/base64"
+	"testing"
+)
 
 func sampleEvent() Event {
 	score := 42
@@ -98,4 +102,60 @@ func TestLegacyGradeIsBoundAsObservationOnly(t *testing.T) {
 	if sealed.EventSHA256 != original {
 		t.Fatal("test mutated event identity field")
 	}
+}
+
+func TestEventEd25519AuthenticationRejectsCallerReseal(t *testing.T) {
+	privateKey := eventTestPrivateKey(0x41)
+	publicKey := base64.RawURLEncoding.EncodeToString(privateKey.Public().(ed25519.PublicKey))
+	signed, err := sampleEvent().SignEd25519(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signed.VerifyEd25519("arvis-radar", publicKey); err != nil {
+		t.Fatalf("authenticated event did not verify: %v", err)
+	}
+
+	signed.Findings[0].Severity = "LOW"
+	resealed, err := signed.Seal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resealed.Verify(); err != nil {
+		t.Fatalf("caller-resealed digest fixture is invalid: %v", err)
+	}
+	if err := resealed.VerifyEd25519("arvis-radar", publicKey); err == nil {
+		t.Fatal("caller-resealed event unexpectedly passed producer authentication")
+	}
+}
+
+func TestEventEd25519AuthenticationPinsProducerAndTrustKey(t *testing.T) {
+	privateKey := eventTestPrivateKey(0x42)
+	signed, err := sampleEvent().SignEd25519(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey := base64.RawURLEncoding.EncodeToString(privateKey.Public().(ed25519.PublicKey))
+	if err := signed.VerifyEd25519("another-producer", publicKey); err == nil {
+		t.Fatal("authenticated event was relabeled to another producer")
+	}
+	wrongKey := eventTestPrivateKey(0x43).Public().(ed25519.PublicKey)
+	if err := signed.VerifyEd25519("arvis-radar", base64.RawURLEncoding.EncodeToString(wrongKey)); err == nil {
+		t.Fatal("authenticated event verified against an unrelated trust key")
+	}
+}
+
+func TestEventEd25519AuthenticationRejectsMalformedPrivateKey(t *testing.T) {
+	malformed := append(ed25519.PrivateKey(nil), eventTestPrivateKey(0x44)...)
+	malformed[len(malformed)-1] ^= 0xff
+	if _, err := sampleEvent().SignEd25519(malformed); err == nil {
+		t.Fatal("non-canonical Ed25519 private key was accepted")
+	}
+}
+
+func eventTestPrivateKey(fill byte) ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = fill
+	}
+	return ed25519.NewKeyFromSeed(seed)
 }

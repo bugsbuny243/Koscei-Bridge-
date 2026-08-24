@@ -72,18 +72,19 @@ No field supplied by a UI or model is verdict authority.
 
 ## Independent collector boundary
 
-`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the raw Execution Containment receipt and raw Execution Proof, recomputes both through the deterministic Defense Validation adapter, enforces a distinct collector identity, binds the completed observation window, and seals a Security Evidence Bus event.
+`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the raw Execution Containment receipt, raw Execution Proof and complete scenario contract, recomputes the execution evidence through the deterministic Defense Validation adapter, enforces a distinct collector identity, binds the completed observation window, and signs a sealed Security Evidence Bus event with Ed25519. The trusted collector public key is part of the exact control configuration hash.
 
 The collector rejects:
 
 - control self-attestation;
+- a missing signing key or a signing key that does not match the control's pinned collector public key;
 - tampered proof or containment artifacts;
 - mainnet execution evidence;
 - incomplete observation windows;
 - a missing alert timestamp when recomputed control evidence signaled;
 - an alert timestamp when recomputed evidence did not signal.
 
-The command reads one bounded JSON request from stdin and emits one JSON result. It has no signing, custody, transaction submission, shell execution or network authority.
+The command reads one bounded JSON request from stdin and emits one JSON result. Its test/runtime-specific evidence-signing key is supplied through `KOSCHEI_DEFENSE_COLLECTOR_ED25519_PRIVATE_KEY`; the corresponding public key must match the control configuration. This key authenticates evidence only: the command has no wallet custody, transaction-signing, transaction-submission, shell-execution or network authority.
 
 ## What this does not prove
 
@@ -94,7 +95,7 @@ It does not:
 - send a mainnet transaction;
 - use production private keys or production identities;
 - mutate a production control;
-- grant the validation collector signing authority;
+- grant the validation collector wallet or production transaction-signing authority;
 - make a model or UI a verdict authority;
 - close issue #864;
 - establish a deployed caller -> handler/service -> route/worker -> signing-enforcement call chain.

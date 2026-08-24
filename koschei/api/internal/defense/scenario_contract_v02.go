@@ -1,9 +1,13 @@
 package defense
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -105,7 +109,11 @@ type DefenseValidationScenarioV02 struct {
 	RequiredRunEvidence []string                                    `json:"required_run_evidence"`
 	AcceptanceGate      map[string]any                              `json:"acceptance_gate"`
 	Limitations         []string                                    `json:"limitations"`
+	canonicalContract   []byte
+	typedContractSHA256 string
 }
+
+type defenseValidationScenarioJSONV02 DefenseValidationScenarioV02
 
 func ParseDefenseValidationScenarioV02(data []byte) (DefenseValidationScenarioV02, error) {
 	var scenario DefenseValidationScenarioV02
@@ -122,7 +130,135 @@ func DefenseValidationScenarioDigestV02(scenario DefenseValidationScenarioV02) (
 	if err := ValidateDefenseValidationScenarioV02(scenario); err != nil {
 		return "", err
 	}
-	return defenseValidationCanonicalHashV02(scenario)
+	typedDigest, err := defenseValidationScenarioTypedDigestV02(scenario)
+	if err != nil {
+		return "", err
+	}
+	if len(scenario.canonicalContract) == 0 {
+		return typedDigest, nil
+	}
+	if scenario.typedContractSHA256 == "" || !strings.EqualFold(typedDigest, scenario.typedContractSHA256) {
+		return "", errors.New("parsed scenario contract was mutated; reparse the complete contract")
+	}
+	sum := sha256.Sum256(scenario.canonicalContract)
+	return defenseValidationHashRefV02(hex.EncodeToString(sum[:])), nil
+}
+
+func (s *DefenseValidationScenarioV02) UnmarshalJSON(data []byte) error {
+	canonical, err := canonicalizeDefenseValidationScenarioJSONV02(data)
+	if err != nil {
+		return err
+	}
+	var decoded defenseValidationScenarioJSONV02
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	scenario := DefenseValidationScenarioV02(decoded)
+	if err := ValidateDefenseValidationScenarioV02(scenario); err != nil {
+		return err
+	}
+	typedDigest, err := defenseValidationScenarioTypedDigestV02(scenario)
+	if err != nil {
+		return err
+	}
+	scenario.canonicalContract = canonical
+	scenario.typedContractSHA256 = typedDigest
+	*s = scenario
+	return nil
+}
+
+func (s DefenseValidationScenarioV02) MarshalJSON() ([]byte, error) {
+	if len(s.canonicalContract) == 0 {
+		return json.Marshal(defenseValidationScenarioJSONV02(s))
+	}
+	typedDigest, err := defenseValidationScenarioTypedDigestV02(s)
+	if err != nil {
+		return nil, err
+	}
+	if s.typedContractSHA256 == "" || !strings.EqualFold(typedDigest, s.typedContractSHA256) {
+		return nil, errors.New("parsed scenario contract was mutated; reparse the complete contract")
+	}
+	return append([]byte(nil), s.canonicalContract...), nil
+}
+
+func defenseValidationScenarioTypedDigestV02(s DefenseValidationScenarioV02) (string, error) {
+	return defenseValidationCanonicalHashV02(defenseValidationScenarioJSONV02(s))
+}
+
+func defenseValidationScenarioHasCompleteContractV02(s DefenseValidationScenarioV02) bool {
+	return len(s.canonicalContract) > 0 && s.typedContractSHA256 != ""
+}
+
+func canonicalizeDefenseValidationScenarioJSONV02(data []byte) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	value, err := decodeUniqueDefenseValidationScenarioJSONValueV02(decoder)
+	if err != nil {
+		return nil, fmt.Errorf("decode complete scenario contract: %w", err)
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		if err == nil {
+			return nil, errors.New("scenario contract must contain exactly one JSON value")
+		}
+		return nil, fmt.Errorf("decode trailing scenario contract data: %w", err)
+	}
+	canonical, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("canonicalize complete scenario contract: %w", err)
+	}
+	return canonical, nil
+}
+
+func decodeUniqueDefenseValidationScenarioJSONValueV02(decoder *json.Decoder) (any, error) {
+	token, err := decoder.Token()
+	if err != nil {
+		return nil, err
+	}
+	delimiter, isDelimiter := token.(json.Delim)
+	if !isDelimiter {
+		return token, nil
+	}
+	switch delimiter {
+	case '{':
+		object := map[string]any{}
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return nil, err
+			}
+			key, ok := keyToken.(string)
+			if !ok {
+				return nil, errors.New("scenario object key is not a string")
+			}
+			if _, exists := object[key]; exists {
+				return nil, fmt.Errorf("duplicate scenario JSON key %q", key)
+			}
+			value, err := decodeUniqueDefenseValidationScenarioJSONValueV02(decoder)
+			if err != nil {
+				return nil, err
+			}
+			object[key] = value
+		}
+		if end, err := decoder.Token(); err != nil || end != json.Delim('}') {
+			return nil, errors.New("scenario object is not terminated")
+		}
+		return object, nil
+	case '[':
+		array := []any{}
+		for decoder.More() {
+			value, err := decodeUniqueDefenseValidationScenarioJSONValueV02(decoder)
+			if err != nil {
+				return nil, err
+			}
+			array = append(array, value)
+		}
+		if end, err := decoder.Token(); err != nil || end != json.Delim(']') {
+			return nil, errors.New("scenario array is not terminated")
+		}
+		return array, nil
+	default:
+		return nil, fmt.Errorf("unexpected scenario JSON delimiter %q", delimiter)
+	}
 }
 
 func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error {
@@ -244,7 +380,7 @@ func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenario
 			}
 		case DefenseValidationCaseBenignV02:
 			benignCount++
-			if c.ImpactDeadlineMS != nil || c.ExpectedControlBehavior.BlockOrAlertRequired || !c.ExpectedControlBehavior.FalsePositiveForbidden {
+			if c.ImpactDeadlineMS != nil || c.ExpectedControlBehavior.LatestDetectionOffsetMS != nil || c.ExpectedControlBehavior.BlockOrAlertRequired || !c.ExpectedControlBehavior.FalsePositiveForbidden {
 				return fmt.Errorf("benign case %q has unsafe expected-control semantics", ref)
 			}
 		default:

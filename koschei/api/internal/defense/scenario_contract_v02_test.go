@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -155,31 +156,61 @@ func TestDefenseValidationScenarioContractV02RejectsEvidentiaryStatus(t *testing
 }
 
 func TestDefenseValidationScenarioDigestV02BindsValidatedContent(t *testing.T) {
-	scenario := readDefenseValidationScenarioFixtureV02(t, "unauthorized-source-account-v1.json")
+	data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	scenario, err := ParseDefenseValidationScenarioV02(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 	first, err := DefenseValidationScenarioDigestV02(scenario)
 	if err != nil {
 		t.Fatal(err)
 	}
-	scenario.Matrix.Cases[0].Description += " Content-bound revision."
-	second, err := DefenseValidationScenarioDigestV02(scenario)
+	mutatedData := bytes.Replace(data, []byte(`"delegation_present": false`), []byte(`"delegation_present": true`), 1)
+	if bytes.Equal(mutatedData, data) {
+		t.Fatal("security-critical fixture field was not found")
+	}
+	mutated, err := ParseDefenseValidationScenarioV02(mutatedData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := DefenseValidationScenarioDigestV02(mutated)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if first == second {
-		t.Fatal("validated scenario content did not affect the scenario digest")
+		t.Fatal("unmodeled security-critical scenario content did not affect the scenario digest")
+	}
+
+	scenario.Matrix.Cases[0].Description += " Content-bound revision."
+	if _, err := DefenseValidationScenarioDigestV02(scenario); err == nil {
+		t.Fatal("in-memory mutation of a parsed complete contract did not fail closed")
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RejectsDuplicateJSONKeys(t *testing.T) {
+	data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	duplicate := bytes.Replace(data, []byte(`"status": "planned",`), []byte(`"status": "planned", "status": "draft",`), 1)
+	if _, err := ParseDefenseValidationScenarioV02(duplicate); err == nil {
+		t.Fatal("duplicate scenario JSON key was accepted")
 	}
 }
 
 func readDefenseValidationScenarioFixtureV02(t *testing.T, name string) DefenseValidationScenarioV02 {
+	t.Helper()
+	data := readDefenseValidationScenarioFixtureBytesV02(t, name)
+	scenario, err := ParseDefenseValidationScenarioV02(data)
+	if err != nil {
+		t.Fatalf("parse scenario: %v", err)
+	}
+	return scenario
+}
+
+func readDefenseValidationScenarioFixtureBytesV02(t *testing.T, name string) []byte {
 	t.Helper()
 	path := filepath.Join("..", "..", "..", "..", "docs", "defense-validation", "scenarios", name)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read scenario: %v", err)
 	}
-	scenario, err := ParseDefenseValidationScenarioV02(data)
-	if err != nil {
-		t.Fatalf("parse scenario: %v", err)
-	}
-	return scenario
+	return data
 }

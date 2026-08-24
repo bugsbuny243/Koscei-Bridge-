@@ -94,6 +94,7 @@ type DefenseAuthorityIntegrityConfigV01 struct {
 	AuthorityBindingVersion      string                           `json:"authority_binding_version"`
 	ExecutionContainmentVersion  string                           `json:"execution_containment_version"`
 	EvidenceTrust                DefenseAuthorityEvidenceTrustV01 `json:"evidence_trust"`
+	CollectorPublicKey           string                           `json:"collector_public_key"`
 	IndependentCollectorRequired bool                             `json:"independent_collector_required"`
 	MainnetSubmissionAllowed     bool                             `json:"mainnet_submission_allowed"`
 	ProductionWiringClaim        bool                             `json:"production_wiring_claim"`
@@ -231,6 +232,11 @@ func NewAuthorityIntegrityControlV01(controlRef, collectorRef string, cfg Defens
 		return DefenseValidationControlV02{}, fmt.Errorf("authority integrity evidence trust: %w", err)
 	}
 	cfg.EvidenceTrust = trust
+	collectorPublicKey, err := requireDefenseValidationCollectorPublicKeyV02(cfg.CollectorPublicKey)
+	if err != nil {
+		return DefenseValidationControlV02{}, fmt.Errorf("independent collector trust: %w", err)
+	}
+	cfg.CollectorPublicKey = collectorPublicKey
 	if cfg.SchemaVersion != DefenseAuthorityExecutionAdapterVersionV01 || cfg.AuthorityBindingVersion != DefenseAuthorityBindingVersionV01 || cfg.ExecutionContainmentVersion != executioncontainment.Version {
 		return DefenseValidationControlV02{}, errors.New("unsupported authority integrity adapter configuration")
 	}
@@ -247,7 +253,7 @@ func NewAuthorityIntegrityControlV01(controlRef, collectorRef string, cfg Defens
 	if err != nil {
 		return DefenseValidationControlV02{}, err
 	}
-	return DefenseValidationControlV02{ControlRef: controlRef, AdapterVersion: DefenseAuthorityExecutionAdapterVersionV01, ConfigurationHash: defenseValidationHashRefV02(digest), CollectorRef: collectorRef}, nil
+	return DefenseValidationControlV02{ControlRef: controlRef, AdapterVersion: DefenseAuthorityExecutionAdapterVersionV01, ConfigurationHash: defenseValidationHashRefV02(digest), CollectorRef: collectorRef, CollectorPublicKey: collectorPublicKey}, nil
 }
 
 func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01) (DefenseAuthorityExecutionEvidenceV01, error) {
@@ -293,7 +299,7 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 	if err := validateDefenseAuthorityCaseSemanticsV01(in.CaseKind, in.Binding, in.ContainmentReceipt); err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
-	scenarioDigest, err := bindDefenseAuthorityScenarioV01(in, control)
+	scenarioDigest, detectionDeadline, err := bindDefenseAuthorityScenarioV01(in, control)
 	if err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
@@ -318,6 +324,8 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		PreStateSHA256           string                        `json:"pre_state_sha256"`
 		PostStateSHA256          string                        `json:"post_state_sha256"`
 		DebitEffectSHA256        string                        `json:"debit_effect_sha256"`
+		ImpactOffsetMS           *int64                        `json:"impact_offset_ms,omitempty"`
+		DetectionDeadlineMS      *int64                        `json:"detection_deadline_ms,omitempty"`
 		ObservationWindowMS      int64                         `json:"observation_window_ms"`
 	}{
 		DefenseAuthorityExecutionAdapterVersionV01, control.ControlRef, control.ConfigurationHash,
@@ -326,7 +334,8 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		in.CaseRef, in.CaseKind, in.TechniqueID, in.ExecutionMode,
 		strings.ToLower(in.Binding.BindingSHA256), strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
 		strings.ToLower(in.ContainmentReceipt.Input.CandidatePayloadSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256),
-		strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.EffectSetSHA256), in.ObservationWindowMS,
+		strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.EffectSetSHA256),
+		cloneDefenseValidationInt64V02(in.ImpactOffsetMS), cloneDefenseValidationInt64V02(detectionDeadline), in.ObservationWindowMS,
 	})
 	if err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
@@ -340,6 +349,7 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		PreStateHash:  defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PreStateSHA256),
 		PostStateHash: defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PostStateSHA256),
 		EvidenceState: DefenseValidationEvidenceVerifiedV02, ImpactOffsetMS: cloneDefenseValidationInt64V02(in.ImpactOffsetMS),
+		DetectionDeadlineMS: cloneDefenseValidationInt64V02(detectionDeadline),
 		ObservationWindowMS: in.ObservationWindowMS, MainnetTransactionSent: false,
 	}
 	return DefenseAuthorityExecutionEvidenceV01{
@@ -374,9 +384,14 @@ func DefenseAuthorityObservationBindingDigestV01(binding DefenseAuthorityObserva
 	return defenseAuthorityCanonicalSHA256V01(binding)
 }
 
-func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationControlV02, execution DefenseAuthorityExecutionEvidenceV01, binding DefenseAuthorityObservationBindingV01, event securityevidence.Event) (DefenseValidationObservationV02, error) {
-	if control.ControlRef == "" || control.CollectorRef == "" || control.ControlRef == control.CollectorRef {
-		return DefenseValidationObservationV02{}, errors.New("independent collector identity is required")
+func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationControlV02, execution DefenseAuthorityExecutionEvidenceV01, binding DefenseAuthorityObservationBindingV01, event securityevidence.Event, trusts ...DefenseAuthorityEvidenceTrustV01) (DefenseValidationObservationV02, error) {
+	trust, err := requireDefenseAuthorityEvidenceTrustV01(trusts)
+	if err != nil {
+		return DefenseValidationObservationV02{}, fmt.Errorf("authority observation trust: %w", err)
+	}
+	control, err = bindDefenseAuthorityControlV01(control, trust)
+	if err != nil {
+		return DefenseValidationObservationV02{}, err
 	}
 	if execution.Case.ControlRef != control.ControlRef || !strings.EqualFold(execution.Case.ControlConfigurationHash, control.ConfigurationHash) {
 		return DefenseValidationObservationV02{}, errors.New("authority execution does not match control configuration")
@@ -392,8 +407,8 @@ func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationContr
 	if err != nil {
 		return DefenseValidationObservationV02{}, err
 	}
-	if err := event.Verify(); err != nil {
-		return DefenseValidationObservationV02{}, fmt.Errorf("verify authority security evidence event: %w", err)
+	if err := event.VerifyEd25519(control.CollectorRef, control.CollectorPublicKey); err != nil {
+		return DefenseValidationObservationV02{}, fmt.Errorf("authenticate authority security evidence event: %w", err)
 	}
 	canonical, err := event.Canonical()
 	if err != nil {
@@ -444,8 +459,10 @@ func bindDefenseAuthorityControlV01(control DefenseValidationControlV02, trust D
 	control.AdapterVersion = strings.TrimSpace(control.AdapterVersion)
 	control.ConfigurationHash = strings.ToLower(strings.TrimSpace(control.ConfigurationHash))
 	control.CollectorRef = strings.TrimSpace(control.CollectorRef)
+	control.CollectorPublicKey = strings.TrimSpace(control.CollectorPublicKey)
 	expected, err := NewAuthorityIntegrityControlV01(control.ControlRef, control.CollectorRef, DefenseAuthorityIntegrityConfigV01{
 		EvidenceTrust:                trust,
+		CollectorPublicKey:           control.CollectorPublicKey,
 		IndependentCollectorRequired: true,
 	})
 	if err != nil {
@@ -457,34 +474,39 @@ func bindDefenseAuthorityControlV01(control DefenseValidationControlV02, trust D
 	return expected, nil
 }
 
-func bindDefenseAuthorityScenarioV01(in DefenseAuthorityExecutionAdapterInputV01, control DefenseValidationControlV02) (string, error) {
+func bindDefenseAuthorityScenarioV01(in DefenseAuthorityExecutionAdapterInputV01, control DefenseValidationControlV02) (string, *int64, error) {
+	if !defenseValidationScenarioHasCompleteContractV02(in.Scenario) {
+		return "", nil, errors.New("authority scenario must retain the complete parsed contract")
+	}
 	digest, err := DefenseValidationScenarioDigestV02(in.Scenario)
 	if err != nil {
-		return "", fmt.Errorf("validate authority scenario: %w", err)
+		return "", nil, fmt.Errorf("validate authority scenario: %w", err)
 	}
 	if control.AdapterVersion != DefenseAuthorityExecutionAdapterVersionV01 || strings.TrimSpace(in.Scenario.ControlContract.ControlClass) != "state_transition_authority_integrity" {
-		return "", errors.New("scenario does not select the authority integrity control")
+		return "", nil, errors.New("scenario does not select the authority integrity control")
 	}
 	if !strings.EqualFold(strings.TrimSpace(in.Scenario.Chain), in.Binding.Evidence.Chain) {
-		return "", errors.New("authority scenario chain does not match execution evidence")
+		return "", nil, errors.New("authority scenario chain does not match execution evidence")
 	}
 	if !defenseAuthorityScenarioExecutionModeMatchesV01(in.Scenario.Environment.ExecutionMode, in.ExecutionMode) {
-		return "", errors.New("authority scenario execution mode does not match adapted execution")
+		return "", nil, errors.New("authority scenario execution mode does not match adapted execution")
 	}
 	matched := 0
+	var detectionDeadline *int64
 	for _, scenarioCase := range in.Scenario.Matrix.Cases {
 		if strings.TrimSpace(scenarioCase.CaseRef) != in.CaseRef {
 			continue
 		}
 		matched++
 		if strings.TrimSpace(scenarioCase.CaseKind) != in.CaseKind || scenarioCase.ObservationWindowMS != in.ObservationWindowMS || !equalDefenseAuthorityInt64PointersV01(scenarioCase.ImpactDeadlineMS, in.ImpactOffsetMS) {
-			return "", errors.New("authority execution does not match its scenario case contract")
+			return "", nil, errors.New("authority execution does not match its scenario case contract")
 		}
+		detectionDeadline = cloneDefenseValidationInt64V02(scenarioCase.ExpectedControlBehavior.LatestDetectionOffsetMS)
 	}
 	if matched != 1 {
-		return "", errors.New("authority execution case is not an exact scenario member")
+		return "", nil, errors.New("authority execution case is not an exact scenario member")
 	}
-	return digest, nil
+	return digest, detectionDeadline, nil
 }
 
 func defenseAuthorityScenarioExecutionModeMatchesV01(scenarioMode, executionMode string) bool {

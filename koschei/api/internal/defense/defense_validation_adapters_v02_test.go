@@ -1,7 +1,9 @@
 package defense
 
 import (
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"math/big"
 	"strings"
@@ -14,12 +16,17 @@ import (
 
 func TestSafeIntentMutationWeakBindingFailsAndExactBindingValidates(t *testing.T) {
 	control := dvControl(t)
+	scenario := readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json")
+	scenarioHash, err := DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
 	approved, mutated := dvSafeTransactions()
 
 	weakAttack := dvExecution(t, approved, mutated, true, DefenseValidationCaseAttackV02)
 	benign := dvExecution(t, approved, approved, false, DefenseValidationCaseBenignV02)
 	weakReport, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:weak", ScenarioRef: "scenario:evm:safe-intent-mutation", ScenarioVersion: "v1.0.0", Chain: "evm", RulesetVersion: DefenseValidationRulesetVersionV02,
+		RunRef: "run:weak", ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
 		Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{weakAttack.Case, benign.Case},
 		Observations: []DefenseValidationObservationV02{dvObservation(t, control, weakAttack, nil), dvObservation(t, control, benign, nil)},
 	})
@@ -39,7 +46,7 @@ func TestSafeIntentMutationWeakBindingFailsAndExactBindingValidates(t *testing.T
 	exactAttack := dvExecution(t, approved, mutated, false, DefenseValidationCaseAttackV02)
 	alert := int64(120)
 	exactReport, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:exact", ScenarioRef: "scenario:evm:safe-intent-mutation", ScenarioVersion: "v1.0.0", Chain: "evm", RulesetVersion: DefenseValidationRulesetVersionV02,
+		RunRef: "run:exact", ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
 		Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{exactAttack.Case, benign.Case},
 		Observations: []DefenseValidationObservationV02{dvObservation(t, control, exactAttack, &alert), dvObservation(t, control, benign, nil)},
 	})
@@ -83,7 +90,7 @@ func TestDefenseValidationAdapterRejectsSelfAttestedObservation(t *testing.T) {
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
 		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
-	}).Seal()
+	}).SignEd25519(dvCollectorPrivateKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,19 +99,44 @@ func TestDefenseValidationAdapterRejectsSelfAttestedObservation(t *testing.T) {
 	}
 }
 
+func TestDefenseValidationAdapterRejectsCallerResealedCollectorEvent(t *testing.T) {
+	control := dvControl(t)
+	approved, mutated := dvSafeTransactions()
+	execution := dvExecution(t, approved, mutated, false, DefenseValidationCaseAttackV02)
+	alert := int64(120)
+	binding := dvBinding(control, execution, &alert)
+	digest, err := DefenseValidationObservationBindingDigestV02(binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged, err := (securityevidence.Event{
+		Producer:      control.CollectorRef,
+		Subject:       securityevidence.Subject{Chain: "evm", Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
+		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256},
+		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
+	}).Seal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AdaptSecurityEvidenceObservationV02(control, execution, binding, forged); err == nil || !strings.Contains(err.Error(), "authenticate") {
+		t.Fatalf("caller-resealed collector event was accepted: %v", err)
+	}
+}
+
 func TestDefenseValidationAdapterRejectsTamperedExecutionProof(t *testing.T) {
 	approved, mutated := dvSafeTransactions()
 	proof, receipt := dvProofAndReceipt(t, approved, mutated, false)
 	proof.Evaluation.Decision = executionproof.DecisionAllow
 	impact := int64(1000)
-	_, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: "case:attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000, ContainmentReceipt: receipt, ExecutionProof: proof})
+	_, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof})
 	if err == nil {
 		t.Fatal("tampered proof accepted")
 	}
 }
 
 func TestExecutionIntegrityControlRejectsUnsafeClaims(t *testing.T) {
-	cfg := DefenseValidationExecutionIntegrityConfigV02{IndependentCollectorRequired: true, MainnetSubmissionAllowed: true}
+	cfg := DefenseValidationExecutionIntegrityConfigV02{CollectorPublicKey: dvCollectorPublicKey(), IndependentCollectorRequired: true, MainnetSubmissionAllowed: true}
 	if _, err := NewExecutionIntegrityControlV02("control", "collector", cfg); err == nil {
 		t.Fatal("mainnet-enabled control accepted")
 	}
@@ -117,7 +149,7 @@ func TestExecutionIntegrityControlRejectsUnsafeClaims(t *testing.T) {
 
 func dvControl(t *testing.T) DefenseValidationControlV02 {
 	t.Helper()
-	control, err := NewExecutionIntegrityControlV02("control:execution-integrity", "collector:independent-safe-observer", DefenseValidationExecutionIntegrityConfigV02{IndependentCollectorRequired: true})
+	control, err := NewExecutionIntegrityControlV02("control:execution-integrity", "collector:independent-safe-observer", DefenseValidationExecutionIntegrityConfigV02{CollectorPublicKey: dvCollectorPublicKey(), IndependentCollectorRequired: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +157,7 @@ func dvControl(t *testing.T) DefenseValidationControlV02 {
 }
 
 func dvSafeTransactions() (executionproof.SafeTransaction, executionproof.SafeTransaction) {
-	approved := executionproof.SafeTransaction{ChainID: 1, Safe: "0x1111111111111111111111111111111111111111", To: "0x2222222222222222222222222222222222222222", Value: big.NewInt(0), Data: []byte{0xaa, 0xbb, 0xcc, 0x01}, Operation: 0, SafeTxGas: big.NewInt(50000), BaseGas: big.NewInt(21000), GasPrice: big.NewInt(0), GasToken: "0x0000000000000000000000000000000000000000", RefundReceiver: "0x0000000000000000000000000000000000000000", Nonce: big.NewInt(7)}
+	approved := executionproof.SafeTransaction{ChainID: 31337, Safe: "0x1111111111111111111111111111111111111111", To: "0x2222222222222222222222222222222222222222", Value: big.NewInt(0), Data: []byte{0xaa, 0xbb, 0xcc, 0x01}, Operation: 0, SafeTxGas: big.NewInt(50000), BaseGas: big.NewInt(21000), GasPrice: big.NewInt(0), GasToken: "0x0000000000000000000000000000000000000000", RefundReceiver: "0x0000000000000000000000000000000000000000", Nonce: big.NewInt(7)}
 	mutated := approved
 	mutated.To = "0x9999999999999999999999999999999999999999"
 	mutated.Data = []byte{0xde, 0xad, 0xbe, 0xef}
@@ -142,7 +174,7 @@ func dvExecution(t *testing.T, approved, candidate executionproof.SafeTransactio
 		impact = &v
 		caseRef = "case:evm:safe-intent-mutation-attack"
 	}
-	evidence, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: impact, ObservationWindowMS: 3000, ContainmentReceipt: receipt, ExecutionProof: proof})
+	evidence, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +241,7 @@ func dvObservation(t *testing.T, control DefenseValidationControlV02, execution 
 	if err != nil {
 		t.Fatal(err)
 	}
-	event, err := (securityevidence.Event{Producer: control.CollectorRef, Subject: securityevidence.Subject{Chain: "evm", Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef}, Window: securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS}, SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256}, Findings: []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent observation of bound execution integrity control."}}}).Seal()
+	event, err := (securityevidence.Event{Producer: control.CollectorRef, Subject: securityevidence.Subject{Chain: "evm", Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef}, Window: securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS}, SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.ExecutionProofSHA256}, Findings: []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent observation of bound execution integrity control."}}}).SignEd25519(dvCollectorPrivateKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,3 +266,15 @@ func dvCaseResult(t *testing.T, report DefenseValidationReportV02, caseRef strin
 }
 
 func dvSHA(value []byte) string { sum := sha256.Sum256(value); return hex.EncodeToString(sum[:]) }
+
+func dvCollectorPrivateKey() ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x64
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+func dvCollectorPublicKey() string {
+	return base64.RawURLEncoding.EncodeToString(dvCollectorPrivateKey().Public().(ed25519.PublicKey))
+}

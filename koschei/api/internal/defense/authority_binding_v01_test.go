@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
 	"strings"
@@ -22,6 +23,7 @@ func authorityIntegrityControl(t *testing.T) DefenseValidationControlV02 {
 		"collector:independent-authority-observer",
 		DefenseAuthorityIntegrityConfigV01{
 			EvidenceTrust:                authorityBindingTrust(),
+			CollectorPublicKey:           authorityCollectorPublicKey(),
 			IndependentCollectorRequired: true,
 		},
 	)
@@ -176,6 +178,48 @@ func TestAuthorityIntegrityComponentPairValidatesWithIndependentEvidence(t *test
 	}
 }
 
+func TestAuthorityIntegrityUsesScenarioLatestDetectionOffset(t *testing.T) {
+	data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	data = bytes.Replace(data, []byte(`"latest_detection_offset_ms": 1000`), []byte(`"latest_detection_offset_ms": 500`), 1)
+	scenario, err := ParseDefenseValidationScenarioV02(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenarioHash, err := DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
+	control := authorityIntegrityControl(t)
+	attackBinding := authorityBindingResult(t, "account:victim", "account:caller")
+	benignBinding := authorityBindingResult(t, "account:caller", "account:caller")
+	attackInput := authorityIntegrityAdapterInput(t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, attackBinding, authorityContainmentReceipt(t, attackBinding))
+	attackInput.Scenario = scenario
+	attack, err := AdaptAuthorityIntegrityCaseV01(attackInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	benignInput := authorityIntegrityAdapterInput(t, control, authorityBenignCaseRefV01, DefenseValidationCaseBenignV02, benignBinding, authorityContainmentReceipt(t, benignBinding))
+	benignInput.Scenario = scenario
+	benign, err := AdaptAuthorityIntegrityCaseV01(benignInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert := int64(600)
+	input := authorityIntegrityValidationInput(t, "run:authority-detection-deadline", control,
+		[]DefenseValidationCaseV02{attack.Case, benign.Case},
+		[]DefenseValidationObservationV02{authorityIndependentObservation(t, control, attack, &alert), authorityIndependentObservation(t, control, benign, nil)},
+	)
+	input.ScenarioContractHash = scenarioHash
+	report, err := EvaluateDefenseValidationV02(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := dvCaseResult(t, report, attack.Case.CaseRef)
+	if result.Outcome != DefenseValidationOutcomeCaughtLateV02 || result.DetectionDeadlineMS == nil || *result.DetectionDeadlineMS != 500 {
+		t.Fatalf("scenario latest detection offset was not enforced: %#v", result)
+	}
+}
+
 func TestAuthorityBindingRejectsUnverifiedEvidence(t *testing.T) {
 	evidence := authorityBindingEvidence(t, "account:caller", "account:caller")
 	evidence.EvidenceState = DefenseValidationEvidenceObservedV02
@@ -206,12 +250,42 @@ func TestAuthorityObservationRejectsSelfAttestation(t *testing.T) {
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
 		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
+	}).SignEd25519(authorityCollectorPrivateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, observationBinding, event, authorityBindingTrust()); err == nil {
+		t.Fatal("authority control self-attestation was accepted")
+	}
+}
+
+func TestAuthorityObservationRejectsCallerResealedCollectorEvent(t *testing.T) {
+	control := authorityIntegrityControl(t)
+	authorityBinding := authorityBindingResult(t, "account:victim", "account:caller")
+	execution, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, authorityBinding, authorityContainmentReceipt(t, authorityBinding),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert := int64(120)
+	binding := authorityObservationBinding(control, execution, &alert)
+	digest, err := DefenseAuthorityObservationBindingDigestV01(binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged, err := (securityevidence.Event{
+		Producer:      control.CollectorRef,
+		Subject:       securityevidence.Subject{Chain: execution.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
+		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
 	}).Seal()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, observationBinding, event); err == nil {
-		t.Fatal("authority control self-attestation was accepted")
+	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, binding, forged, authorityBindingTrust()); err == nil || !strings.Contains(err.Error(), "authenticate") {
+		t.Fatalf("caller-resealed authority collector event was accepted: %v", err)
 	}
 }
 
@@ -268,7 +342,7 @@ func TestAuthorityIntegrityControlPinsEvidenceTrust(t *testing.T) {
 	alternateControl, err := NewAuthorityIntegrityControlV01(
 		"control:authority-integrity",
 		"collector:independent-authority-observer",
-		DefenseAuthorityIntegrityConfigV01{EvidenceTrust: alternateTrust, IndependentCollectorRequired: true},
+		DefenseAuthorityIntegrityConfigV01{EvidenceTrust: alternateTrust, CollectorPublicKey: authorityCollectorPublicKey(), IndependentCollectorRequired: true},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -417,11 +491,11 @@ func TestAuthorityChainIdentityCannotBeRelabeled(t *testing.T) {
 		Producer: control.CollectorRef, Subject: securityevidence.Subject{Chain: observationBinding.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
 		Window: securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS}, SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
 		Findings: []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
-	}).Seal()
+	}).SignEd25519(authorityCollectorPrivateKey())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, observationBinding, event); err == nil {
+	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, observationBinding, event, authorityBindingTrust()); err == nil {
 		t.Fatal("execution was relabeled to a different observation chain")
 	}
 	base := authorityIntegrityValidationInput(t, "run:authority-binding", control, []DefenseValidationCaseV02{execution.Case}, nil)
@@ -544,6 +618,18 @@ func authorityBindingEvidenceWithTrustAndKeys(
 func authorityBindingTrust() DefenseAuthorityEvidenceTrustV01 {
 	trust, _, _ := authorityBindingTestTrustAndKeys()
 	return trust
+}
+
+func authorityCollectorPrivateKey() ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x73
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+func authorityCollectorPublicKey() string {
+	return base64.RawURLEncoding.EncodeToString(authorityCollectorPrivateKey().Public().(ed25519.PublicKey))
 }
 
 func authorityBindingTestTrustAndKeys() (DefenseAuthorityEvidenceTrustV01, ed25519.PrivateKey, ed25519.PrivateKey) {
@@ -694,11 +780,11 @@ func authorityIndependentObservationWithStatus(t *testing.T, control DefenseVali
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
 		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent authority-binding observation."}},
-	}).Seal()
+	}).SignEd25519(authorityCollectorPrivateKey())
 	if err != nil {
 		t.Fatal(err)
 	}
-	observation, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, binding, event)
+	observation, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, binding, event, authorityBindingTrust())
 	if err != nil {
 		t.Fatal(err)
 	}

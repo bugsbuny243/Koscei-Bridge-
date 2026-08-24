@@ -22,7 +22,7 @@ The v0.1 component harness connects four existing/new deterministic boundaries:
 2. `EvaluateDefenseAuthorityBindingV01` requires an external trust policy with distinct pinned producers and public keys, verifies both signatures, recomputes the artifact digests and binds every claimed field to the signed artifacts before deriving authority preservation. A caller-supplied `verified` label or arbitrary digest is insufficient.
 3. `ApplyDefenseAuthorityBindingToContainmentV01` combines the derived result with the backend authority observation without overwriting an existing failure. A mismatch produces `EC-005-AUTHORITY-CHANGED` and fails the invariant, so the receipt is `CONTAIN` even when approved/candidate intent and payload hashes are identical.
 4. `AdaptAuthorityIntegrityCaseV01` requires the receipt's chain ID, approved/candidate payload, pre-state, post-state and effect-set hashes to match the authenticated authority evidence. Attack cases require a failed binding and the exact authority-specific containment reasons; benign cases require an unqualified release.
-5. A separately identified Security Evidence producer binds its observation to both the authority-binding digest and containment receipt. Its independently observed alert/no-alert status is preserved so Defense Validation can report misses and false positives. The signed chain label and receipt chain ID are carried through the observation and report boundary.
+5. A separately identified Security Evidence producer binds its observation to both the authority-binding digest and containment receipt. Its Ed25519 signature must verify against the collector public key pinned in the exact control configuration; changing `producer` and recomputing the unkeyed event digest is insufficient. Its independently observed alert/no-alert status is preserved so Defense Validation can report misses and false positives. The signed chain label and receipt chain ID are carried through the observation and report boundary.
 
 ## Attack / benign pair
 
@@ -37,7 +37,7 @@ The component test intentionally keeps the approved intent hash and approved/can
 - authority binding: **false**;
 - containment: **CONTAIN**;
 - expected reason includes `EC-005-AUTHORITY-CHANGED`;
-- independent alert arrives before the declared impact deadline;
+- independent alert arrives before the scenario's latest detection offset;
 - Defense Validation outcome: `CAUGHT_IN_TIME`.
 
 ### Benign
