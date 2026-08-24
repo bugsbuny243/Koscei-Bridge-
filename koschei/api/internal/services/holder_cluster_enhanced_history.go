@@ -97,14 +97,10 @@ func heliusEnhancedHistoryEnabled() bool {
 	}
 }
 
-// heliusEnhancedAPIKey resolves the Helius API key only when the high-credit
-// Enhanced Transactions path was explicitly enabled. Resolution order after
-// opt-in: HELIUS_API_KEY env, then the api-key query parameter of the configured
-// Solana RPC URL when that URL points at a Helius host.
-func heliusEnhancedAPIKey(rpcURL string) string {
-	if !heliusEnhancedHistoryEnabled() {
-		return ""
-	}
+// heliusProviderAPIKey resolves the provider key independently from any
+// optional high-credit feature flag. DAS and standard Helius RPC enrichment
+// must continue to work when Enhanced Transactions history is disabled.
+func heliusProviderAPIKey(rpcURL string) string {
 	if key := strings.TrimSpace(os.Getenv("HELIUS_API_KEY")); key != "" {
 		return key
 	}
@@ -116,6 +112,15 @@ func heliusEnhancedAPIKey(rpcURL string) string {
 		return ""
 	}
 	return strings.TrimSpace(parsed.Query().Get("api-key"))
+}
+
+// heliusEnhancedAPIKey exposes the provider key only when the operator has
+// explicitly opted into the high-credit Enhanced Transactions history path.
+func heliusEnhancedAPIKey(rpcURL string) string {
+	if !heliusEnhancedHistoryEnabled() {
+		return ""
+	}
+	return heliusProviderAPIKey(rpcURL)
 }
 
 func fetchHeliusEnhancedTransactionsPage(ctx context.Context, apiKey, address, before string, limit int) ([]heliusEnhancedTransaction, error) {
