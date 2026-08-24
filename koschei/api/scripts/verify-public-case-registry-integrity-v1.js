@@ -79,8 +79,9 @@ for(const header of ['Content-Location','Link','X-Koschei-Public-Dossier'])requi
 requireText(exportPrivacy,'w.Header().Set("Cache-Control", "private, no-store")','private export cache boundary');
 requireText(exportPrivacy,'w.Header().Set("X-Koschei-Dossier-Visibility", "private-export")','private export visibility marker');
 requireText(dossierAccess,'next = privateDossierExport(next)','privacy wrapper is inside dossier access gate');
-requireText(dossierAccess,'h.APIKeyAuth(h.RequireAPIKeyStoredTokenTier("enterprise", next))(w, r)','API-key path preserves wrapped export');
-requireText(dossierAccess,'RequireAuth(h.RequireStoredTokenTier("enterprise", next))(w, r)','session path preserves wrapped export');
+requireText(dossierAccess,'h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", next))(w, r)','API-key Enterprise SaaS path preserves wrapped export');
+requireText(dossierAccess,'RequireAuth(h.RequirePlanTier("enterprise", next))(w, r)','session Enterprise SaaS path preserves wrapped export');
+forbid(dossierAccess,/RequireAPIKeyStoredTokenTier|RequireStoredTokenTier|token_access_snapshots/,'legacy KOSCH snapshot dossier authorization');
 
 requireText(casesHTML,'canonical bytes, case reference, embedded bundle hash, and stored bundle hash are reverified','public integrity explanation');
 requireText(casesHTML,'Cases or timestamps that predate transition/time enforcement are labeled legacy','legacy lineage explanation');
