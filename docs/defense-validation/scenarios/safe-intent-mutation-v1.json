@@ -49,10 +49,10 @@
         "case_kind": "attack",
         "description": "Operator-approved treasury action is replaced by a different executable Safe action before signing.",
         "matched_values": {
-          "safe": "fixture:safe:treasury",
+          "safe": "0x1111111111111111111111111111111111111111",
           "chain_id": 31337,
-          "treasury_asset": "fixture:asset:treasury",
-          "transfer_amount": 1000000,
+          "treasury_asset": "native",
+          "transfer_amount": 1000000000000000000,
           "observation_window_ms": 3000
         },
         "approved_intent": {
@@ -82,10 +82,10 @@
         "case_kind": "benign",
         "description": "The approved Safe treasury action and executable action are identical and remain within accepted invariants.",
         "matched_values": {
-          "safe": "fixture:safe:treasury",
+          "safe": "0x1111111111111111111111111111111111111111",
           "chain_id": 31337,
-          "treasury_asset": "fixture:asset:treasury",
-          "transfer_amount": 1000000,
+          "treasury_asset": "native",
+          "transfer_amount": 1000000000000000000,
           "observation_window_ms": 3000
         },
         "approved_intent": {

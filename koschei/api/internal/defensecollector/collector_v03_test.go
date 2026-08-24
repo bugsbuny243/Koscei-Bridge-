@@ -164,6 +164,14 @@ func collectorRequestV03(t *testing.T, signaled bool) RequestV03 {
 		candidate = collectorSafeTxV03("0x9999999999999999999999999999999999999999", nil)
 	}
 	proof, receipt := collectorProofReceiptV03(t, approved, candidate)
+	approvedAction, err := executionproof.CanonicalSafeActionArtifact(approved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateAction, err := executionproof.CanonicalSafeActionArtifact(candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var impact *int64
 	caseKind := defense.DefenseValidationCaseBenignV02
 	caseRef := "case:evm:safe-authorized-transfer-benign"
@@ -190,6 +198,8 @@ func collectorRequestV03(t *testing.T, signaled bool) RequestV03 {
 		WindowToUnixMS:               13000,
 		ContainmentReceipt:           receipt,
 		ExecutionProof:               proof,
+		ApprovedSafeAction:           approvedAction,
+		CandidateSafeAction:          candidateAction,
 	}
 }
 
@@ -198,7 +208,7 @@ func collectorSafeTxV03(to string, data []byte) executionproof.SafeTransaction {
 		ChainID:        31337,
 		Safe:           "0x1111111111111111111111111111111111111111",
 		To:             to,
-		Value:          big.NewInt(0),
+		Value:          big.NewInt(1_000_000_000_000_000_000),
 		Data:           append([]byte(nil), data...),
 		Operation:      0,
 		SafeTxGas:      big.NewInt(50000),

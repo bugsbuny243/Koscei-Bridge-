@@ -148,6 +148,8 @@
     "execution_chain_id",
     "module_route_hash",
     "runner_identity_hash",
+    "native_backend_attestation_signature",
+    "native_authorization_trace_hash",
     "pre_state_hash",
     "post_state_hash",
     "debit_effect_hash",

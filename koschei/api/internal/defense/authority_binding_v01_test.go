@@ -56,16 +56,17 @@ func authorityIntegrityAdapterInput(
 ) DefenseAuthorityExecutionAdapterInputV01 {
 	t.Helper()
 	input := DefenseAuthorityExecutionAdapterInputV01{
-		CaseRef:             caseRef,
-		CaseKind:            caseKind,
-		TechniqueID:         "unauthorized-source-account",
-		ExecutionMode:       DefenseValidationExecutionSandboxV02,
-		ObservationWindowMS: 3000,
-		Control:             control,
-		Scenario:            authorityIntegrityScenario(t),
-		EvidenceTrust:       authorityBindingTrust(),
-		Binding:             binding,
-		ContainmentReceipt:  receipt,
+		CaseRef:                    caseRef,
+		CaseKind:                   caseKind,
+		TechniqueID:                "unauthorized-source-account",
+		ExecutionMode:              DefenseValidationExecutionSandboxV02,
+		ObservationWindowMS:        3000,
+		Control:                    control,
+		Scenario:                   authorityIntegrityScenario(t),
+		EvidenceTrust:              authorityBindingTrust(),
+		Binding:                    binding,
+		ContainmentReceipt:         receipt,
+		NativeExecutionAttestation: authorityNativeExecutionAttestation(t, binding, receipt),
 	}
 	if caseKind == DefenseValidationCaseAttackV02 {
 		impact := int64(1000)
@@ -250,7 +251,7 @@ func TestAuthorityObservationRejectsSelfAttestation(t *testing.T) {
 		Producer:      control.ControlRef,
 		Subject:       securityevidence.Subject{Chain: "cosmos-evm", Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
-		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256, execution.NativeExecutionAttestationSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
 	}).SignEd25519(authorityCollectorPrivateKey())
 	if err != nil {
@@ -280,7 +281,7 @@ func TestAuthorityObservationRejectsCallerResealedCollectorEvent(t *testing.T) {
 		Producer:      control.CollectorRef,
 		Subject:       securityevidence.Subject{Chain: execution.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
-		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256, execution.NativeExecutionAttestationSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
 	}).Seal()
 	if err != nil {
@@ -288,6 +289,36 @@ func TestAuthorityObservationRejectsCallerResealedCollectorEvent(t *testing.T) {
 	}
 	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, binding, forged, authorityBindingTrust()); err == nil || !strings.Contains(err.Error(), "authenticate") {
 		t.Fatalf("caller-resealed authority collector event was accepted: %v", err)
+	}
+}
+
+func TestAuthorityObservationRequiresNativeExecutionSourceDigest(t *testing.T) {
+	control := authorityIntegrityControl(t)
+	authorityBinding := authorityBindingResult(t, "account:victim", "account:caller")
+	execution, err := AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, authorityBinding, authorityContainmentReceipt(t, authorityBinding),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert := int64(120)
+	binding := authorityObservationBinding(control, execution, &alert)
+	digest, err := DefenseAuthorityObservationBindingDigestV01(binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := (securityevidence.Event{
+		Producer:      control.CollectorRef,
+		Subject:       securityevidence.Subject{Chain: execution.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
+		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
+	}).SignEd25519(authorityCollectorPrivateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AdaptAuthoritySecurityEvidenceObservationV01(control, execution, binding, event, authorityBindingTrust()); err == nil || !strings.Contains(err.Error(), "native execution evidence") {
+		t.Fatalf("collector event omitted the native execution source digest: %v", err)
 	}
 }
 
@@ -332,6 +363,8 @@ func TestAuthorityIntegrityControlPinsEvidenceTrust(t *testing.T) {
 		PrincipalPublicKey:       base64.RawURLEncoding.EncodeToString(principalPrivateKey.Public().(ed25519.PublicKey)),
 		AuthorizationProducerRef: "collector:authorization-state",
 		AuthorizationPublicKey:   base64.RawURLEncoding.EncodeToString(authorizationPrivateKey.Public().(ed25519.PublicKey)),
+		NativeRunnerProducerRef:  authorityBindingTrust().NativeRunnerProducerRef,
+		NativeRunnerPublicKey:    authorityBindingTrust().NativeRunnerPublicKey,
 	}
 	evidence := authorityBindingEvidenceWithTrustAndKeys(
 		t, "account:victim", "account:caller", alternateTrust, principalPrivateKey, authorizationPrivateKey,
@@ -365,7 +398,14 @@ func TestAuthorityIntegrityControlPinsEvidenceTrust(t *testing.T) {
 
 func TestAuthorityIntegrityControlRequiresCryptographicallyIndependentCollector(t *testing.T) {
 	trust := authorityBindingTrust()
-	for _, producer := range []string{trust.PrincipalProducerRef, trust.AuthorizationProducerRef} {
+	for _, producer := range []string{trust.PrincipalProducerRef, trust.AuthorizationProducerRef, trust.NativeRunnerProducerRef} {
+		if _, err := NewAuthorityIntegrityControlV01(
+			producer,
+			"collector:independent-authority-observer",
+			DefenseAuthorityIntegrityConfigV01{EvidenceTrust: trust, CollectorPublicKey: authorityCollectorPublicKey(), IndependentCollectorRequired: true},
+		); err == nil || !strings.Contains(err.Error(), "control identity must differ") {
+			t.Fatalf("evidence producer %q was accepted as the control: %v", producer, err)
+		}
 		if _, err := NewAuthorityIntegrityControlV01(
 			"control:authority-integrity",
 			producer,
@@ -374,7 +414,7 @@ func TestAuthorityIntegrityControlRequiresCryptographicallyIndependentCollector(
 			t.Fatalf("authority evidence producer %q was accepted as the independent collector: %v", producer, err)
 		}
 	}
-	for _, publicKey := range []string{trust.PrincipalPublicKey, trust.AuthorizationPublicKey} {
+	for _, publicKey := range []string{trust.PrincipalPublicKey, trust.AuthorizationPublicKey, trust.NativeRunnerPublicKey} {
 		if _, err := NewAuthorityIntegrityControlV01(
 			"control:authority-integrity",
 			"collector:distinct-name",
@@ -532,6 +572,42 @@ func TestAuthorityAdapterRejectsReceiptFromDifferentExecution(t *testing.T) {
 	}
 }
 
+func TestAuthorityAdapterRequiresAttestedNativeBackendExecution(t *testing.T) {
+	control := authorityIntegrityControl(t)
+	binding := authorityBindingResult(t, "account:victim", "account:caller")
+	receipt := authorityContainmentReceipt(t, binding)
+	base := authorityIntegrityAdapterInput(t, control, authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, receipt)
+	if _, err := AdaptAuthorityIntegrityCaseV01(base); err != nil {
+		t.Fatalf("authenticated native execution fixture was rejected: %v", err)
+	}
+
+	missing := base
+	missing.NativeExecutionAttestation = DefenseAuthorityNativeExecutionAttestationV01{}
+	if _, err := AdaptAuthorityIntegrityCaseV01(missing); err == nil || !strings.Contains(err.Error(), "native execution attestation") {
+		t.Fatalf("component-only receipt was accepted without native execution attestation: %v", err)
+	}
+
+	forged := base
+	forged.NativeExecutionAttestation.Signature = base64.RawURLEncoding.EncodeToString(make([]byte, ed25519.SignatureSize))
+	if _, err := AdaptAuthorityIntegrityCaseV01(forged); err == nil || !strings.Contains(err.Error(), "signature is invalid") {
+		t.Fatalf("forged native execution attestation was accepted: %v", err)
+	}
+
+	mismatched := base.NativeExecutionAttestation
+	mismatched.BlockNumber++
+	mismatched.Signature = ""
+	var err error
+	mismatched, err = mismatched.SignEd25519(authorityNativeRunnerPrivateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongExecution := base
+	wrongExecution.NativeExecutionAttestation = mismatched
+	if _, err := AdaptAuthorityIntegrityCaseV01(wrongExecution); err == nil || !strings.Contains(err.Error(), "does not match authority execution evidence") {
+		t.Fatalf("native attestation for a different execution was accepted: %v", err)
+	}
+}
+
 func TestAuthorityAdapterRequiresAuthoritySpecificAttackSignal(t *testing.T) {
 	control := authorityIntegrityControl(t)
 	preserved := authorityBindingResult(t, "account:caller", "account:caller")
@@ -575,7 +651,7 @@ func TestAuthorityChainIdentityCannotBeRelabeled(t *testing.T) {
 	}
 	event, err := (securityevidence.Event{
 		Producer: control.CollectorRef, Subject: securityevidence.Subject{Chain: observationBinding.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
-		Window: securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS}, SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		Window: securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS}, SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256, execution.NativeExecutionAttestationSHA256},
 		Findings: []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest}},
 	}).SignEd25519(authorityCollectorPrivateKey())
 	if err != nil {
@@ -737,6 +813,41 @@ func authorityCollectorPublicKey() string {
 	return base64.RawURLEncoding.EncodeToString(authorityCollectorPrivateKey().Public().(ed25519.PublicKey))
 }
 
+func authorityNativeRunnerPrivateKey() ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x65
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+func authorityNativeExecutionAttestation(t *testing.T, binding DefenseAuthorityBindingResultV01, receipt executioncontainment.Receipt) DefenseAuthorityNativeExecutionAttestationV01 {
+	t.Helper()
+	attestation, err := (DefenseAuthorityNativeExecutionAttestationV01{
+		EvidenceState:                      DefenseValidationEvidenceVerifiedV02,
+		Producer:                           authorityBindingTrust().NativeRunnerProducerRef,
+		BackendKind:                        DefenseAuthorityNativeBackendCosmosEVMV01,
+		ExecutionMode:                      DefenseValidationExecutionSandboxV02,
+		Chain:                              binding.Evidence.Chain,
+		ChainID:                            binding.Evidence.ChainID,
+		BlockNumber:                        receipt.Input.BlockNumber,
+		BlockHash:                          receipt.Input.BlockHash,
+		RunnerSHA256:                       receipt.Input.ApprovedRunnerSHA256,
+		ModuleRoute:                        binding.Evidence.ModuleRoute,
+		NativeAuthorizationRouteReproduced: true,
+		NativeAuthorizationTraceSHA256:     strings.Repeat("c", 64),
+		CallPayloadSHA256:                  binding.Evidence.CallPayloadSHA256,
+		PreStateSHA256:                     binding.Evidence.PreStateSHA256,
+		PostStateSHA256:                    binding.Evidence.PostStateSHA256,
+		DebitEffectSHA256:                  binding.Evidence.DebitEffectSHA256,
+		ContainmentReceiptSHA256:           receipt.ReceiptSHA256,
+	}).SignEd25519(authorityNativeRunnerPrivateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return attestation
+}
+
 func authorityBindingTestTrustAndKeys() (DefenseAuthorityEvidenceTrustV01, ed25519.PrivateKey, ed25519.PrivateKey) {
 	principalSeed := make([]byte, ed25519.SeedSize)
 	authorizationSeed := make([]byte, ed25519.SeedSize)
@@ -751,6 +862,8 @@ func authorityBindingTestTrustAndKeys() (DefenseAuthorityEvidenceTrustV01, ed255
 		PrincipalPublicKey:       base64.RawURLEncoding.EncodeToString(principalPrivateKey.Public().(ed25519.PublicKey)),
 		AuthorizationProducerRef: "collector:authorization-state",
 		AuthorizationPublicKey:   base64.RawURLEncoding.EncodeToString(authorizationPrivateKey.Public().(ed25519.PublicKey)),
+		NativeRunnerProducerRef:  "runner:isolated-cosmos-evm",
+		NativeRunnerPublicKey:    base64.RawURLEncoding.EncodeToString(authorityNativeRunnerPrivateKey().Public().(ed25519.PublicKey)),
 	}
 	return trust, principalPrivateKey, authorizationPrivateKey
 }
@@ -885,7 +998,7 @@ func authorityIndependentObservationWithStatus(t *testing.T, control DefenseVali
 		Producer:      control.CollectorRef,
 		Subject:       securityevidence.Subject{Chain: execution.Chain, Type: DefenseValidationObservationSubjectTypeV02, ID: execution.Case.CaseRef},
 		Window:        securityevidence.ObservationWindow{FromUnixMS: 0, ToUnixMS: execution.Case.ObservationWindowMS},
-		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256},
+		SourceDigests: []string{execution.ContainmentReceiptSHA256, execution.AuthorityBindingSHA256, execution.NativeExecutionAttestationSHA256},
 		Findings:      []securityevidence.Finding{{ID: DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef), Kind: DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified, EvidenceSHA256: digest, Summary: "Independent authority-binding observation."}},
 	}).SignEd25519(authorityCollectorPrivateKey())
 	if err != nil {

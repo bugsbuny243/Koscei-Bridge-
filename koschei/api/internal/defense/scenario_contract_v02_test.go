@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -161,6 +162,40 @@ func TestDefenseValidationScenarioContractV02RejectsUnsafeSideEffects(t *testing
 			data = bytes.Replace(data, []byte(`    "`+field+`": false,`+"\n"), nil, 1)
 			if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
 				t.Fatalf("missing scenario environment field %q was accepted", field)
+			}
+		})
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RequiresEveryEnvironmentField(t *testing.T) {
+	for _, field := range []string{
+		"execution_mode",
+		"production_identity_used",
+		"wallet_custody",
+		"mainnet_submission_allowed",
+		"production_control_mutation",
+		"automatic_intervention",
+		"arbitrary_command_execution",
+		"network_access_during_execution",
+		"owner_approval_required",
+		"default_off",
+	} {
+		t.Run(field, func(t *testing.T) {
+			var contract map[string]any
+			if err := json.Unmarshal(readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json"), &contract); err != nil {
+				t.Fatal(err)
+			}
+			environment, ok := contract["environment"].(map[string]any)
+			if !ok {
+				t.Fatal("scenario fixture environment is not an object")
+			}
+			delete(environment, field)
+			data, err := json.Marshal(contract)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ParseDefenseValidationScenarioV02(data); err == nil || !strings.Contains(err.Error(), field) {
+				t.Fatalf("missing scenario environment field %q was accepted: %v", field, err)
 			}
 		})
 	}

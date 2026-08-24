@@ -1,11 +1,13 @@
 package defense_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -44,7 +46,9 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scenario := realScenarioV04(t)
+	approved := realSafeTxV04(cfg, big.NewInt(1_000_000_000_000_000_000))
+	mutated := realSafeTxV04(cfg, big.NewInt(2_000_000_000_000_000_000))
+	scenario := realScenarioV04(t, cfg, approved)
 	scenarioHash, err := defense.DefenseValidationScenarioDigestV02(scenario)
 	if err != nil {
 		t.Fatal(err)
@@ -57,9 +61,6 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	approved := realSafeTxV04(cfg, big.NewInt(1_000_000_000_000_000_000))
-	mutated := realSafeTxV04(cfg, big.NewInt(2_000_000_000_000_000_000))
 
 	benign := realValidationCaseV04(t, cfg, control, scenario, approved, approved, defense.DefenseValidationCaseBenignV02)
 	attack := realValidationCaseV04(t, cfg, control, scenario, approved, mutated, defense.DefenseValidationCaseAttackV02)
@@ -137,6 +138,10 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		t.Fatal(err)
 	}
 	action, err := executionproof.CanonicalSafeActionArtifact(candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approvedAction, err := executionproof.CanonicalSafeActionArtifact(approved)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,6 +237,8 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		MainnetTransactionSent:       false,
 		ContainmentReceipt:           receipt,
 		ExecutionProof:               proof,
+		ApprovedSafeAction:           approvedAction,
+		CandidateSafeAction:          action,
 	}, realCollectorPrivateKeyV04())
 	if err != nil {
 		t.Fatalf("collect independent real execution %s: %v", kind, err)
@@ -324,9 +331,41 @@ func realCollectorPublicKeyV04() string {
 	return base64.RawURLEncoding.EncodeToString(realCollectorPrivateKeyV04().Public().(ed25519.PublicKey))
 }
 
-func realScenarioV04(t *testing.T) defense.DefenseValidationScenarioV02 {
+func realScenarioV04(t *testing.T, cfg realAnvilValidationConfigV04, approved executionproof.SafeTransaction) defense.DefenseValidationScenarioV02 {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "docs", "defense-validation", "scenarios", "safe-intent-mutation-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var contract map[string]any
+	if err := decoder.Decode(&contract); err != nil {
+		t.Fatal(err)
+	}
+	matrix, ok := contract["matrix"].(map[string]any)
+	if !ok {
+		t.Fatal("scenario matrix is missing")
+	}
+	cases, ok := matrix["cases"].([]any)
+	if !ok {
+		t.Fatal("scenario cases are missing")
+	}
+	for _, value := range cases {
+		caseContract, ok := value.(map[string]any)
+		if !ok {
+			t.Fatal("scenario case is invalid")
+		}
+		matched, ok := caseContract["matched_values"].(map[string]any)
+		if !ok {
+			t.Fatal("scenario matched values are missing")
+		}
+		matched["safe"] = "0x" + strings.ToLower(strings.TrimPrefix(strings.TrimSpace(cfg.safe), "0x"))
+		matched["chain_id"] = json.Number(strconv.FormatUint(cfg.chainID, 10))
+		matched["treasury_asset"] = "native"
+		matched["transfer_amount"] = json.Number(approved.Value.String())
+	}
+	data, err = json.Marshal(contract)
 	if err != nil {
 		t.Fatal(err)
 	}

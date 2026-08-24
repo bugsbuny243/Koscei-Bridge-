@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -45,6 +46,8 @@ type DefenseValidationExecutionAdapterInputV02 struct {
 	Scenario               DefenseValidationScenarioV02
 	ContainmentReceipt     executioncontainment.Receipt
 	ExecutionProof         executionproof.Proof
+	ApprovedSafeAction     executioncontainment.ActionArtifact
+	CandidateSafeAction    executioncontainment.ActionArtifact
 }
 
 type DefenseValidationExecutionEvidenceV02 struct {
@@ -140,10 +143,6 @@ func AdaptExecutionIntegrityCaseV02(in DefenseValidationExecutionAdapterInputV02
 	if err != nil {
 		return DefenseValidationExecutionEvidenceV02{}, err
 	}
-	scenarioDigest, detectionDeadline, err := bindDefenseValidationExecutionScenarioV02(in, control)
-	if err != nil {
-		return DefenseValidationExecutionEvidenceV02{}, err
-	}
 	if !executioncontainment.Verify(in.ContainmentReceipt) {
 		return DefenseValidationExecutionEvidenceV02{}, errors.New("containment receipt failed recomputation")
 	}
@@ -156,30 +155,44 @@ func AdaptExecutionIntegrityCaseV02(in DefenseValidationExecutionAdapterInputV02
 	if err := bindContainmentToExecutionProofV02(in.ContainmentReceipt, in.ExecutionProof); err != nil {
 		return DefenseValidationExecutionEvidenceV02{}, err
 	}
+	approvedAction, candidateAction, err := bindDefenseValidationSafeActionsV02(in)
+	if err != nil {
+		return DefenseValidationExecutionEvidenceV02{}, err
+	}
+	scenarioDigest, detectionDeadline, err := bindDefenseValidationExecutionScenarioV02(in, control, approvedAction, candidateAction)
+	if err != nil {
+		return DefenseValidationExecutionEvidenceV02{}, err
+	}
+	controlSignaled, err := validateDefenseValidationSafeCaseSemanticsV02(in)
+	if err != nil {
+		return DefenseValidationExecutionEvidenceV02{}, err
+	}
 
 	executionHash, err := defenseValidationCanonicalHashV02(struct {
-		AdapterVersion           string                        `json:"adapter_version"`
-		ControlRef               string                        `json:"control_ref"`
-		ControlConfigurationHash string                        `json:"control_configuration_hash"`
-		ScenarioRef              string                        `json:"scenario_ref"`
-		ScenarioVersion          string                        `json:"scenario_version"`
-		ScenarioContractHash     string                        `json:"scenario_contract_hash"`
-		Chain                    string                        `json:"chain"`
-		ChainID                  uint64                        `json:"chain_id"`
-		CaseRef                  string                        `json:"case_ref"`
-		CaseKind                 string                        `json:"case_kind"`
-		TechniqueID              string                        `json:"technique_id"`
-		ExecutionMode            string                        `json:"execution_mode"`
-		ContainmentReceiptSHA256 string                        `json:"containment_receipt_sha256"`
-		ContainmentDecision      executioncontainment.Decision `json:"containment_decision"`
-		ExecutionProofSHA256     string                        `json:"execution_proof_sha256"`
-		ExecutionProofDecision   executionproof.Decision       `json:"execution_proof_decision"`
-		PreStateSHA256           string                        `json:"pre_state_sha256"`
-		PostStateSHA256          string                        `json:"post_state_sha256"`
-		ImpactOffsetMS           *int64                        `json:"impact_offset_ms,omitempty"`
-		DetectionDeadlineMS      *int64                        `json:"detection_deadline_ms,omitempty"`
-		ObservationWindowMS      int64                         `json:"observation_window_ms"`
-		MainnetTransactionSent   bool                          `json:"mainnet_transaction_sent"`
+		AdapterVersion            string                        `json:"adapter_version"`
+		ControlRef                string                        `json:"control_ref"`
+		ControlConfigurationHash  string                        `json:"control_configuration_hash"`
+		ScenarioRef               string                        `json:"scenario_ref"`
+		ScenarioVersion           string                        `json:"scenario_version"`
+		ScenarioContractHash      string                        `json:"scenario_contract_hash"`
+		Chain                     string                        `json:"chain"`
+		ChainID                   uint64                        `json:"chain_id"`
+		CaseRef                   string                        `json:"case_ref"`
+		CaseKind                  string                        `json:"case_kind"`
+		TechniqueID               string                        `json:"technique_id"`
+		ExecutionMode             string                        `json:"execution_mode"`
+		ContainmentReceiptSHA256  string                        `json:"containment_receipt_sha256"`
+		ContainmentDecision       executioncontainment.Decision `json:"containment_decision"`
+		ExecutionProofSHA256      string                        `json:"execution_proof_sha256"`
+		ExecutionProofDecision    executionproof.Decision       `json:"execution_proof_decision"`
+		ApprovedSafeActionSHA256  string                        `json:"approved_safe_action_sha256"`
+		CandidateSafeActionSHA256 string                        `json:"candidate_safe_action_sha256"`
+		PreStateSHA256            string                        `json:"pre_state_sha256"`
+		PostStateSHA256           string                        `json:"post_state_sha256"`
+		ImpactOffsetMS            *int64                        `json:"impact_offset_ms,omitempty"`
+		DetectionDeadlineMS       *int64                        `json:"detection_deadline_ms,omitempty"`
+		ObservationWindowMS       int64                         `json:"observation_window_ms"`
+		MainnetTransactionSent    bool                          `json:"mainnet_transaction_sent"`
 	}{
 		DefenseValidationExecutionAdapterVersionV02, control.ControlRef, control.ConfigurationHash,
 		strings.TrimSpace(in.Scenario.ScenarioRef), strings.TrimSpace(in.Scenario.ScenarioVersion), scenarioDigest,
@@ -187,6 +200,7 @@ func AdaptExecutionIntegrityCaseV02(in DefenseValidationExecutionAdapterInputV02
 		in.CaseRef, in.CaseKind, in.TechniqueID, in.ExecutionMode,
 		strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
 		strings.ToLower(in.ExecutionProof.EnvelopeSHA256), in.ExecutionProof.Evaluation.Decision,
+		strings.ToLower(in.ApprovedSafeAction.SHA256()), strings.ToLower(in.CandidateSafeAction.SHA256()),
 		strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256),
 		cloneDefenseValidationInt64V02(in.ImpactOffsetMS), cloneDefenseValidationInt64V02(detectionDeadline), in.ObservationWindowMS, false,
 	})
@@ -204,8 +218,7 @@ func AdaptExecutionIntegrityCaseV02(in DefenseValidationExecutionAdapterInputV02
 		DetectionDeadlineMS: cloneDefenseValidationInt64V02(detectionDeadline),
 		ObservationWindowMS: in.ObservationWindowMS, MainnetTransactionSent: false,
 	}
-	signaled := in.ContainmentReceipt.Decision != executioncontainment.DecisionRelease || in.ExecutionProof.Evaluation.Decision != executionproof.DecisionAllow
-	return DefenseValidationExecutionEvidenceV02{Case: c, ContainmentDecision: in.ContainmentReceipt.Decision, ExecutionProofDecision: in.ExecutionProof.Evaluation.Decision, ContainmentReceiptSHA256: strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), ExecutionProofSHA256: strings.ToLower(in.ExecutionProof.EnvelopeSHA256), ControlSignaled: signaled}, nil
+	return DefenseValidationExecutionEvidenceV02{Case: c, ContainmentDecision: in.ContainmentReceipt.Decision, ExecutionProofDecision: in.ExecutionProof.Evaluation.Decision, ContainmentReceiptSHA256: strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), ExecutionProofSHA256: strings.ToLower(in.ExecutionProof.EnvelopeSHA256), ControlSignaled: controlSignaled}, nil
 }
 
 func DefenseValidationObservationFindingIDV02(controlRef, caseRef string) string {
@@ -334,7 +347,7 @@ func bindDefenseValidationExecutionControlV02(control DefenseValidationControlV0
 	return expected, nil
 }
 
-func bindDefenseValidationExecutionScenarioV02(in DefenseValidationExecutionAdapterInputV02, control DefenseValidationControlV02) (string, *int64, error) {
+func bindDefenseValidationExecutionScenarioV02(in DefenseValidationExecutionAdapterInputV02, control DefenseValidationControlV02, approvedAction, candidateAction executionproof.SafeTransaction) (string, *int64, error) {
 	if !defenseValidationScenarioHasCompleteContractV02(in.Scenario) {
 		return "", nil, errors.New("execution integrity scenario must retain the complete parsed contract")
 	}
@@ -358,12 +371,145 @@ func bindDefenseValidationExecutionScenarioV02(in DefenseValidationExecutionAdap
 		if strings.TrimSpace(scenarioCase.CaseKind) != in.CaseKind || scenarioCase.ObservationWindowMS != in.ObservationWindowMS || !equalDefenseAuthorityInt64PointersV01(scenarioCase.ImpactDeadlineMS, in.ImpactOffsetMS) {
 			return "", nil, errors.New("execution integrity evidence does not match its scenario case contract")
 		}
+		if err := validateDefenseValidationExecutionScenarioCaseBindingV02(in, scenarioCase, approvedAction, candidateAction); err != nil {
+			return "", nil, err
+		}
 		detectionDeadline = cloneDefenseValidationInt64V02(scenarioCase.ExpectedControlBehavior.LatestDetectionOffsetMS)
 	}
 	if matched != 1 {
 		return "", nil, errors.New("execution integrity case is not an exact scenario member")
 	}
 	return digest, detectionDeadline, nil
+}
+
+func bindDefenseValidationSafeActionsV02(in DefenseValidationExecutionAdapterInputV02) (executionproof.SafeTransaction, executionproof.SafeTransaction, error) {
+	approved, err := executionproof.DecodeCanonicalSafeActionArtifact(in.ApprovedSafeAction)
+	if err != nil {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, fmt.Errorf("decode approved Safe action: %w", err)
+	}
+	candidate, err := executionproof.DecodeCanonicalSafeActionArtifact(in.CandidateSafeAction)
+	if err != nil {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, fmt.Errorf("decode candidate Safe action: %w", err)
+	}
+	if !strings.EqualFold(approved.Safe, candidate.Safe) || approved.ChainID != candidate.ChainID {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, errors.New("approved and candidate Safe actions do not share the matched Safe and chain")
+	}
+	if !strings.EqualFold(in.CandidateSafeAction.SHA256(), in.ContainmentReceipt.Input.ActionSHA256) {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, errors.New("candidate Safe action does not match containment action digest")
+	}
+	computer := executionproof.NativeSafeTxHashComputer{}
+	approvedHash, err := computer.ComputeSafeTxHash(approved)
+	if err != nil {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, fmt.Errorf("compute approved Safe action hash: %w", err)
+	}
+	candidateHash, err := computer.ComputeSafeTxHash(candidate)
+	if err != nil {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, fmt.Errorf("compute candidate Safe action hash: %w", err)
+	}
+	approvedPayload := sha256.Sum256(approved.Data)
+	candidatePayload := sha256.Sum256(candidate.Data)
+	if !strings.EqualFold(strings.TrimPrefix(approvedHash, "0x"), in.ContainmentReceipt.Input.ApprovedIntentSHA256) ||
+		!strings.EqualFold(strings.TrimPrefix(candidateHash, "0x"), in.ContainmentReceipt.Input.CandidateIntentSHA256) ||
+		!strings.EqualFold(hex.EncodeToString(approvedPayload[:]), in.ContainmentReceipt.Input.ApprovedPayloadSHA256) ||
+		!strings.EqualFold(hex.EncodeToString(candidatePayload[:]), in.ContainmentReceipt.Input.CandidatePayloadSHA256) ||
+		!strings.EqualFold(strings.TrimPrefix(approvedHash, "0x"), strings.TrimPrefix(in.ExecutionProof.Envelope.Authorization.ApprovedSigningRequestID, "0x")) ||
+		approved.ChainID != in.ExecutionProof.Envelope.Payload.ChainID || candidate.ChainID != in.ExecutionProof.Envelope.Payload.ChainID ||
+		!strings.EqualFold(candidate.To, in.ExecutionProof.Envelope.Payload.Target) {
+		return executionproof.SafeTransaction{}, executionproof.SafeTransaction{}, errors.New("Safe action material does not match containment and execution proof evidence")
+	}
+	return approved, candidate, nil
+}
+
+func validateDefenseValidationExecutionScenarioCaseBindingV02(in DefenseValidationExecutionAdapterInputV02, scenarioCase DefenseValidationScenarioCaseV02, approved, candidate executionproof.SafeTransaction) error {
+	if approved.Value.Sign() <= 0 || candidate.Value.Sign() <= 0 {
+		return errors.New("Safe treasury scenario requires evidenced native-asset value")
+	}
+	actual := map[string]any{
+		"safe":                  normalizeDefenseValidationEVMAddressV02(approved.Safe),
+		"chain_id":              approved.ChainID,
+		"treasury_asset":        "native",
+		"transfer_amount":       json.Number(approved.Value.String()),
+		"observation_window_ms": in.ObservationWindowMS,
+	}
+	for _, declaredField := range in.Scenario.Matrix.MatchedFields {
+		field := strings.TrimSpace(declaredField)
+		observed, supported := actual[field]
+		if !supported {
+			return fmt.Errorf("execution integrity scenario matched field %q has no execution-evidence binding", field)
+		}
+		expectedJSON, exists := scenarioCase.MatchedValues[field]
+		if !exists {
+			return fmt.Errorf("execution integrity scenario case is missing matched field %q", field)
+		}
+		expected, err := canonicalizeDefenseValidationScenarioJSONV02(expectedJSON)
+		if err != nil {
+			return fmt.Errorf("canonicalize execution integrity matched field %q: %w", field, err)
+		}
+		observedJSON, err := json.Marshal(observed)
+		if err != nil {
+			return fmt.Errorf("encode execution integrity matched field %q: %w", field, err)
+		}
+		if !bytes.Equal(expected, observedJSON) {
+			return fmt.Errorf("execution integrity evidence does not match scenario field %q", field)
+		}
+	}
+	return nil
+}
+
+func validateDefenseValidationSafeCaseSemanticsV02(in DefenseValidationExecutionAdapterInputV02) (bool, error) {
+	if strings.TrimSpace(in.Scenario.Matrix.SingleSecurityDifference) != "approved_intent_and_executable_action_identity" {
+		return false, errors.New("execution integrity adapter requires the declared Safe intent/action identity difference")
+	}
+	actionsMatch := strings.EqualFold(in.ApprovedSafeAction.SHA256(), in.CandidateSafeAction.SHA256())
+	intentOrPayloadMismatch := !strings.EqualFold(in.ContainmentReceipt.Input.ApprovedIntentSHA256, in.ContainmentReceipt.Input.CandidateIntentSHA256) ||
+		!strings.EqualFold(in.ContainmentReceipt.Input.ApprovedPayloadSHA256, in.ContainmentReceipt.Input.CandidatePayloadSHA256)
+
+	switch in.CaseKind {
+	case DefenseValidationCaseAttackV02:
+		if actionsMatch || !intentOrPayloadMismatch || in.ContainmentReceipt.Decision != executioncontainment.DecisionContain ||
+			!containsDefenseValidationContainmentReasonV02(in.ContainmentReceipt.Reasons, executioncontainment.ReasonIntentMismatch) {
+			return false, errors.New("Safe attack did not exercise the scenario-declared intent or payload mismatch")
+		}
+		for _, reason := range in.ContainmentReceipt.Reasons {
+			switch reason {
+			case executioncontainment.ReasonIntentMismatch,
+				executioncontainment.ReasonAuthorityChanged,
+				executioncontainment.ReasonAssetBoundsExceeded,
+				executioncontainment.ReasonCodeIntegrityChanged,
+				executioncontainment.ReasonHiddenExecutionPath,
+				executioncontainment.ReasonInvariantFailed:
+			default:
+				return false, fmt.Errorf("Safe attack containment includes unrelated reason %q", reason)
+			}
+		}
+		for _, reason := range in.ExecutionProof.Evaluation.Reasons {
+			if reason != executionproof.ReasonPayloadMismatch && reason != executionproof.ReasonInvariantFailed {
+				return false, fmt.Errorf("Safe attack Execution Proof includes unrelated reason %q", reason)
+			}
+		}
+		return true, nil
+	case DefenseValidationCaseBenignV02:
+		if !actionsMatch || intentOrPayloadMismatch || in.ContainmentReceipt.Decision != executioncontainment.DecisionRelease || len(in.ContainmentReceipt.Reasons) != 0 ||
+			in.ExecutionProof.Evaluation.Decision != executionproof.DecisionAllow || len(in.ExecutionProof.Evaluation.Reasons) != 0 {
+			return false, errors.New("Safe benign case requires an identical action, unqualified release, and ALLOW proof")
+		}
+		return false, nil
+	default:
+		return false, fmt.Errorf("unsupported case kind %q", in.CaseKind)
+	}
+}
+
+func containsDefenseValidationContainmentReasonV02(values []executioncontainment.ReasonCode, wanted executioncontainment.ReasonCode) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeDefenseValidationEVMAddressV02(value string) string {
+	return "0x" + strings.ToLower(strings.TrimPrefix(strings.TrimSpace(value), "0x"))
 }
 
 func requireDefenseValidationCollectorPublicKeyV02(value string) (string, error) {

@@ -17,7 +17,7 @@ The same workflow now feeds real isolated execution artifacts through Execution 
 The v0.4 acceptance runs two matched cases against fresh child forks of the same pinned source state:
 
 1. **Benign control** — the approved 1 ETH Safe native transfer is executed exactly. The exact Safe intent matches, observed authority/code/trace/effect invariants hold, Execution Containment returns `RELEASE`, the independent observation is `NO_ALERT`, and Defense Validation returns `CLEAN`.
-2. **Intent mutation attack** — the approved Safe transaction is mutated from 1 ETH to 2 ETH while keeping the same Safe and target. The locally recomputed Safe EIP-712 transaction identity changes. Execution Containment returns `CONTAIN` with `EC-004-INTENT-MISMATCH`, the independent collector binds the signaled control to the completed observation window, and Defense Validation returns `CAUGHT_IN_TIME`.
+2. **Intent mutation attack** — the approved Safe transaction is mutated from 1 ETH to 2 ETH while keeping the same Safe and target. The locally recomputed Safe EIP-712 transaction identity changes. The adapter rebinds the approved and candidate canonical actions and requires the declared mismatch plus `EC-004-INTENT-MISMATCH`; unrelated containment failures cannot stand in for this attack. Execution Containment returns `CONTAIN`, the independent collector binds the signaled control to the completed observation window, and Defense Validation returns `CAUGHT_IN_TIME`.
 
 The matched benign + attack matrix produces the deterministic Defense Validation verdict `VALIDATED` under `koschei-defense-validation-rules-v0.2.0`.
 
@@ -72,7 +72,7 @@ No field supplied by a UI or model is verdict authority.
 
 ## Independent collector boundary
 
-`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the raw Execution Containment receipt, raw Execution Proof and complete scenario contract, recomputes the execution evidence through the deterministic Defense Validation adapter, enforces a distinct collector identity, binds the completed observation window, and signs a sealed Security Evidence Bus event with Ed25519. The trusted collector public key is part of the exact control configuration hash. Final evaluation recomputes the complete scenario digest and requires the exact declared case set for every tested control; omitted cases cannot yield `VALIDATED`.
+`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the canonical approved and candidate Safe actions, raw Execution Containment receipt, raw Execution Proof and complete scenario contract. It decodes both actions, recomputes their Safe transaction hashes and calldata digests, binds them back to the receipt/proof, compares every scenario-matched value, recomputes the execution evidence, enforces a distinct collector identity, binds the completed observation window, and signs a sealed Security Evidence Bus event with Ed25519. The trusted collector public key is part of the exact control configuration hash. Final evaluation recomputes the complete scenario digest and requires the exact declared case set for every tested control; omitted cases cannot yield `VALIDATED`.
 
 The collector rejects:
 

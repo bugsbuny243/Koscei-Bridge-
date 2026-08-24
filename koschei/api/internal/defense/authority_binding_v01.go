@@ -58,6 +58,8 @@ type DefenseAuthorityEvidenceTrustV01 struct {
 	PrincipalPublicKey       string `json:"principal_public_key"`
 	AuthorizationProducerRef string `json:"authorization_producer_ref"`
 	AuthorizationPublicKey   string `json:"authorization_public_key"`
+	NativeRunnerProducerRef  string `json:"native_runner_producer_ref"`
+	NativeRunnerPublicKey    string `json:"native_runner_public_key"`
 }
 
 type DefenseAuthorityBindingEvidenceV01 struct {
@@ -106,28 +108,30 @@ type DefenseAuthorityIntegrityConfigV01 struct {
 }
 
 type DefenseAuthorityExecutionAdapterInputV01 struct {
-	CaseRef                string
-	CaseKind               string
-	TechniqueID            string
-	ExecutionMode          string
-	ImpactOffsetMS         *int64
-	ObservationWindowMS    int64
-	MainnetTransactionSent bool
-	Control                DefenseValidationControlV02
-	Scenario               DefenseValidationScenarioV02
-	EvidenceTrust          DefenseAuthorityEvidenceTrustV01
-	Binding                DefenseAuthorityBindingResultV01
-	ContainmentReceipt     executioncontainment.Receipt
+	CaseRef                    string
+	CaseKind                   string
+	TechniqueID                string
+	ExecutionMode              string
+	ImpactOffsetMS             *int64
+	ObservationWindowMS        int64
+	MainnetTransactionSent     bool
+	Control                    DefenseValidationControlV02
+	Scenario                   DefenseValidationScenarioV02
+	EvidenceTrust              DefenseAuthorityEvidenceTrustV01
+	Binding                    DefenseAuthorityBindingResultV01
+	ContainmentReceipt         executioncontainment.Receipt
+	NativeExecutionAttestation DefenseAuthorityNativeExecutionAttestationV01
 }
 
 type DefenseAuthorityExecutionEvidenceV01 struct {
-	Case                     DefenseValidationCaseV02
-	Chain                    string
-	ChainID                  uint64
-	ContainmentDecision      executioncontainment.Decision
-	ContainmentReceiptSHA256 string
-	AuthorityBindingSHA256   string
-	ControlSignaled          bool
+	Case                             DefenseValidationCaseV02
+	Chain                            string
+	ChainID                          uint64
+	ContainmentDecision              executioncontainment.Decision
+	ContainmentReceiptSHA256         string
+	AuthorityBindingSHA256           string
+	NativeExecutionAttestationSHA256 string
+	ControlSignaled                  bool
 }
 
 type DefenseAuthorityObservationBindingV01 struct {
@@ -242,10 +246,13 @@ func NewAuthorityIntegrityControlV01(controlRef, collectorRef string, cfg Defens
 		return DefenseValidationControlV02{}, fmt.Errorf("independent collector trust: %w", err)
 	}
 	cfg.CollectorPublicKey = collectorPublicKey
-	if collectorRef == trust.PrincipalProducerRef || collectorRef == trust.AuthorizationProducerRef {
+	if controlRef == trust.PrincipalProducerRef || controlRef == trust.AuthorizationProducerRef || controlRef == trust.NativeRunnerProducerRef {
+		return DefenseValidationControlV02{}, errors.New("control identity must differ from authority and native-runner evidence producers")
+	}
+	if collectorRef == trust.PrincipalProducerRef || collectorRef == trust.AuthorizationProducerRef || collectorRef == trust.NativeRunnerProducerRef {
 		return DefenseValidationControlV02{}, errors.New("independent collector identity must differ from authority evidence producers")
 	}
-	if collectorPublicKey == trust.PrincipalPublicKey || collectorPublicKey == trust.AuthorizationPublicKey {
+	if collectorPublicKey == trust.PrincipalPublicKey || collectorPublicKey == trust.AuthorizationPublicKey || collectorPublicKey == trust.NativeRunnerPublicKey {
 		return DefenseValidationControlV02{}, errors.New("independent collector key must differ from authority evidence trust keys")
 	}
 	if cfg.SchemaVersion != DefenseAuthorityExecutionAdapterVersionV01 || cfg.AuthorityBindingVersion != DefenseAuthorityBindingVersionV01 || cfg.ExecutionContainmentVersion != executioncontainment.Version {
@@ -307,6 +314,13 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 	if err := bindDefenseAuthorityReceiptV01(in.Binding.Evidence, in.ContainmentReceipt); err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
+	in.NativeExecutionAttestation = normalizeDefenseAuthorityNativeExecutionAttestationV01(in.NativeExecutionAttestation)
+	nativeExecutionAttestationSHA256, err := verifyDefenseAuthorityNativeExecutionAttestationV01(
+		in.NativeExecutionAttestation, in.EvidenceTrust, in.ExecutionMode, in.Binding, in.ContainmentReceipt,
+	)
+	if err != nil {
+		return DefenseAuthorityExecutionEvidenceV01{}, fmt.Errorf("verify native authority execution: %w", err)
+	}
 	if err := validateDefenseAuthorityCaseSemanticsV01(in.CaseKind, in.Binding, in.ContainmentReceipt); err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
@@ -316,36 +330,39 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 	}
 
 	executionHash, err := defenseAuthorityCanonicalSHA256V01(struct {
-		AdapterVersion           string                        `json:"adapter_version"`
-		ControlRef               string                        `json:"control_ref"`
-		ControlConfigurationHash string                        `json:"control_configuration_hash"`
-		ScenarioRef              string                        `json:"scenario_ref"`
-		ScenarioVersion          string                        `json:"scenario_version"`
-		ScenarioContractHash     string                        `json:"scenario_contract_hash"`
-		Chain                    string                        `json:"chain"`
-		ChainID                  uint64                        `json:"chain_id"`
-		CaseRef                  string                        `json:"case_ref"`
-		CaseKind                 string                        `json:"case_kind"`
-		TechniqueID              string                        `json:"technique_id"`
-		ExecutionMode            string                        `json:"execution_mode"`
-		AuthorityBindingSHA256   string                        `json:"authority_binding_sha256"`
-		ContainmentReceiptSHA256 string                        `json:"containment_receipt_sha256"`
-		ContainmentDecision      executioncontainment.Decision `json:"containment_decision"`
-		CallPayloadSHA256        string                        `json:"call_payload_sha256"`
-		PreStateSHA256           string                        `json:"pre_state_sha256"`
-		PostStateSHA256          string                        `json:"post_state_sha256"`
-		DebitEffectSHA256        string                        `json:"debit_effect_sha256"`
-		ModuleRoute              string                        `json:"module_route"`
-		RequestedAmount          uint64                        `json:"requested_amount"`
-		ImpactOffsetMS           *int64                        `json:"impact_offset_ms,omitempty"`
-		DetectionDeadlineMS      *int64                        `json:"detection_deadline_ms,omitempty"`
-		ObservationWindowMS      int64                         `json:"observation_window_ms"`
+		AdapterVersion                   string                        `json:"adapter_version"`
+		ControlRef                       string                        `json:"control_ref"`
+		ControlConfigurationHash         string                        `json:"control_configuration_hash"`
+		ScenarioRef                      string                        `json:"scenario_ref"`
+		ScenarioVersion                  string                        `json:"scenario_version"`
+		ScenarioContractHash             string                        `json:"scenario_contract_hash"`
+		Chain                            string                        `json:"chain"`
+		ChainID                          uint64                        `json:"chain_id"`
+		CaseRef                          string                        `json:"case_ref"`
+		CaseKind                         string                        `json:"case_kind"`
+		TechniqueID                      string                        `json:"technique_id"`
+		ExecutionMode                    string                        `json:"execution_mode"`
+		AuthorityBindingSHA256           string                        `json:"authority_binding_sha256"`
+		NativeExecutionAttestationSHA256 string                        `json:"native_execution_attestation_sha256"`
+		NativeAuthorizationTraceSHA256   string                        `json:"native_authorization_trace_sha256"`
+		ContainmentReceiptSHA256         string                        `json:"containment_receipt_sha256"`
+		ContainmentDecision              executioncontainment.Decision `json:"containment_decision"`
+		CallPayloadSHA256                string                        `json:"call_payload_sha256"`
+		PreStateSHA256                   string                        `json:"pre_state_sha256"`
+		PostStateSHA256                  string                        `json:"post_state_sha256"`
+		DebitEffectSHA256                string                        `json:"debit_effect_sha256"`
+		ModuleRoute                      string                        `json:"module_route"`
+		RequestedAmount                  uint64                        `json:"requested_amount"`
+		ImpactOffsetMS                   *int64                        `json:"impact_offset_ms,omitempty"`
+		DetectionDeadlineMS              *int64                        `json:"detection_deadline_ms,omitempty"`
+		ObservationWindowMS              int64                         `json:"observation_window_ms"`
 	}{
 		DefenseAuthorityExecutionAdapterVersionV01, control.ControlRef, control.ConfigurationHash,
 		strings.TrimSpace(in.Scenario.ScenarioRef), strings.TrimSpace(in.Scenario.ScenarioVersion), scenarioDigest,
 		in.Binding.Evidence.Chain, in.Binding.Evidence.ChainID,
 		in.CaseRef, in.CaseKind, in.TechniqueID, in.ExecutionMode,
-		strings.ToLower(in.Binding.BindingSHA256), strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
+		strings.ToLower(in.Binding.BindingSHA256), strings.ToLower(nativeExecutionAttestationSHA256),
+		strings.ToLower(in.NativeExecutionAttestation.NativeAuthorizationTraceSHA256), strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
 		strings.ToLower(in.ContainmentReceipt.Input.CandidatePayloadSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256),
 		strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.EffectSetSHA256),
 		in.Binding.Evidence.ModuleRoute, in.Binding.Evidence.RequestedAmount,
@@ -368,10 +385,11 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 	}
 	return DefenseAuthorityExecutionEvidenceV01{
 		Case: validationCase, Chain: in.Binding.Evidence.Chain, ChainID: in.Binding.Evidence.ChainID,
-		ContainmentDecision:      in.ContainmentReceipt.Decision,
-		ContainmentReceiptSHA256: strings.ToLower(in.ContainmentReceipt.ReceiptSHA256),
-		AuthorityBindingSHA256:   strings.ToLower(in.Binding.BindingSHA256),
-		ControlSignaled:          !in.Binding.Preserved,
+		ContainmentDecision:              in.ContainmentReceipt.Decision,
+		ContainmentReceiptSHA256:         strings.ToLower(in.ContainmentReceipt.ReceiptSHA256),
+		AuthorityBindingSHA256:           strings.ToLower(in.Binding.BindingSHA256),
+		NativeExecutionAttestationSHA256: strings.ToLower(nativeExecutionAttestationSHA256),
+		ControlSignaled:                  !in.Binding.Preserved,
 	}, nil
 }
 
@@ -437,8 +455,10 @@ func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationContr
 	if canonical.Window.ToUnixMS-canonical.Window.FromUnixMS < binding.ObservationCompletedOffsetMS {
 		return DefenseValidationObservationV02{}, errors.New("authority event window is incomplete")
 	}
-	if !containsDefenseValidationDigestV02(canonical.SourceDigests, execution.ContainmentReceiptSHA256) || !containsDefenseValidationDigestV02(canonical.SourceDigests, execution.AuthorityBindingSHA256) {
-		return DefenseValidationObservationV02{}, errors.New("authority event is not bound to containment and authority evidence")
+	if !containsDefenseValidationDigestV02(canonical.SourceDigests, execution.ContainmentReceiptSHA256) ||
+		!containsDefenseValidationDigestV02(canonical.SourceDigests, execution.AuthorityBindingSHA256) ||
+		!containsDefenseValidationDigestV02(canonical.SourceDigests, execution.NativeExecutionAttestationSHA256) {
+		return DefenseValidationObservationV02{}, errors.New("authority event is not bound to containment, authority, and native execution evidence")
 	}
 	findingID := DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef)
 	matched := 0
@@ -708,8 +728,11 @@ func requireDefenseAuthorityEvidenceTrustV01(values []DefenseAuthorityEvidenceTr
 	trust.PrincipalPublicKey = strings.TrimSpace(trust.PrincipalPublicKey)
 	trust.AuthorizationProducerRef = strings.TrimSpace(trust.AuthorizationProducerRef)
 	trust.AuthorizationPublicKey = strings.TrimSpace(trust.AuthorizationPublicKey)
-	if trust.PrincipalProducerRef == "" || trust.AuthorizationProducerRef == "" || trust.PrincipalProducerRef == trust.AuthorizationProducerRef {
-		return DefenseAuthorityEvidenceTrustV01{}, errors.New("distinct trusted authority evidence producers are required")
+	trust.NativeRunnerProducerRef = strings.TrimSpace(trust.NativeRunnerProducerRef)
+	trust.NativeRunnerPublicKey = strings.TrimSpace(trust.NativeRunnerPublicKey)
+	if trust.PrincipalProducerRef == "" || trust.AuthorizationProducerRef == "" || trust.NativeRunnerProducerRef == "" ||
+		trust.PrincipalProducerRef == trust.AuthorizationProducerRef || trust.PrincipalProducerRef == trust.NativeRunnerProducerRef || trust.AuthorizationProducerRef == trust.NativeRunnerProducerRef {
+		return DefenseAuthorityEvidenceTrustV01{}, errors.New("distinct trusted authority and native-runner evidence producers are required")
 	}
 	principalKey, err := decodeDefenseAuthorityBase64V01(trust.PrincipalPublicKey, ed25519.PublicKeySize)
 	if err != nil {
@@ -719,8 +742,12 @@ func requireDefenseAuthorityEvidenceTrustV01(values []DefenseAuthorityEvidenceTr
 	if err != nil {
 		return DefenseAuthorityEvidenceTrustV01{}, fmt.Errorf("authorization trust key: %w", err)
 	}
-	if string(principalKey) == string(authorizationKey) {
-		return DefenseAuthorityEvidenceTrustV01{}, errors.New("principal and authorization evidence require distinct trust keys")
+	nativeRunnerKey, err := decodeDefenseAuthorityBase64V01(trust.NativeRunnerPublicKey, ed25519.PublicKeySize)
+	if err != nil {
+		return DefenseAuthorityEvidenceTrustV01{}, fmt.Errorf("native runner trust key: %w", err)
+	}
+	if string(principalKey) == string(authorizationKey) || string(principalKey) == string(nativeRunnerKey) || string(authorizationKey) == string(nativeRunnerKey) {
+		return DefenseAuthorityEvidenceTrustV01{}, errors.New("authority and native-runner evidence require distinct trust keys")
 	}
 	return trust, nil
 }

@@ -34,6 +34,8 @@ type RequestV03 struct {
 	MainnetTransactionSent       bool                                 `json:"mainnet_transaction_sent"`
 	ContainmentReceipt           executioncontainment.Receipt         `json:"containment_receipt"`
 	ExecutionProof               executionproof.Proof                 `json:"execution_proof"`
+	ApprovedSafeAction           executioncontainment.ActionArtifact  `json:"approved_safe_action"`
+	CandidateSafeAction          executioncontainment.ActionArtifact  `json:"candidate_safe_action"`
 }
 
 type ResultV03 struct {
@@ -91,6 +93,8 @@ func CollectV03(request RequestV03, collectorPrivateKey ed25519.PrivateKey) (Res
 		Scenario:               request.Scenario,
 		ContainmentReceipt:     request.ContainmentReceipt,
 		ExecutionProof:         request.ExecutionProof,
+		ApprovedSafeAction:     request.ApprovedSafeAction,
+		CandidateSafeAction:    request.CandidateSafeAction,
 	})
 	if err != nil {
 		return ResultV03{}, fmt.Errorf("recompute execution evidence: %w", err)

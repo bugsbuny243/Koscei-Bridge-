@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -23,25 +24,19 @@ func TestSafeIntentMutationWeakBindingFailsAndExactBindingValidates(t *testing.T
 	}
 	approved, mutated := dvSafeTransactions()
 
-	weakAttack := dvExecution(t, approved, mutated, true, DefenseValidationCaseAttackV02)
-	benign := dvExecution(t, approved, approved, false, DefenseValidationCaseBenignV02)
-	weakReport, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:weak", Scenario: scenario, ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
-		Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{weakAttack.Case, benign.Case},
-		Observations: []DefenseValidationObservationV02{dvObservation(t, control, weakAttack, nil), dvObservation(t, control, benign, nil)},
+	weakProof, weakReceipt := dvProofAndReceipt(t, approved, mutated, true)
+	impact := int64(1000)
+	_, err = AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{
+		CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02,
+		TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02,
+		ImpactOffsetMS: &impact, ObservationWindowMS: 3000, Control: control, Scenario: scenario,
+		ContainmentReceipt: weakReceipt, ExecutionProof: weakProof,
+		ApprovedSafeAction: dvAction(t, mutated), CandidateSafeAction: dvAction(t, mutated),
 	})
-	if err != nil {
-		t.Fatal(err)
+	if err == nil || !strings.Contains(err.Error(), "scenario-declared intent or payload mismatch") {
+		t.Fatalf("weak approved-action rebinding was accepted as the declared attack: %v", err)
 	}
-	if weakReport.Verdict != DefenseValidationVerdictFailedV02 {
-		t.Fatalf("weak verdict=%s", weakReport.Verdict)
-	}
-	if got := dvCaseResult(t, weakReport, weakAttack.Case.CaseRef); got.Outcome != DefenseValidationOutcomeMissedV02 {
-		t.Fatalf("weak attack outcome=%s", got.Outcome)
-	}
-	if weakAttack.ControlSignaled {
-		t.Fatal("weak binding unexpectedly signaled")
-	}
+	benign := dvExecution(t, approved, approved, false, DefenseValidationCaseBenignV02)
 
 	exactAttack := dvExecution(t, approved, mutated, false, DefenseValidationCaseAttackV02)
 	alert := int64(120)
@@ -129,9 +124,129 @@ func TestDefenseValidationAdapterRejectsTamperedExecutionProof(t *testing.T) {
 	proof, receipt := dvProofAndReceipt(t, approved, mutated, false)
 	proof.Evaluation.Decision = executionproof.DecisionAllow
 	impact := int64(1000)
-	_, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof})
+	_, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: &impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof, ApprovedSafeAction: dvAction(t, approved), CandidateSafeAction: dvAction(t, mutated)})
 	if err == nil {
 		t.Fatal("tampered proof accepted")
+	}
+}
+
+func TestExecutionIntegrityAdapterBindsEveryDeclaredScenarioValue(t *testing.T) {
+	tests := map[string]struct {
+		mutateActions  func(*executionproof.SafeTransaction, *executionproof.SafeTransaction)
+		mutateScenario func([]byte) []byte
+	}{
+		"safe": {mutateActions: func(approved, candidate *executionproof.SafeTransaction) {
+			approved.Safe = "0x3333333333333333333333333333333333333333"
+			candidate.Safe = approved.Safe
+		}},
+		"chain_id": {mutateActions: func(approved, candidate *executionproof.SafeTransaction) {
+			approved.ChainID = 31338
+			candidate.ChainID = approved.ChainID
+		}},
+		"transfer_amount": {mutateActions: func(approved, candidate *executionproof.SafeTransaction) {
+			approved.Value = big.NewInt(2_000_000_000_000_000_000)
+			candidate.Value = new(big.Int).Set(approved.Value)
+		}},
+		"treasury_asset": {mutateScenario: func(data []byte) []byte {
+			return bytes.ReplaceAll(data, []byte(`"treasury_asset": "native"`), []byte(`"treasury_asset": "erc20"`))
+		}},
+	}
+	for field, test := range tests {
+		t.Run(field, func(t *testing.T) {
+			approved, _ := dvSafeTransactions()
+			candidate := approved
+			if test.mutateActions != nil {
+				test.mutateActions(&approved, &candidate)
+			}
+			data := readDefenseValidationScenarioFixtureBytesV02(t, "safe-intent-mutation-v1.json")
+			if test.mutateScenario != nil {
+				data = test.mutateScenario(data)
+			}
+			scenario, err := ParseDefenseValidationScenarioV02(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			proof, receipt := dvProofAndReceipt(t, approved, candidate, false)
+			_, err = AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{
+				CaseRef: "case:evm:safe-authorized-transfer-benign", CaseKind: DefenseValidationCaseBenignV02,
+				TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02,
+				ObservationWindowMS: 3000, Control: dvControl(t), Scenario: scenario,
+				ContainmentReceipt: receipt, ExecutionProof: proof,
+				ApprovedSafeAction: dvAction(t, approved), CandidateSafeAction: dvAction(t, candidate),
+			})
+			if err == nil || !strings.Contains(err.Error(), `scenario field "`+field+`"`) {
+				t.Fatalf("execution mismatch for %q was accepted: %v", field, err)
+			}
+		})
+	}
+}
+
+func TestExecutionIntegrityAdapterRejectsUnboundSafeActionMaterial(t *testing.T) {
+	approved, mutated := dvSafeTransactions()
+	proof, receipt := dvProofAndReceipt(t, approved, mutated, false)
+	base := DefenseValidationExecutionAdapterInputV02{
+		CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02,
+		TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02,
+		ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"),
+		ContainmentReceipt: receipt, ExecutionProof: proof,
+		ApprovedSafeAction: dvAction(t, approved), CandidateSafeAction: dvAction(t, mutated),
+	}
+	impact := int64(1000)
+	base.ImpactOffsetMS = &impact
+
+	wrongCandidate := base
+	wrongCandidate.CandidateSafeAction = dvAction(t, approved)
+	if _, err := AdaptExecutionIntegrityCaseV02(wrongCandidate); err == nil || !strings.Contains(err.Error(), "containment action digest") {
+		t.Fatalf("unbound candidate Safe action was accepted: %v", err)
+	}
+
+	wrongApproved := base
+	wrongApproved.ApprovedSafeAction = dvAction(t, mutated)
+	if _, err := AdaptExecutionIntegrityCaseV02(wrongApproved); err == nil || !strings.Contains(err.Error(), "does not match containment and execution proof") {
+		t.Fatalf("unbound approved Safe action was accepted: %v", err)
+	}
+}
+
+func TestExecutionIntegrityAdapterRequiresDeclaredSafeIntentMismatchSignal(t *testing.T) {
+	approved, mutated := dvSafeTransactions()
+	impact := int64(1000)
+	base := DefenseValidationExecutionAdapterInputV02{
+		CaseRef: "case:evm:safe-intent-mutation-attack", CaseKind: DefenseValidationCaseAttackV02,
+		TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02,
+		ImpactOffsetMS: &impact, ObservationWindowMS: 3000, Control: dvControl(t),
+		Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"),
+	}
+
+	proof, release := dvProofAndReceipt(t, approved, approved, false)
+	unrelatedObservation := release.Observation
+	unrelatedObservation.AuthorityPreserved = false
+	unrelated, err := executioncontainment.Evaluate(release.Input, unrelatedObservation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unchanged := base
+	unchanged.ContainmentReceipt = unrelated
+	unchanged.ExecutionProof = proof
+	unchanged.ApprovedSafeAction = dvAction(t, approved)
+	unchanged.CandidateSafeAction = dvAction(t, approved)
+	if _, err := AdaptExecutionIntegrityCaseV02(unchanged); err == nil || !strings.Contains(err.Error(), "scenario-declared intent or payload mismatch") {
+		t.Fatalf("unchanged action contained for an unrelated reason was accepted as the Safe attack: %v", err)
+	}
+
+	proof, receipt := dvProofAndReceipt(t, approved, mutated, false)
+	unrelatedObservation = receipt.Observation
+	unrelatedObservation.ObservedBlockNumber++
+	receipt, err = executioncontainment.Evaluate(receipt.Input, unrelatedObservation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withPinnedStateFailure := base
+	withPinnedStateFailure.ContainmentReceipt = receipt
+	withPinnedStateFailure.ExecutionProof = proof
+	withPinnedStateFailure.ApprovedSafeAction = dvAction(t, approved)
+	withPinnedStateFailure.CandidateSafeAction = dvAction(t, mutated)
+	if _, err := AdaptExecutionIntegrityCaseV02(withPinnedStateFailure); err == nil || !strings.Contains(err.Error(), "unrelated reason") {
+		t.Fatalf("Safe attack with unrelated pinned-state failure was accepted: %v", err)
 	}
 }
 
@@ -157,7 +272,7 @@ func dvControl(t *testing.T) DefenseValidationControlV02 {
 }
 
 func dvSafeTransactions() (executionproof.SafeTransaction, executionproof.SafeTransaction) {
-	approved := executionproof.SafeTransaction{ChainID: 31337, Safe: "0x1111111111111111111111111111111111111111", To: "0x2222222222222222222222222222222222222222", Value: big.NewInt(0), Data: []byte{0xaa, 0xbb, 0xcc, 0x01}, Operation: 0, SafeTxGas: big.NewInt(50000), BaseGas: big.NewInt(21000), GasPrice: big.NewInt(0), GasToken: "0x0000000000000000000000000000000000000000", RefundReceiver: "0x0000000000000000000000000000000000000000", Nonce: big.NewInt(7)}
+	approved := executionproof.SafeTransaction{ChainID: 31337, Safe: "0x1111111111111111111111111111111111111111", To: "0x2222222222222222222222222222222222222222", Value: big.NewInt(1_000_000_000_000_000_000), Data: []byte{0xaa, 0xbb, 0xcc, 0x01}, Operation: 0, SafeTxGas: big.NewInt(50000), BaseGas: big.NewInt(21000), GasPrice: big.NewInt(0), GasToken: "0x0000000000000000000000000000000000000000", RefundReceiver: "0x0000000000000000000000000000000000000000", Nonce: big.NewInt(7)}
 	mutated := approved
 	mutated.To = "0x9999999999999999999999999999999999999999"
 	mutated.Data = []byte{0xde, 0xad, 0xbe, 0xef}
@@ -174,11 +289,24 @@ func dvExecution(t *testing.T, approved, candidate executionproof.SafeTransactio
 		impact = &v
 		caseRef = "case:evm:safe-intent-mutation-attack"
 	}
-	evidence, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof})
+	boundApproved := approved
+	if weak {
+		boundApproved = candidate
+	}
+	evidence, err := AdaptExecutionIntegrityCaseV02(DefenseValidationExecutionAdapterInputV02{CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ExecutionMode: DefenseValidationExecutionForkV02, ImpactOffsetMS: impact, ObservationWindowMS: 3000, Control: dvControl(t), Scenario: readDefenseValidationScenarioFixtureV02(t, "safe-intent-mutation-v1.json"), ContainmentReceipt: receipt, ExecutionProof: proof, ApprovedSafeAction: dvAction(t, boundApproved), CandidateSafeAction: dvAction(t, candidate)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return evidence
+}
+
+func dvAction(t *testing.T, tx executionproof.SafeTransaction) executioncontainment.ActionArtifact {
+	t.Helper()
+	action, err := executionproof.CanonicalSafeActionArtifact(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return action
 }
 
 func dvProofAndReceipt(t *testing.T, approved, candidate executionproof.SafeTransaction, weak bool) (executionproof.Proof, executioncontainment.Receipt) {

@@ -21,9 +21,10 @@ The v0.1 component harness connects four existing/new deterministic boundaries:
 1. `DefenseAuthorityBindingEvidenceV01` carries caller, declared source, authorized source, module route, operation, asset, amount, call-payload and state/effect fields backed by two Ed25519-signed artifacts: principal-execution evidence and authorization-grant evidence.
 2. `EvaluateDefenseAuthorityBindingV01` requires an external trust policy with distinct pinned producers and public keys, verifies both signatures, recomputes the artifact digests and binds every claimed field to the signed artifacts before deriving authority preservation. A caller-supplied `verified` label or arbitrary digest is insufficient.
 3. `ApplyDefenseAuthorityBindingToContainmentV01` combines the derived result with the backend authority observation without overwriting an existing failure. A mismatch produces `EC-005-AUTHORITY-CHANGED` and fails the invariant, so the receipt is `CONTAIN` even when approved/candidate intent and payload hashes are identical.
-4. `AdaptAuthorityIntegrityCaseV01` requires the receipt's chain ID, module route, approved/candidate payload, pre-state, post-state and effect-set hashes to match the authenticated authority evidence. Every scenario `matched_field` is compared with signed or receipt-backed execution evidence. This scenario's attack must contain only `source_account_mismatch`; an unrelated principal, operation or asset failure cannot stand in for the declared attack. Benign cases require an unqualified release.
-5. A separately identified Security Evidence producer binds its observation to both the authority-binding digest and containment receipt. Its identity and Ed25519 key must differ from the control, principal-evidence producer and authorization-evidence producer and their pinned keys. Changing `producer` and recomputing the unkeyed event digest is insufficient. Its independently observed alert/no-alert status is preserved so Defense Validation can report misses and false positives. The signed chain label and receipt chain ID are carried through the observation and report boundary.
-6. The evaluator receives the complete parsed scenario contract, recomputes its digest and requires every declared case for each tested control. Omitting an additional attack or benign case produces `INCOMPLETE`; a case outside the committed contract is rejected.
+4. `DefenseAuthorityNativeExecutionAttestationV01` must be signed by a separately pinned native-runner key and must attest the concrete isolated Cosmos-EVM backend, reproduced native authorization route, chain/block/runner identity, native authorization trace, call payload, state/effect hashes and exact containment receipt. Its producer and key are distinct from both authority-artifact producers and the independent observer. A caller-created deterministic receipt with `BackendAvailable=true` is insufficient.
+5. `AdaptAuthorityIntegrityCaseV01` requires the receipt's chain ID, module route, approved/candidate payload, pre-state, post-state and effect-set hashes to match both the authenticated authority evidence and the native-runner attestation. Every scenario `matched_field` is compared with signed or receipt-backed execution evidence. This scenario's attack must contain only `source_account_mismatch`; an unrelated principal, operation or asset failure cannot stand in for the declared attack. Benign cases require an unqualified release.
+6. A separately identified Security Evidence producer binds its observation to the authority-binding digest, native-runner attestation and containment receipt. Its identity and Ed25519 key must differ from the control and all evidence producers and pinned keys. Changing `producer` and recomputing the unkeyed event digest is insufficient. Its independently observed alert/no-alert status is preserved so Defense Validation can report misses and false positives. The signed chain label and receipt chain ID are carried through the observation and report boundary.
+7. The evaluator receives the complete parsed scenario contract, recomputes its digest and requires every declared case for each tested control. Omitting an additional attack or benign case produces `INCOMPLETE`; a case outside the committed contract is rejected.
 
 ## Attack / benign pair
 
@@ -50,7 +51,7 @@ The component test intentionally keeps the approved intent hash and approved/can
 - independent observation: `no_alert`;
 - Defense Validation outcome: `CLEAN`.
 
-The combined component report is `VALIDATED` only for this deterministic component harness.
+The unit regression can assemble an authenticated native-attestation fixture and reach `VALIDATED` only to prove the adapter/evaluator contract. That fixture is not runtime evidence; without a trusted native-runner signature the adapter fails closed before emitting a verified case.
 
 ## Historical motivation
 
@@ -61,6 +62,7 @@ The technique class was added after public reporting around the August 2026 Boun
 This harness is not production defense evidence. It does not:
 
 - run the reported vulnerable Evmos/native authorization route;
+- supply a real native-runner attestation (the unit-test signer is fixture-only);
 - use any BounceBit production account, key, wallet or state;
 - send a mainnet transaction;
 - mutate a production control;

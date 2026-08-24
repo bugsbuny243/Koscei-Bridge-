@@ -124,7 +124,18 @@ func (e *DefenseValidationScenarioEnvironmentV02) UnmarshalJSON(data []byte) err
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
-	for _, required := range []string{"production_control_mutation", "automatic_intervention", "arbitrary_command_execution"} {
+	for _, required := range []string{
+		"execution_mode",
+		"production_identity_used",
+		"wallet_custody",
+		"mainnet_submission_allowed",
+		"production_control_mutation",
+		"automatic_intervention",
+		"arbitrary_command_execution",
+		"network_access_during_execution",
+		"owner_approval_required",
+		"default_off",
+	} {
 		if _, ok := fields[required]; !ok {
 			return fmt.Errorf("scenario environment missing required safety field %q", required)
 		}

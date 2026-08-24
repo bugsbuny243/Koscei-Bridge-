@@ -215,6 +215,47 @@ func TestEvaluateDefenseValidationV02DoesNotReuseCasesAcrossControls(t *testing.
 	}
 }
 
+func TestEvaluateDefenseValidationV02ScopesSameScenarioCaseRefsByControl(t *testing.T) {
+	input := validDefenseValidationV02TestInput(t)
+	second := DefenseValidationControlV02{
+		ControlRef: "control:execution-proof-second", AdapterVersion: "v0.2.0", ConfigurationHash: defenseValidationV02TestHash("a"),
+		CollectorRef: "collector:koschei-independent-second", CollectorPublicKey: defenseValidationV02TestPublicKey(0x22),
+	}
+	input.Controls = append(input.Controls, second)
+	for index, original := range append([]DefenseValidationCaseV02(nil), input.Cases...) {
+		duplicate := original
+		duplicate.ControlRef = second.ControlRef
+		duplicate.ControlConfigurationHash = second.ConfigurationHash
+		duplicate.ExecutionRef = "execution:second:" + duplicate.CaseRef
+		duplicate.ExecutionHash = defenseValidationV02TestHash(string(rune('b' + index)))
+		input.Cases = append(input.Cases, duplicate)
+	}
+	for index, original := range append([]DefenseValidationObservationV02(nil), input.Observations...) {
+		duplicate := original
+		duplicate.ControlRef = second.ControlRef
+		duplicate.CollectorRef = second.CollectorRef
+		duplicate.ObservationEvidenceRef = "observation:second:" + duplicate.CaseRef
+		duplicate.ObservationEvidenceHash = defenseValidationV02TestHash(string(rune('d' + index)))
+		if duplicate.AlertEvidenceRef != "" {
+			duplicate.AlertEvidenceRef = "alert:second:" + duplicate.CaseRef
+			duplicate.AlertEvidenceHash = defenseValidationV02TestHash("f")
+		}
+		input.Observations = append(input.Observations, duplicate)
+	}
+	report, err := EvaluateDefenseValidationV02(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Verdict != DefenseValidationVerdictValidatedV02 || len(report.Controls) != 2 {
+		t.Fatalf("same scenario case refs were not independently evaluated per control: %#v", report)
+	}
+	for _, control := range report.Controls {
+		if control.Verdict != DefenseValidationVerdictValidatedV02 || control.Counts.AttackCases != 1 || control.Counts.BenignCases != 1 {
+			t.Fatalf("control-scoped matrix was not complete: %#v", control)
+		}
+	}
+}
+
 func TestEvaluateDefenseValidationV02UsesScenarioDetectionDeadline(t *testing.T) {
 	input := validDefenseValidationV02TestInput(t)
 	data := readDefenseValidationScenarioFixtureBytesV02(t, "safe-intent-mutation-v1.json")
