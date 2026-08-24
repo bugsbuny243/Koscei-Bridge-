@@ -14,6 +14,11 @@ const premium=read('internal','handlers','premium_access_status.go');
 const history=read('internal','handlers','customer_investigation_history.go');
 const dossierAccess=read('internal','handlers','dossier_access.go');
 const retired=read('internal','handlers','kosch_retirement.go');
+const credits=read('internal','handlers','credits_atomic.go');
+const reservation=read('internal','handlers','credits_reservation.go');
+const quotaWriter=read('internal','handlers','scan_quota.go');
+const court=read('internal','handlers','court_narrative.go');
+const courtRoute=read('internal','handlers','security_radar_court.go');
 const paddle=read('internal','handlers','paddle_billing.go');
 const paddlePublic=read('internal','handlers','paddle_public_config.go');
 const apiKeys=read('internal','handlers','api_keys.go');
@@ -21,6 +26,7 @@ const migration=read('migrations','101_paddle_saas_billing_v1.sql');
 const pricing=read('public','pricing.html');
 const account=read('public','account.html');
 const reports=read('public','reports.html');
+const token2022=read('public','token-2022-scanner.html');
 const checkout=read('public','js','paddle-checkout.js');
 const hostedCheckout=read('public','paddle-checkout.html');
 const hostedCheckoutJS=read('public','js','paddle-hosted-checkout.js');
@@ -29,6 +35,15 @@ const customerAccess=read('public','js','customer-access-v2.js');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden ${pattern}`);}
+
+for(const legacy of [
+  ['internal','handlers','token_access.go'],
+  ['internal','handlers','api_key_kosch_access.go'],
+  ['internal','handlers','kosch_security_policy.go'],
+  ['internal','handlers','owner_kosch_access_v2.go']
+]){
+  if(fs.existsSync(path.join(root,...legacy)))throw new Error(`retired KOSCH commercial authorization file returned: ${legacy.join('/')}`);
+}
 
 requireText(server,'h.RequirePlanTier(plan, next)','customer SaaS authorization primitive');
 requireText(server,'h.RequireAPIKeyPlanTier("enterprise"','developer Enterprise authorization');
@@ -59,6 +74,19 @@ forbid(dossierAccess,/RequireStoredTokenTier|RequireAPIKeyStoredTokenTier|token_
 requireText(apiKeys,'evaluation, evaluationErr := h.evaluatePlanAccess','API-key entitlement lookup');
 requireText(apiKeys,'planTierAuthorizes(plan, "enterprise")','API-key Enterprise requirement');
 forbid(apiKeys,/evaluateTokenAccess|token_tier/i,'token-backed API key issuance');
+
+requireText(credits,'evaluation, err := h.evaluatePlanAccess(context.Background(), authSubject, email)','legacy premium compatibility uses SaaS entitlement');
+requireText(credits,'planTierAuthorizes(evaluation.Plan, "starter")','legacy premium compatibility Starter boundary');
+forbid(credits,/hasTokenTierAccess|evaluateTokenAccess|verified KOSCH holder|kosch_holder_required/i,'token-backed compatibility preflight');
+requireText(reservation,'UPDATE entitlements','SaaS reservation ledger');
+forbid(reservation,/KOSCH|kosch_quota|QuotaEventReason|QuotaTier|QuotaDayKey/i,'legacy KOSCH quota reservation state');
+requireText(quotaWriter,'No token-balance or KOSCH-tier state is involved.','quota writer token separation');
+forbid(quotaWriter,/EnforceScanQuota|configuredKOSCHDailyQuota|tokenAccessRequestContext|kosch_daily_scan/i,'retired KOSCH daily quota engine');
+requireText(court,'planAccessRequestFromContext(ctx)','court reads SaaS plan context');
+requireText(court,'h.evaluatePlanAccess(ctx, claims.Sub, normalizedClaimEmail(claims))','court fallback reads SaaS entitlement');
+forbid(court,/tokenAccessRequestFromContext|evaluateTokenAccess|handlerScanQuotaLedger|KOSCHEI_COURT_QUOTA_/,'token-backed court tier or quota');
+requireText(courtRoute,'planAccessRequestFromContext(ctx)','court request identity from SaaS context');
+forbid(courtRoute,/authenticated KOSCH tier|tokenAccessRequestFromContext/,'token-backed court route semantics');
 
 requireText(billingRoutes,'/paddle/public-config','Paddle browser config route');
 forbid(billingRoutes,/\/api\/paddle\/public-config/,'browser config accidentally exposed as programmatic API');
@@ -100,6 +128,9 @@ forbid(account,/TOKEN ACCESS EVIDENCE|Official mint snapshot|LIVE TOKEN POLICY/i
 requireText(reports,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','SaaS investigation history copy');
 requireText(reports,'KOSCH holdings do not authorize this surface.','history token separation');
 forbid(reports,/BASIC\+ KOSCH|Basic KOSCH tier/i,'holder-gated investigation history copy');
+requireText(token2022,'Starter SaaS plan or higher','Token-2022 Starter SaaS boundary');
+requireText(token2022,'KOSCH holdings and legacy holder tiers do not authorize or upgrade this surface.','Token-2022 token separation');
+forbid(token2022,/Basic-tier|Basic tier|Verify KOSCH Access|premium Basic-tier gate|customer-session \+ KOSCH/i,'Token-2022 token-backed commercial copy');
 requireText(checkout,"fetch('/api/paddle/checkout'",'browser Paddle checkout');
 requireText(checkout,"parsed.protocol !== 'https:'",'secure checkout redirect');
 forbid(checkout,/kosch_token|\/kosch-access/,'legacy token checkout');
