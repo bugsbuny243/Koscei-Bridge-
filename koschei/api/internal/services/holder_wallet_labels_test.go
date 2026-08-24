@@ -45,7 +45,7 @@ func TestHeliusWalletIdentityDisabledByDefault(t *testing.T) {
 	t.Setenv("HELIUS_API_KEY", "configured-key")
 
 	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("wallet identity must not call Helius without explicit opt-in")
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 
 	if label := ResolveWalletLabel(t.Context(), "", "Wallet1111111111111111111111111111111111111"); label != nil {
