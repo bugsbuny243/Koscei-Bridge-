@@ -16,13 +16,13 @@ Rules:
 - Answer in Turkish unless the owner explicitly asks for another language.
 - Speak naturally, directly and conversationally. Be concise, but explain important risks.
 - Use the supplied operational snapshot and deterministic Radar result as the source of truth.
-- Koschei uses a free-core + KOSCH-premium access model. Safe Check and basic scans are free; KOSCH unlocks full Radar depth, structural memory, graph, exposure, visual reports and automation.
-- There is no live Paddle, Shopier, card-payment or package-sale flow. Never recommend restoring one unless the owner explicitly asks for a new architecture decision.
-- Clearly distinguish verified facts, estimates and suggestions.
+- Koschei uses a free-core + SaaS entitlement model. Starter, Professional and Enterprise are the canonical commercial plans. Paddle is the canonical billing provider.
+- KOSCH holdings, wallet balances, historical holder tiers and token-access snapshots are audit-only legacy data and MUST NOT grant product access, discounts, quotas, API permissions, evidence weight or verdict authority.
+- ARVIS is early access. A registered route is not proof that the surrounding feature is production-complete. Monitoring, advanced radar, developer and integration surfaces must be described as preview until their production validation is complete.
+- Clearly distinguish verified facts, estimates, previews and suggestions.
 - Never claim that an action was executed unless the snapshot or deterministic result proves it.
 - Never reveal, reconstruct or request API keys, private keys, tokens, passwords, database URLs or service-account secrets.
 - This chat is operationally read-only. The separate owner Radar scanner may perform a read-only scan and persist its signed evidence record.
-- Treat Koschei as production-grade Solana security and risk intelligence infrastructure, not a demo.
 - Auth is frozen and must not be changed unless the owner explicitly removes that restriction.
 - A creator/deployer wallet, holder concentration or linked-wallet signal is evidence of an on-chain relation, not proof of fraud or a real-world identity.
 - When data is unavailable, say so instead of inventing it.
@@ -44,16 +44,17 @@ func (h *Handler) buildOwnerChatSnapshot(ctx context.Context) ownerChatSnapshot 
 			"ai_provider":     ownerAIProviderStatus(),
 			"neon_auth":       configuredStatus("NEON_AUTH_JWKS_URL"),
 			"solana_rpc":      configuredStatusAny("SOLANA_RPC_URL", "ALCHEMY_SOLANA_RPC_URL", "HELIUS_SOLANA_RPC_URL", "QUICKNODE_SOLANA_RPC_URL", "ALCHEMY_API_KEY"),
-			"kosch_access":    serviceStatus(configuredKoscheiTokenGateEnabled() && configuredKoscheiTokenMint() != "", "configured", "missing"),
+			"paddle_billing":  serviceStatus(strings.TrimSpace(os.Getenv("PADDLE_API_KEY")) != "" && strings.TrimSpace(os.Getenv("PADDLE_WEBHOOK_SECRET")) != "", "configured", "incomplete"),
 			"visual_renderer": "client_canvas_png_ready",
 		},
 		Business: map[string]any{},
 		Access: map[string]any{
-			"model":             "free_core_kosch_premium",
+			"model":             "free_core_saas_entitlements",
 			"free_core":         []string{"safe_check", "basic_token_scan"},
-			"premium":           []string{"full_radar", "structural_memory", "graph", "exposure", "visual_reports", "automation"},
-			"payment_providers": []string{},
-			"kosch_mint":        configuredKoscheiTokenMint(),
+			"plans":             []string{"starter", "professional", "enterprise"},
+			"payment_providers": []string{"paddle"},
+			"token_authority":   "retired_audit_only",
+			"arvis_readiness":   "early_access",
 		},
 		Radar: map[string]any{},
 	}
@@ -65,17 +66,15 @@ func (h *Handler) buildOwnerChatSnapshot(ctx context.Context) ownerChatSnapshot 
 	if ownerTableExists(ctx, h.DB, "verified_wallet_links") {
 		snapshot.Access["verified_wallets"] = ownerCount(ctx, h.DB, `SELECT count(DISTINCT auth_subject) FROM verified_wallet_links WHERE status='active'`)
 	}
+	if ownerTableExists(ctx, h.DB, "entitlements") {
+		snapshot.Access["active_paid_entitlements"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM entitlements WHERE status='active' AND COALESCE(plan_id,'') NOT IN ('','free') AND (expires_at IS NULL OR expires_at>now())`)
+		snapshot.Access["starter_entitlements"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM entitlements WHERE status='active' AND lower(COALESCE(plan_id,'')) IN ('starter','basic') AND (expires_at IS NULL OR expires_at>now())`)
+		snapshot.Access["professional_entitlements"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM entitlements WHERE status='active' AND lower(COALESCE(plan_id,'')) IN ('professional','builder','pro') AND (expires_at IS NULL OR expires_at>now())`)
+		snapshot.Access["enterprise_entitlements"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM entitlements WHERE status='active' AND lower(COALESCE(plan_id,'')) IN ('enterprise','studio') AND (expires_at IS NULL OR expires_at>now())`)
+	}
 	if ownerTableExists(ctx, h.DB, "token_access_snapshots") {
-		latest := `WITH latest AS (
-			SELECT DISTINCT ON (auth_subject) auth_subject,tier
-			FROM token_access_snapshots
-			WHERE expires_at > now()
-			ORDER BY auth_subject,checked_at DESC
-		)`
-		snapshot.Access["kosch_holders"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier IN ('basic','pro','enterprise')`)
-		snapshot.Access["basic"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='basic'`)
-		snapshot.Access["pro"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='pro'`)
-		snapshot.Access["enterprise"] = ownerCount(ctx, h.DB, latest+` SELECT count(*) FROM latest WHERE tier='enterprise'`)
+		snapshot.Access["historical_token_access_records"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM token_access_snapshots`)
+		snapshot.Access["historical_token_access_authority"] = "none_audit_only"
 	}
 	if ownerTableExists(ctx, h.DB, "customer_feedback") {
 		snapshot.Business["open_feedback"] = ownerCount(ctx, h.DB, `SELECT count(*) FROM customer_feedback WHERE status IN ('new','reviewing','planned')`)
