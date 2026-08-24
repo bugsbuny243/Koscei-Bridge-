@@ -43,7 +43,7 @@ func (f *fakeCourtClient) SeniorOpinion(context.Context, CourtReadOnlyInput, []C
 func courtCtx(plan string) context.Context {
 	plan = canonicalSaaSPlan(plan)
 	return withPlanAccessRequestContext(context.Background(), planAccessRequestContext{
-		Evaluation: planAccessEvaluation{Active: plan != "", Plan: plan, OutputsTotal: 100, OutputsRemaining: 100, Source: "entitlement"},
+		Evaluation:  planAccessEvaluation{Active: plan != "", Plan: plan, OutputsTotal: 100, OutputsRemaining: 100, Source: "entitlement"},
 		AuthSubject: "sub", Email: "u@example.com",
 	})
 }
