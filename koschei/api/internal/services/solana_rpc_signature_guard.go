@@ -63,7 +63,11 @@ func (t *solanaRPCSignaturePressureTransport) RoundTrip(req *http.Request) (*htt
 		if _, fallbackCooling := solanaRPCSignatureEndpointCooldown(fallback); fallbackCooling {
 			return nil, fmt.Errorf("solana signature rpc providers cooling down")
 		}
-		return t.roundTripEndpoint(req, fallback, 0)
+		fallbackResponse, fallbackErr := t.roundTripEndpoint(req, fallback, 0)
+		if fallbackResponse != nil && fallbackResponse.StatusCode == http.StatusTooManyRequests {
+			deferSolanaRPCSignatureEndpoint(fallback, solanaRPCSignatureCooldown(fallbackResponse.Header.Get("Retry-After")))
+		}
+		return fallbackResponse, fallbackErr
 	}
 
 	primaryTimeout := solanaRPCSignaturePrimaryTimeout(req.Context())
@@ -190,7 +194,11 @@ func solanaRPCSignaturePrimaryTimeout(ctx context.Context) time.Duration {
 }
 
 func solanaRPCSignatureCooldown(retryAfter string) time.Duration {
-	return maxDuration(solanaRPC429Delay(0, retryAfter), solanaRPC429Cooldown())
+	delay := maxDuration(solanaRPC429Delay(0, retryAfter), solanaRPC429Cooldown())
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") && delay < 5*time.Minute {
+		delay = 5 * time.Minute
+	}
+	return delay
 }
 
 func solanaRPCSignatureTimeoutCooldown() time.Duration {
