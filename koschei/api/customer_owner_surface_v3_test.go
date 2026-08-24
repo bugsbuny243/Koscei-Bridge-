@@ -51,11 +51,15 @@ func TestCustomerSurfaceV3KeepsOneSimpleNavigationAndScanEntry(t *testing.T) {
 	}
 }
 
-func TestCustomerResultGuidanceV3DerivesOnlyFromCanonicalPolicyPresentation(t *testing.T) {
+func TestCustomerResultGuidanceV3UsesCanonicalPolicyAndThreatPresentationOnly(t *testing.T) {
 	guidance := readSurfaceV3(t, "public/js/customer-result-guidance-v3.js")
 	for _, required := range []string{
 		".customer-result-action",
+		"threat_anticipation",
+		"watch_signals",
+		"koschei:customer-premium-mounted",
 		"WHAT COULD HAPPEN",
+		"WHAT TO WATCH",
 		"WHAT TO DO NOW",
 		"No deterministic blocking rule fired",
 		"Koschei cannot establish a safe decision path",
@@ -64,7 +68,7 @@ func TestCustomerResultGuidanceV3DerivesOnlyFromCanonicalPolicyPresentation(t *t
 			t.Fatalf("customer result guidance missing %q", required)
 		}
 	}
-	for _, forbidden := range []string{"risk_index", "risk score", "Math.round", "fetch("} {
+	for _, forbidden := range []string{"risk_index", "risk score", "Math.round", "Math.random", "fetch("} {
 		if strings.Contains(guidance, forbidden) {
 			t.Fatalf("customer result guidance must not calculate or fetch decision truth: found %q", forbidden)
 		}
