@@ -3,12 +3,19 @@ package services
 // Helius Enhanced Transactions API collector for holder cluster analysis.
 //
 // One GET to /v0/addresses/{wallet}/transactions returns up to 100 parsed
-// transactions. The legacy path spends 1 RPC call for signatures plus 1 RPC
-// call per transaction; this path spends 1 HTTP call per 100 transactions.
+// transactions, but it is a high-credit provider endpoint. The default ARVIS
+// holder-history path therefore stays on standard Solana RPC
+// (getSignaturesForAddress + sampled getTransaction). Enhanced history is an
+// explicit compatibility/diagnostic opt-in, not the default merely because a
+// Helius key is configured.
 //
 // Design rules honored:
-//   - Falls back to the legacy tiered path when no Helius key is resolvable
-//     or the API call fails. Nothing breaks if Helius is removed.
+//   - Disabled by default so ordinary Helius-backed RPC remains free-plan
+//     friendly and provider-portable.
+//   - Can be explicitly enabled with KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED
+//     when the operator intentionally accepts the higher-credit endpoint.
+//   - Falls back to the tiered standard-RPC path when disabled, when no Helius
+//     key is resolvable, or when the API call fails.
 //   - Never fabricates evidence: statuses and evidence wording mirror the
 //     bounded-observation language of the tiered path.
 //   - Budget accounting still goes through holderScanRPCBudget so the
@@ -81,10 +88,19 @@ type heliusEnhancedTransaction struct {
 	Instructions     []heliusInstruction    `json:"instructions"`
 }
 
-// heliusEnhancedAPIKey resolves the Helius API key. Resolution order:
-// explicit HELIUS_API_KEY env, then the api-key query parameter of the
-// configured Solana RPC URL when that URL points at a Helius host.
-func heliusEnhancedAPIKey(rpcURL string) string {
+func heliusEnhancedHistoryEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// heliusProviderAPIKey resolves the provider key independently from any
+// optional high-credit feature flag. DAS and standard Helius RPC enrichment
+// must continue to work when Enhanced Transactions history is disabled.
+func heliusProviderAPIKey(rpcURL string) string {
 	if key := strings.TrimSpace(os.Getenv("HELIUS_API_KEY")); key != "" {
 		return key
 	}
@@ -96,6 +112,20 @@ func heliusEnhancedAPIKey(rpcURL string) string {
 		return ""
 	}
 	return strings.TrimSpace(parsed.Query().Get("api-key"))
+}
+
+// heliusEnhancedAPIKey is retained as the shared Helius provider-key resolver
+// because DAS/token-metadata code already uses it. Enhanced-history policy is
+// deliberately enforced by heliusEnhancedHistoryAPIKey instead.
+func heliusEnhancedAPIKey(rpcURL string) string {
+	return heliusProviderAPIKey(rpcURL)
+}
+
+func heliusEnhancedHistoryAPIKey(rpcURL string) string {
+	if !heliusEnhancedHistoryEnabled() {
+		return ""
+	}
+	return heliusProviderAPIKey(rpcURL)
 }
 
 func fetchHeliusEnhancedTransactionsPage(ctx context.Context, apiKey, address, before string, limit int) ([]heliusEnhancedTransaction, error) {
@@ -237,10 +267,10 @@ func holderClusterAppendHeliusMetadataEvidence(observation *HolderClusterFlowObs
 
 // analyzeHolderClusterWalletEnhanced is the Enhanced-API twin of
 // analyzeHolderClusterWalletTiered. The second return value reports whether
-// the enhanced path produced a usable row; on false the caller must run the
-// legacy tiered path instead.
+// the explicitly enabled enhanced path produced a usable row; on false the
+// caller runs the tiered standard-RPC path instead.
 func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string, account HolderRoleAccount, launchBlockTime int64, holderWallets map[string]bool, plan holderScanPlan, budget *holderScanRPCBudget) (HolderClusterWallet, bool) {
-	apiKey := heliusEnhancedAPIKey(rpcURL)
+	apiKey := heliusEnhancedHistoryAPIKey(rpcURL)
 	if apiKey == "" {
 		return HolderClusterWallet{}, false
 	}
@@ -273,7 +303,7 @@ func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string
 		batch, err := fetchHeliusEnhancedTransactionsPage(ctx, apiKey, account.OwnerWallet, before, remaining)
 		if err != nil {
 			if len(transactions) == 0 {
-				// Total failure on the first page: let the legacy path try.
+				// Total failure on the first page: let the tiered standard-RPC path try.
 				return HolderClusterWallet{}, false
 			}
 			row.Evidence = append(row.Evidence, "Enhanced history pagination stopped early: "+compactClusterError(err))
