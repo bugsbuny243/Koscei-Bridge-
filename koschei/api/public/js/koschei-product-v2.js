@@ -5,6 +5,49 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
   const HEALTH_TIMEOUT_MS=10000;
 
+  function installSurfaceStyles(){
+    if(document.querySelector('link[data-koschei-customer-surface-v3]'))return;
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='/css/customer-surface-v3.css?v=1';
+    link.dataset.koscheiCustomerSurfaceV3='1';
+    document.head.appendChild(link);
+  }
+
+  function cleanPath(value){return (value||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';}
+  function navActive(href,current){
+    const url=new URL(href,location.origin),path=cleanPath(url.pathname);
+    if(href==='/scan')return current==='/scan'||current.startsWith('/scan/');
+    if(href==='/reports')return current==='/reports'||current==='/cases';
+    if(href==='/account')return current==='/account'||current==='/pricing'||current==='/login';
+    return path===current;
+  }
+
+  function installCustomerNavigation(){
+    const current=cleanPath(location.pathname);
+    const topLinks=[['/','Home'],['/scan','Scan'],['/reports','Activity'],['/dashboard','Workspace'],['/pricing','Plans']];
+    const nav=document.querySelector('.koschei-global-nav')||document.querySelector('.top .nav,header.top nav.nav,nav.top .nav');
+    if(nav){
+      nav.classList.add('customer-nav-v3');
+      nav.innerHTML='';
+      for(const [href,label] of topLinks){
+        const a=document.createElement('a');a.href=href;a.textContent=label;
+        if(navActive(href,current))a.setAttribute('aria-current','page');
+        nav.appendChild(a);
+      }
+    }
+    if(!document.querySelector('.customer-mobile-nav-v3')){
+      const mobile=document.createElement('nav');mobile.className='customer-mobile-nav-v3';mobile.setAttribute('aria-label','Customer navigation');
+      const items=[['/','⌂','Home'],['/scan','⌕','Scan'],['/reports','≡','Activity'],['/account','○','Account']];
+      for(const [href,icon,label] of items){
+        const a=document.createElement('a');a.href=href;a.innerHTML=`<b aria-hidden="true">${icon}</b><span>${label}</span>`;
+        if(navActive(href,current))a.setAttribute('aria-current','page');
+        mobile.appendChild(a);
+      }
+      document.body.appendChild(mobile);
+    }
+  }
+
   function installReveal(){
     const nodes=[...document.querySelectorAll('[data-reveal]')];
     if(!nodes.length)return;
@@ -41,9 +84,7 @@
         node.dataset.koscheiDependencyState='degraded';
         node.classList.remove('is-live');
       });
-    }finally{
-      window.clearTimeout(timer);
-    }
+    }finally{window.clearTimeout(timer);}
   }
 
   function installFormState(){
@@ -56,19 +97,27 @@
   function installExternalSafety(){
     document.querySelectorAll('a[target="_blank"]').forEach(link=>{
       const rel=new Set(String(link.rel||'').split(/\s+/).filter(Boolean));
-      rel.add('noopener');
-      rel.add('noreferrer');
-      link.rel=[...rel].join(' ');
+      rel.add('noopener');rel.add('noreferrer');link.rel=[...rel].join(' ');
+    });
+  }
+
+  function installHomepageScan(){
+    const form=document.querySelector('[data-koschei-home-scan]');if(!form)return;
+    form.addEventListener('submit',event=>{
+      const input=form.querySelector('input[name="target"]');
+      if(!input||!input.value.trim()){event.preventDefault();input?.focus();return;}
+      input.value=input.value.trim();
     });
   }
 
   function installCurrentNav(){
-    const current=(location.pathname||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';
+    const current=cleanPath(location.pathname);
     document.querySelectorAll('.koschei-global-nav a,.nav a').forEach(link=>{
-      const path=(new URL(link.href,location.origin).pathname||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';
+      const path=cleanPath(new URL(link.href,location.origin).pathname);
       if(path===current)link.setAttribute('aria-current','page');
     });
   }
 
-  ready(()=>{installReveal();hydrateHealth();installFormState();installExternalSafety();installCurrentNav()});
+  installSurfaceStyles();
+  ready(()=>{installCustomerNavigation();installReveal();hydrateHealth();installFormState();installExternalSafety();installHomepageScan();installCurrentNav();});
 })();
