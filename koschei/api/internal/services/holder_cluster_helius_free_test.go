@@ -6,8 +6,11 @@ func TestHeliusEnhancedHistoryIsDisabledByDefault(t *testing.T) {
 	t.Setenv("KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED", "")
 	t.Setenv("HELIUS_API_KEY", "configured-key")
 
-	if got := heliusEnhancedAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "" {
+	if got := heliusEnhancedHistoryAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "" {
 		t.Fatalf("enhanced holder history must stay disabled without explicit opt-in, got key %q", got)
+	}
+	if got := heliusEnhancedAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "configured-key" {
+		t.Fatalf("shared Helius provider key must remain available for DAS/standard enrichment, got %q", got)
 	}
 }
 
@@ -15,17 +18,20 @@ func TestHeliusEnhancedHistoryRequiresExplicitOptIn(t *testing.T) {
 	t.Setenv("KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED", "true")
 	t.Setenv("HELIUS_API_KEY", "configured-key")
 
-	if got := heliusEnhancedAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "configured-key" {
+	if got := heliusEnhancedHistoryAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "configured-key" {
 		t.Fatalf("expected explicit HELIUS_API_KEY after enhanced-history opt-in, got %q", got)
 	}
 }
 
-func TestHeliusEnhancedHistoryCanResolveKeyFromHeliusRPCURL(t *testing.T) {
+func TestHeliusProviderKeyCanResolveFromHeliusRPCURL(t *testing.T) {
 	t.Setenv("KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED", "1")
 	t.Setenv("HELIUS_API_KEY", "")
 
+	if got := heliusEnhancedHistoryAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "url-key" {
+		t.Fatalf("expected api-key from Helius RPC URL after enhanced-history opt-in, got %q", got)
+	}
 	if got := heliusEnhancedAPIKey("https://mainnet.helius-rpc.com/?api-key=url-key"); got != "url-key" {
-		t.Fatalf("expected api-key from Helius RPC URL after opt-in, got %q", got)
+		t.Fatalf("expected shared provider key from Helius RPC URL, got %q", got)
 	}
 	if got := heliusEnhancedAPIKey("https://example.invalid/?api-key=wrong-provider"); got != "" {
 		t.Fatalf("non-Helius RPC URL must not expose its query value as a Helius key, got %q", got)
