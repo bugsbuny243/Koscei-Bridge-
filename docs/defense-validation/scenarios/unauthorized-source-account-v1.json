@@ -1,0 +1,180 @@
+{
+  "contract": "koschei-defense-validation-scenario/v0.2",
+  "scenario_ref": "scenario:cosmos-evm:unauthorized-source-account",
+  "scenario_version": "v1.0.0",
+  "title": "Unauthorized source-account debit through authority binding confusion",
+  "status": "planned",
+  "chain": "cosmos-evm",
+  "ruleset_version": "koschei-defense-validation-rules-v0.2.0",
+  "claim_boundary": {
+    "is_execution_evidence": false,
+    "is_validation_result": false,
+    "production_claim_allowed": false,
+    "mainnet_transaction_sent": false,
+    "verdict_authority": false
+  },
+  "historical_motivation": {
+    "reference_kind": "public_incident_pattern",
+    "reference": "BounceBit Chain authorization incident reported in August 2026",
+    "pattern_only": true,
+    "incident_reproduction_claim": false,
+    "note": "The scenario generalizes a publicly reported wrong-principal/source-account authorization failure. It does not claim to reproduce proprietary incident code or exact production implementation."
+  },
+  "environment": {
+    "execution_mode": "isolated_sandbox",
+    "production_identity_used": false,
+    "wallet_custody": false,
+    "mainnet_submission_allowed": false,
+    "production_control_mutation": false,
+    "automatic_intervention": false,
+    "arbitrary_command_execution": false,
+    "network_access_during_execution": false,
+    "owner_approval_required": true,
+    "default_off": true
+  },
+  "control_contract": {
+    "control_class": "state_transition_authority_integrity",
+    "candidate_control": "koschei_execution_containment_authority_binding",
+    "independent_collector_required": true,
+    "adapter_version_required": true,
+    "configuration_hash_required": true,
+    "production_wiring_required_for_production_claim": true
+  },
+  "matrix": {
+    "pair_ref": "pair:cosmos-evm:source-account-authority-binding",
+    "matched_fields": [
+      "caller_principal",
+      "module_route",
+      "operation",
+      "asset",
+      "amount",
+      "observation_window_ms"
+    ],
+    "single_security_difference": "declared_source_account_authorization_binding",
+    "cases": [
+      {
+        "case_ref": "case:cosmos-evm:unauthorized-source-account-attack",
+        "case_kind": "attack",
+        "description": "An authorized contract caller submits an otherwise valid action but declares a different account as the debit source without a grant binding that source account to the caller and operation.",
+        "matched_values": {
+          "caller_principal": "principal:contract-a",
+          "module_route": "native:authorization-module",
+          "operation": "debit",
+          "asset": "asset:bb",
+          "amount": 1,
+          "observation_window_ms": 3000
+        },
+        "caller": {
+          "principal_class": "authorized_contract_caller"
+        },
+        "declared_source": {
+          "class": "victim_account",
+          "must_differ_from_authorized_source": true
+        },
+        "authorization": {
+          "authorized_source_class": "caller_bound_account",
+          "delegation_present": false,
+          "principal_source_operation_asset_binding_required": true
+        },
+        "candidate_action": {
+          "payload_identity_may_remain_valid": true,
+          "module_route_must_be_pinned": true,
+          "debit_effect_must_be_observed": true
+        },
+        "impact_deadline_ms": 1000,
+        "observation_window_ms": 3000,
+        "expected_control_behavior": {
+          "block_or_alert_required": true,
+          "latest_detection_offset_ms": 1000,
+          "expected_reasons": [
+            "authority_binding_mismatch",
+            "EC-005-AUTHORITY-CHANGED",
+            "EC-009-INVARIANT-FAILED"
+          ]
+        }
+      },
+      {
+        "case_ref": "case:cosmos-evm:authorized-source-account-benign",
+        "case_kind": "benign",
+        "description": "The same caller, route, operation, asset and amount debit the caller-bound source account or an explicitly delegated source whose grant binds the exact principal, source, operation and asset.",
+        "matched_values": {
+          "caller_principal": "principal:contract-a",
+          "module_route": "native:authorization-module",
+          "operation": "debit",
+          "asset": "asset:bb",
+          "amount": 1,
+          "observation_window_ms": 3000
+        },
+        "caller": {
+          "principal_class": "authorized_contract_caller"
+        },
+        "declared_source": {
+          "class": "caller_bound_or_explicitly_delegated_account",
+          "must_match_authorized_source": true
+        },
+        "authorization": {
+          "principal_source_operation_asset_binding_required": true,
+          "authorization_evidence_required": true
+        },
+        "candidate_action": {
+          "payload_identity_may_remain_valid": true,
+          "module_route_must_be_pinned": true,
+          "debit_effect_must_be_observed": true
+        },
+        "impact_deadline_ms": null,
+        "observation_window_ms": 3000,
+        "expected_control_behavior": {
+          "block_or_alert_required": false,
+          "false_positive_forbidden": true
+        }
+      }
+    ]
+  },
+  "authority_invariant": {
+    "expression": "declared_source_account == authorized_source_for(caller_principal, operation, asset, authorization_context)",
+    "delegation_rule": "Any delegation must bind the exact caller principal, source account, operation and asset and must be independently evidenced.",
+    "wrong_principal_secondary_check_forbidden": true,
+    "payload_validity_does_not_imply_authority": true
+  },
+  "required_run_evidence": [
+    "caller_principal_hash",
+    "declared_source_account_hash",
+    "authorized_source_account_hash",
+    "authorization_context_hash",
+    "principal_evidence_signature",
+    "authorization_evidence_signature",
+    "evidence_trust_policy_hash",
+    "canonical_call_payload_hash",
+    "execution_chain_id",
+    "module_route_hash",
+    "runner_identity_hash",
+    "native_backend_attestation_signature",
+    "native_authorization_trace_hash",
+    "pre_state_hash",
+    "post_state_hash",
+    "debit_effect_hash",
+    "authority_invariant_set_hash",
+    "independent_observation_hash",
+    "alert_hash_if_alerted",
+    "control_configuration_hash",
+    "completed_observation_window"
+  ],
+  "acceptance_gate": {
+    "requires_machine_validated_scenario_contract": true,
+    "requires_deterministic_authority_binding_adapter": true,
+    "requires_authenticated_authority_evidence": true,
+    "requires_execution_containment_receipt": true,
+    "requires_concrete_isolated_cosmos_evm_backend": true,
+    "requires_native_authorization_route_reproduction": true,
+    "requires_independent_collector": true,
+    "requires_no_unauthorized_state_mutation": true,
+    "requires_non_test_runtime_caller_for_production_claim": true
+  },
+  "limitations": [
+    "This file is a planned scenario definition and is not execution evidence.",
+    "It contains no production account, private key, wallet credential or mainnet transaction.",
+    "A component-level authority-binding test cannot by itself claim that a deployed chain or protocol is protected.",
+    "VALIDATED requires isolated execution evidence, an independent observation window and the deterministic Defense Validation evaluator.",
+    "The historical incident reference motivates the technique class only; this scenario does not claim to reproduce BounceBit proprietary production code."
+  ]
+}

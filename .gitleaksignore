@@ -1,6 +1,11 @@
 # False positive: browser localStorage namespace in owner publishing UI, not a credential.
 6694ca112b1e203e6408c54bd4c910be5be96224:koschei/api/public/js/owner-publishing-center.js:generic-api-key:4
 
+# False positive: this literal is the name of the collector signing-key
+# environment variable, not a key value. The exemption is pinned to the exact
+# introducing commit, path, detector, and line; every other finding stays blocking.
+9af72c9b78d974061d4ba9b9900d22d9f715fee0:koschei/api/cmd/defense-validation-collector/main.go:generic-api-key:16
+
 # False positives: the public Solana token mint is repeated in three permanent
 # on-chain evidence rows. These exact commit/path/rule/line fingerprints are
 # allowlisted; the generic API-key detector remains blocking everywhere else.

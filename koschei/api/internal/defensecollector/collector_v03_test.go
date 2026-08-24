@@ -2,12 +2,15 @@ package defensecollector
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,7 +21,7 @@ import (
 
 func TestCollectV03ProducesEvidenceAcceptedByDefenseAdapter(t *testing.T) {
 	req := collectorRequestV03(t, false)
-	result, err := CollectV03(req)
+	result, err := CollectV03(req, collectorPrivateKeyV03())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +30,9 @@ func TestCollectV03ProducesEvidenceAcceptedByDefenseAdapter(t *testing.T) {
 	}
 	if err := result.Event.Verify(); err != nil {
 		t.Fatalf("event verification: %v", err)
+	}
+	if err := result.Event.VerifyEd25519(req.CollectorRef, req.Control.CollectorPublicKey); err != nil {
+		t.Fatalf("event authentication: %v", err)
 	}
 	observation, err := defense.AdaptSecurityEvidenceObservationV02(req.Control, result.Execution, result.Binding, result.Event)
 	if err != nil {
@@ -41,15 +47,26 @@ func TestCollectV03RejectsSelfAttestation(t *testing.T) {
 	req := collectorRequestV03(t, false)
 	req.CollectorRef = req.Control.ControlRef
 	req.Control.CollectorRef = req.Control.ControlRef
-	if _, err := CollectV03(req); err == nil {
+	if _, err := CollectV03(req, collectorPrivateKeyV03()); err == nil {
 		t.Fatal("self-attested collector accepted")
+	}
+}
+
+func TestCollectV03RejectsSigningKeyOutsideControlTrust(t *testing.T) {
+	req := collectorRequestV03(t, false)
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x2f
+	}
+	if _, err := CollectV03(req, ed25519.NewKeyFromSeed(seed)); err == nil || !strings.Contains(err.Error(), "does not match control trust") {
+		t.Fatalf("untrusted collector signing key was accepted: %v", err)
 	}
 }
 
 func TestCollectV03RejectsTamperedExecutionProof(t *testing.T) {
 	req := collectorRequestV03(t, false)
 	req.ExecutionProof.Evaluation.Decision = executionproof.DecisionBlock
-	if _, err := CollectV03(req); err == nil || !strings.Contains(err.Error(), "recompute execution evidence") {
+	if _, err := CollectV03(req, collectorPrivateKeyV03()); err == nil || !strings.Contains(err.Error(), "recompute execution evidence") {
 		t.Fatalf("tampered proof error=%v", err)
 	}
 }
@@ -57,7 +74,7 @@ func TestCollectV03RejectsTamperedExecutionProof(t *testing.T) {
 func TestCollectV03RejectsIncompleteObservationWindow(t *testing.T) {
 	req := collectorRequestV03(t, false)
 	req.ObservationCompletedOffsetMS = req.ObservationWindowMS - 1
-	if _, err := CollectV03(req); err == nil || !strings.Contains(err.Error(), "window is incomplete") {
+	if _, err := CollectV03(req, collectorPrivateKeyV03()); err == nil || !strings.Contains(err.Error(), "window is incomplete") {
 		t.Fatalf("incomplete window error=%v", err)
 	}
 }
@@ -65,12 +82,12 @@ func TestCollectV03RejectsIncompleteObservationWindow(t *testing.T) {
 func TestCollectV03RequiresIndependentAlertForSignaledControl(t *testing.T) {
 	req := collectorRequestV03(t, true)
 	req.AlertObservedOffsetMS = nil
-	if _, err := CollectV03(req); err == nil || !strings.Contains(err.Error(), "requires independently observed alert offset") {
+	if _, err := CollectV03(req, collectorPrivateKeyV03()); err == nil || !strings.Contains(err.Error(), "requires independently observed alert offset") {
 		t.Fatalf("missing alert error=%v", err)
 	}
 	alert := int64(120)
 	req.AlertObservedOffsetMS = &alert
-	result, err := CollectV03(req)
+	result, err := CollectV03(req, collectorPrivateKeyV03())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +137,7 @@ func TestCollectV03HelperProcess(t *testing.T) {
 	if err := decoder.Decode(&req); err != nil {
 		os.Exit(2)
 	}
-	result, err := CollectV03(req)
+	result, err := CollectV03(req, collectorPrivateKeyV03())
 	if err != nil {
 		os.Exit(3)
 	}
@@ -135,30 +152,40 @@ func collectorRequestV03(t *testing.T, signaled bool) RequestV03 {
 	control, err := defense.NewExecutionIntegrityControlV02(
 		"control:execution-integrity",
 		"collector:independent-process",
-		defense.DefenseValidationExecutionIntegrityConfigV02{IndependentCollectorRequired: true},
+		defense.DefenseValidationExecutionIntegrityConfigV02{CollectorPublicKey: collectorPublicKeyV03(), IndependentCollectorRequired: true},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
+	scenario := collectorScenarioV03(t)
 	approved := collectorSafeTxV03("0x2222222222222222222222222222222222222222", nil)
 	candidate := approved
 	if signaled {
 		candidate = collectorSafeTxV03("0x9999999999999999999999999999999999999999", nil)
 	}
 	proof, receipt := collectorProofReceiptV03(t, approved, candidate)
+	approvedAction, err := executionproof.CanonicalSafeActionArtifact(approved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateAction, err := executionproof.CanonicalSafeActionArtifact(candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var impact *int64
 	caseKind := defense.DefenseValidationCaseBenignV02
-	caseRef := "case:collector:benign"
+	caseRef := "case:evm:safe-authorized-transfer-benign"
 	if signaled {
 		value := int64(1000)
 		impact = &value
 		caseKind = defense.DefenseValidationCaseAttackV02
-		caseRef = "case:collector:attack"
+		caseRef = "case:evm:safe-intent-mutation-attack"
 	}
 	return RequestV03{
 		Version:                      VersionV03,
 		CollectorRef:                 control.CollectorRef,
 		Control:                      control,
+		Scenario:                     scenario,
 		Chain:                        "evm",
 		CaseRef:                      caseRef,
 		CaseKind:                     caseKind,
@@ -171,15 +198,17 @@ func collectorRequestV03(t *testing.T, signaled bool) RequestV03 {
 		WindowToUnixMS:               13000,
 		ContainmentReceipt:           receipt,
 		ExecutionProof:               proof,
+		ApprovedSafeAction:           approvedAction,
+		CandidateSafeAction:          candidateAction,
 	}
 }
 
 func collectorSafeTxV03(to string, data []byte) executionproof.SafeTransaction {
 	return executionproof.SafeTransaction{
-		ChainID:        1,
+		ChainID:        31337,
 		Safe:           "0x1111111111111111111111111111111111111111",
 		To:             to,
-		Value:          big.NewInt(0),
+		Value:          big.NewInt(1_000_000_000_000_000_000),
 		Data:           append([]byte(nil), data...),
 		Operation:      0,
 		SafeTxGas:      big.NewInt(50000),
@@ -262,4 +291,29 @@ func collectorProofReceiptV03(t *testing.T, approved, candidate executionproof.S
 func collectorSHA256V03(value []byte) string {
 	sum := sha256.Sum256(value)
 	return hex.EncodeToString(sum[:])
+}
+
+func collectorPrivateKeyV03() ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x6c
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+func collectorPublicKeyV03() string {
+	return base64.RawURLEncoding.EncodeToString(collectorPrivateKeyV03().Public().(ed25519.PublicKey))
+}
+
+func collectorScenarioV03(t *testing.T) defense.DefenseValidationScenarioV02 {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "docs", "defense-validation", "scenarios", "safe-intent-mutation-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := defense.ParseDefenseValidationScenarioV02(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scenario
 }

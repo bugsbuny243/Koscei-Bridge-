@@ -1,11 +1,16 @@
 package defense_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -41,20 +46,24 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	approved := realSafeTxV04(cfg, big.NewInt(1_000_000_000_000_000_000))
+	mutated := realSafeTxV04(cfg, big.NewInt(2_000_000_000_000_000_000))
+	scenario := realScenarioV04(t, cfg, approved)
+	scenarioHash, err := defense.DefenseValidationScenarioDigestV02(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
 	control, err := defense.NewExecutionIntegrityControlV02(
 		"control:execution-integrity-real-anvil",
 		"collector:independent-real-anvil",
-		defense.DefenseValidationExecutionIntegrityConfigV02{IndependentCollectorRequired: true},
+		defense.DefenseValidationExecutionIntegrityConfigV02{CollectorPublicKey: realCollectorPublicKeyV04(), IndependentCollectorRequired: true},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	approved := realSafeTxV04(cfg, big.NewInt(1_000_000_000_000_000_000))
-	mutated := realSafeTxV04(cfg, big.NewInt(2_000_000_000_000_000_000))
-
-	benign := realValidationCaseV04(t, cfg, control, approved, approved, defense.DefenseValidationCaseBenignV02)
-	attack := realValidationCaseV04(t, cfg, control, approved, mutated, defense.DefenseValidationCaseAttackV02)
+	benign := realValidationCaseV04(t, cfg, control, scenario, approved, approved, defense.DefenseValidationCaseBenignV02)
+	attack := realValidationCaseV04(t, cfg, control, scenario, approved, mutated, defense.DefenseValidationCaseAttackV02)
 
 	if benign.execution.ContainmentDecision != executioncontainment.DecisionRelease || benign.execution.ControlSignaled {
 		t.Fatalf("benign control signal=%s/%v", benign.execution.ContainmentDecision, benign.execution.ControlSignaled)
@@ -67,14 +76,17 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 	}
 
 	report, err := defense.EvaluateDefenseValidationV02(defense.DefenseValidationInputV02{
-		RunRef:          "run:real-anvil-safe-intent-mutation-v04",
-		ScenarioRef:     "scenario:evm:safe-intent-mutation",
-		ScenarioVersion: "v1.0.0",
-		Chain:           "evm",
-		RulesetVersion:  defense.DefenseValidationRulesetVersionV02,
-		Controls:        []defense.DefenseValidationControlV02{control},
-		Cases:           []defense.DefenseValidationCaseV02{attack.execution.Case, benign.execution.Case},
-		Observations:    []defense.DefenseValidationObservationV02{attack.observation, benign.observation},
+		RunRef:               "run:real-anvil-safe-intent-mutation-v04",
+		Scenario:             scenario,
+		ScenarioRef:          scenario.ScenarioRef,
+		ScenarioVersion:      scenario.ScenarioVersion,
+		ScenarioContractHash: scenarioHash,
+		Chain:                scenario.Chain,
+		ChainID:              cfg.chainID,
+		RulesetVersion:       defense.DefenseValidationRulesetVersionV02,
+		Controls:             []defense.DefenseValidationControlV02{control},
+		Cases:                []defense.DefenseValidationCaseV02{attack.execution.Case, benign.execution.Case},
+		Observations:         []defense.DefenseValidationObservationV02{attack.observation, benign.observation},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +124,7 @@ type realValidationCaseResultV04 struct {
 	observation defense.DefenseValidationObservationV02
 }
 
-func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, control defense.DefenseValidationControlV02, approved, candidate executionproof.SafeTransaction, kind string) realValidationCaseResultV04 {
+func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, control defense.DefenseValidationControlV02, scenario defense.DefenseValidationScenarioV02, approved, candidate executionproof.SafeTransaction, kind string) realValidationCaseResultV04 {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -126,6 +138,10 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		t.Fatal(err)
 	}
 	action, err := executionproof.CanonicalSafeActionArtifact(candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approvedAction, err := executionproof.CanonicalSafeActionArtifact(approved)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,12 +209,12 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 	}
 
 	var impact *int64
-	caseRef := "case:evm:safe-authorized-native-transfer-real-anvil"
+	caseRef := "case:evm:safe-authorized-transfer-benign"
 	var alert *int64
 	if kind == defense.DefenseValidationCaseAttackV02 {
 		impactValue := int64(1000)
 		impact = &impactValue
-		caseRef = "case:evm:safe-intent-value-mutation-real-anvil"
+		caseRef = "case:evm:safe-intent-mutation-attack"
 		alertValue := int64(120)
 		alert = &alertValue
 	}
@@ -206,6 +222,7 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		Version:                      defensecollector.VersionV03,
 		CollectorRef:                 control.CollectorRef,
 		Control:                      control,
+		Scenario:                     scenario,
 		Chain:                        "evm",
 		CaseRef:                      caseRef,
 		CaseKind:                     kind,
@@ -220,7 +237,9 @@ func realValidationCaseV04(t *testing.T, cfg realAnvilValidationConfigV04, contr
 		MainnetTransactionSent:       false,
 		ContainmentReceipt:           receipt,
 		ExecutionProof:               proof,
-	})
+		ApprovedSafeAction:           approvedAction,
+		CandidateSafeAction:          action,
+	}, realCollectorPrivateKeyV04())
 	if err != nil {
 		t.Fatalf("collect independent real execution %s: %v", kind, err)
 	}
@@ -298,4 +317,61 @@ func mustEnvDefenseV04(t *testing.T, key string) string {
 func sha256HexDefenseV04(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+func realCollectorPrivateKeyV04() ed25519.PrivateKey {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = 0x5a
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+func realCollectorPublicKeyV04() string {
+	return base64.RawURLEncoding.EncodeToString(realCollectorPrivateKeyV04().Public().(ed25519.PublicKey))
+}
+
+func realScenarioV04(t *testing.T, cfg realAnvilValidationConfigV04, approved executionproof.SafeTransaction) defense.DefenseValidationScenarioV02 {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "docs", "defense-validation", "scenarios", "safe-intent-mutation-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var contract map[string]any
+	if err := decoder.Decode(&contract); err != nil {
+		t.Fatal(err)
+	}
+	matrix, ok := contract["matrix"].(map[string]any)
+	if !ok {
+		t.Fatal("scenario matrix is missing")
+	}
+	cases, ok := matrix["cases"].([]any)
+	if !ok {
+		t.Fatal("scenario cases are missing")
+	}
+	for _, value := range cases {
+		caseContract, ok := value.(map[string]any)
+		if !ok {
+			t.Fatal("scenario case is invalid")
+		}
+		matched, ok := caseContract["matched_values"].(map[string]any)
+		if !ok {
+			t.Fatal("scenario matched values are missing")
+		}
+		matched["safe"] = "0x" + strings.ToLower(strings.TrimPrefix(strings.TrimSpace(cfg.safe), "0x"))
+		matched["chain_id"] = json.Number(strconv.FormatUint(cfg.chainID, 10))
+		matched["treasury_asset"] = "native"
+		matched["transfer_amount"] = json.Number(approved.Value.String())
+	}
+	data, err = json.Marshal(contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := defense.ParseDefenseValidationScenarioV02(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scenario
 }

@@ -100,6 +100,12 @@ func decodeCanonicalSafeAction(action executioncontainment.ActionArtifact) (Safe
 	return tx, nil
 }
 
+// DecodeCanonicalSafeActionArtifact verifies canonical encoding and returns the
+// exact Safe transaction whose digest is bound into containment evidence.
+func DecodeCanonicalSafeActionArtifact(action executioncontainment.ActionArtifact) (SafeTransaction, error) {
+	return decodeCanonicalSafeAction(action)
+}
+
 func parseUint256Decimal(value string) *big.Int {
 	v, ok := new(big.Int).SetString(value, 10)
 	if !ok {

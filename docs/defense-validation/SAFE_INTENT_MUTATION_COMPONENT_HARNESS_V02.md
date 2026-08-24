@@ -8,18 +8,21 @@ The component test uses the real repository implementations for:
 
 - local Safe EIP-712 `safeTxHash` recomputation (`executionproof.NativeSafeTxHashComputer`);
 - canonical full Safe action hashing;
+- canonical approved and candidate Safe action decoding, with Safe transaction hashes and calldata rebound to Execution Proof and Execution Containment;
 - Execution Proof deterministic `ALLOW` / `BLOCK` evaluation;
 - Execution Containment deterministic `RELEASE` / `CONTAIN` recomputation and receipt verification;
-- Security Evidence Bus event sealing and digest verification;
+- Security Evidence Bus event sealing, Ed25519 producer authentication and digest verification;
 - independent-collector identity and source-digest binding;
-- Defense Validation v0.2 attack/benign matrix evaluation.
+- Defense Validation v0.2 evaluation against the complete parsed scenario and its exact declared case set.
 
 The test runs two attack-control shapes against the same Safe intent-mutation scenario:
 
-1. **Weak upstream binding** — the mutated candidate has already replaced the approved baseline before the control sees it. Execution Proof and Execution Containment therefore receive a self-consistent but wrong baseline. No control signal is produced; the independent observation is `no_alert`; the deterministic evaluator returns `MISSED` / `FAILED`.
-2. **Exact approved binding** — the original approved Safe intent and calldata remain authoritative while the mutated candidate is separately recomputed. Execution Proof returns `BLOCK`, Execution Containment returns `CONTAIN`, the independently sealed observation is bound to both artifact digests, and the attack is observed before the declared impact deadline. The matched benign action remains `RELEASE` / `ALLOW` with `no_alert`, so the component evaluator returns `CAUGHT_IN_TIME` for attack and `CLEAN` for benign.
+1. **Weak upstream binding** — the mutated candidate has already replaced the approved baseline before the control sees it. Execution Proof and Execution Containment therefore receive a self-consistent but wrong baseline. The adapter now rejects this input before emitting a verified case because the raw actions do not exercise the scenario-declared mismatch and the receipt lacks `EC-004-INTENT-MISMATCH`.
+2. **Exact approved binding** — the original approved Safe intent and calldata remain authoritative while the mutated candidate is separately recomputed. Execution Proof returns `BLOCK`, Execution Containment returns `CONTAIN`, the independently authenticated observation is bound to both artifact digests, and the attack is observed before the scenario's latest detection offset. The matched benign action remains `RELEASE` / `ALLOW` with `no_alert`, so the component evaluator returns `CAUGHT_IN_TIME` for attack and `CLEAN` for benign.
 
 This proves why preserving the approved baseline is part of the security boundary. A control cannot detect a mutation if the attacker is allowed to redefine what "approved" meant before validation begins.
+
+Before a case is adapted, the harness compares every declared scenario match against execution evidence: the Safe address and chain ID come from both canonical actions, the native treasury-asset class and approved transfer amount come from the approved Safe action, and the observation window comes from the adapted execution. Unsupported matched fields or any value mismatch are rejected. The exact approved and candidate action digests also participate in the execution hash. An attack additionally requires different canonical actions, the bound intent or payload mismatch, `CONTAIN`, and `EC-004-INTENT-MISMATCH`; pinned-state, runner, malformed-evidence or other unrelated failures cannot substitute for the declared attack. A benign case requires identical actions, an unqualified `RELEASE`, and an `ALLOW` proof.
 
 ## Independent observation contract
 
@@ -27,7 +30,7 @@ A control cannot validate itself.
 
 The observation adapter requires a `koschei.security-evidence/v1` event whose producer exactly matches the control's configured independent collector and is different from the control identity. The event must:
 
-- verify its own event digest;
+- verify its own event digest and Ed25519 signature against the collector public key pinned by the control configuration hash;
 - identify the exact validation case;
 - cover the full declared observation window;
 - include both the Execution Proof digest and Execution Containment receipt digest as source digests;
@@ -35,7 +38,9 @@ The observation adapter requires a `koschei.security-evidence/v1` event whose pr
 - bind `control_ref`, `case_ref`, `status`, `execution_hash`, alert offset and completed observation offset into a canonical SHA-256 digest;
 - use `VERIFIED` evidence state for that finding.
 
-A self-produced event, missing source digest, altered observation binding, incomplete window, or status that contradicts the verified control decisions is rejected before the deterministic evaluator sees it.
+A self-produced or caller-resealed event, missing source digest, altered observation binding, incomplete window, or status that contradicts the verified control decisions is rejected before the deterministic evaluator sees it.
+
+The scenario parser requires every environment field to be explicitly present, including all custody, production, mainnet and side-effect safety declarations. Prohibited fields must be boolean false, unknown environment fields are rejected fail-closed, and omitting any scenario case produces an `INCOMPLETE` control result.
 
 ## Claim boundary
 
@@ -50,7 +55,7 @@ The test intentionally does not:
 - prove a separate production collector process observed a live attack;
 - replace the planned pinned-fork / Anvil execution evidence required by `safe-intent-mutation-v1.json`.
 
-The unit harness uses deterministic fixture state hashes and an in-process independently identified Security Evidence event. Therefore its `validated` evaluator result is scoped to the component harness only and MUST NOT be presented as a production control-validation claim.
+The unit harness uses deterministic fixture state hashes and a deterministic test-only collector signing key whose public key is pinned in the control configuration. Therefore its `validated` evaluator result is scoped to the component harness only and MUST NOT be presented as a production control-validation claim.
 
 ## Next acceptance gate
 
