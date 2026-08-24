@@ -60,8 +60,9 @@ var (
 	walletLabelCache   = map[string]*WalletLabel{}
 	walletLabelCacheMu sync.RWMutex
 
-	heliusIdentityHTTPClient = http.DefaultClient
-	heliusIdentityCapability = struct {
+	heliusIdentityHTTPClient   = http.DefaultClient
+	heliusIdentityHTTPClientMu sync.RWMutex
+	heliusIdentityCapability   = struct {
 		sync.RWMutex
 		Unavailable bool
 		StatusCode  int
@@ -88,6 +89,21 @@ func markHeliusWalletIdentityUnavailable(statusCode int) {
 	heliusIdentityCapability.Unavailable = true
 	heliusIdentityCapability.StatusCode = statusCode
 	heliusIdentityCapability.Unlock()
+}
+
+func currentHeliusIdentityHTTPClient() *http.Client {
+	heliusIdentityHTTPClientMu.RLock()
+	defer heliusIdentityHTTPClientMu.RUnlock()
+	return heliusIdentityHTTPClient
+}
+
+func setHeliusIdentityHTTPClientForTest(client *http.Client) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	heliusIdentityHTTPClientMu.Lock()
+	heliusIdentityHTTPClient = client
+	heliusIdentityHTTPClientMu.Unlock()
 }
 
 // labelCacheGet returns a cached label. The bool distinguishes "cached as
@@ -140,7 +156,7 @@ func ResolveWalletLabel(ctx context.Context, rpcURL, address string) *WalletLabe
 	}
 	req.Header.Set("Accept", "application/json")
 
-	res, err := heliusIdentityHTTPClient.Do(req)
+	res, err := currentHeliusIdentityHTTPClient().Do(req)
 	if err != nil {
 		// Transient failure: do NOT cache, so a later scan can retry.
 		return nil
@@ -205,7 +221,7 @@ func resetHeliusWalletIdentityStateForTest() {
 	heliusIdentityCapability.StatusCode = 0
 	heliusIdentityCapability.Unlock()
 
-	heliusIdentityHTTPClient = http.DefaultClient
+	setHeliusIdentityHTTPClientForTest(http.DefaultClient)
 }
 
 // walletLabelDisplay renders a short human label for a holder row, or "" when
