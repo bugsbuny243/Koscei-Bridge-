@@ -13,11 +13,32 @@ import (
 	"time"
 )
 
-// Helius created-mint discovery uses getTransactionsForAddress with full
-// jsonParsed transactions. The endpoint returns canonical transaction shapes,
-// so candidate extraction can require the actor signer and exact Pump/SPL mint
-// instruction instead of relying on provider labels or fee-payer heuristics.
+// FetchHeliusCreatedMintDiscovery is retained as the compatibility entry point
+// used by the actor pipeline. Standard Solana RPC is the default so Helius Free
+// and non-Helius RPC providers can collect bounded created-mint evidence.
+// getTransactionsForAddress is a paid-plan optimization and only runs after
+// explicit KOSCHEI_HELIUS_CREATED_MINT_GTFA_ENABLED opt-in.
+func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string) CreatedMintDiscovery {
+	if !heliusCreatedMintGTFAEnabled() {
+		return FetchSolanaRPCCreatedMintDiscovery(ctx, rpcURL, wallet)
+	}
+	helius := fetchHeliusCreatedMintDiscoveryGTFA(ctx, rpcURL, wallet)
+	if helius.Available {
+		return helius
+	}
+	fallback := FetchSolanaRPCCreatedMintDiscovery(ctx, rpcURL, wallet)
+	if len(helius.Limitations) > 0 {
+		fallback.Limitations = append(fallback.Limitations, "Helius getTransactionsForAddress was unavailable; standard RPC fallback was used.")
+		fallback.Limitations = append(fallback.Limitations, helius.Limitations...)
+	}
+	return fallback
+}
 
+// Helius paid created-mint discovery uses getTransactionsForAddress with full
+// jsonParsed transactions. Candidate extraction still requires the actor signer
+// and exact Pump/SPL mint instruction instead of provider labels or fee-payer
+// heuristics. The full-transaction request is capped at 100 records per current
+// Helius method limits.
 type heliusTransactionsForAddressResponse struct {
 	Result struct {
 		Data            []map[string]any `json:"data"`
@@ -29,7 +50,7 @@ type heliusTransactionsForAddressResponse struct {
 	} `json:"error"`
 }
 
-func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string) CreatedMintDiscovery {
+func fetchHeliusCreatedMintDiscoveryGTFA(ctx context.Context, rpcURL, wallet string) CreatedMintDiscovery {
 	wallet = strings.TrimSpace(wallet)
 	out := CreatedMintDiscovery{
 		Status: "not_configured", Provider: "helius_get_transactions_for_address",
@@ -44,14 +65,14 @@ func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string)
 
 	apiKey := heliusEnhancedAPIKey(rpcURL)
 	if apiKey == "" {
-		out.Limitations = append(out.Limitations, "No Helius API key resolved; created-mint discovery was skipped.")
+		out.Limitations = append(out.Limitations, "No Helius API key resolved; paid getTransactionsForAddress discovery was skipped.")
 		return out
 	}
 	out.Configured = true
 
 	endpoint := heliusRPCProviderURL(rpcURL, apiKey)
 	maxPages := holderScanEnvInt("HELIUS_CREATED_MINT_MAX_PAGES", 6, 1, 20)
-	pageLimit := holderScanEnvInt("HELIUS_CREATED_MINT_PAGE_LIMIT", 250, 10, 1000)
+	pageLimit := holderScanEnvInt("HELIUS_CREATED_MINT_PAGE_LIMIT", 100, 10, 100)
 	pageDelay := time.Duration(holderScanEnvInt("HELIUS_CREATED_MINT_PAGE_DELAY_MS", 150, 0, 2000)) * time.Millisecond
 
 	paginationToken := ""
@@ -120,8 +141,8 @@ func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string)
 }
 
 func fetchHeliusCreatedMintPage(ctx context.Context, endpoint, wallet, paginationToken string, limit int) ([]map[string]any, string, error) {
-	if limit <= 0 || limit > 1000 {
-		limit = 250
+	if limit <= 0 || limit > 100 {
+		limit = 100
 	}
 	options := map[string]any{
 		"transactionDetails":             "full",
