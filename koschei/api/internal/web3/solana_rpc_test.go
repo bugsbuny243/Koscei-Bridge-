@@ -59,6 +59,7 @@ func TestSolanaRPCFallsBackAfterProviderRateLimit(t *testing.T) {
 
 	t.Setenv("SOLANA_RPC_URL", primary.URL)
 	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallback.URL)
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "0")
 	rpc := &SolanaRPC{Client: fallback.Client(), Cache: cache.NewNoop(), KeyPrefix: "test"}
 	var out struct {
 		Value string `json:"value"`
@@ -71,6 +72,48 @@ func TestSolanaRPCFallsBackAfterProviderRateLimit(t *testing.T) {
 	}
 	if primaryCalls.Load() != 1 || fallbackCalls.Load() != 1 {
 		t.Fatalf("expected one call per endpoint, primary=%d fallback=%d", primaryCalls.Load(), fallbackCalls.Load())
+	}
+}
+
+func TestSolanaRPCCoolsDownRateLimitedPrimary(t *testing.T) {
+	var primaryCalls atomic.Int32
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		primaryCalls.Add(1)
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "capacity exceeded", http.StatusTooManyRequests)
+	}))
+	defer primary.Close()
+
+	var fallbackCalls atomic.Int32
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fallbackCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":{"value":"fallback-ok"}}`)
+	}))
+	defer fallback.Close()
+
+	t.Setenv("SOLANA_RPC_URL", primary.URL)
+	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallback.URL)
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "0")
+	t.Setenv("SOLANA_RPC_429_COOLDOWN_SECONDS", "30")
+	rpc := &SolanaRPC{Client: fallback.Client(), Cache: cache.NewNoop(), KeyPrefix: "test"}
+
+	for i := 0; i < 2; i++ {
+		var out struct {
+			Value string `json:"value"`
+		}
+		if err := rpc.Call(context.Background(), "solana-mainnet", "getVersion", []any{i}, &out, time.Second); err != nil {
+			t.Fatalf("call %d expected fallback success, got %v", i, err)
+		}
+		if out.Value != "fallback-ok" {
+			t.Fatalf("call %d unexpected fallback result %q", i, out.Value)
+		}
+	}
+	if primaryCalls.Load() != 1 {
+		t.Fatalf("rate-limited primary should be cooled down, calls=%d", primaryCalls.Load())
+	}
+	if fallbackCalls.Load() != 2 {
+		t.Fatalf("fallback calls=%d want=2", fallbackCalls.Load())
 	}
 }
 
@@ -94,6 +137,7 @@ func TestSolanaRPCFallsBackAfterEndpointTimeout(t *testing.T) {
 	t.Setenv("SOLANA_RPC_URL", primary.URL)
 	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallback.URL)
 	t.Setenv("SOLANA_RPC_ENDPOINT_TIMEOUT_MS", "75")
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "0")
 	rpc := &SolanaRPC{Client: fallback.Client(), Cache: cache.NewNoop(), KeyPrefix: "test"}
 	var out struct {
 		Value string `json:"value"`
@@ -107,6 +151,54 @@ func TestSolanaRPCFallsBackAfterEndpointTimeout(t *testing.T) {
 	}
 	if out.Value != "fallback-ok" || primaryCalls.Load() != 1 || fallbackCalls.Load() != 1 {
 		t.Fatalf("unexpected fallback result=%q primary=%d fallback=%d", out.Value, primaryCalls.Load(), fallbackCalls.Load())
+	}
+}
+
+func TestSolanaRPCSharesParentDeadlineAcrossFailoverEndpoints(t *testing.T) {
+	var primaryCalls atomic.Int32
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		primaryCalls.Add(1)
+		time.Sleep(250 * time.Millisecond)
+		http.Error(w, "late primary", http.StatusGatewayTimeout)
+	}))
+	defer primary.Close()
+
+	var fallbackCalls atomic.Int32
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fallbackCalls.Add(1)
+		time.Sleep(60 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":{"value":"fair-fallback"}}`)
+	}))
+	defer fallback.Close()
+
+	t.Setenv("SOLANA_RPC_URL", primary.URL)
+	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallback.URL)
+	t.Setenv("SOLANA_RPC_ENDPOINT_TIMEOUT_MS", "180")
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "0")
+	rpc := &SolanaRPC{Client: fallback.Client(), Cache: cache.NewNoop(), KeyPrefix: "test"}
+	ctx, cancel := context.WithTimeout(context.Background(), 220*time.Millisecond)
+	defer cancel()
+	var out struct {
+		Value string `json:"value"`
+	}
+	if err := rpc.Call(ctx, "solana-mainnet", "getVersion", []any{"deadline-share"}, &out, time.Second); err != nil {
+		t.Fatalf("expected fallback to retain deadline budget, got %v", err)
+	}
+	if out.Value != "fair-fallback" || primaryCalls.Load() != 1 || fallbackCalls.Load() != 1 {
+		t.Fatalf("unexpected result=%q primary=%d fallback=%d", out.Value, primaryCalls.Load(), fallbackCalls.Load())
+	}
+}
+
+func TestSolanaRPCMinIntervalConfiguration(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "")
+	if got := solanaRPCMinInterval(); got != 500*time.Millisecond {
+		t.Fatalf("production default min interval=%s", got)
+	}
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "125")
+	if got := solanaRPCMinInterval(); got != 125*time.Millisecond {
+		t.Fatalf("configured min interval=%s", got)
 	}
 }
 
