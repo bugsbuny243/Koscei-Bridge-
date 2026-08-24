@@ -114,9 +114,14 @@ func heliusProviderAPIKey(rpcURL string) string {
 	return strings.TrimSpace(parsed.Query().Get("api-key"))
 }
 
-// heliusEnhancedAPIKey exposes the provider key only when the operator has
-// explicitly opted into the high-credit Enhanced Transactions history path.
+// heliusEnhancedAPIKey is retained as the shared Helius provider-key resolver
+// because DAS/token-metadata code already uses it. Enhanced-history policy is
+// deliberately enforced by heliusEnhancedHistoryAPIKey instead.
 func heliusEnhancedAPIKey(rpcURL string) string {
+	return heliusProviderAPIKey(rpcURL)
+}
+
+func heliusEnhancedHistoryAPIKey(rpcURL string) string {
 	if !heliusEnhancedHistoryEnabled() {
 		return ""
 	}
@@ -265,7 +270,7 @@ func holderClusterAppendHeliusMetadataEvidence(observation *HolderClusterFlowObs
 // the explicitly enabled enhanced path produced a usable row; on false the
 // caller runs the tiered standard-RPC path instead.
 func analyzeHolderClusterWalletEnhanced(ctx context.Context, rpcURL, mint string, account HolderRoleAccount, launchBlockTime int64, holderWallets map[string]bool, plan holderScanPlan, budget *holderScanRPCBudget) (HolderClusterWallet, bool) {
-	apiKey := heliusEnhancedAPIKey(rpcURL)
+	apiKey := heliusEnhancedHistoryAPIKey(rpcURL)
 	if apiKey == "" {
 		return HolderClusterWallet{}, false
 	}
