@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"koschei/api/internal/defense"
 	"koschei/api/internal/services"
 )
 
@@ -36,7 +35,7 @@ func TestCollectProgramSecuritySurfaceReportsAuthorityAndAge(t *testing.T) {
 				"context": map[string]any{"slot": 999},
 				"value": map[string]any{
 					"data":       []string{base64.StdEncoding.EncodeToString(data), "base64"},
-					"executable": true, "owner": defense.UpgradeableLoaderID, "space": len(data),
+					"executable": true, "owner": arvisUpgradeableLoaderID, "space": len(data),
 				},
 			}, target)
 		case "getBlockTime":
@@ -66,6 +65,61 @@ func TestProgramSecurityCandidatesDeduplicateProgramRoles(t *testing.T) {
 	)
 	if len(items) != 1 {
 		t.Fatalf("expected one deduplicated program, got %+v", items)
+	}
+}
+
+func TestInspectARVISProgramAuthorityRejectsMalformedLegacyLoaderData(t *testing.T) {
+	tests := []struct {
+		name string
+		data any
+	}{
+		{name: "missing", data: nil},
+		{name: "invalid base64", data: []string{"%%%", "base64"}},
+		{name: "wrong encoding", data: []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), "base58"}},
+		{name: "empty", data: []string{"", "base64"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpc := func(_ context.Context, _ string, method string, _ any, target any) error {
+				if method != "getAccountInfo" {
+					t.Fatalf("unexpected RPC method %s", method)
+				}
+				return programSecurityDecodeInto(map[string]any{
+					"context": map[string]any{"slot": 999},
+					"value": map[string]any{
+						"data": tt.data, "executable": true, "owner": arvisLegacyLoaderV2ID,
+					},
+				}, target)
+			}
+
+			if _, err := inspectARVISProgramAuthority(context.Background(), rpc, "solana-mainnet", programSecurityPumpFun); err == nil {
+				t.Fatal("expected malformed legacy loader evidence to fail closed")
+			}
+		})
+	}
+}
+
+func TestInspectARVISProgramAuthorityAcceptsVerifiedLegacyLoaderData(t *testing.T) {
+	rpc := func(_ context.Context, _ string, method string, _ any, target any) error {
+		if method != "getAccountInfo" {
+			t.Fatalf("unexpected RPC method %s", method)
+		}
+		return programSecurityDecodeInto(map[string]any{
+			"context": map[string]any{"slot": 999},
+			"value": map[string]any{
+				"data":       []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), "base64"},
+				"executable": true, "owner": arvisLegacyLoaderV2ID,
+			},
+		}, target)
+	}
+
+	snapshot, err := inspectARVISProgramAuthority(context.Background(), rpc, "solana-mainnet", programSecurityPumpFun)
+	if err != nil {
+		t.Fatalf("inspect legacy loader: %v", err)
+	}
+	if snapshot.Status != "immutable_legacy_loader" || !snapshot.Immutable || snapshot.LoaderKind != "bpf_loader_v2" {
+		t.Fatalf("unexpected legacy loader snapshot: %+v", snapshot)
 	}
 }
 

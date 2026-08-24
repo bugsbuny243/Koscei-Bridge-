@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -43,9 +44,9 @@ type arvisProgramAccountInfoResponse struct {
 		Slot uint64 `json:"slot"`
 	} `json:"context"`
 	Value *struct {
-		Owner      string `json:"owner"`
-		Executable bool   `json:"executable"`
-		Data       any    `json:"data"`
+		Owner      string   `json:"owner"`
+		Executable bool     `json:"executable"`
+		Data       []string `json:"data"`
 	} `json:"value"`
 }
 
@@ -132,8 +133,8 @@ func collectProgramSecuritySurface(ctx context.Context, rpc solanaRPCCall, netwo
 }
 
 // inspectARVISProgramAuthority is a narrow ARVIS evidence collector. It keeps
-// upgrade-authority facts used by actor/token investigations without reviving
-// the removed Defense OS deployment subsystem.
+// upgrade-authority facts used by actor/token investigations without depending
+// on the separately gated Defense OS deployment subsystem.
 func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, network, programID string) (arvisProgramAuthoritySnapshot, error) {
 	programID = strings.TrimSpace(programID)
 	if rpc == nil {
@@ -165,15 +166,18 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		LoaderID: strings.TrimSpace(program.Value.Owner), AccountSlot: program.Context.Slot,
 		EvidenceRefs: []string{"rpc:getAccountInfo:" + programID}, Limitations: []string{},
 	}
+	programHeader, decodeErr := decodeARVISProgramAccountData(program.Value.Data)
+	if decodeErr != nil {
+		return arvisProgramAuthoritySnapshot{}, fmt.Errorf("program account decode failed: %w", decodeErr)
+	}
 
 	switch out.LoaderID {
 	case arvisUpgradeableLoaderID:
 		out.LoaderKind = "bpf_upgradeable_loader"
-		data, decodeErr := accountDataBytes(program.Value.Data)
-		if decodeErr != nil || len(data) < 36 || binary.LittleEndian.Uint32(data[:4]) != 2 {
+		if len(programHeader) < 36 || binary.LittleEndian.Uint32(programHeader[:4]) != 2 {
 			return arvisProgramAuthoritySnapshot{}, errors.New("invalid upgradeable program account header")
 		}
-		out.ProgramDataAddress = arvisProgramBase58Encode(data[4:36])
+		out.ProgramDataAddress = arvisProgramBase58Encode(programHeader[4:36])
 		programData, lookupErr := read(out.ProgramDataAddress, 45)
 		if lookupErr != nil {
 			return arvisProgramAuthoritySnapshot{}, fmt.Errorf("programdata lookup failed: %w", lookupErr)
@@ -181,8 +185,11 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		if programData.Value == nil || strings.TrimSpace(programData.Value.Owner) != arvisUpgradeableLoaderID {
 			return arvisProgramAuthoritySnapshot{}, errors.New("programdata account owner mismatch")
 		}
-		header, decodeErr := accountDataBytes(programData.Value.Data)
-		if decodeErr != nil || len(header) < 45 || binary.LittleEndian.Uint32(header[:4]) != 3 {
+		header, decodeErr := decodeARVISProgramAccountData(programData.Value.Data)
+		if decodeErr != nil {
+			return arvisProgramAuthoritySnapshot{}, fmt.Errorf("programdata decode failed: %w", decodeErr)
+		}
+		if len(header) < 45 || binary.LittleEndian.Uint32(header[:4]) != 3 {
 			return arvisProgramAuthoritySnapshot{}, errors.New("invalid upgradeable ProgramData header")
 		}
 		out.DeploymentSlot = binary.LittleEndian.Uint64(header[4:12])
@@ -213,6 +220,20 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		return arvisProgramAuthoritySnapshot{}, fmt.Errorf("unsupported program loader: %s", out.LoaderID)
 	}
 	return out, nil
+}
+
+func decodeARVISProgramAccountData(value []string) ([]byte, error) {
+	if len(value) < 2 || strings.TrimSpace(value[1]) != "base64" {
+		return nil, errors.New("account data is not base64 encoded")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(value[0])
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) == 0 {
+		return nil, errors.New("account data is empty")
+	}
+	return decoded, nil
 }
 
 func arvisProgramBase58Encode(input []byte) string {
