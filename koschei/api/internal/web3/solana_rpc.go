@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"koschei/api/internal/cache"
@@ -22,13 +23,27 @@ type SolanaRPC struct {
 	Cache         cache.Cache
 	KeyPrefix     string
 	AlchemyAPIKey string
+
+	limitMu       sync.Mutex
+	nextRequestAt time.Time
+	cooldowns     map[string]time.Time
 }
 
 type solanaRPCEnvelope struct {
 	Result json.RawMessage `json:"result"`
 	Error  *struct {
+		Code    int    `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+type solanaRPCStatusError struct {
+	Status     int
+	RetryAfter string
+}
+
+func (e *solanaRPCStatusError) Error() string {
+	return fmt.Sprintf("rpc status %d", e.Status)
 }
 
 func NewSolanaRPC(c cache.Cache) *SolanaRPC {
@@ -155,6 +170,40 @@ func solanaRPCEndpointTimeout() time.Duration {
 	return 6 * time.Second
 }
 
+func solanaRPCMinInterval() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_MIN_INTERVAL_MS")); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value >= 0 && value <= 5000 {
+			return time.Duration(value) * time.Millisecond
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
+		return 500 * time.Millisecond
+	}
+	return 0
+}
+
+func solanaRPC429Cooldown(retryAfter string) time.Duration {
+	cooldown := 60 * time.Second
+	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_429_COOLDOWN_SECONDS")); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value >= 1 && value <= 3600 {
+			cooldown = time.Duration(value) * time.Second
+		}
+	}
+	retryAfter = strings.TrimSpace(retryAfter)
+	if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
+		providerDelay := time.Duration(seconds) * time.Second
+		if providerDelay > cooldown {
+			cooldown = providerDelay
+		}
+	}
+	if when, err := http.ParseTime(retryAfter); err == nil {
+		if providerDelay := time.Until(when); providerDelay > cooldown {
+			cooldown = providerDelay
+		}
+	}
+	return cooldown
+}
+
 func isSolanaMainnet(network string) bool {
 	switch strings.ToLower(strings.TrimSpace(network)) {
 	case "solana-mainnet", "mainnet", "mainnet-beta":
@@ -224,16 +273,23 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 
 	var lastErr error
 	endpointTimeout := solanaRPCEndpointTimeout()
-	for _, endpoint := range uniqueRPCURLs(s.URL(network), SolanaRPCFallbackURL(network)) {
-		attemptCtx := ctx
-		cancel := func() {}
-		if endpointTimeout > 0 {
-			attemptCtx, cancel = context.WithTimeout(ctx, endpointTimeout)
+	endpoints := uniqueRPCURLs(s.URL(network), SolanaRPCFallbackURL(network))
+	for index, endpoint := range endpoints {
+		if until, cooling := s.rpcEndpointCooldown(endpoint); cooling {
+			lastErr = fmt.Errorf("solana rpc endpoint cooling down until %s", until.UTC().Format(time.RFC3339))
+			continue
 		}
+		if err := s.waitForRPCSlot(ctx); err != nil {
+			return err
+		}
+		attemptCtx, cancel := solanaRPCAttemptContext(ctx, endpointTimeout, len(endpoints)-index)
 		err := callSolanaRPC(attemptCtx, client, endpoint, method, body, target)
 		cancel()
 		if err != nil {
 			lastErr = err
+			if statusErr, ok := err.(*solanaRPCStatusError); ok && statusErr.Status == http.StatusTooManyRequests {
+				s.deferRPCEndpoint(endpoint, solanaRPC429Cooldown(statusErr.RetryAfter))
+			}
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
@@ -246,6 +302,88 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 		lastErr = fmt.Errorf("solana rpc endpoint unavailable")
 	}
 	return lastErr
+}
+
+func solanaRPCAttemptContext(ctx context.Context, configured time.Duration, endpointsRemaining int) (context.Context, context.CancelFunc) {
+	timeout := configured
+	if deadline, ok := ctx.Deadline(); ok && endpointsRemaining > 0 {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return context.WithCancel(ctx)
+		}
+		fairShare := remaining / time.Duration(endpointsRemaining)
+		if timeout <= 0 || fairShare < timeout {
+			timeout = fairShare
+		}
+	}
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
+func (s *SolanaRPC) waitForRPCSlot(ctx context.Context) error {
+	interval := solanaRPCMinInterval()
+	if interval <= 0 {
+		return nil
+	}
+	for {
+		now := time.Now()
+		s.limitMu.Lock()
+		next := s.nextRequestAt
+		if !next.After(now) {
+			s.nextRequestAt = now.Add(interval)
+			s.limitMu.Unlock()
+			return nil
+		}
+		delay := time.Until(next)
+		s.limitMu.Unlock()
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (s *SolanaRPC) rpcEndpointCooldown(endpoint string) (time.Time, bool) {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return time.Time{}, false
+	}
+	now := time.Now()
+	s.limitMu.Lock()
+	defer s.limitMu.Unlock()
+	if s.cooldowns == nil {
+		return time.Time{}, false
+	}
+	until, ok := s.cooldowns[endpoint]
+	if !ok {
+		return time.Time{}, false
+	}
+	if !until.After(now) {
+		delete(s.cooldowns, endpoint)
+		return time.Time{}, false
+	}
+	return until, true
+}
+
+func (s *SolanaRPC) deferRPCEndpoint(endpoint string, delay time.Duration) {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" || delay <= 0 {
+		return
+	}
+	until := time.Now().Add(delay)
+	s.limitMu.Lock()
+	if s.cooldowns == nil {
+		s.cooldowns = map[string]time.Time{}
+	}
+	if current := s.cooldowns[endpoint]; until.After(current) {
+		s.cooldowns[endpoint] = until
+	}
+	s.limitMu.Unlock()
 }
 
 func callSolanaRPC(ctx context.Context, client *http.Client, endpoint, method string, body []byte, target any) error {
@@ -266,7 +404,7 @@ func callSolanaRPC(ctx context.Context, client *http.Client, endpoint, method st
 		actualEndpoint = resp.Request.URL.String()
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		err := fmt.Errorf("rpc status %d", resp.StatusCode)
+		err := &solanaRPCStatusError{Status: resp.StatusCode, RetryAfter: resp.Header.Get("Retry-After")}
 		LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
 		return err
 	}
@@ -276,6 +414,11 @@ func callSolanaRPC(ctx context.Context, client *http.Client, endpoint, method st
 		return err
 	}
 	if env.Error != nil {
+		if env.Error.Code == http.StatusTooManyRequests {
+			err := &solanaRPCStatusError{Status: http.StatusTooManyRequests}
+			LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
+			return err
+		}
 		err := fmt.Errorf("rpc error: %s", env.Error.Message)
 		LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
 		return err
