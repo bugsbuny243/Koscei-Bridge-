@@ -10,14 +10,18 @@ package services
 // "OKX", "Wintermute", etc.
 //
 // Design rules honored:
-//   - Reuses heliusEnhancedAPIKey; no new credentials. If no key resolves, the
-//     labeler is a no-op and existing role behavior is untouched.
+//   - Reuses heliusEnhancedAPIKey; no new credentials.
+//   - Wallet Identity is a paid-plan Helius capability and is disabled by
+//     default. HELIUS_WALLET_IDENTITY_ENABLED=true is required before any
+//     identity request is sent.
+//   - A 401/403 response trips a process-level capability circuit so one
+//     unavailable/unauthorized provider feature cannot be retried for every
+//     holder and flow endpoint in the same process.
 //   - Never fabricates: only labels the API positively returns are surfaced.
 //     An empty/unknown response yields no label, not a guess.
-//   - Process-level cache: the same exchange wallet appears across many scans;
-//     each address is queried at most once per process lifetime.
-//   - Identity lookups are archival calls (1 credit each) and only run for the
-//     bounded Top-N holder set, so credit cost stays negligible.
+//   - Process-level address cache keeps positive labels and definitive 404/
+//     empty responses. Missing configuration and transient provider failures
+//     are not cached as "unlabeled" evidence.
 
 import (
 	"context"
@@ -25,6 +29,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -54,7 +59,36 @@ type heliusIdentityResponse struct {
 var (
 	walletLabelCache   = map[string]*WalletLabel{}
 	walletLabelCacheMu sync.RWMutex
+
+	heliusIdentityHTTPClient = http.DefaultClient
+	heliusIdentityCapability = struct {
+		sync.RWMutex
+		Unavailable bool
+		StatusCode  int
+	}{}
 )
+
+func heliusWalletIdentityEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("HELIUS_WALLET_IDENTITY_ENABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func heliusWalletIdentityUnavailable() bool {
+	heliusIdentityCapability.RLock()
+	defer heliusIdentityCapability.RUnlock()
+	return heliusIdentityCapability.Unavailable
+}
+
+func markHeliusWalletIdentityUnavailable(statusCode int) {
+	heliusIdentityCapability.Lock()
+	heliusIdentityCapability.Unavailable = true
+	heliusIdentityCapability.StatusCode = statusCode
+	heliusIdentityCapability.Unlock()
+}
 
 // labelCacheGet returns a cached label. The bool distinguishes "cached as
 // unlabeled" (present, nil value) from "never queried".
@@ -72,21 +106,25 @@ func labelCacheSet(address string, label *WalletLabel) {
 }
 
 // ResolveWalletLabel returns a positively-resolved entity label for a holder
-// wallet, or nil when the address is unknown, unlabeled, or unresolvable. It
-// never returns an error to callers: labeling is best-effort enrichment and
-// must never break a scan.
+// wallet, or nil when the address is unknown, unlabeled, disabled, or currently
+// unresolvable. It never returns an error to callers: labeling is best-effort
+// enrichment and must never break a scan.
 func ResolveWalletLabel(ctx context.Context, rpcURL, address string) *WalletLabel {
 	address = strings.TrimSpace(address)
-	if address == "" {
+	if address == "" || !heliusWalletIdentityEnabled() {
 		return nil
 	}
 	if cached, ok := labelCacheGet(address); ok {
 		return cached
 	}
+	if heliusWalletIdentityUnavailable() {
+		return nil
+	}
 
 	apiKey := heliusEnhancedAPIKey(rpcURL)
 	if apiKey == "" {
-		labelCacheSet(address, nil)
+		// Provider configuration absence is not evidence that an address is
+		// unlabeled. Do not negative-cache it.
 		return nil
 	}
 
@@ -98,25 +136,30 @@ func ResolveWalletLabel(ctx context.Context, rpcURL, address string) *WalletLabe
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, endpoint+"?"+query.Encode(), nil)
 	if err != nil {
-		labelCacheSet(address, nil)
 		return nil
 	}
 	req.Header.Set("Accept", "application/json")
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := heliusIdentityHTTPClient.Do(req)
 	if err != nil {
 		// Transient failure: do NOT cache, so a later scan can retry.
 		return nil
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		// Identity is paid-plan-only on Helius. A free-plan 403 (or invalid-key
+		// 401) is a provider capability state, not an address-level result.
+		markHeliusWalletIdentityUnavailable(res.StatusCode)
+		return nil
+	}
 	if res.StatusCode == http.StatusNotFound {
 		// Definitively unlabeled: cache the negative to avoid re-querying.
 		labelCacheSet(address, nil)
 		return nil
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil // transient; don't cache
+		return nil // transient/provider failure; don't cache
 	}
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
@@ -125,7 +168,6 @@ func ResolveWalletLabel(ctx context.Context, rpcURL, address string) *WalletLabe
 	}
 	var decoded heliusIdentityResponse
 	if err := json.Unmarshal(body, &decoded); err != nil {
-		labelCacheSet(address, nil)
 		return nil
 	}
 
@@ -151,6 +193,19 @@ func ResolveWalletLabel(ctx context.Context, rpcURL, address string) *WalletLabe
 	}
 	labelCacheSet(address, label)
 	return label
+}
+
+func resetHeliusWalletIdentityStateForTest() {
+	walletLabelCacheMu.Lock()
+	walletLabelCache = map[string]*WalletLabel{}
+	walletLabelCacheMu.Unlock()
+
+	heliusIdentityCapability.Lock()
+	heliusIdentityCapability.Unavailable = false
+	heliusIdentityCapability.StatusCode = 0
+	heliusIdentityCapability.Unlock()
+
+	heliusIdentityHTTPClient = http.DefaultClient
 }
 
 // walletLabelDisplay renders a short human label for a holder row, or "" when
