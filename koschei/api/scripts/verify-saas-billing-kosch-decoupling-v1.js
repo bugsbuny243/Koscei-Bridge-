@@ -11,6 +11,7 @@ const staticAliases=read('internal','http','static_aliases.go');
 const securityHeaders=read('internal','http','security_headers.go');
 const plan=read('internal','handlers','plan_access.go');
 const premium=read('internal','handlers','premium_access_status.go');
+const history=read('internal','handlers','customer_investigation_history.go');
 const retired=read('internal','handlers','kosch_retirement.go');
 const paddle=read('internal','handlers','paddle_billing.go');
 const paddlePublic=read('internal','handlers','paddle_public_config.go');
@@ -18,6 +19,7 @@ const apiKeys=read('internal','handlers','api_keys.go');
 const migration=read('migrations','101_paddle_saas_billing_v1.sql');
 const pricing=read('public','pricing.html');
 const account=read('public','account.html');
+const reports=read('public','reports.html');
 const checkout=read('public','js','paddle-checkout.js');
 const hostedCheckout=read('public','paddle-checkout.html');
 const hostedCheckoutJS=read('public','js','paddle-hosted-checkout.js');
@@ -47,6 +49,8 @@ forbid(plan,/evaluateTokenAccess|tokenTier|KOSCH/i,'token evaluation inside SaaS
 
 requireText(premium,'Source:           "entitlement"','premium status entitlement source');
 forbid(premium,/token_(?:tier|amount)|TokenTier|TokenGate|KOSCH/i,'token fields in premium status');
+requireText(history,'h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)','history Starter SaaS gate');
+forbid(history,/RequireTokenTier|KOSCH access/i,'token-backed investigation history authorization');
 requireText(apiKeys,'evaluation, evaluationErr := h.evaluatePlanAccess','API-key entitlement lookup');
 requireText(apiKeys,'planTierAuthorizes(plan, "enterprise")','API-key Enterprise requirement');
 forbid(apiKeys,/evaluateTokenAccess|token_tier/i,'token-backed API key issuance');
@@ -88,6 +92,9 @@ forbid(pricing,/Official KOSCH mint|KOSCH Holder Access|\b(?:25K|250K|2M)\s+KOSC
 requireText(account,'Account & SaaS Access','SaaS account surface');
 requireText(account,'KOSCH balances and holder tiers do not unlock routes','account token separation');
 forbid(account,/TOKEN ACCESS EVIDENCE|Official mint snapshot|LIVE TOKEN POLICY/i,'token authority account sections');
+requireText(reports,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','SaaS investigation history copy');
+requireText(reports,'KOSCH holdings do not authorize this surface.','history token separation');
+forbid(reports,/BASIC\+ KOSCH|Basic KOSCH tier/i,'holder-gated investigation history copy');
 requireText(checkout,"fetch('/api/paddle/checkout'",'browser Paddle checkout');
 requireText(checkout,"parsed.protocol !== 'https:'",'secure checkout redirect');
 forbid(checkout,/kosch_token|\/kosch-access/,'legacy token checkout');
