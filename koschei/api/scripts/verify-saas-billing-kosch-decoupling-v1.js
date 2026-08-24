@@ -12,6 +12,7 @@ const securityHeaders=read('internal','http','security_headers.go');
 const plan=read('internal','handlers','plan_access.go');
 const premium=read('internal','handlers','premium_access_status.go');
 const history=read('internal','handlers','customer_investigation_history.go');
+const dossierAccess=read('internal','handlers','dossier_access.go');
 const retired=read('internal','handlers','kosch_retirement.go');
 const paddle=read('internal','handlers','paddle_billing.go');
 const paddlePublic=read('internal','handlers','paddle_public_config.go');
@@ -51,6 +52,10 @@ requireText(premium,'Source:           "entitlement"','premium status entitlemen
 forbid(premium,/token_(?:tier|amount)|TokenTier|TokenGate|KOSCH/i,'token fields in premium status');
 requireText(history,'h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)','history Starter SaaS gate');
 forbid(history,/RequireTokenTier|KOSCH access/i,'token-backed investigation history authorization');
+requireText(dossierAccess,'h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", next))(w, r)','dossier API-key Enterprise SaaS gate');
+requireText(dossierAccess,'RequireAuth(h.RequirePlanTier("enterprise", next))(w, r)','dossier session Enterprise SaaS gate');
+requireText(dossierAccess,'KOSCH holdings and token-access snapshots','dossier token-separation boundary');
+forbid(dossierAccess,/RequireStoredTokenTier|RequireAPIKeyStoredTokenTier|token_access_snapshots|tokenTierRank|evaluateStoredTokenAccess/,'token-backed dossier authorization');
 requireText(apiKeys,'evaluation, evaluationErr := h.evaluatePlanAccess','API-key entitlement lookup');
 requireText(apiKeys,'planTierAuthorizes(plan, "enterprise")','API-key Enterprise requirement');
 forbid(apiKeys,/evaluateTokenAccess|token_tier/i,'token-backed API key issuance');
