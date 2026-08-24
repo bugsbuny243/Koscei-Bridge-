@@ -41,6 +41,9 @@ func TestFetchHeliusCreatedMintDiscoveryUsesCurrentHistoryRPC(t *testing.T) {
 		if options["transactionDetails"] != "full" || options["encoding"] != "jsonParsed" {
 			t.Fatalf("missing full jsonParsed options: %#v", options)
 		}
+		if options["limit"] != float64(100) {
+			t.Fatalf("full gTFA request must stay within Helius 100-record limit: %#v", options)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if calls == 1 {
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -87,6 +90,7 @@ func TestFetchHeliusCreatedMintDiscoveryUsesCurrentHistoryRPC(t *testing.T) {
 	http.DefaultClient = &http.Client{Transport: heliusRewriteTransport{target: target, base: server.Client().Transport}}
 	defer func() { http.DefaultClient = previousClient }()
 
+	t.Setenv("KOSCHEI_HELIUS_CREATED_MINT_GTFA_ENABLED", "true")
 	t.Setenv("HELIUS_API_KEY", "test-key")
 	t.Setenv("HELIUS_CREATED_MINT_PAGE_DELAY_MS", "0")
 	out := FetchHeliusCreatedMintDiscovery(t.Context(), "", "Actor111")
