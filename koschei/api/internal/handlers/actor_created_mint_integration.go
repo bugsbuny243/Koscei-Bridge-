@@ -35,7 +35,7 @@ func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegratio
 	return actorCreatedMintIntegrationRun{
 		Status: "not_requested",
 		Discovery: services.CreatedMintDiscovery{
-			Status: "not_requested", Provider: "helius_get_transactions_for_address",
+			Status: "not_requested", Provider: "solana_rpc_bounded_created_mint",
 			Wallet: strings.TrimSpace(wallet), Candidates: []services.ActorCreatedMintCandidate{}, Limitations: []string{},
 		},
 		LifecycleSummary:      services.SummarizeActorTokenLifecycles(nil),
@@ -45,8 +45,8 @@ func newActorCreatedMintIntegrationRun(wallet string) actorCreatedMintIntegratio
 	}
 }
 
-// collectActorCreatedMintPortfolio uses bounded external discovery providers to
-// find candidate transactions. Each candidate is re-read from the canonical Solana
+// collectActorCreatedMintPortfolio uses bounded discovery providers to find
+// candidate transactions. Each candidate is re-read from the canonical Solana
 // RPC and must independently satisfy the signer + create/initializeMint parser
 // before it becomes VERIFIED actor evidence.
 func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *services.ActorDefenseStore, wallet, network string) actorCreatedMintIntegrationRun {
@@ -58,12 +58,13 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		return out
 	}
 
-	// Helius is the sole external discovery provider. Every candidate remains
-	// OBSERVED until canonical Solana RPC verification succeeds below.
+	// Default discovery is bounded standard Solana RPC. Helius archival history
+	// is an explicit operator opt-in. Every candidate remains OBSERVED until
+	// canonical Solana RPC verification succeeds below.
 	out.Discovery = services.FetchHeliusCreatedMintDiscovery(ctx, strings.TrimSpace(creatorIntelRPCURL()), wallet)
 	out.Status = out.Discovery.Status
 	out.Limitations = append(out.Limitations, out.Discovery.Limitations...)
-	// Observation-store launches are merged before any Helius/RPC early return.
+	// Observation-store launches are merged before any provider/RPC early return.
 	// They remain OBSERVED and never enter the canonical verification queue.
 	h.appendObservedCreatorLaunchCandidates(ctx, &out, wallet, network)
 	observedEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, out.Discovery.Candidates)

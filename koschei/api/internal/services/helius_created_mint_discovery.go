@@ -13,10 +13,15 @@ import (
 	"time"
 )
 
-// Helius created-mint discovery uses getTransactionsForAddress with full
-// jsonParsed transactions. The endpoint returns canonical transaction shapes,
-// so candidate extraction can require the actor signer and exact Pump/SPL mint
-// instruction instead of relying on provider labels or fee-payer heuristics.
+// Helius created-mint archival discovery uses getTransactionsForAddress with
+// full jsonParsed transactions. It is intentionally opt-in. Default scans use
+// the bounded provider-portable Solana RPC collector instead, so a configured
+// Helius key does not silently move created-mint discovery onto a paid/high-
+// credit archival method.
+//
+// Both paths feed the same candidate extractor. Candidates remain OBSERVED
+// until actor_created_mint_integration independently re-reads the transaction
+// from canonical Solana RPC and verifies actor signer + mint creation evidence.
 
 type heliusTransactionsForAddressResponse struct {
 	Result struct {
@@ -30,6 +35,10 @@ type heliusTransactionsForAddressResponse struct {
 }
 
 func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string) CreatedMintDiscovery {
+	if !heliusCreatedMintArchivalEnabled() {
+		return FetchBoundedRPCCreatedMintDiscovery(ctx, rpcURL, wallet)
+	}
+
 	wallet = strings.TrimSpace(wallet)
 	out := CreatedMintDiscovery{
 		Status: "not_configured", Provider: "helius_get_transactions_for_address",
@@ -44,7 +53,7 @@ func FetchHeliusCreatedMintDiscovery(ctx context.Context, rpcURL, wallet string)
 
 	apiKey := heliusEnhancedAPIKey(rpcURL)
 	if apiKey == "" {
-		out.Limitations = append(out.Limitations, "No Helius API key resolved; created-mint discovery was skipped.")
+		out.Limitations = append(out.Limitations, "No Helius API key resolved; archival created-mint discovery was skipped.")
 		return out
 	}
 	out.Configured = true
