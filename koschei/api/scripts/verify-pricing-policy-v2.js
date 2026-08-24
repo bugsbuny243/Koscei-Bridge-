@@ -21,8 +21,11 @@ requireText(html,'data-koschei-checkout="professional"','Professional checkout a
 requireText(html,'data-koschei-checkout="enterprise"','Enterprise checkout action');
 requireText(html,'Paddle checkout for paid plans','normal paid checkout');
 requireText(html,'Token holdings grant no product authority','token/access separation');
+requireText(html,'ARVIS EARLY ACCESS','ARVIS readiness disclosure');
+requireText(html,'Unfinished radar modules are not represented as production features','no unfinished feature overclaim');
+requireText(html,'Checking Paddle catalog readiness','checkout readiness placeholder');
 requireText(html,'/js/koschei-auth.js?v=33','existing frozen auth client');
-requireText(html,'/js/paddle-checkout.js?v=2','Paddle checkout client');
+requireText(html,'/js/paddle-checkout.js?v=3','Paddle checkout client');
 requireText(html,'$299 / month','Starter commercial price');
 requireText(html,'$999 / month','Professional commercial price');
 requireText(html,'$4,999 / month','Enterprise commercial price');
@@ -46,9 +49,12 @@ forbid(premiumAccess,/token_(?:tier|amount)|KOSCH/i,'token-backed premium access
 requireText(retired,'http.StatusGone','legacy token-access tombstone');
 requireText(retired,'KOSCH holdings no longer grant product access','explicit retirement message');
 
+requireText(checkout,"fetch('/paddle/public-config'",'Paddle public readiness API');
+requireText(checkout,"paddle[plan + '_ready'] === true",'per-plan catalog readiness gate');
 requireText(checkout,"fetch('/api/paddle/checkout'",'Paddle checkout API');
 requireText(checkout,"provider: 'paddle'",'Paddle provider identity');
 requireText(checkout,"parsed.protocol !== 'https:'",'HTTPS checkout redirect gate');
+requireText(checkout,"Paddle catalog is not active yet",'zero-plan catalog block');
 forbid(checkout,/\/kosch-access|provider:\s*'kosch_token'/,'legacy KOSCH checkout');
 forbid(checkout,/\blocalStorage\b|\bsessionStorage\b/,'checkout persistence');
 
