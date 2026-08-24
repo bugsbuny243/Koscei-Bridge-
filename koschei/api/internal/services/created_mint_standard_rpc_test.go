@@ -155,7 +155,7 @@ func TestFetchHeliusCreatedMintDiscoveryFallsBackFromUnavailableGTFA(t *testing.
 func TestSelectCreatedMintSignatureSampleSpansObservedWindow(t *testing.T) {
 	rows := make([]SolanaSignatureInfo, 10)
 	for index := range rows {
-		rows[index] = SolanaSignatureInfo{Signature: "Sig" + string(rune('0'+index))}
+		rows[index] = SolanaSignatureInfo{Signature: "Sig" + string(rune('0' + index))}
 	}
 	selected := selectCreatedMintSignatureSample(rows, 4)
 	if len(selected) != 4 {
