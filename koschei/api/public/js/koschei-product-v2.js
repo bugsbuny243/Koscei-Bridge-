@@ -5,13 +5,13 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
   const HEALTH_TIMEOUT_MS=10000;
 
+  function loadStyle(href,key){
+    if(document.querySelector(`link[data-koschei-style="${key}"]`))return;
+    const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.dataset.koscheiStyle=key;document.head.appendChild(link);
+  }
+
   function installSurfaceStyles(){
-    if(document.querySelector('link[data-koschei-customer-surface-v3]'))return;
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='/css/customer-surface-v3.css?v=1';
-    link.dataset.koscheiCustomerSurfaceV3='1';
-    document.head.appendChild(link);
+    loadStyle('/css/customer-surface-v3.css?v=1','customer-surface-v3');
   }
 
   function loadEnhancement(src,key){
@@ -125,7 +125,11 @@
 
   function loadPageEnhancements(){
     const current=cleanPath(location.pathname);
-    if(current==='/scan'||current.startsWith('/scan/'))loadEnhancement('/js/customer-scan-flow-v3.js?v=1','scan-v3');
+    if(current==='/scan'||current.startsWith('/scan/')){
+      loadStyle('/css/customer-result-guidance-v3.css?v=1','customer-result-guidance-v3');
+      loadEnhancement('/js/customer-scan-flow-v3.js?v=1','scan-v3');
+      loadEnhancement('/js/customer-result-guidance-v3.js?v=1','result-guidance-v3');
+    }
     if(current==='/dashboard')loadEnhancement('/js/customer-workspace-plans-v3.js?v=1','workspace-plans-v3');
   }
 
