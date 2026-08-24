@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -61,26 +59,19 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 	if !envBool("KOSCHEI_COURT_ENABLED", false) {
 		return nil
 	}
-	tier := h.courtTier(ctx)
+	plan := h.courtTier(ctx)
 	report := &CourtReport{
 		Status:      "skipped",
-		TierApplied: tier,
+		TierApplied: plan,
 		CaseID:      courtCaseID(in),
 		Authority:   "the signed deterministic verdict is final; court output is commentary/explanation",
 		Errors:      []string{},
 		GeneratedAt: time.Now().UTC(),
 	}
-	if tier == "free" || tier == "basic" || h == nil || h.CourtClient == nil {
+	if plan == "none" || plan == "starter" || h == nil || h.CourtClient == nil {
 		return report
 	}
-	applied, exhausted := h.applyCourtBudget(ctx, tier)
-	if exhausted {
-		report.Status = "budget_exhausted"
-		report.TierApplied = applied
-		return report
-	}
-	tier = applied
-	if tier != "pro" && tier != "enterprise" {
+	if plan != "professional" && plan != "enterprise" {
 		return report
 	}
 	if !envBool("KOSCHEI_COURT_PROSECUTORS_ENABLED", true) {
@@ -112,7 +103,7 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 			panelRan = true
 		}
 	}
-	if tier == "enterprise" && envBool("KOSCHEI_COURT_SENIOR_ENABLED", true) && (isDF(in.SignedVerdict.Grade) || panelRan || requestedExtended) {
+	if plan == "enterprise" && envBool("KOSCHEI_COURT_SENIOR_ENABLED", true) && (isDF(in.SignedVerdict.Grade) || panelRan || requestedExtended) {
 		senior, err := h.CourtClient.SeniorOpinion(ctx, in, report.Prosecutors, report.Panel)
 		if err != nil {
 			report.Errors = append(report.Errors, "senior_panel: "+err.Error())
@@ -129,29 +120,33 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 }
 
 func (h *Handler) courtTier(ctx context.Context) string {
-	if tier, ok := ctx.Value(courtTierOverrideKey{}).(string); ok {
-		return normalizeCourtTier(tier)
+	if plan, ok := ctx.Value(courtTierOverrideKey{}).(string); ok {
+		return normalizeCourtTier(plan)
 	}
-	if access, ok := tokenAccessRequestFromContext(ctx); ok {
-		return normalizeCourtTier(access.Evaluation.Tier)
+	if access, ok := planAccessRequestFromContext(ctx); ok {
+		return normalizeCourtTier(access.Evaluation.Plan)
 	}
 	claims, ok := userFromContext(ctx)
 	if !ok || h == nil {
-		return "free"
+		return "none"
 	}
-	ev, err := h.evaluateTokenAccess(ctx, claims.Sub)
-	if err != nil || !ev.WalletVerified {
-		return "free"
+	evaluation, err := h.evaluatePlanAccess(ctx, claims.Sub, normalizedClaimEmail(claims))
+	if err != nil || !evaluation.Active {
+		return "none"
 	}
-	return normalizeCourtTier(ev.Tier)
+	return normalizeCourtTier(evaluation.Plan)
 }
 
-func normalizeCourtTier(t string) string {
-	switch strings.ToLower(strings.TrimSpace(t)) {
-	case "basic", "pro", "enterprise":
-		return strings.ToLower(strings.TrimSpace(t))
+func normalizeCourtTier(plan string) string {
+	switch canonicalSaaSPlan(plan) {
+	case "starter":
+		return "starter"
+	case "professional":
+		return "professional"
+	case "enterprise":
+		return "enterprise"
 	default:
-		return "free"
+		return "none"
 	}
 }
 
@@ -195,71 +190,18 @@ func courtCaseID(in CourtReadOnlyInput) string {
 	return "ARVIS-" + strings.ToUpper(signature)
 }
 
-func (h *Handler) applyCourtBudget(ctx context.Context, tier string) (string, bool) {
-	limit := courtDailyLimit(tier)
-	if limit <= 0 {
-		return lowerCourtTier(tier), true
-	}
-	access, ok := tokenAccessRequestFromContext(ctx)
-	if !ok {
-		return tier, false
-	}
-	_, _, err := handlerScanQuotaLedger{Handler: h}.Reserve(ctx, access.AuthSubject, access.Email, "court_"+tier, limit, time.Now().UTC())
-	if errors.Is(err, errScanQuotaExceeded) {
-		return lowerCourtTier(tier), true
-	}
-	if err != nil {
-		return tier, false
-	}
-	return tier, false
-}
-
-func courtDailyLimit(tier string) int {
-	raw := os.Getenv("KOSCHEI_COURT_QUOTA_" + strings.ToUpper(tier) + "_DAILY")
-	if raw == "" {
-		if tier == "pro" {
-			return 20
-		}
-		if tier == "enterprise" {
-			return 100
-		}
-		return 0
-	}
-	v, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
-func lowerCourtTier(t string) string {
-	if t == "enterprise" {
-		return "pro"
-	}
-	if t == "pro" {
-		return "basic"
-	}
-	return "free"
-}
-
 func (h *Handler) courtScheduledReport(ctx context.Context) *CourtReport {
 	if !envBool("KOSCHEI_COURT_ENABLED", false) {
 		return nil
 	}
-	tier := h.courtTier(ctx)
+	plan := h.courtTier(ctx)
 	report := &CourtReport{
 		Status:      "skipped",
-		TierApplied: tier,
+		TierApplied: plan,
 		Authority:   "the signed deterministic verdict is final; court output is commentary/explanation",
 		GeneratedAt: time.Now().UTC(),
 	}
-	if tier == "free" || tier == "basic" || h.CourtClient == nil {
-		return report
-	}
-	applied, exhausted := h.applyCourtBudget(ctx, tier)
-	report.TierApplied = applied
-	if exhausted {
-		report.Status = "budget_exhausted"
+	if plan == "none" || plan == "starter" || h.CourtClient == nil {
 		return report
 	}
 	report.Status = "scheduled"

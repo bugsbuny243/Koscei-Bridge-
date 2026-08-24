@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -101,22 +100,22 @@ func (h *Handler) PublicTokenLaunchReadiness(w http.ResponseWriter, r *http.Requ
 		add(item.id, "ready", item.label+" URL is configured.", false)
 	}
 
-	burnEnabled, _ := strconv.ParseBool(strings.TrimSpace(os.Getenv("KOSCHEI_TOKEN_BURN_ENABLED")))
+	burnEnabled := strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_TOKEN_BURN_ENABLED")), "true")
 	if burnEnabled {
 		add("burn", "blocked", "Automatic burn must remain disabled for launch.", true)
 	} else {
 		add("burn", "safe", "Automatic burn is disabled for launch.", false)
 	}
 
-	gateEnabled, _ := strconv.ParseBool(strings.TrimSpace(os.Getenv("KOSCHEI_TOKEN_GATE_ENABLED")))
-	if gateEnabled {
-		if _, _, err := configuredTokenThresholds(9); err != nil {
-			add("token_gate", "invalid", "Token gate is enabled but tier thresholds are incomplete.", true)
-		} else {
-			add("token_gate", "ready", "Token gate is configured; mint decimals are revalidated at runtime.", false)
-		}
+	// KOSCH launch metadata may remain public/auditable, but holder thresholds
+	// are permanently retired as a commercial authorization mechanism. Even if
+	// an old environment flag remains set, it is ignored rather than reactivating
+	// token-backed product access.
+	legacyGateConfigured := strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_TOKEN_GATE_ENABLED")), "true")
+	if legacyGateConfigured {
+		add("token_gate", "retired", "Legacy token-gate configuration is present but ignored; commercial access is SaaS-entitlement based.", false)
 	} else {
-		add("token_gate", "safe", "Token gate is disabled; paid access remains available.", false)
+		add("token_gate", "retired", "Token-backed commercial access is retired; commercial access is SaaS-entitlement based.", false)
 	}
 
 	if mintValid && networkOK {
@@ -135,18 +134,20 @@ func (h *Handler) PublicTokenLaunchReadiness(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":             true,
-		"launch_ready":   blocking == 0,
-		"blocking_count": blocking,
-		"warning_count":  warnings,
-		"checks":         checks,
-		"generated_at":   time.Now().UTC(),
-		"launch_at":      launchAt,
-		"network":        network,
-		"mint":           mint,
-		"automatic_burn": burnEnabled,
-		"token_gate":     gateEnabled,
-		"disclaimer":     "Readiness means technical and disclosure gates passed; it does not predict price, demand or investment performance.",
+		"ok":                           true,
+		"launch_ready":                 blocking == 0,
+		"blocking_count":               blocking,
+		"warning_count":                warnings,
+		"checks":                       checks,
+		"generated_at":                 time.Now().UTC(),
+		"launch_at":                    launchAt,
+		"network":                      network,
+		"mint":                         mint,
+		"automatic_burn":               burnEnabled,
+		"token_gate":                   false,
+		"legacy_token_gate_configured": legacyGateConfigured,
+		"commercial_access_model":      "saas_entitlement",
+		"disclaimer":                   "Readiness means technical and disclosure gates passed; it does not predict price, demand or investment performance.",
 	})
 }
 

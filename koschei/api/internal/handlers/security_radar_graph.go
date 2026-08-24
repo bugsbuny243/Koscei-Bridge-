@@ -15,14 +15,14 @@ func (h *Handler) SecurityRadarGraph(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := h.requirePremiumOutput(claims.Sub, normalizedClaimEmail(claims)); err != nil {
 		writeJSON(w, http.StatusForbidden, map[string]any{
-			"error":   "kosch_holder_required",
-			"message": "Verified KOSCH holder access is required.",
+			"error":   "plan_capacity_required",
+			"message": "An active SaaS plan with available output capacity is required.",
 		})
 		return
 	}
 	if h == nil || h.DBRead == nil {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true, "locked": false, "access_provider": "kosch_token",
+			"ok": true, "locked": false, "access_provider": "saas_entitlement",
 			"graph": services.SecurityRadarGraphResponse{OK: true, Empty: true, Message: "No node graph evidence is available for this verdict yet.", Nodes: []services.SecurityRadarGraphNode{}, Edges: []services.SecurityRadarGraphEdge{}},
 		})
 		return
@@ -40,11 +40,11 @@ func (h *Handler) SecurityRadarGraph(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": true, "locked": false, "access_provider": "kosch_token",
+			"ok": true, "locked": false, "access_provider": "saas_entitlement",
 			"graph":   services.SecurityRadarGraphResponse{OK: true, Empty: true, Message: "No node graph evidence is available for this verdict yet.", Nodes: []services.SecurityRadarGraphNode{}, Edges: []services.SecurityRadarGraphEdge{}},
 			"warning": "node graph store unavailable",
 		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "locked": false, "access_provider": "kosch_token", "graph": graph})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "locked": false, "access_provider": "saas_entitlement", "graph": graph})
 }

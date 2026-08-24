@@ -21,15 +21,18 @@ func (h *Handler) Config(w http.ResponseWriter, _ *http.Request) {
 		"runtime_control_plane": runtimecfg.ControlPlaneHealthSnapshot(),
 		"neonAuthUrl":           configuredPublicNeonAuthURL(),
 		"access": map[string]any{
-			"provider":       "free_core_plus_kosch_premium",
-			"mode":           "public_basic_verified_holder_premium",
-			"free_core":      []string{"safe_check", "basic_token_scan"},
-			"premium":        []string{"security_radar", "exposure_reports", "graph", "watchlist", "webhooks", "developer_api", "advanced_agents"},
-			"mint":           configuredKoscheiTokenMint(),
-			"network":        firstNonEmptyString(os.Getenv("KOSCHEI_TOKEN_NETWORK"), os.Getenv("KOSCH_TOKEN_NETWORK"), "solana-mainnet"),
-			"wallet_proof":   "phantom_message_signature",
-			"custodial":      false,
-			"legacy_billing": false,
+			"provider":  "free_core_plus_saas_entitlements",
+			"mode":      "public_free_core_paid_saas",
+			"free_core": []string{"safe_check", "basic_token_scan"},
+			"plans": map[string]any{
+				"starter":      map[string]any{"paid": true, "entry_investigation": true},
+				"professional": map[string]any{"paid": true, "advanced_radar_preview": true, "watchlist_preview": true},
+				"enterprise":   map[string]any{"paid": true, "developer_preview_eligible": true},
+			},
+			"billing_provider":    "paddle",
+			"wallet_verification": "identity_only",
+			"token_access":        "retired_audit_only",
+			"custodial":           false,
 		},
 	})
 }

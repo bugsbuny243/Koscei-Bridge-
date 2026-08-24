@@ -1,6 +1,6 @@
 # Koschei ARVIS API Reference
 
-This document separates current production routes from planned expansion. Boot-chain presence is contract-tested against `productionRouteInventory()`; see `docs/production-route-map.md` for the complete route map.
+This document separates registered server routes from product-readiness claims. Boot-chain presence is contract-tested against `productionRouteInventory()`; see `docs/production-route-map.md` for the complete route map. A registered route is an integration contract, not by itself a claim that the surrounding ARVIS module has completed production validation.
 
 ## Authentication
 
@@ -12,7 +12,9 @@ Use:
 Authorization: Bearer CUSTOMER_SESSION_TOKEN
 ```
 
-Premium customer routes also enforce the configured KOSCH tier and quota policy.
+Paid customer routes authorize through active SaaS entitlements. Starter covers entry investigation routes, Professional covers advanced radar/watchlist routes, and Enterprise covers developer and integration eligibility. Paid output-capacity enforcement remains server-owned.
+
+KOSCH holdings, wallet balances, historical token tiers and `token_access_snapshots` do not grant, upgrade or discount commercial access.
 
 ### Partner API routes
 
@@ -28,15 +30,15 @@ or:
 Authorization: Bearer ARVIS_API_KEY
 ```
 
-Developer API keys are identity credentials and remain subject to live KOSCH eligibility, per-minute rate limits and configured usage quotas.
+Developer API keys are identity credentials. Registered developer routes require an active Enterprise SaaS entitlement and remain subject to per-minute rate limits, configured usage quotas and endpoint-specific readiness/evidence rules. Credential eligibility is not a promise that every integration surface has completed production validation.
 
 ---
 
-## Live: POST /api/v1/radar/check
+## Registered: POST /api/v1/radar/check
 
 Runs an evidence-backed Radar check for a supported Solana target.
 
-Authentication: customer session + eligible KOSCH tier.
+Authentication: customer session + active Starter SaaS entitlement or higher.
 
 ```json
 {
@@ -50,11 +52,11 @@ The result may include the deterministic verdict, evidence arms, signature metad
 
 ---
 
-## Live: POST /api/v1/radar/jobs
+## Registered: POST /api/v1/radar/jobs
 
 Creates a canonical asynchronous investigation job.
 
-Authentication: customer session + eligible KOSCH tier.
+Authentication: customer session + active Starter SaaS entitlement or higher.
 
 The canonical worker accepts supported token mint, wallet or token-account targets and continues independently of the originating HTTP request.
 
@@ -62,9 +64,9 @@ Use `GET /api/v1/radar/jobs/` with the job identifier path suffix to retrieve th
 
 ---
 
-## Live Radar read surfaces
+## Registered Radar read surfaces
 
-Authentication: customer session + configured KOSCH tier.
+Authentication: customer session + active SaaS entitlement at the route's required plan tier.
 
 ```text
 GET /api/v1/radar/detail
@@ -76,15 +78,17 @@ GET /api/v1/radar/exposure
 POST /api/v1/radar/court
 ```
 
+`detail` is Starter-gated; advanced feed/intelligence/graph/exposure/court routes are Professional-gated. These advanced surfaces remain subject to ARVIS production-readiness validation and must not be represented as complete solely because a route is registered.
+
 The court surface consumes existing evidence and deterministic results. Narrative or model output cannot create evidence or alter the authoritative verdict.
 
 ---
 
-## Live: POST /api/v1/scan/token
+## Registered developer preview: POST /api/v1/scan/token
 
 Queues an API-key-protected Solana token scan.
 
-Authentication: developer API key + live KOSCH eligibility.
+Authentication: developer API key + active Enterprise SaaS entitlement.
 
 ```json
 {
@@ -98,11 +102,11 @@ A typical accepted response contains a request identifier, queued status and usa
 
 ---
 
-## Live: POST /api/v1/shield/preflight
+## Registered developer preview: POST /api/v1/shield/preflight
 
 Runs a security preflight check for a target, token mint, address or transaction context.
 
-Authentication: developer API key + live KOSCH eligibility.
+Authentication: developer API key + active Enterprise SaaS entitlement.
 
 ```json
 {
@@ -119,11 +123,11 @@ The response may include action, grade, deterministic verdict metadata, recommen
 
 ---
 
-## Live: POST /api/v1/shield/transaction
+## Registered developer preview: POST /api/v1/shield/transaction
 
 Runs the evidence-first Transaction Guard before signing.
 
-Authentication: developer API key + live KOSCH eligibility.
+Authentication: developer API key + active Enterprise SaaS entitlement.
 
 ```json
 {
@@ -153,43 +157,43 @@ See `docs/transaction-firewall.md` for the detailed Guard contract.
 
 ---
 
-## Live: POST /api/v1/shield/address-poisoning
+## Registered developer preview: POST /api/v1/shield/address-poisoning
 
 Runs API-key-protected address-poisoning analysis.
 
-Authentication: developer API key + live KOSCH eligibility.
+Authentication: developer API key + active Enterprise SaaS entitlement.
 
-A session-authenticated customer equivalent is also registered at `POST /api/v1/address-poisoning/check`.
+A session-authenticated customer equivalent is also registered at `POST /api/v1/address-poisoning/check` and requires Starter SaaS entitlement or higher.
 
 ---
 
-## Live: GET /api/v1/usage
+## Registered developer preview: GET /api/v1/usage
 
 Returns recent developer API usage events.
 
-Authentication: developer API key + live KOSCH eligibility.
+Authentication: developer API key + active Enterprise SaaS entitlement.
 
 Usage records may include endpoint, status, reserved credits, charged credits, error code and completion timestamps.
 
 ---
 
-## Live Token-2022 analysis
+## Registered Token-2022 analysis
 
 ```text
 POST /api/v1/token/extensions
 ```
 
-Authentication: customer session + eligible KOSCH tier.
+Authentication: customer session + active Starter SaaS entitlement or higher.
 
 The current Token-2022 surface recognizes extension and authority behaviors including transfer hooks, permanent delegates, transfer-fee configuration, default account state, mint close authority, pausable behavior, non-transferability, confidential-transfer visibility limits and related compatibility evidence. Unsupported or unresolved extension state must remain explicit.
 
 ---
 
-## Live watchlists and security webhooks
+## Registered watchlists and security webhooks
 
-These are customer-session routes, not developer-API-key routes.
+These are customer-session routes, not developer-API-key routes. Their registration does not override ARVIS preview/readiness labeling.
 
-Pro watchlist surface:
+Professional watchlist surface:
 
 ```text
 /api/watchlist
@@ -198,7 +202,7 @@ POST /api/watchlist/refresh
 /api/watchlist/
 ```
 
-Enterprise webhook surface:
+Enterprise webhook-management surface:
 
 ```text
 /api/webhooks
@@ -208,15 +212,17 @@ Enterprise webhook surface:
 /api/webhooks/deliveries/
 ```
 
-Signed medium-or-higher ARVIS verdicts and non-`allow` Transaction Guard decisions can enter the durable alert pipeline. Webhook delivery transports an existing deterministic result; delivery does not create or modify a grade.
+Signed medium-or-higher ARVIS verdicts and non-`allow` Transaction Guard decisions can enter the durable alert pipeline when the relevant runtime features are enabled. Webhook delivery transports an existing deterministic result; delivery does not create or modify a grade.
 
 ---
 
-## Live immutable dossier export
+## Registered immutable dossier export
 
 ```text
 POST /api/v1/dossier/
 ```
+
+Owner credentials retain their explicit administrative path. Customer-session and developer-key export paths require an active Enterprise SaaS entitlement. KOSCH holdings and historical token-access snapshots never authorize export.
 
 Dossier export operates on existing evidence/snapshots and preserves provenance, limitations and publication boundaries. Public discovery surfaces include `GET /api/public/cases` and `GET /api/public/soc/feed`.
 
@@ -241,4 +247,4 @@ The following remain roadmap work until they are registered, tested and added to
 - signed Evidence Receipt verification surface;
 - dedicated LP-control and exit-impact simulation API.
 
-Roadmap names must not be presented as live endpoints before boot-chain registration.
+Roadmap names must not be presented as live endpoints before boot-chain registration. Registered preview routes likewise must not be described as production-complete until their feature-readiness validation is complete.
