@@ -155,7 +155,7 @@ func TestFetchHeliusCreatedMintDiscoveryFallsBackFromUnavailableGTFA(t *testing.
 func TestSelectCreatedMintSignatureSampleSpansObservedWindow(t *testing.T) {
 	rows := make([]SolanaSignatureInfo, 10)
 	for index := range rows {
-		rows[index] = SolanaSignatureInfo{Signature: "Sig" + string(rune('0' + index))}
+		rows[index] = SolanaSignatureInfo{Signature: "Sig" + string(rune('0'+index))}
 	}
 	selected := selectCreatedMintSignatureSample(rows, 4)
 	if len(selected) != 4 {
@@ -188,7 +188,7 @@ func TestHeliusCreatedMintGTFAOptInParserIsExplicit(t *testing.T) {
 func createdMintTestTransaction(signature string, withMint bool) map[string]any {
 	instructions := []any{map[string]any{
 		"programId": "11111111111111111111111111111111",
-		"parsed": map[string]any{"type": "transfer", "info": map[string]any{}},
+		"parsed":    map[string]any{"type": "transfer", "info": map[string]any{}},
 	}}
 	if withMint {
 		instructions = []any{map[string]any{
