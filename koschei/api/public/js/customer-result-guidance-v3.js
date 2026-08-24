@@ -25,22 +25,20 @@ function guidance(policy){
   }
 }
 
-function addBlock(parent,label,copy){
+function block(label,copy){
   const section=document.createElement('div');section.className='customer-result-block customer-result-guidance-v3';
   const head=document.createElement('div');head.className='customer-result-block__head';head.textContent=label;
-  const p=document.createElement('p');p.className='customer-result-no-unresolved';p.textContent=copy;
-  section.append(head,p);parent.appendChild(section);return section;
+  const p=document.createElement('p');p.className='customer-result-guidance-copy';p.textContent=copy;
+  section.append(head,p);return section;
 }
 
 function enhance(summary){
   if(!summary||summary.dataset.customerGuidanceV3)return;
   const policy=policyOf(summary),copy=guidance(policy);
-  const technical=summary.querySelector('.customer-result-block');
-  const impact=addBlock(document.createElement('div'),'WHAT COULD HAPPEN',copy.impact);
-  const action=addBlock(document.createElement('div'),'WHAT TO DO NOW',copy.action);
-  const marker=document.createDocumentFragment();marker.append(...impact.childNodes,...action.childNodes);
-  const wrap=document.createElement('div');wrap.className='customer-result-guidance-wrap';wrap.append(marker);
-  if(technical)summary.insertBefore(wrap,technical);else summary.appendChild(wrap);
+  const firstEvidenceBlock=summary.querySelector('.customer-result-block');
+  const wrap=document.createElement('div');wrap.className='customer-result-guidance-wrap';
+  wrap.append(block('WHAT COULD HAPPEN',copy.impact),block('WHAT TO DO NOW',copy.action));
+  if(firstEvidenceBlock)summary.insertBefore(wrap,firstEvidenceBlock);else summary.appendChild(wrap);
   summary.dataset.customerGuidanceV3='1';
 }
 
