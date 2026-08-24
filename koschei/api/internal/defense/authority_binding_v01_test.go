@@ -89,6 +89,7 @@ func authorityIntegrityValidationInput(
 	}
 	return DefenseValidationInputV02{
 		RunRef:               runRef,
+		Scenario:             scenario,
 		ScenarioRef:          scenario.ScenarioRef,
 		ScenarioVersion:      scenario.ScenarioVersion,
 		ScenarioContractHash: digest,
@@ -209,6 +210,7 @@ func TestAuthorityIntegrityUsesScenarioLatestDetectionOffset(t *testing.T) {
 		[]DefenseValidationCaseV02{attack.Case, benign.Case},
 		[]DefenseValidationObservationV02{authorityIndependentObservation(t, control, attack, &alert), authorityIndependentObservation(t, control, benign, nil)},
 	)
+	input.Scenario = scenario
 	input.ScenarioContractHash = scenarioHash
 	report, err := EvaluateDefenseValidationV02(input)
 	if err != nil {
@@ -361,6 +363,28 @@ func TestAuthorityIntegrityControlPinsEvidenceTrust(t *testing.T) {
 	}
 }
 
+func TestAuthorityIntegrityControlRequiresCryptographicallyIndependentCollector(t *testing.T) {
+	trust := authorityBindingTrust()
+	for _, producer := range []string{trust.PrincipalProducerRef, trust.AuthorizationProducerRef} {
+		if _, err := NewAuthorityIntegrityControlV01(
+			"control:authority-integrity",
+			producer,
+			DefenseAuthorityIntegrityConfigV01{EvidenceTrust: trust, CollectorPublicKey: authorityCollectorPublicKey(), IndependentCollectorRequired: true},
+		); err == nil || !strings.Contains(err.Error(), "identity must differ") {
+			t.Fatalf("authority evidence producer %q was accepted as the independent collector: %v", producer, err)
+		}
+	}
+	for _, publicKey := range []string{trust.PrincipalPublicKey, trust.AuthorizationPublicKey} {
+		if _, err := NewAuthorityIntegrityControlV01(
+			"control:authority-integrity",
+			"collector:distinct-name",
+			DefenseAuthorityIntegrityConfigV01{EvidenceTrust: trust, CollectorPublicKey: publicKey, IndependentCollectorRequired: true},
+		); err == nil || !strings.Contains(err.Error(), "key must differ") {
+			t.Fatalf("authority evidence key was reused by the independent collector: %v", err)
+		}
+	}
+}
+
 func TestAuthorityAdapterRequiresExactScenarioCaseMembership(t *testing.T) {
 	control := authorityIntegrityControl(t)
 	binding := authorityBindingResult(t, "account:victim", "account:caller")
@@ -370,6 +394,68 @@ func TestAuthorityAdapterRequiresExactScenarioCaseMembership(t *testing.T) {
 	input.CaseRef = "case:cosmos-evm:unlisted-authority-attack"
 	if _, err := AdaptAuthorityIntegrityCaseV01(input); err == nil || !strings.Contains(err.Error(), "not an exact scenario member") {
 		t.Fatalf("unlisted scenario case was accepted: %v", err)
+	}
+}
+
+func TestAuthorityAdapterBindsEveryDeclaredMatchedValueToExecution(t *testing.T) {
+	tests := map[string]func(*DefenseAuthorityBindingEvidenceV01){
+		"caller_principal": func(e *DefenseAuthorityBindingEvidenceV01) {
+			e.CallerPrincipal = "principal:other"
+			e.AuthorizedPrincipal = "principal:other"
+		},
+		"module_route": func(e *DefenseAuthorityBindingEvidenceV01) {
+			e.ModuleRoute = "native:other-authorization-module"
+		},
+		"operation": func(e *DefenseAuthorityBindingEvidenceV01) {
+			e.RequestedOperation = "credit"
+			e.AuthorizedOperation = "credit"
+		},
+		"asset": func(e *DefenseAuthorityBindingEvidenceV01) {
+			e.RequestedAsset = "asset:other"
+			e.AuthorizedAsset = "asset:other"
+		},
+		"amount": func(e *DefenseAuthorityBindingEvidenceV01) {
+			e.RequestedAmount = 2
+		},
+	}
+	for field, mutate := range tests {
+		t.Run(field, func(t *testing.T) {
+			evidence := authorityBindingEvidence(t, "account:caller", "account:caller")
+			mutate(&evidence)
+			evidence = authorityResignBindingEvidence(t, evidence)
+			binding, err := EvaluateDefenseAuthorityBindingV01(evidence, authorityBindingTrust())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !binding.Preserved {
+				t.Fatalf("matched-value fixture unexpectedly changed authority: %v", binding.Reasons)
+			}
+			_, err = AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+				t, authorityIntegrityControl(t), authorityBenignCaseRefV01, DefenseValidationCaseBenignV02, binding, authorityContainmentReceipt(t, binding),
+			))
+			if err == nil || !strings.Contains(err.Error(), `scenario field "`+field+`"`) {
+				t.Fatalf("execution mismatch for %q was accepted: %v", field, err)
+			}
+		})
+	}
+}
+
+func TestAuthorityAdapterRequiresScenarioDeclaredSourceMismatch(t *testing.T) {
+	evidence := authorityBindingEvidence(t, "account:caller", "account:caller")
+	evidence.CallerPrincipal = "principal:unrelated"
+	evidence = authorityResignBindingEvidence(t, evidence)
+	binding, err := EvaluateDefenseAuthorityBindingV01(evidence, authorityBindingTrust())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalDefenseAuthorityStringsV01(binding.Reasons, []string{DefenseAuthorityReasonPrincipalMismatchV01}) {
+		t.Fatalf("unrelated mismatch fixture reasons=%v", binding.Reasons)
+	}
+	_, err = AdaptAuthorityIntegrityCaseV01(authorityIntegrityAdapterInput(
+		t, authorityIntegrityControl(t), authorityAttackCaseRefV01, DefenseValidationCaseAttackV02, binding, authorityContainmentReceipt(t, binding),
+	))
+	if err == nil || !strings.Contains(err.Error(), "source-account mismatch") {
+		t.Fatalf("unrelated authority failure satisfied the source-account attack: %v", err)
 	}
 }
 
@@ -590,8 +676,10 @@ func authorityBindingEvidenceWithTrustAndKeys(
 		ChainID:                 9001,
 		CallerPrincipal:         "principal:contract-a",
 		DeclaredSourceAccount:   declaredSource,
+		ModuleRoute:             "native:authorization-module",
 		RequestedOperation:      "debit",
 		RequestedAsset:          "asset:bb",
+		RequestedAmount:         1,
 		AuthorizedPrincipal:     "principal:contract-a",
 		AuthorizedSourceAccount: authorizedSource,
 		AuthorizedOperation:     "debit",
@@ -601,6 +689,23 @@ func authorityBindingEvidenceWithTrustAndKeys(
 		PostStateSHA256:         strings.Repeat("5", 64),
 		DebitEffectSHA256:       strings.Repeat("6", 64),
 	}
+	evidence.PrincipalEvidence = authoritySignedEvidenceArtifact(t, evidence, false, DefenseAuthorityEvidencePrincipalV01, trust.PrincipalProducerRef, principalPrivateKey)
+	evidence.AuthorizationEvidence = authoritySignedEvidenceArtifact(t, evidence, true, DefenseAuthorityEvidenceAuthorizationV01, trust.AuthorizationProducerRef, authorizationPrivateKey)
+	var err error
+	evidence.PrincipalEvidenceSHA256, err = defenseAuthorityCanonicalSHA256V01(evidence.PrincipalEvidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence.AuthorizationEvidenceSHA256, err = defenseAuthorityCanonicalSHA256V01(evidence.AuthorizationEvidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return evidence
+}
+
+func authorityResignBindingEvidence(t *testing.T, evidence DefenseAuthorityBindingEvidenceV01) DefenseAuthorityBindingEvidenceV01 {
+	t.Helper()
+	trust, principalPrivateKey, authorizationPrivateKey := authorityBindingTestTrustAndKeys()
 	evidence.PrincipalEvidence = authoritySignedEvidenceArtifact(t, evidence, false, DefenseAuthorityEvidencePrincipalV01, trust.PrincipalProducerRef, principalPrivateKey)
 	evidence.AuthorizationEvidence = authoritySignedEvidenceArtifact(t, evidence, true, DefenseAuthorityEvidenceAuthorizationV01, trust.AuthorizationProducerRef, authorizationPrivateKey)
 	var err error
@@ -664,8 +769,10 @@ func authoritySignedEvidenceArtifact(t *testing.T, evidence DefenseAuthorityBind
 		ChainID:           evidence.ChainID,
 		Principal:         principal,
 		SourceAccount:     source,
+		ModuleRoute:       evidence.ModuleRoute,
 		Operation:         operation,
 		Asset:             asset,
+		Amount:            evidence.RequestedAmount,
 		CallPayloadSHA256: evidence.CallPayloadSHA256,
 		PreStateSHA256:    evidence.PreStateSHA256,
 		PostStateSHA256:   evidence.PostStateSHA256,
@@ -703,7 +810,7 @@ func authorityContainmentReceiptWithTrust(t *testing.T, binding DefenseAuthority
 		ChainID:                9001,
 		BlockNumber:            123456,
 		BlockHash:              strings.Repeat("7", 64),
-		Target:                 "native:authorization-module",
+		Target:                 binding.Evidence.ModuleRoute,
 		ApprovedIntentSHA256:   strings.Repeat("8", 64),
 		CandidateIntentSHA256:  strings.Repeat("8", 64),
 		ApprovedPayloadSHA256:  binding.Evidence.CallPayloadSHA256,

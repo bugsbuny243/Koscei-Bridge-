@@ -26,7 +26,7 @@ func TestSafeIntentMutationWeakBindingFailsAndExactBindingValidates(t *testing.T
 	weakAttack := dvExecution(t, approved, mutated, true, DefenseValidationCaseAttackV02)
 	benign := dvExecution(t, approved, approved, false, DefenseValidationCaseBenignV02)
 	weakReport, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:weak", ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
+		RunRef: "run:weak", Scenario: scenario, ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
 		Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{weakAttack.Case, benign.Case},
 		Observations: []DefenseValidationObservationV02{dvObservation(t, control, weakAttack, nil), dvObservation(t, control, benign, nil)},
 	})
@@ -46,7 +46,7 @@ func TestSafeIntentMutationWeakBindingFailsAndExactBindingValidates(t *testing.T
 	exactAttack := dvExecution(t, approved, mutated, false, DefenseValidationCaseAttackV02)
 	alert := int64(120)
 	exactReport, err := EvaluateDefenseValidationV02(DefenseValidationInputV02{
-		RunRef: "run:exact", ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
+		RunRef: "run:exact", Scenario: scenario, ScenarioRef: scenario.ScenarioRef, ScenarioVersion: scenario.ScenarioVersion, ScenarioContractHash: scenarioHash, Chain: scenario.Chain, ChainID: approved.ChainID, RulesetVersion: DefenseValidationRulesetVersionV02,
 		Controls: []DefenseValidationControlV02{control}, Cases: []DefenseValidationCaseV02{exactAttack.Case, benign.Case},
 		Observations: []DefenseValidationObservationV02{dvObservation(t, control, exactAttack, &alert), dvObservation(t, control, benign, nil)},
 	})

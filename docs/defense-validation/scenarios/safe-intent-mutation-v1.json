@@ -18,6 +18,9 @@
     "production_identity_used": false,
     "wallet_custody": false,
     "mainnet_submission_allowed": false,
+    "production_control_mutation": false,
+    "automatic_intervention": false,
+    "arbitrary_command_execution": false,
     "network_access_during_execution": false,
     "owner_approval_required": true,
     "default_off": true

@@ -1,6 +1,7 @@
 package defense
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -38,8 +39,10 @@ type DefenseAuthorityEvidenceArtifactV01 struct {
 	ChainID           uint64 `json:"chain_id"`
 	Principal         string `json:"principal"`
 	SourceAccount     string `json:"source_account"`
+	ModuleRoute       string `json:"module_route"`
 	Operation         string `json:"operation"`
 	Asset             string `json:"asset"`
+	Amount            uint64 `json:"amount"`
 	CallPayloadSHA256 string `json:"call_payload_sha256"`
 	PreStateSHA256    string `json:"pre_state_sha256"`
 	PostStateSHA256   string `json:"post_state_sha256"`
@@ -64,8 +67,10 @@ type DefenseAuthorityBindingEvidenceV01 struct {
 	ChainID                     uint64                              `json:"chain_id"`
 	CallerPrincipal             string                              `json:"caller_principal"`
 	DeclaredSourceAccount       string                              `json:"declared_source_account"`
+	ModuleRoute                 string                              `json:"module_route"`
 	RequestedOperation          string                              `json:"requested_operation"`
 	RequestedAsset              string                              `json:"requested_asset"`
+	RequestedAmount             uint64                              `json:"requested_amount"`
 	AuthorizedPrincipal         string                              `json:"authorized_principal"`
 	AuthorizedSourceAccount     string                              `json:"authorized_source_account"`
 	AuthorizedOperation         string                              `json:"authorized_operation"`
@@ -237,6 +242,12 @@ func NewAuthorityIntegrityControlV01(controlRef, collectorRef string, cfg Defens
 		return DefenseValidationControlV02{}, fmt.Errorf("independent collector trust: %w", err)
 	}
 	cfg.CollectorPublicKey = collectorPublicKey
+	if collectorRef == trust.PrincipalProducerRef || collectorRef == trust.AuthorizationProducerRef {
+		return DefenseValidationControlV02{}, errors.New("independent collector identity must differ from authority evidence producers")
+	}
+	if collectorPublicKey == trust.PrincipalPublicKey || collectorPublicKey == trust.AuthorizationPublicKey {
+		return DefenseValidationControlV02{}, errors.New("independent collector key must differ from authority evidence trust keys")
+	}
 	if cfg.SchemaVersion != DefenseAuthorityExecutionAdapterVersionV01 || cfg.AuthorityBindingVersion != DefenseAuthorityBindingVersionV01 || cfg.ExecutionContainmentVersion != executioncontainment.Version {
 		return DefenseValidationControlV02{}, errors.New("unsupported authority integrity adapter configuration")
 	}
@@ -324,6 +335,8 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		PreStateSHA256           string                        `json:"pre_state_sha256"`
 		PostStateSHA256          string                        `json:"post_state_sha256"`
 		DebitEffectSHA256        string                        `json:"debit_effect_sha256"`
+		ModuleRoute              string                        `json:"module_route"`
+		RequestedAmount          uint64                        `json:"requested_amount"`
 		ImpactOffsetMS           *int64                        `json:"impact_offset_ms,omitempty"`
 		DetectionDeadlineMS      *int64                        `json:"detection_deadline_ms,omitempty"`
 		ObservationWindowMS      int64                         `json:"observation_window_ms"`
@@ -335,6 +348,7 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		strings.ToLower(in.Binding.BindingSHA256), strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
 		strings.ToLower(in.ContainmentReceipt.Input.CandidatePayloadSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256),
 		strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.EffectSetSHA256),
+		in.Binding.Evidence.ModuleRoute, in.Binding.Evidence.RequestedAmount,
 		cloneDefenseValidationInt64V02(in.ImpactOffsetMS), cloneDefenseValidationInt64V02(detectionDeadline), in.ObservationWindowMS,
 	})
 	if err != nil {
@@ -501,12 +515,55 @@ func bindDefenseAuthorityScenarioV01(in DefenseAuthorityExecutionAdapterInputV01
 		if strings.TrimSpace(scenarioCase.CaseKind) != in.CaseKind || scenarioCase.ObservationWindowMS != in.ObservationWindowMS || !equalDefenseAuthorityInt64PointersV01(scenarioCase.ImpactDeadlineMS, in.ImpactOffsetMS) {
 			return "", nil, errors.New("authority execution does not match its scenario case contract")
 		}
+		if err := validateDefenseAuthorityScenarioCaseBindingV01(in, scenarioCase); err != nil {
+			return "", nil, err
+		}
 		detectionDeadline = cloneDefenseValidationInt64V02(scenarioCase.ExpectedControlBehavior.LatestDetectionOffsetMS)
 	}
 	if matched != 1 {
 		return "", nil, errors.New("authority execution case is not an exact scenario member")
 	}
 	return digest, detectionDeadline, nil
+}
+
+func validateDefenseAuthorityScenarioCaseBindingV01(in DefenseAuthorityExecutionAdapterInputV01, scenarioCase DefenseValidationScenarioCaseV02) error {
+	if strings.TrimSpace(in.Scenario.Matrix.SingleSecurityDifference) != "declared_source_account_authorization_binding" {
+		return errors.New("authority adapter requires the declared source-account authorization difference")
+	}
+	if in.CaseKind == DefenseValidationCaseAttackV02 && !equalDefenseAuthorityStringsV01(in.Binding.Reasons, []string{DefenseAuthorityReasonSourceMismatchV01}) {
+		return errors.New("authority attack did not exercise only the scenario-declared source-account mismatch")
+	}
+	actual := map[string]any{
+		"caller_principal":      in.Binding.Evidence.CallerPrincipal,
+		"module_route":          in.ContainmentReceipt.Input.Target,
+		"operation":             in.Binding.Evidence.RequestedOperation,
+		"asset":                 in.Binding.Evidence.RequestedAsset,
+		"amount":                in.Binding.Evidence.RequestedAmount,
+		"observation_window_ms": in.ObservationWindowMS,
+	}
+	for _, declaredField := range in.Scenario.Matrix.MatchedFields {
+		field := strings.TrimSpace(declaredField)
+		observed, supported := actual[field]
+		if !supported {
+			return fmt.Errorf("authority scenario matched field %q has no execution-evidence binding", field)
+		}
+		expectedJSON, exists := scenarioCase.MatchedValues[field]
+		if !exists {
+			return fmt.Errorf("authority scenario case is missing matched field %q", field)
+		}
+		expected, err := canonicalizeDefenseValidationScenarioJSONV02(expectedJSON)
+		if err != nil {
+			return fmt.Errorf("canonicalize authority scenario matched field %q: %w", field, err)
+		}
+		observedJSON, err := json.Marshal(observed)
+		if err != nil {
+			return fmt.Errorf("encode authority execution matched field %q: %w", field, err)
+		}
+		if !bytes.Equal(expected, observedJSON) {
+			return fmt.Errorf("authority execution does not match scenario field %q", field)
+		}
+	}
+	return nil
 }
 
 func defenseAuthorityScenarioExecutionModeMatchesV01(scenarioMode, executionMode string) bool {
@@ -535,6 +592,9 @@ func bindDefenseAuthorityReceiptV01(evidence DefenseAuthorityBindingEvidenceV01,
 	}
 	if !strings.EqualFold(receipt.Input.ApprovedPayloadSHA256, evidence.CallPayloadSHA256) || !strings.EqualFold(receipt.Input.CandidatePayloadSHA256, evidence.CallPayloadSHA256) {
 		return errors.New("containment receipt payload does not match authority evidence")
+	}
+	if strings.TrimSpace(receipt.Input.Target) != evidence.ModuleRoute {
+		return errors.New("containment receipt module route does not match authority evidence")
 	}
 	if !strings.EqualFold(receipt.Observation.PreStateSHA256, evidence.PreStateSHA256) || !strings.EqualFold(receipt.Observation.PostStateSHA256, evidence.PostStateSHA256) || !strings.EqualFold(receipt.Observation.EffectSetSHA256, evidence.DebitEffectSHA256) {
 		return errors.New("containment receipt state or effect does not match authority evidence")
@@ -584,6 +644,7 @@ func normalizeDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEviden
 	e.Chain = strings.ToLower(strings.TrimSpace(e.Chain))
 	e.CallerPrincipal = strings.TrimSpace(e.CallerPrincipal)
 	e.DeclaredSourceAccount = strings.TrimSpace(e.DeclaredSourceAccount)
+	e.ModuleRoute = strings.TrimSpace(e.ModuleRoute)
 	e.RequestedOperation = strings.ToLower(strings.TrimSpace(e.RequestedOperation))
 	e.RequestedAsset = strings.TrimSpace(e.RequestedAsset)
 	e.AuthorizedPrincipal = strings.TrimSpace(e.AuthorizedPrincipal)
@@ -608,7 +669,7 @@ func validateDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEvidenc
 	if e.EvidenceState != DefenseValidationEvidenceVerifiedV02 {
 		return errors.New("authority binding requires verified evidence")
 	}
-	if e.Chain == "" || e.ChainID == 0 || e.CallerPrincipal == "" || e.DeclaredSourceAccount == "" || e.RequestedOperation == "" || e.RequestedAsset == "" || e.AuthorizedPrincipal == "" || e.AuthorizedSourceAccount == "" || e.AuthorizedOperation == "" || e.AuthorizedAsset == "" {
+	if e.Chain == "" || e.ChainID == 0 || e.CallerPrincipal == "" || e.DeclaredSourceAccount == "" || e.ModuleRoute == "" || e.RequestedOperation == "" || e.RequestedAsset == "" || e.RequestedAmount == 0 || e.AuthorizedPrincipal == "" || e.AuthorizedSourceAccount == "" || e.AuthorizedOperation == "" || e.AuthorizedAsset == "" {
 		return errors.New("authority binding identity and scope are incomplete")
 	}
 	for name, value := range map[string]string{
@@ -675,6 +736,7 @@ func normalizeDefenseAuthorityEvidenceArtifactV01(artifact DefenseAuthorityEvide
 	artifact.Chain = strings.ToLower(strings.TrimSpace(artifact.Chain))
 	artifact.Principal = strings.TrimSpace(artifact.Principal)
 	artifact.SourceAccount = strings.TrimSpace(artifact.SourceAccount)
+	artifact.ModuleRoute = strings.TrimSpace(artifact.ModuleRoute)
 	artifact.Operation = strings.ToLower(strings.TrimSpace(artifact.Operation))
 	artifact.Asset = strings.TrimSpace(artifact.Asset)
 	artifact.CallPayloadSHA256 = strings.ToLower(strings.TrimSpace(artifact.CallPayloadSHA256))
@@ -689,7 +751,7 @@ func validateDefenseAuthorityEvidenceArtifactShapeV01(artifact DefenseAuthorityE
 	if artifact.Version != DefenseAuthorityEvidenceArtifactVersionV01 || artifact.EvidenceState != DefenseValidationEvidenceVerifiedV02 {
 		return errors.New("authority evidence artifact version or state is unsupported")
 	}
-	if artifact.EvidenceKind == "" || artifact.Producer == "" || artifact.Chain == "" || artifact.ChainID == 0 || artifact.Principal == "" || artifact.SourceAccount == "" || artifact.Operation == "" || artifact.Asset == "" {
+	if artifact.EvidenceKind == "" || artifact.Producer == "" || artifact.Chain == "" || artifact.ChainID == 0 || artifact.Principal == "" || artifact.SourceAccount == "" || artifact.ModuleRoute == "" || artifact.Operation == "" || artifact.Asset == "" || artifact.Amount == 0 {
 		return errors.New("authority evidence artifact identity and scope are incomplete")
 	}
 	for name, value := range map[string]string{
@@ -756,7 +818,7 @@ func defenseAuthorityArtifactMatchesEvidenceV01(artifact DefenseAuthorityEvidenc
 		principal, source, operation, asset = evidence.AuthorizedPrincipal, evidence.AuthorizedSourceAccount, evidence.AuthorizedOperation, evidence.AuthorizedAsset
 	}
 	return artifact.Chain == evidence.Chain && artifact.ChainID == evidence.ChainID &&
-		artifact.Principal == principal && artifact.SourceAccount == source && artifact.Operation == operation && artifact.Asset == asset &&
+		artifact.Principal == principal && artifact.SourceAccount == source && artifact.ModuleRoute == evidence.ModuleRoute && artifact.Operation == operation && artifact.Asset == asset && artifact.Amount == evidence.RequestedAmount &&
 		strings.EqualFold(artifact.CallPayloadSHA256, evidence.CallPayloadSHA256) &&
 		strings.EqualFold(artifact.PreStateSHA256, evidence.PreStateSHA256) && strings.EqualFold(artifact.PostStateSHA256, evidence.PostStateSHA256) &&
 		strings.EqualFold(artifact.DebitEffectSHA256, evidence.DebitEffectSHA256)

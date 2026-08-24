@@ -76,6 +76,7 @@ func TestRealAnvilSafeIntentMutationValidationV04(t *testing.T) {
 
 	report, err := defense.EvaluateDefenseValidationV02(defense.DefenseValidationInputV02{
 		RunRef:               "run:real-anvil-safe-intent-mutation-v04",
+		Scenario:             scenario,
 		ScenarioRef:          scenario.ScenarioRef,
 		ScenarioVersion:      scenario.ScenarioVersion,
 		ScenarioContractHash: scenarioHash,

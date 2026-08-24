@@ -2,6 +2,7 @@ package defense
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -123,13 +124,16 @@ func TestDefenseValidationScenarioContractV02VerifiesMatchedFieldValues(t *testi
 			delete(scenario.Matrix.Cases[1].MatchedValues, "amount")
 		},
 		"different_value": func(scenario *DefenseValidationScenarioV02) {
-			scenario.Matrix.Cases[1].MatchedValues["amount"] = 2
+			scenario.Matrix.Cases[1].MatchedValues["amount"] = json.RawMessage(`2`)
 		},
 		"contradictory_observation_window": func(scenario *DefenseValidationScenarioV02) {
-			scenario.Matrix.Cases[1].MatchedValues["observation_window_ms"] = 2999
+			scenario.Matrix.Cases[1].MatchedValues["observation_window_ms"] = json.RawMessage(`2999`)
 		},
 		"undeclared_value": func(scenario *DefenseValidationScenarioV02) {
 			scenario.Matrix.MatchedFields = append(scenario.Matrix.MatchedFields, "undeclared_pair_field")
+		},
+		"extra_value": func(scenario *DefenseValidationScenarioV02) {
+			scenario.Matrix.Cases[1].MatchedValues["undeclared_pair_field"] = json.RawMessage(`"extra"`)
 		},
 	}
 	for name, mutate := range tests {
@@ -140,6 +144,47 @@ func TestDefenseValidationScenarioContractV02VerifiesMatchedFieldValues(t *testi
 				t.Fatal("unproven matched-field claim was accepted")
 			}
 		})
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RejectsUnsafeSideEffects(t *testing.T) {
+	for _, field := range []string{"production_control_mutation", "automatic_intervention", "arbitrary_command_execution"} {
+		t.Run(field+"_enabled", func(t *testing.T) {
+			data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+			data = bytes.Replace(data, []byte(`"`+field+`": false`), []byte(`"`+field+`": true`), 1)
+			if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
+				t.Fatalf("unsafe scenario environment field %q was accepted", field)
+			}
+		})
+		t.Run(field+"_missing", func(t *testing.T) {
+			data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+			data = bytes.Replace(data, []byte(`    "`+field+`": false,`+"\n"), nil, 1)
+			if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
+				t.Fatalf("missing scenario environment field %q was accepted", field)
+			}
+		})
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RejectsUnknownEnvironmentSafetyField(t *testing.T) {
+	data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	data = bytes.Replace(data, []byte(`"production_control_mutation": false,`), []byte(`"production_control_mutation": false, "production_wallet_signing": true,`), 1)
+	if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
+		t.Fatal("unknown scenario environment safety field was accepted")
+	}
+}
+
+func TestDefenseValidationScenarioContractV02RejectsProhibitedSafetyFlagsOutsideEnvironment(t *testing.T) {
+	data := readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	data = bytes.Replace(data, []byte(`"status": "planned",`), []byte(`"status": "planned", "automatic_intervention": true,`), 1)
+	if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
+		t.Fatal("root-level prohibited safety flag was accepted")
+	}
+
+	data = readDefenseValidationScenarioFixtureBytesV02(t, "unauthorized-source-account-v1.json")
+	data = bytes.Replace(data, []byte(`"module_route_must_be_pinned": true,`), []byte(`"module_route_must_be_pinned": true, "arbitrary_command_execution": true,`), 1)
+	if _, err := ParseDefenseValidationScenarioV02(data); err == nil {
+		t.Fatal("nested prohibited safety flag was accepted")
 	}
 }
 

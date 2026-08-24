@@ -56,6 +56,9 @@ type DefenseValidationScenarioEnvironmentV02 struct {
 	ProductionIdentityUsed       bool   `json:"production_identity_used"`
 	WalletCustody                bool   `json:"wallet_custody"`
 	MainnetSubmissionAllowed     bool   `json:"mainnet_submission_allowed"`
+	ProductionControlMutation    bool   `json:"production_control_mutation"`
+	AutomaticIntervention        bool   `json:"automatic_intervention"`
+	ArbitraryCommandExecution    bool   `json:"arbitrary_command_execution"`
 	NetworkAccessDuringExecution bool   `json:"network_access_during_execution"`
 	OwnerApprovalRequired        bool   `json:"owner_approval_required"`
 	DefaultOff                   bool   `json:"default_off"`
@@ -81,7 +84,7 @@ type DefenseValidationScenarioCaseV02 struct {
 	CaseRef                 string                                       `json:"case_ref"`
 	CaseKind                string                                       `json:"case_kind"`
 	Description             string                                       `json:"description"`
-	MatchedValues           map[string]any                               `json:"matched_values"`
+	MatchedValues           map[string]json.RawMessage                   `json:"matched_values"`
 	ImpactDeadlineMS        *int64                                       `json:"impact_deadline_ms"`
 	ObservationWindowMS     int64                                        `json:"observation_window_ms"`
 	ExpectedControlBehavior DefenseValidationScenarioExpectedBehaviorV02 `json:"expected_control_behavior"`
@@ -114,6 +117,30 @@ type DefenseValidationScenarioV02 struct {
 }
 
 type defenseValidationScenarioJSONV02 DefenseValidationScenarioV02
+type defenseValidationScenarioEnvironmentJSONV02 DefenseValidationScenarioEnvironmentV02
+
+func (e *DefenseValidationScenarioEnvironmentV02) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	for _, required := range []string{"production_control_mutation", "automatic_intervention", "arbitrary_command_execution"} {
+		if _, ok := fields[required]; !ok {
+			return fmt.Errorf("scenario environment missing required safety field %q", required)
+		}
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var decoded defenseValidationScenarioEnvironmentJSONV02
+	if err := decoder.Decode(&decoded); err != nil {
+		return fmt.Errorf("decode scenario environment: %w", err)
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return errors.New("scenario environment must contain exactly one JSON value")
+	}
+	*e = DefenseValidationScenarioEnvironmentV02(decoded)
+	return nil
+}
 
 func ParseDefenseValidationScenarioV02(data []byte) (DefenseValidationScenarioV02, error) {
 	var scenario DefenseValidationScenarioV02
@@ -149,6 +176,9 @@ func (s *DefenseValidationScenarioV02) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	if err := validateDefenseValidationScenarioRawSafetyV02(canonical); err != nil {
+		return err
+	}
 	var decoded defenseValidationScenarioJSONV02
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
@@ -165,6 +195,55 @@ func (s *DefenseValidationScenarioV02) UnmarshalJSON(data []byte) error {
 	scenario.typedContractSHA256 = typedDigest
 	*s = scenario
 	return nil
+}
+
+func validateDefenseValidationScenarioRawSafetyV02(canonical []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(canonical))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return fmt.Errorf("decode canonical scenario safety fields: %w", err)
+	}
+	mustBeFalse := map[string]struct{}{
+		"is_execution_evidence":       {},
+		"is_validation_result":        {},
+		"production_claim_allowed":    {},
+		"mainnet_transaction_sent":    {},
+		"verdict_authority":           {},
+		"ai_verdict_authority":        {},
+		"ui_verdict_authority":        {},
+		"production_identity_used":    {},
+		"wallet_custody":              {},
+		"mainnet_submission_allowed":  {},
+		"production_control_mutation": {},
+		"automatic_intervention":      {},
+		"arbitrary_command_execution": {},
+	}
+	var walk func(any) error
+	walk = func(current any) error {
+		switch typed := current.(type) {
+		case map[string]any:
+			for key, nested := range typed {
+				if _, protected := mustBeFalse[key]; protected {
+					enabled, ok := nested.(bool)
+					if !ok || enabled {
+						return fmt.Errorf("scenario safety field %q must be boolean false", key)
+					}
+				}
+				if err := walk(nested); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, nested := range typed {
+				if err := walk(nested); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	return walk(value)
 }
 
 func (s DefenseValidationScenarioV02) MarshalJSON() ([]byte, error) {
@@ -279,8 +358,8 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 	if s.ClaimBoundary.IsExecutionEvidence || s.ClaimBoundary.IsValidationResult || s.ClaimBoundary.ProductionClaimAllowed || s.ClaimBoundary.MainnetTransactionSent || s.ClaimBoundary.VerdictAuthority {
 		return errors.New("scenario definition cannot claim execution, validation, production authority or mainnet submission")
 	}
-	if s.Environment.ProductionIdentityUsed || s.Environment.WalletCustody || s.Environment.MainnetSubmissionAllowed {
-		return errors.New("scenario environment cannot use production identity, custody or mainnet submission")
+	if s.Environment.ProductionIdentityUsed || s.Environment.WalletCustody || s.Environment.MainnetSubmissionAllowed || s.Environment.ProductionControlMutation || s.Environment.AutomaticIntervention || s.Environment.ArbitraryCommandExecution {
+		return errors.New("scenario environment cannot use production identity, custody, mainnet submission, production control mutation, automatic intervention or arbitrary commands")
 	}
 	executionMode := strings.ToLower(strings.TrimSpace(s.Environment.ExecutionMode))
 	if !validDefenseValidationScenarioExecutionModeV02(executionMode) || !s.Environment.OwnerApprovalRequired || !s.Environment.DefaultOff {
@@ -347,12 +426,20 @@ func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenario
 		if strings.TrimSpace(c.Description) == "" || c.ObservationWindowMS <= 0 {
 			return fmt.Errorf("scenario case %q is incomplete", ref)
 		}
+		if len(c.MatchedValues) != len(matched) {
+			return fmt.Errorf("scenario case %q matched values must exactly match declared fields", ref)
+		}
+		for field := range c.MatchedValues {
+			if _, declared := seenMatched[strings.TrimSpace(field)]; !declared {
+				return fmt.Errorf("scenario case %q contains undeclared matched value %q", ref, field)
+			}
+		}
 		for _, field := range matched {
 			value, exists := c.MatchedValues[field]
-			if !exists || value == nil {
+			if !exists || len(bytes.TrimSpace(value)) == 0 || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 				return fmt.Errorf("scenario case %q missing matched value %q", ref, field)
 			}
-			encoded, err := json.Marshal(value)
+			encoded, err := canonicalizeDefenseValidationScenarioJSONV02(value)
 			if err != nil {
 				return fmt.Errorf("scenario case %q matched value %q is invalid: %w", ref, field, err)
 			}

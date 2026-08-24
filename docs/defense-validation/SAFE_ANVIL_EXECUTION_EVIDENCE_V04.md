@@ -72,7 +72,7 @@ No field supplied by a UI or model is verdict authority.
 
 ## Independent collector boundary
 
-`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the raw Execution Containment receipt, raw Execution Proof and complete scenario contract, recomputes the execution evidence through the deterministic Defense Validation adapter, enforces a distinct collector identity, binds the completed observation window, and signs a sealed Security Evidence Bus event with Ed25519. The trusted collector public key is part of the exact control configuration hash.
+`internal/defensecollector` and `cmd/defense-validation-collector` form a separate observation process boundary. The collector receives the raw Execution Containment receipt, raw Execution Proof and complete scenario contract, recomputes the execution evidence through the deterministic Defense Validation adapter, enforces a distinct collector identity, binds the completed observation window, and signs a sealed Security Evidence Bus event with Ed25519. The trusted collector public key is part of the exact control configuration hash. Final evaluation recomputes the complete scenario digest and requires the exact declared case set for every tested control; omitted cases cannot yield `VALIDATED`.
 
 The collector rejects:
 

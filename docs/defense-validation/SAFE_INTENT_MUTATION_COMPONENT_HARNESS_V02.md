@@ -12,7 +12,7 @@ The component test uses the real repository implementations for:
 - Execution Containment deterministic `RELEASE` / `CONTAIN` recomputation and receipt verification;
 - Security Evidence Bus event sealing, Ed25519 producer authentication and digest verification;
 - independent-collector identity and source-digest binding;
-- Defense Validation v0.2 attack/benign matrix evaluation.
+- Defense Validation v0.2 evaluation against the complete parsed scenario and its exact declared case set.
 
 The test runs two attack-control shapes against the same Safe intent-mutation scenario:
 
@@ -36,6 +36,8 @@ The observation adapter requires a `koschei.security-evidence/v1` event whose pr
 - use `VERIFIED` evidence state for that finding.
 
 A self-produced or caller-resealed event, missing source digest, altered observation binding, incomplete window, or status that contradicts the verified control decisions is rejected before the deterministic evaluator sees it.
+
+The scenario parser requires `production_control_mutation`, `automatic_intervention` and `arbitrary_command_execution` to be explicitly false. Unknown environment fields are rejected fail-closed, and omitting any scenario case produces an `INCOMPLETE` control result.
 
 ## Claim boundary
 
