@@ -34,32 +34,43 @@ function mountDetectionStatus(){
 }
 
 function setDetected(label){const node=$('customerDetectedType');const strong=node?.querySelector('b');if(strong)strong.textContent=label;}
+function modeButton(mode){return document.querySelector(`[data-scan-mode="${mode}"]`)}
+function activateMode(mode){const button=modeButton(mode);if(button&&button.getAttribute('aria-pressed')!=='true')button.click();}
 
-function installDetection(){
+function installDefaultMode(){
+  const params=new URLSearchParams(location.search||'');
+  const explicitMode=params.has('mode')||location.pathname.startsWith('/scan/');
+  if(!explicitMode)activateMode('quick');
+  return explicitMode;
+}
+
+function installDetection(explicitMode){
   const target=$('target'),kind=$('kind'),transaction=$('transaction');if(!target||!kind)return;
-  let manualOverride=false;
-  kind.addEventListener('change',()=>{manualOverride=true;setDetected(`Manual override · ${kind.options[kind.selectedIndex]?.text||kind.value}`)});
+  let manualKind=false,manualMode=explicitMode;
+  kind.addEventListener('change',()=>{manualKind=true;setDetected(`Manual override · ${kind.options[kind.selectedIndex]?.text||kind.value}`)});
+  document.querySelectorAll('[data-scan-mode]').forEach(button=>button.addEventListener('click',event=>{if(event.isTrusted)manualMode=true;}));
   const update=()=>{
     const value=target.value.trim();
     if(!value){setDetected('Waiting for input');return}
     if(isLikelyURL(value)){
-      if(!manualOverride)kind.value='site';
-      setDetected('Site URL detected');
+      if(!manualKind)kind.value='site';
+      if(!manualMode)activateMode('quick');
+      setDetected('Site URL detected · Quick Check selected');
       return;
     }
     if(isLikelyBase64Transaction(value)){
-      setDetected('Serialized Solana transaction detected');
+      setDetected('Serialized Solana transaction detected · read-only simulation selected');
       if(transaction&&!transaction.value.trim())transaction.value=value.replace(/\s+/g,'');
-      const button=document.querySelector('[data-scan-mode="transaction"]');
-      if(button&&button.getAttribute('aria-pressed')!=='true')button.click();
+      if(!manualMode)activateMode('transaction');
       return;
     }
     if(isLikelySolanaAddress(value)){
-      if(!manualOverride)kind.value='token';
-      setDetected('Solana address detected · token investigation selected by default');
+      if(!manualMode)activateMode('quick');
+      setDetected('Solana address detected · Quick Check first; use Token Investigation only when this is a mint');
       return;
     }
-    setDetected('Target type unresolved · Koschei will not infer safety from the label');
+    if(!manualMode)activateMode('quick');
+    setDetected('Target type unresolved · Quick Check keeps the uncertainty explicit');
   };
   target.addEventListener('input',update);target.addEventListener('change',update);update();
 }
@@ -67,24 +78,23 @@ function installDetection(){
 function simplifyCopy(){
   const hero=document.querySelector('section.surface.panel');
   const heading=hero?.querySelector('h1');if(heading)heading.textContent='Paste it. Check it before you trust it.';
-  const sub=hero?.querySelector('p.sub');if(sub)sub.textContent='Start with one target. Koschei keeps the scan simple here and leaves advanced collector choices available only when you need them.';
+  const sub=hero?.querySelector('p.sub');if(sub)sub.textContent='Start with one target. Koschei runs the fast evidence boundary first unless you explicitly choose a deeper investigation or transaction simulation.';
   const form=$('scanForm');if(form&&!form.querySelector('.customer-scan-helper')){
     const helper=document.createElement('p');helper.className='customer-scan-helper';helper.innerHTML='<strong>One customer flow:</strong> paste a token, wallet, site or serialized transaction. Ambiguous Solana addresses stay explicit instead of being silently reclassified.';
     form.parentNode.insertBefore(helper,form);
   }
   const target=$('target');if(target)target.placeholder='Paste token mint, wallet address, site URL, or transaction';
   const targetLabel=target?.closest('label');if(targetLabel?.firstChild)targetLabel.firstChild.textContent='What do you want to check?';
-  const note=$('note');if(note){note.placeholder='Optional: what are you about to do? Example: buy this token, connect to this site, sign this transaction';}
+  const note=$('note');if(note)note.placeholder='Optional: what are you about to do? Example: buy this token, connect to this site, sign this transaction';
   const noteLabel=note?.closest('label');if(noteLabel?.firstChild)noteLabel.firstChild.textContent='What are you about to do? (optional)';
   const empty=$('empty');if(empty&&!empty.hidden&&!$('result')?.innerHTML.trim())empty.innerHTML='<h2 style="margin-top:16px">Your result will appear here.</h2><p class="sub" style="margin-top:9px">Koschei will show the decision first, then the reasons, unresolved evidence and the technical proof underneath.</p>';
 }
 
 function preserveAdvancedState(){
   document.querySelectorAll('[data-scan-mode]').forEach(button=>button.addEventListener('click',()=>{
-    const details=button.closest('.customer-scan-advanced');
-    if(details&&button.dataset.scanMode!=='token')details.open=false;
+    const details=button.closest('.customer-scan-advanced');if(details&&button.dataset.scanMode!=='token')details.open=false;
   }));
 }
 
-ready(()=>{mountAdvancedModes();mountTypeOverride();mountDetectionStatus();simplifyCopy();installDetection();preserveAdvancedState();});
+ready(()=>{mountAdvancedModes();mountTypeOverride();mountDetectionStatus();simplifyCopy();const explicitMode=installDefaultMode();installDetection(explicitMode);preserveAdvancedState();});
 })();
