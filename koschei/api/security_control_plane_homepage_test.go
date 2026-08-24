@@ -52,3 +52,20 @@ func TestHomepageKeepsKoscheiWeb3AsSingleProductBrand(t *testing.T) {
 		}
 	}
 }
+
+func TestHomepageExposesRequiredPaddleDomainReviewPolicies(t *testing.T) {
+	body, err := os.ReadFile("public/index.html")
+	if err != nil {
+		t.Fatalf("read homepage: %v", err)
+	}
+	text := string(body)
+	for _, policyLink := range []string{
+		`href="/terms.html">Terms</a>`,
+		`href="/privacy.html">Privacy</a>`,
+		`href="/refund-policy.html">Refunds</a>`,
+	} {
+		if !strings.Contains(text, policyLink) {
+			t.Fatalf("homepage missing required Paddle domain-review policy link %q", policyLink)
+		}
+	}
+}
