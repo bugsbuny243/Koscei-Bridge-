@@ -58,7 +58,7 @@ requireText(apiRef,'KOSCH holdings, wallet balances, historical token tiers and 
 requireText(apiRef,'A registered route is an integration contract, not by itself a claim','API reference readiness boundary');
 requireText(apiRef,'When verified evidence is unavailable, ARVIS withholds the authoritative verdict instead of fabricating a grade.','signed verdict fail-closed rule');
 requireText(apiRef,'Developer API keys are identity credentials. Registered developer routes require an active Enterprise SaaS entitlement','developer key identity boundary');
-requireText(html,'Missing evidence never becomes a low-risk result','developer trust copy');
+requireText(html,'No evidence, no claim','developer trust copy');
 requireText(html,'No model authority:','model authority boundary');
 
 requireText(b2b,'maxBatchTokenScans   = 20','batch max contract');
