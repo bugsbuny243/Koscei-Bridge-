@@ -174,5 +174,8 @@ func fetchCreatedMintRPCTransactions(ctx context.Context, rpcURL string, signatu
 			out[signature] = tx
 		}
 	}
+	if len(out) == len(signatures) {
+		return out, nil
+	}
 	return out, lastErr
 }
