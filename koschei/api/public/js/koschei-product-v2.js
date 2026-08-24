@@ -14,6 +14,11 @@
     document.head.appendChild(link);
   }
 
+  function loadEnhancement(src,key){
+    if(document.querySelector(`script[data-koschei-enhancement="${key}"]`))return;
+    const script=document.createElement('script');script.src=src;script.defer=true;script.dataset.koscheiEnhancement=key;document.body.appendChild(script);
+  }
+
   function cleanPath(value){return (value||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';}
   function navActive(href,current){
     const url=new URL(href,location.origin),path=cleanPath(url.pathname);
@@ -118,6 +123,12 @@
     });
   }
 
+  function loadPageEnhancements(){
+    const current=cleanPath(location.pathname);
+    if(current==='/scan'||current.startsWith('/scan/'))loadEnhancement('/js/customer-scan-flow-v3.js?v=1','scan-v3');
+    if(current==='/dashboard')loadEnhancement('/js/customer-workspace-plans-v3.js?v=1','workspace-plans-v3');
+  }
+
   installSurfaceStyles();
-  ready(()=>{installCustomerNavigation();installReveal();hydrateHealth();installFormState();installExternalSafety();installHomepageScan();installCurrentNav();});
+  ready(()=>{installCustomerNavigation();installReveal();hydrateHealth();installFormState();installExternalSafety();installHomepageScan();installCurrentNav();loadPageEnhancements();});
 })();
