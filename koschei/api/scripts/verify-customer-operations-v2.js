@@ -17,7 +17,10 @@ for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist ht
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','reports html');
 requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');
 requireText(reportsHTML,'History without invented evidence.','reports truth boundary');
-requireText(reportsHTML,'reading history does not consume a scan unit','reports read-only quota boundary');
+requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','reports Starter SaaS boundary');
+requireText(reportsHTML,'reading history does not consume a premium output','reports read-only quota boundary');
+requireText(reportsHTML,'KOSCH holdings do not authorize this surface.','reports token separation boundary');
+if(/BASIC\+ KOSCH|Basic KOSCH tier/i.test(reportsHTML))throw new Error('reports html: legacy token-tier history access copy is forbidden');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
 requireText(watchHTML,'Professional plan or higher','watchlist Professional SaaS boundary');
 if(/KOSCH tier|holder tier|Pro tier or higher/i.test(watchHTML))throw new Error('watchlist html: legacy token-tier access copy is forbidden');
