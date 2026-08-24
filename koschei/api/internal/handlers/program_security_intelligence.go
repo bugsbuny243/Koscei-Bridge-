@@ -163,7 +163,7 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		return arvisProgramAuthoritySnapshot{}, errors.New("program account is not executable")
 	}
 	out := arvisProgramAuthoritySnapshot{
-		LoaderID: strings.TrimSpace(program.Value.Owner), AccountSlot: program.Context.Slot,
+		LoaderID: program.Value.Owner, AccountSlot: program.Context.Slot,
 		EvidenceRefs: []string{"rpc:getAccountInfo:" + programID}, Limitations: []string{},
 	}
 	programHeader, decodeErr := decodeARVISProgramAccountData(program.Value.Data)
@@ -182,7 +182,7 @@ func inspectARVISProgramAuthority(ctx context.Context, rpc solanaRPCCall, networ
 		if lookupErr != nil {
 			return arvisProgramAuthoritySnapshot{}, fmt.Errorf("programdata lookup failed: %w", lookupErr)
 		}
-		if programData.Value == nil || strings.TrimSpace(programData.Value.Owner) != arvisUpgradeableLoaderID {
+		if programData.Value == nil || programData.Value.Owner != arvisUpgradeableLoaderID {
 			return arvisProgramAuthoritySnapshot{}, errors.New("programdata account owner mismatch")
 		}
 		header, decodeErr := decodeARVISProgramAccountData(programData.Value.Data)

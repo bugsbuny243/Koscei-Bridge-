@@ -102,6 +102,59 @@ func TestInspectARVISProgramAuthorityRejectsMalformedLegacyLoaderData(t *testing
 	}
 }
 
+func TestInspectARVISProgramAuthorityRejectsWhitespacePaddedOwners(t *testing.T) {
+	t.Run("program owner", func(t *testing.T) {
+		rpc := func(_ context.Context, _ string, method string, _ any, target any) error {
+			if method != "getAccountInfo" {
+				t.Fatalf("unexpected RPC method %s", method)
+			}
+			return programSecurityDecodeInto(map[string]any{
+				"context": map[string]any{"slot": 999},
+				"value": map[string]any{
+					"data":       []string{base64.StdEncoding.EncodeToString([]byte{0x7f, 'E', 'L', 'F'}), "base64"},
+					"executable": true, "owner": arvisLegacyLoaderV2ID + " ",
+				},
+			}, target)
+		}
+
+		if _, err := inspectARVISProgramAuthority(context.Background(), rpc, "solana-mainnet", programSecurityPumpFun); err == nil {
+			t.Fatal("whitespace-padded program owner was accepted")
+		}
+	})
+
+	t.Run("programdata owner", func(t *testing.T) {
+		programHeader := make([]byte, 36)
+		binary.LittleEndian.PutUint32(programHeader[:4], 2)
+		programDataAddress := "11111111111111111111111111111111"
+		programDataHeader := make([]byte, 45)
+		binary.LittleEndian.PutUint32(programDataHeader[:4], 3)
+
+		rpc := func(_ context.Context, _ string, method string, params any, target any) error {
+			if method != "getAccountInfo" {
+				t.Fatalf("unexpected RPC method %s", method)
+			}
+			address := params.([]any)[0].(string)
+			data := programHeader
+			owner := arvisUpgradeableLoaderID
+			if address == programDataAddress {
+				data = programDataHeader
+				owner += " "
+			}
+			return programSecurityDecodeInto(map[string]any{
+				"context": map[string]any{"slot": 999},
+				"value": map[string]any{
+					"data":       []string{base64.StdEncoding.EncodeToString(data), "base64"},
+					"executable": true, "owner": owner,
+				},
+			}, target)
+		}
+
+		if _, err := inspectARVISProgramAuthority(context.Background(), rpc, "solana-mainnet", programSecurityPumpFun); err == nil {
+			t.Fatal("whitespace-padded ProgramData owner was accepted")
+		}
+	})
+}
+
 func TestInspectARVISProgramAuthorityAcceptsVerifiedLegacyLoaderData(t *testing.T) {
 	rpc := func(_ context.Context, _ string, method string, _ any, target any) error {
 		if method != "getAccountInfo" {
