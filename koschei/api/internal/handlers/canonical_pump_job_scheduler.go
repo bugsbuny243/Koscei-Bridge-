@@ -27,8 +27,12 @@ type canonicalPumpJobScheduler struct {
 	AttemptCooldown time.Duration
 }
 
+func canonicalPumpAutoSchedulingAllowed() bool {
+	return !services.SolanaRPCLimitSaverEnabled()
+}
+
 func StartCanonicalPumpJobScheduler(ctx context.Context, db *sql.DB, store *jobs.Store) func() {
-	if !CanonicalInvestigationJobWorkerEnabled() || !services.AutomaticBackgroundScanningEnabled() || !services.PumpHighVolumeRadarEnabled() || db == nil {
+	if !CanonicalInvestigationJobWorkerEnabled() || !services.AutomaticBackgroundScanningEnabled() || !services.PumpHighVolumeRadarEnabled() || !canonicalPumpAutoSchedulingAllowed() || db == nil {
 		return func() {}
 	}
 	if store == nil {
@@ -70,6 +74,9 @@ func (s *canonicalPumpJobScheduler) Start(ctx context.Context) {
 }
 
 func (s *canonicalPumpJobScheduler) RunOnce(ctx context.Context) (candidateCount, qualifiedCount, queuedCount int, err error) {
+	if !canonicalPumpAutoSchedulingAllowed() {
+		return 0, 0, 0, nil
+	}
 	candidates, err := s.RadarStore.ListPumpPortalCandidates(ctx, s.CandidateLimit, time.Time{}, "")
 	if err != nil {
 		return 0, 0, 0, err
