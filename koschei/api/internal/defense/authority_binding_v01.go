@@ -1,7 +1,9 @@
 package defense
 
 import (
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +18,10 @@ const (
 	DefenseAuthorityBindingVersionV01            = "koschei-defense-authority-binding/v0.1.0"
 	DefenseAuthorityExecutionAdapterVersionV01   = "koschei-defense-authority-integrity-adapter/v0.1.0"
 	DefenseAuthorityObservationBindingVersionV01 = "koschei-defense-authority-observation-binding/v0.1.0"
+	DefenseAuthorityEvidenceArtifactVersionV01   = "koschei-defense-authority-evidence/v0.1.0"
+
+	DefenseAuthorityEvidencePrincipalV01     = "principal_execution"
+	DefenseAuthorityEvidenceAuthorizationV01 = "authorization_grant"
 
 	DefenseAuthorityReasonPrincipalMismatchV01 = "principal_mismatch"
 	DefenseAuthorityReasonSourceMismatchV01    = "source_account_mismatch"
@@ -23,31 +29,64 @@ const (
 	DefenseAuthorityReasonAssetMismatchV01     = "asset_mismatch"
 )
 
+type DefenseAuthorityEvidenceArtifactV01 struct {
+	Version           string `json:"version"`
+	EvidenceState     string `json:"evidence_state"`
+	EvidenceKind      string `json:"evidence_kind"`
+	Producer          string `json:"producer"`
+	Chain             string `json:"chain"`
+	ChainID           uint64 `json:"chain_id"`
+	Principal         string `json:"principal"`
+	SourceAccount     string `json:"source_account"`
+	Operation         string `json:"operation"`
+	Asset             string `json:"asset"`
+	CallPayloadSHA256 string `json:"call_payload_sha256"`
+	PreStateSHA256    string `json:"pre_state_sha256"`
+	PostStateSHA256   string `json:"post_state_sha256"`
+	DebitEffectSHA256 string `json:"debit_effect_sha256"`
+	Signature         string `json:"signature"`
+}
+
+// DefenseAuthorityEvidenceTrustV01 is supplied by the isolated harness or
+// runtime configuration. Trust anchors are intentionally not embedded in the
+// evidence artifacts they authenticate.
+type DefenseAuthorityEvidenceTrustV01 struct {
+	PrincipalProducerRef     string `json:"principal_producer_ref"`
+	PrincipalPublicKey       string `json:"principal_public_key"`
+	AuthorizationProducerRef string `json:"authorization_producer_ref"`
+	AuthorizationPublicKey   string `json:"authorization_public_key"`
+}
+
 type DefenseAuthorityBindingEvidenceV01 struct {
-	Version                     string `json:"version"`
-	EvidenceState               string `json:"evidence_state"`
-	CallerPrincipal             string `json:"caller_principal"`
-	DeclaredSourceAccount       string `json:"declared_source_account"`
-	RequestedOperation          string `json:"requested_operation"`
-	RequestedAsset              string `json:"requested_asset"`
-	AuthorizedPrincipal         string `json:"authorized_principal"`
-	AuthorizedSourceAccount     string `json:"authorized_source_account"`
-	AuthorizedOperation         string `json:"authorized_operation"`
-	AuthorizedAsset             string `json:"authorized_asset"`
-	CallPayloadSHA256           string `json:"call_payload_sha256"`
-	PrincipalEvidenceSHA256     string `json:"principal_evidence_sha256"`
-	AuthorizationEvidenceSHA256 string `json:"authorization_evidence_sha256"`
-	PreStateSHA256              string `json:"pre_state_sha256"`
-	PostStateSHA256             string `json:"post_state_sha256"`
-	DebitEffectSHA256           string `json:"debit_effect_sha256"`
+	Version                     string                              `json:"version"`
+	EvidenceState               string                              `json:"evidence_state"`
+	Chain                       string                              `json:"chain"`
+	ChainID                     uint64                              `json:"chain_id"`
+	CallerPrincipal             string                              `json:"caller_principal"`
+	DeclaredSourceAccount       string                              `json:"declared_source_account"`
+	RequestedOperation          string                              `json:"requested_operation"`
+	RequestedAsset              string                              `json:"requested_asset"`
+	AuthorizedPrincipal         string                              `json:"authorized_principal"`
+	AuthorizedSourceAccount     string                              `json:"authorized_source_account"`
+	AuthorizedOperation         string                              `json:"authorized_operation"`
+	AuthorizedAsset             string                              `json:"authorized_asset"`
+	CallPayloadSHA256           string                              `json:"call_payload_sha256"`
+	PrincipalEvidenceSHA256     string                              `json:"principal_evidence_sha256"`
+	AuthorizationEvidenceSHA256 string                              `json:"authorization_evidence_sha256"`
+	PreStateSHA256              string                              `json:"pre_state_sha256"`
+	PostStateSHA256             string                              `json:"post_state_sha256"`
+	DebitEffectSHA256           string                              `json:"debit_effect_sha256"`
+	PrincipalEvidence           DefenseAuthorityEvidenceArtifactV01 `json:"principal_evidence"`
+	AuthorizationEvidence       DefenseAuthorityEvidenceArtifactV01 `json:"authorization_evidence"`
 }
 
 type DefenseAuthorityBindingResultV01 struct {
-	Version       string                             `json:"version"`
-	Evidence      DefenseAuthorityBindingEvidenceV01 `json:"evidence"`
-	Preserved     bool                               `json:"preserved"`
-	Reasons       []string                           `json:"reasons"`
-	BindingSHA256 string                             `json:"binding_sha256"`
+	Version             string                             `json:"version"`
+	Evidence            DefenseAuthorityBindingEvidenceV01 `json:"evidence"`
+	Preserved           bool                               `json:"preserved"`
+	Reasons             []string                           `json:"reasons"`
+	EvidenceTrustSHA256 string                             `json:"evidence_trust_sha256"`
+	BindingSHA256       string                             `json:"binding_sha256"`
 }
 
 type DefenseAuthorityIntegrityConfigV01 struct {
@@ -67,12 +106,15 @@ type DefenseAuthorityExecutionAdapterInputV01 struct {
 	ImpactOffsetMS         *int64
 	ObservationWindowMS    int64
 	MainnetTransactionSent bool
+	EvidenceTrust          DefenseAuthorityEvidenceTrustV01
 	Binding                DefenseAuthorityBindingResultV01
 	ContainmentReceipt     executioncontainment.Receipt
 }
 
 type DefenseAuthorityExecutionEvidenceV01 struct {
 	Case                     DefenseValidationCaseV02
+	Chain                    string
+	ChainID                  uint64
 	ContainmentDecision      executioncontainment.Decision
 	ContainmentReceiptSHA256 string
 	AuthorityBindingSHA256   string
@@ -82,6 +124,7 @@ type DefenseAuthorityExecutionEvidenceV01 struct {
 type DefenseAuthorityObservationBindingV01 struct {
 	Version                      string `json:"version"`
 	Chain                        string `json:"chain"`
+	ChainID                      uint64 `json:"chain_id"`
 	ControlRef                   string `json:"control_ref"`
 	CaseRef                      string `json:"case_ref"`
 	Status                       string `json:"status"`
@@ -90,9 +133,17 @@ type DefenseAuthorityObservationBindingV01 struct {
 	ObservationCompletedOffsetMS int64  `json:"observation_completed_offset_ms"`
 }
 
-func EvaluateDefenseAuthorityBindingV01(e DefenseAuthorityBindingEvidenceV01) (DefenseAuthorityBindingResultV01, error) {
+func EvaluateDefenseAuthorityBindingV01(e DefenseAuthorityBindingEvidenceV01, trusts ...DefenseAuthorityEvidenceTrustV01) (DefenseAuthorityBindingResultV01, error) {
+	trust, err := requireDefenseAuthorityEvidenceTrustV01(trusts)
+	if err != nil {
+		return DefenseAuthorityBindingResultV01{}, err
+	}
 	e = normalizeDefenseAuthorityBindingEvidenceV01(e)
-	if err := validateDefenseAuthorityBindingEvidenceV01(e); err != nil {
+	if err := validateDefenseAuthorityBindingEvidenceV01(e, trust); err != nil {
+		return DefenseAuthorityBindingResultV01{}, err
+	}
+	trustDigest, err := defenseAuthorityCanonicalSHA256V01(trust)
+	if err != nil {
 		return DefenseAuthorityBindingResultV01{}, err
 	}
 	reasons := make([]string, 0, 4)
@@ -109,17 +160,19 @@ func EvaluateDefenseAuthorityBindingV01(e DefenseAuthorityBindingEvidenceV01) (D
 		reasons = append(reasons, DefenseAuthorityReasonAssetMismatchV01)
 	}
 	out := DefenseAuthorityBindingResultV01{
-		Version:   DefenseAuthorityBindingVersionV01,
-		Evidence:  e,
-		Preserved: len(reasons) == 0,
-		Reasons:   reasons,
+		Version:             DefenseAuthorityBindingVersionV01,
+		Evidence:            e,
+		Preserved:           len(reasons) == 0,
+		Reasons:             reasons,
+		EvidenceTrustSHA256: trustDigest,
 	}
 	digest, err := defenseAuthorityCanonicalSHA256V01(struct {
-		Version   string                             `json:"version"`
-		Evidence  DefenseAuthorityBindingEvidenceV01 `json:"evidence"`
-		Preserved bool                               `json:"preserved"`
-		Reasons   []string                           `json:"reasons"`
-	}{out.Version, out.Evidence, out.Preserved, out.Reasons})
+		Version             string                             `json:"version"`
+		Evidence            DefenseAuthorityBindingEvidenceV01 `json:"evidence"`
+		Preserved           bool                               `json:"preserved"`
+		Reasons             []string                           `json:"reasons"`
+		EvidenceTrustSHA256 string                             `json:"evidence_trust_sha256"`
+	}{out.Version, out.Evidence, out.Preserved, out.Reasons, out.EvidenceTrustSHA256})
 	if err != nil {
 		return DefenseAuthorityBindingResultV01{}, err
 	}
@@ -127,24 +180,30 @@ func EvaluateDefenseAuthorityBindingV01(e DefenseAuthorityBindingEvidenceV01) (D
 	return out, nil
 }
 
-func VerifyDefenseAuthorityBindingV01(result DefenseAuthorityBindingResultV01) bool {
-	if result.Version != DefenseAuthorityBindingVersionV01 || !validDefenseAuthoritySHA256V01(result.BindingSHA256) {
+func VerifyDefenseAuthorityBindingV01(result DefenseAuthorityBindingResultV01, trusts ...DefenseAuthorityEvidenceTrustV01) bool {
+	trust, err := requireDefenseAuthorityEvidenceTrustV01(trusts)
+	if err != nil || result.Version != DefenseAuthorityBindingVersionV01 || !validDefenseAuthoritySHA256V01(result.EvidenceTrustSHA256) || !validDefenseAuthoritySHA256V01(result.BindingSHA256) {
 		return false
 	}
-	recomputed, err := EvaluateDefenseAuthorityBindingV01(result.Evidence)
+	trustDigest, err := defenseAuthorityCanonicalSHA256V01(trust)
+	if err != nil || !strings.EqualFold(trustDigest, result.EvidenceTrustSHA256) {
+		return false
+	}
+	recomputed, err := EvaluateDefenseAuthorityBindingV01(result.Evidence, trust)
 	if err != nil {
 		return false
 	}
 	return recomputed.Preserved == result.Preserved &&
 		equalDefenseAuthorityStringsV01(recomputed.Reasons, result.Reasons) &&
+		strings.EqualFold(recomputed.EvidenceTrustSHA256, result.EvidenceTrustSHA256) &&
 		strings.EqualFold(recomputed.BindingSHA256, result.BindingSHA256)
 }
 
-func ApplyDefenseAuthorityBindingToContainmentV01(observation executioncontainment.Observation, result DefenseAuthorityBindingResultV01) (executioncontainment.Observation, error) {
-	if !VerifyDefenseAuthorityBindingV01(result) {
+func ApplyDefenseAuthorityBindingToContainmentV01(observation executioncontainment.Observation, result DefenseAuthorityBindingResultV01, trusts ...DefenseAuthorityEvidenceTrustV01) (executioncontainment.Observation, error) {
+	if !VerifyDefenseAuthorityBindingV01(result, trusts...) {
 		return executioncontainment.Observation{}, errors.New("authority binding evidence failed deterministic verification")
 	}
-	observation.AuthorityPreserved = result.Preserved
+	observation.AuthorityPreserved = observation.AuthorityPreserved && result.Preserved
 	observation.InvariantsPass = observation.InvariantsPass && result.Preserved
 	return observation, nil
 }
@@ -180,7 +239,7 @@ func NewAuthorityIntegrityControlV01(controlRef, collectorRef string, cfg Defens
 	if err != nil {
 		return DefenseValidationControlV02{}, err
 	}
-	return DefenseValidationControlV02{ControlRef: controlRef, AdapterVersion: DefenseAuthorityExecutionAdapterVersionV01, ConfigurationHash: digest, CollectorRef: collectorRef}, nil
+	return DefenseValidationControlV02{ControlRef: controlRef, AdapterVersion: DefenseAuthorityExecutionAdapterVersionV01, ConfigurationHash: defenseValidationHashRefV02(digest), CollectorRef: collectorRef}, nil
 }
 
 func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01) (DefenseAuthorityExecutionEvidenceV01, error) {
@@ -210,21 +269,23 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 	} else if in.ImpactOffsetMS != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, errors.New("benign case cannot define impact deadline")
 	}
-	if !VerifyDefenseAuthorityBindingV01(in.Binding) {
+	if !VerifyDefenseAuthorityBindingV01(in.Binding, in.EvidenceTrust) {
 		return DefenseAuthorityExecutionEvidenceV01{}, errors.New("authority binding failed deterministic recomputation")
 	}
 	if !executioncontainment.Verify(in.ContainmentReceipt) || !in.ContainmentReceipt.Observation.BackendAvailable {
 		return DefenseAuthorityExecutionEvidenceV01{}, errors.New("containment receipt is unavailable or invalid")
 	}
-	if in.ContainmentReceipt.Observation.AuthorityPreserved != in.Binding.Preserved {
-		return DefenseAuthorityExecutionEvidenceV01{}, errors.New("containment authority observation contradicts binding result")
+	if err := bindDefenseAuthorityReceiptV01(in.Binding.Evidence, in.ContainmentReceipt); err != nil {
+		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
-	if !in.Binding.Preserved && in.ContainmentReceipt.Decision != executioncontainment.DecisionContain {
-		return DefenseAuthorityExecutionEvidenceV01{}, errors.New("authority mismatch did not fail closed")
+	if err := validateDefenseAuthorityCaseSemanticsV01(in.CaseKind, in.Binding, in.ContainmentReceipt); err != nil {
+		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
 
 	executionHash, err := defenseAuthorityCanonicalSHA256V01(struct {
 		AdapterVersion           string                        `json:"adapter_version"`
+		Chain                    string                        `json:"chain"`
+		ChainID                  uint64                        `json:"chain_id"`
 		CaseRef                  string                        `json:"case_ref"`
 		CaseKind                 string                        `json:"case_kind"`
 		TechniqueID              string                        `json:"technique_id"`
@@ -232,36 +293,42 @@ func AdaptAuthorityIntegrityCaseV01(in DefenseAuthorityExecutionAdapterInputV01)
 		AuthorityBindingSHA256   string                        `json:"authority_binding_sha256"`
 		ContainmentReceiptSHA256 string                        `json:"containment_receipt_sha256"`
 		ContainmentDecision      executioncontainment.Decision `json:"containment_decision"`
+		CallPayloadSHA256        string                        `json:"call_payload_sha256"`
 		PreStateSHA256           string                        `json:"pre_state_sha256"`
 		PostStateSHA256          string                        `json:"post_state_sha256"`
+		DebitEffectSHA256        string                        `json:"debit_effect_sha256"`
 		ObservationWindowMS      int64                         `json:"observation_window_ms"`
 	}{
-		DefenseAuthorityExecutionAdapterVersionV01, in.CaseRef, in.CaseKind, in.TechniqueID, in.ExecutionMode,
+		DefenseAuthorityExecutionAdapterVersionV01, in.Binding.Evidence.Chain, in.Binding.Evidence.ChainID,
+		in.CaseRef, in.CaseKind, in.TechniqueID, in.ExecutionMode,
 		strings.ToLower(in.Binding.BindingSHA256), strings.ToLower(in.ContainmentReceipt.ReceiptSHA256), in.ContainmentReceipt.Decision,
-		strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), in.ObservationWindowMS,
+		strings.ToLower(in.ContainmentReceipt.Input.CandidatePayloadSHA256), strings.ToLower(in.ContainmentReceipt.Observation.PreStateSHA256),
+		strings.ToLower(in.ContainmentReceipt.Observation.PostStateSHA256), strings.ToLower(in.ContainmentReceipt.Observation.EffectSetSHA256), in.ObservationWindowMS,
 	})
 	if err != nil {
 		return DefenseAuthorityExecutionEvidenceV01{}, err
 	}
 	validationCase := DefenseValidationCaseV02{
 		CaseRef: in.CaseRef, CaseKind: in.CaseKind, TechniqueID: in.TechniqueID, ExecutionMode: in.ExecutionMode,
-		ExecutionRef: "defense-authority-execution:" + executionHash, ExecutionHash: executionHash,
+		Chain: in.Binding.Evidence.Chain, ChainID: in.Binding.Evidence.ChainID,
+		ExecutionRef: "defense-authority-execution:" + executionHash, ExecutionHash: defenseValidationHashRefV02(executionHash),
 		PreStateHash:  defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PreStateSHA256),
 		PostStateHash: defenseValidationHashRefV02(in.ContainmentReceipt.Observation.PostStateSHA256),
 		EvidenceState: DefenseValidationEvidenceVerifiedV02, ImpactOffsetMS: cloneDefenseValidationInt64V02(in.ImpactOffsetMS),
 		ObservationWindowMS: in.ObservationWindowMS, MainnetTransactionSent: false,
 	}
 	return DefenseAuthorityExecutionEvidenceV01{
-		Case: validationCase, ContainmentDecision: in.ContainmentReceipt.Decision,
+		Case: validationCase, Chain: in.Binding.Evidence.Chain, ChainID: in.Binding.Evidence.ChainID,
+		ContainmentDecision:      in.ContainmentReceipt.Decision,
 		ContainmentReceiptSHA256: strings.ToLower(in.ContainmentReceipt.ReceiptSHA256),
 		AuthorityBindingSHA256:   strings.ToLower(in.Binding.BindingSHA256),
-		ControlSignaled:          in.ContainmentReceipt.Decision != executioncontainment.DecisionRelease,
+		ControlSignaled:          !in.Binding.Preserved,
 	}, nil
 }
 
 func DefenseAuthorityObservationBindingDigestV01(binding DefenseAuthorityObservationBindingV01) (string, error) {
 	binding = normalizeDefenseAuthorityObservationBindingV01(binding)
-	if binding.Version != DefenseAuthorityObservationBindingVersionV01 || binding.Chain == "" || binding.ControlRef == "" || binding.CaseRef == "" || !validDefenseAuthoritySHA256V01(binding.ExecutionHash) {
+	if binding.Version != DefenseAuthorityObservationBindingVersionV01 || binding.Chain == "" || binding.ChainID == 0 || binding.ControlRef == "" || binding.CaseRef == "" || !validDefenseValidationHashV02(binding.ExecutionHash) {
 		return "", errors.New("authority observation binding identity is incomplete")
 	}
 	if binding.ObservationCompletedOffsetMS < 0 {
@@ -287,15 +354,8 @@ func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationContr
 		return DefenseValidationObservationV02{}, errors.New("independent collector identity is required")
 	}
 	binding = normalizeDefenseAuthorityObservationBindingV01(binding)
-	if binding.ControlRef != control.ControlRef || binding.CaseRef != execution.Case.CaseRef || !strings.EqualFold(binding.ExecutionHash, execution.Case.ExecutionHash) {
+	if binding.ControlRef != control.ControlRef || binding.CaseRef != execution.Case.CaseRef || !strings.EqualFold(binding.ExecutionHash, execution.Case.ExecutionHash) || binding.Chain != execution.Chain || binding.ChainID != execution.ChainID {
 		return DefenseValidationObservationV02{}, errors.New("authority observation binding does not match execution")
-	}
-	expected := DefenseValidationObservationNoAlertV02
-	if execution.ControlSignaled {
-		expected = DefenseValidationObservationAlertedV02
-	}
-	if binding.Status != expected {
-		return DefenseValidationObservationV02{}, errors.New("authority observation contradicts verified control decision")
 	}
 	if binding.ObservationCompletedOffsetMS < execution.Case.ObservationWindowMS {
 		return DefenseValidationObservationV02{}, errors.New("authority observation window did not complete")
@@ -351,12 +411,59 @@ func AdaptAuthoritySecurityEvidenceObservationV01(control DefenseValidationContr
 	return out, nil
 }
 
+func bindDefenseAuthorityReceiptV01(evidence DefenseAuthorityBindingEvidenceV01, receipt executioncontainment.Receipt) error {
+	if receipt.Input.ChainID != evidence.ChainID || receipt.Observation.ObservedChainID != evidence.ChainID {
+		return errors.New("containment receipt chain does not match authority evidence")
+	}
+	if !strings.EqualFold(receipt.Input.ApprovedPayloadSHA256, evidence.CallPayloadSHA256) || !strings.EqualFold(receipt.Input.CandidatePayloadSHA256, evidence.CallPayloadSHA256) {
+		return errors.New("containment receipt payload does not match authority evidence")
+	}
+	if !strings.EqualFold(receipt.Observation.PreStateSHA256, evidence.PreStateSHA256) || !strings.EqualFold(receipt.Observation.PostStateSHA256, evidence.PostStateSHA256) || !strings.EqualFold(receipt.Observation.EffectSetSHA256, evidence.DebitEffectSHA256) {
+		return errors.New("containment receipt state or effect does not match authority evidence")
+	}
+	return nil
+}
+
+func validateDefenseAuthorityCaseSemanticsV01(caseKind string, binding DefenseAuthorityBindingResultV01, receipt executioncontainment.Receipt) error {
+	switch caseKind {
+	case DefenseValidationCaseAttackV02:
+		if binding.Preserved {
+			return errors.New("authority attack case requires a failed authority binding")
+		}
+		if receipt.Decision != executioncontainment.DecisionContain || len(receipt.Reasons) != 2 ||
+			!containsDefenseAuthorityContainmentReasonV01(receipt.Reasons, executioncontainment.ReasonAuthorityChanged) ||
+			!containsDefenseAuthorityContainmentReasonV01(receipt.Reasons, executioncontainment.ReasonInvariantFailed) {
+			return errors.New("authority attack requires containment for only authority-changed and invariant-failed reasons")
+		}
+	case DefenseValidationCaseBenignV02:
+		if !binding.Preserved {
+			return errors.New("authority benign case requires a preserved authority binding")
+		}
+		if receipt.Decision != executioncontainment.DecisionRelease || len(receipt.Reasons) != 0 {
+			return errors.New("authority benign case requires an unqualified release receipt")
+		}
+	default:
+		return fmt.Errorf("unsupported authority case kind %q", caseKind)
+	}
+	return nil
+}
+
+func containsDefenseAuthorityContainmentReasonV01(values []executioncontainment.ReasonCode, wanted executioncontainment.ReasonCode) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEvidenceV01) DefenseAuthorityBindingEvidenceV01 {
 	if e.Version == "" {
 		e.Version = DefenseAuthorityBindingVersionV01
 	}
 	e.Version = strings.TrimSpace(e.Version)
 	e.EvidenceState = strings.ToLower(strings.TrimSpace(e.EvidenceState))
+	e.Chain = strings.ToLower(strings.TrimSpace(e.Chain))
 	e.CallerPrincipal = strings.TrimSpace(e.CallerPrincipal)
 	e.DeclaredSourceAccount = strings.TrimSpace(e.DeclaredSourceAccount)
 	e.RequestedOperation = strings.ToLower(strings.TrimSpace(e.RequestedOperation))
@@ -371,17 +478,19 @@ func normalizeDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEviden
 	e.PreStateSHA256 = strings.ToLower(strings.TrimSpace(e.PreStateSHA256))
 	e.PostStateSHA256 = strings.ToLower(strings.TrimSpace(e.PostStateSHA256))
 	e.DebitEffectSHA256 = strings.ToLower(strings.TrimSpace(e.DebitEffectSHA256))
+	e.PrincipalEvidence = normalizeDefenseAuthorityEvidenceArtifactV01(e.PrincipalEvidence)
+	e.AuthorizationEvidence = normalizeDefenseAuthorityEvidenceArtifactV01(e.AuthorizationEvidence)
 	return e
 }
 
-func validateDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEvidenceV01) error {
+func validateDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEvidenceV01, trust DefenseAuthorityEvidenceTrustV01) error {
 	if e.Version != DefenseAuthorityBindingVersionV01 {
 		return errors.New("unsupported authority binding version")
 	}
 	if e.EvidenceState != DefenseValidationEvidenceVerifiedV02 {
 		return errors.New("authority binding requires verified evidence")
 	}
-	if e.CallerPrincipal == "" || e.DeclaredSourceAccount == "" || e.RequestedOperation == "" || e.RequestedAsset == "" || e.AuthorizedPrincipal == "" || e.AuthorizedSourceAccount == "" || e.AuthorizedOperation == "" || e.AuthorizedAsset == "" {
+	if e.Chain == "" || e.ChainID == 0 || e.CallerPrincipal == "" || e.DeclaredSourceAccount == "" || e.RequestedOperation == "" || e.RequestedAsset == "" || e.AuthorizedPrincipal == "" || e.AuthorizedSourceAccount == "" || e.AuthorizedOperation == "" || e.AuthorizedAsset == "" {
 		return errors.New("authority binding identity and scope are incomplete")
 	}
 	for name, value := range map[string]string{
@@ -396,7 +505,152 @@ func validateDefenseAuthorityBindingEvidenceV01(e DefenseAuthorityBindingEvidenc
 			return fmt.Errorf("authority binding %s digest is invalid", name)
 		}
 	}
+	if err := verifyDefenseAuthorityEvidenceArtifactV01(e.PrincipalEvidence, DefenseAuthorityEvidencePrincipalV01, trust.PrincipalProducerRef, trust.PrincipalPublicKey, e.PrincipalEvidenceSHA256); err != nil {
+		return fmt.Errorf("verify principal authority evidence: %w", err)
+	}
+	if err := verifyDefenseAuthorityEvidenceArtifactV01(e.AuthorizationEvidence, DefenseAuthorityEvidenceAuthorizationV01, trust.AuthorizationProducerRef, trust.AuthorizationPublicKey, e.AuthorizationEvidenceSHA256); err != nil {
+		return fmt.Errorf("verify authorization authority evidence: %w", err)
+	}
+	if !defenseAuthorityArtifactMatchesEvidenceV01(e.PrincipalEvidence, e, false) {
+		return errors.New("principal authority evidence is not bound to the declared execution")
+	}
+	if !defenseAuthorityArtifactMatchesEvidenceV01(e.AuthorizationEvidence, e, true) {
+		return errors.New("authorization authority evidence is not bound to the authorized scope")
+	}
 	return nil
+}
+
+func requireDefenseAuthorityEvidenceTrustV01(values []DefenseAuthorityEvidenceTrustV01) (DefenseAuthorityEvidenceTrustV01, error) {
+	if len(values) != 1 {
+		return DefenseAuthorityEvidenceTrustV01{}, errors.New("exactly one external authority evidence trust policy is required")
+	}
+	trust := values[0]
+	trust.PrincipalProducerRef = strings.TrimSpace(trust.PrincipalProducerRef)
+	trust.PrincipalPublicKey = strings.TrimSpace(trust.PrincipalPublicKey)
+	trust.AuthorizationProducerRef = strings.TrimSpace(trust.AuthorizationProducerRef)
+	trust.AuthorizationPublicKey = strings.TrimSpace(trust.AuthorizationPublicKey)
+	if trust.PrincipalProducerRef == "" || trust.AuthorizationProducerRef == "" || trust.PrincipalProducerRef == trust.AuthorizationProducerRef {
+		return DefenseAuthorityEvidenceTrustV01{}, errors.New("distinct trusted authority evidence producers are required")
+	}
+	principalKey, err := decodeDefenseAuthorityBase64V01(trust.PrincipalPublicKey, ed25519.PublicKeySize)
+	if err != nil {
+		return DefenseAuthorityEvidenceTrustV01{}, fmt.Errorf("principal trust key: %w", err)
+	}
+	authorizationKey, err := decodeDefenseAuthorityBase64V01(trust.AuthorizationPublicKey, ed25519.PublicKeySize)
+	if err != nil {
+		return DefenseAuthorityEvidenceTrustV01{}, fmt.Errorf("authorization trust key: %w", err)
+	}
+	if string(principalKey) == string(authorizationKey) {
+		return DefenseAuthorityEvidenceTrustV01{}, errors.New("principal and authorization evidence require distinct trust keys")
+	}
+	return trust, nil
+}
+
+func normalizeDefenseAuthorityEvidenceArtifactV01(artifact DefenseAuthorityEvidenceArtifactV01) DefenseAuthorityEvidenceArtifactV01 {
+	if strings.TrimSpace(artifact.Version) == "" {
+		artifact.Version = DefenseAuthorityEvidenceArtifactVersionV01
+	}
+	artifact.Version = strings.TrimSpace(artifact.Version)
+	artifact.EvidenceState = strings.ToLower(strings.TrimSpace(artifact.EvidenceState))
+	artifact.EvidenceKind = strings.ToLower(strings.TrimSpace(artifact.EvidenceKind))
+	artifact.Producer = strings.TrimSpace(artifact.Producer)
+	artifact.Chain = strings.ToLower(strings.TrimSpace(artifact.Chain))
+	artifact.Principal = strings.TrimSpace(artifact.Principal)
+	artifact.SourceAccount = strings.TrimSpace(artifact.SourceAccount)
+	artifact.Operation = strings.ToLower(strings.TrimSpace(artifact.Operation))
+	artifact.Asset = strings.TrimSpace(artifact.Asset)
+	artifact.CallPayloadSHA256 = strings.ToLower(strings.TrimSpace(artifact.CallPayloadSHA256))
+	artifact.PreStateSHA256 = strings.ToLower(strings.TrimSpace(artifact.PreStateSHA256))
+	artifact.PostStateSHA256 = strings.ToLower(strings.TrimSpace(artifact.PostStateSHA256))
+	artifact.DebitEffectSHA256 = strings.ToLower(strings.TrimSpace(artifact.DebitEffectSHA256))
+	artifact.Signature = strings.TrimSpace(artifact.Signature)
+	return artifact
+}
+
+func validateDefenseAuthorityEvidenceArtifactShapeV01(artifact DefenseAuthorityEvidenceArtifactV01, signatureRequired bool) error {
+	if artifact.Version != DefenseAuthorityEvidenceArtifactVersionV01 || artifact.EvidenceState != DefenseValidationEvidenceVerifiedV02 {
+		return errors.New("authority evidence artifact version or state is unsupported")
+	}
+	if artifact.EvidenceKind == "" || artifact.Producer == "" || artifact.Chain == "" || artifact.ChainID == 0 || artifact.Principal == "" || artifact.SourceAccount == "" || artifact.Operation == "" || artifact.Asset == "" {
+		return errors.New("authority evidence artifact identity and scope are incomplete")
+	}
+	for name, value := range map[string]string{
+		"call_payload": artifact.CallPayloadSHA256,
+		"pre_state":    artifact.PreStateSHA256,
+		"post_state":   artifact.PostStateSHA256,
+		"debit_effect": artifact.DebitEffectSHA256,
+	} {
+		if !validDefenseAuthoritySHA256V01(value) {
+			return fmt.Errorf("authority evidence artifact %s digest is invalid", name)
+		}
+	}
+	if signatureRequired && artifact.Signature == "" {
+		return errors.New("authority evidence artifact signature is required")
+	}
+	return nil
+}
+
+func defenseAuthorityEvidenceArtifactSigningBytesV01(artifact DefenseAuthorityEvidenceArtifactV01) ([]byte, error) {
+	artifact = normalizeDefenseAuthorityEvidenceArtifactV01(artifact)
+	artifact.Signature = ""
+	if err := validateDefenseAuthorityEvidenceArtifactShapeV01(artifact, false); err != nil {
+		return nil, err
+	}
+	return json.Marshal(artifact)
+}
+
+func verifyDefenseAuthorityEvidenceArtifactV01(artifact DefenseAuthorityEvidenceArtifactV01, expectedKind, expectedProducer, trustedPublicKey, expectedDigest string) error {
+	artifact = normalizeDefenseAuthorityEvidenceArtifactV01(artifact)
+	if err := validateDefenseAuthorityEvidenceArtifactShapeV01(artifact, true); err != nil {
+		return err
+	}
+	if artifact.EvidenceKind != expectedKind || artifact.Producer != expectedProducer {
+		return errors.New("authority evidence artifact kind or producer does not match trust policy")
+	}
+	publicKey, err := decodeDefenseAuthorityBase64V01(trustedPublicKey, ed25519.PublicKeySize)
+	if err != nil {
+		return err
+	}
+	signature, err := decodeDefenseAuthorityBase64V01(artifact.Signature, ed25519.SignatureSize)
+	if err != nil {
+		return fmt.Errorf("decode artifact signature: %w", err)
+	}
+	payload, err := defenseAuthorityEvidenceArtifactSigningBytesV01(artifact)
+	if err != nil {
+		return err
+	}
+	if !ed25519.Verify(ed25519.PublicKey(publicKey), payload, signature) {
+		return errors.New("authority evidence artifact signature did not verify against trusted key")
+	}
+	digest, err := defenseAuthorityCanonicalSHA256V01(artifact)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(digest, expectedDigest) {
+		return errors.New("authority evidence artifact digest does not match binding")
+	}
+	return nil
+}
+
+func defenseAuthorityArtifactMatchesEvidenceV01(artifact DefenseAuthorityEvidenceArtifactV01, evidence DefenseAuthorityBindingEvidenceV01, authorized bool) bool {
+	principal, source, operation, asset := evidence.CallerPrincipal, evidence.DeclaredSourceAccount, evidence.RequestedOperation, evidence.RequestedAsset
+	if authorized {
+		principal, source, operation, asset = evidence.AuthorizedPrincipal, evidence.AuthorizedSourceAccount, evidence.AuthorizedOperation, evidence.AuthorizedAsset
+	}
+	return artifact.Chain == evidence.Chain && artifact.ChainID == evidence.ChainID &&
+		artifact.Principal == principal && artifact.SourceAccount == source && artifact.Operation == operation && artifact.Asset == asset &&
+		strings.EqualFold(artifact.CallPayloadSHA256, evidence.CallPayloadSHA256) &&
+		strings.EqualFold(artifact.PreStateSHA256, evidence.PreStateSHA256) && strings.EqualFold(artifact.PostStateSHA256, evidence.PostStateSHA256) &&
+		strings.EqualFold(artifact.DebitEffectSHA256, evidence.DebitEffectSHA256)
+}
+
+func decodeDefenseAuthorityBase64V01(value string, size int) ([]byte, error) {
+	value = strings.TrimSpace(value)
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil || len(decoded) != size || base64.RawURLEncoding.EncodeToString(decoded) != value {
+		return nil, errors.New("value is not canonical base64url with the required length")
+	}
+	return decoded, nil
 }
 
 func normalizeDefenseAuthorityObservationBindingV01(binding DefenseAuthorityObservationBindingV01) DefenseAuthorityObservationBindingV01 {

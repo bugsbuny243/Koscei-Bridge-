@@ -56,6 +56,8 @@ type DefenseValidationCaseV02 struct {
 	CaseRef                string `json:"case_ref"`
 	CaseKind               string `json:"case_kind"`
 	TechniqueID            string `json:"technique_id"`
+	Chain                  string `json:"chain,omitempty"`
+	ChainID                uint64 `json:"chain_id,omitempty"`
 	ExecutionMode          string `json:"execution_mode"`
 	ExecutionRef           string `json:"execution_ref"`
 	ExecutionHash          string `json:"execution_hash"`
@@ -86,6 +88,7 @@ type DefenseValidationInputV02 struct {
 	ScenarioRef     string                            `json:"scenario_ref"`
 	ScenarioVersion string                            `json:"scenario_version"`
 	Chain           string                            `json:"chain"`
+	ChainID         uint64                            `json:"chain_id,omitempty"`
 	RulesetVersion  string                            `json:"ruleset_version"`
 	Controls        []DefenseValidationControlV02     `json:"controls"`
 	Cases           []DefenseValidationCaseV02        `json:"cases"`
@@ -139,6 +142,7 @@ type DefenseValidationReportV02 struct {
 	ScenarioRef            string                              `json:"scenario_ref"`
 	ScenarioVersion        string                              `json:"scenario_version"`
 	Chain                  string                              `json:"chain"`
+	ChainID                uint64                              `json:"chain_id,omitempty"`
 	RulesetVersion         string                              `json:"ruleset_version"`
 	Verdict                string                              `json:"verdict"`
 	Controls               []DefenseValidationControlResultV02 `json:"controls"`
@@ -191,6 +195,7 @@ func EvaluateDefenseValidationV02(input DefenseValidationInputV02) (DefenseValid
 		ScenarioRef:            input.ScenarioRef,
 		ScenarioVersion:        input.ScenarioVersion,
 		Chain:                  input.Chain,
+		ChainID:                input.ChainID,
 		RulesetVersion:         input.RulesetVersion,
 		Verdict:                DefenseValidationVerdictValidatedV02,
 		MainnetTransactionSent: false,
@@ -369,6 +374,12 @@ func validateDefenseValidationInputV02(input DefenseValidationInputV02) error {
 		if item.CaseKind != DefenseValidationCaseAttackV02 && item.CaseKind != DefenseValidationCaseBenignV02 {
 			return fmt.Errorf("case %q has unsupported kind %q", item.CaseRef, item.CaseKind)
 		}
+		if (item.Chain == "") != (item.ChainID == 0) {
+			return fmt.Errorf("case %q has incomplete execution chain identity", item.CaseRef)
+		}
+		if item.Chain != "" && (item.Chain != input.Chain || item.ChainID != input.ChainID) {
+			return fmt.Errorf("case %q execution chain does not match report scenario", item.CaseRef)
+		}
 		if item.ExecutionMode != DefenseValidationExecutionForkV02 && item.ExecutionMode != DefenseValidationExecutionSandboxV02 {
 			return fmt.Errorf("case %q must execute in a fork or sandbox", item.CaseRef)
 		}
@@ -432,6 +443,7 @@ func normalizeDefenseValidationInputV02(input DefenseValidationInputV02) Defense
 		input.Cases[i].CaseRef = strings.TrimSpace(input.Cases[i].CaseRef)
 		input.Cases[i].CaseKind = strings.ToLower(strings.TrimSpace(input.Cases[i].CaseKind))
 		input.Cases[i].TechniqueID = strings.TrimSpace(input.Cases[i].TechniqueID)
+		input.Cases[i].Chain = strings.ToLower(strings.TrimSpace(input.Cases[i].Chain))
 		input.Cases[i].ExecutionMode = strings.ToLower(strings.TrimSpace(input.Cases[i].ExecutionMode))
 		input.Cases[i].ExecutionRef = strings.TrimSpace(input.Cases[i].ExecutionRef)
 		input.Cases[i].ExecutionHash = strings.ToLower(strings.TrimSpace(input.Cases[i].ExecutionHash))

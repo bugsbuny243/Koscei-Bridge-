@@ -18,10 +18,11 @@ An explicit delegation may satisfy the invariant only when evidence binds the ex
 
 The v0.1 component harness connects four existing/new deterministic boundaries:
 
-1. `DefenseAuthorityBindingEvidenceV01` carries VERIFIED caller, declared source, authorized source, operation, asset, call-payload and state/effect digests.
-2. `EvaluateDefenseAuthorityBindingV01` derives authority preservation from exact field equality. The caller cannot supply a free-standing `authority_preserved=true` verdict.
-3. `ApplyDefenseAuthorityBindingToContainmentV01` feeds the derived result into the existing `executioncontainment` kernel. A mismatch produces `EC-005-AUTHORITY-CHANGED` and fails the invariant, so the receipt is `CONTAIN` even when approved/candidate intent and payload hashes are identical.
-4. A separately identified Security Evidence producer binds its observation to both the authority-binding digest and containment receipt before Defense Validation v0.2 evaluates the matched attack/benign pair.
+1. `DefenseAuthorityBindingEvidenceV01` carries caller, declared source, authorized source, operation, asset, call-payload and state/effect fields backed by two Ed25519-signed artifacts: principal-execution evidence and authorization-grant evidence.
+2. `EvaluateDefenseAuthorityBindingV01` requires an external trust policy with distinct pinned producers and public keys, verifies both signatures, recomputes the artifact digests and binds every claimed field to the signed artifacts before deriving authority preservation. A caller-supplied `verified` label or arbitrary digest is insufficient.
+3. `ApplyDefenseAuthorityBindingToContainmentV01` combines the derived result with the backend authority observation without overwriting an existing failure. A mismatch produces `EC-005-AUTHORITY-CHANGED` and fails the invariant, so the receipt is `CONTAIN` even when approved/candidate intent and payload hashes are identical.
+4. `AdaptAuthorityIntegrityCaseV01` requires the receipt's chain ID, approved/candidate payload, pre-state, post-state and effect-set hashes to match the authenticated authority evidence. Attack cases require a failed binding and the exact authority-specific containment reasons; benign cases require an unqualified release.
+5. A separately identified Security Evidence producer binds its observation to both the authority-binding digest and containment receipt. Its independently observed alert/no-alert status is preserved so Defense Validation can report misses and false positives. The signed chain label and receipt chain ID are carried through the observation and report boundary.
 
 ## Attack / benign pair
 

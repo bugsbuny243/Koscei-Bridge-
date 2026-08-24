@@ -9,6 +9,36 @@ import (
 
 const DefenseValidationScenarioContractV02 = "koschei-defense-validation-scenario/v0.2"
 
+const (
+	DefenseValidationScenarioExecutionForkV02    = "isolated_pinned_fork"
+	DefenseValidationScenarioExecutionSandboxV02 = "isolated_sandbox"
+)
+
+var defenseValidationScenarioAcceptanceGatesV02 = map[string][]string{
+	"": {
+		"requires_non_test_runtime_caller_for_production_claim",
+	},
+	"pre_signing_execution_integrity": {
+		"requires_concrete_isolated_evm_backend",
+		"requires_no_bypass_signing_path",
+	},
+	"state_transition_authority_integrity": {
+		"requires_machine_validated_scenario_contract",
+		"requires_deterministic_authority_binding_adapter",
+		"requires_authenticated_authority_evidence",
+		"requires_execution_containment_receipt",
+		"requires_concrete_isolated_cosmos_evm_backend",
+		"requires_native_authorization_route_reproduction",
+		"requires_independent_collector",
+		"requires_no_unauthorized_state_mutation",
+	},
+}
+
+var defenseValidationScenarioCandidateControlsV02 = map[string]string{
+	"pre_signing_execution_integrity":      "koschei_execution_proof",
+	"state_transition_authority_integrity": "koschei_execution_containment_authority_binding",
+}
+
 type DefenseValidationScenarioClaimBoundaryV02 struct {
 	IsExecutionEvidence    bool `json:"is_execution_evidence"`
 	IsValidationResult     bool `json:"is_validation_result"`
@@ -106,10 +136,14 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 	if s.Environment.ProductionIdentityUsed || s.Environment.WalletCustody || s.Environment.MainnetSubmissionAllowed {
 		return errors.New("scenario environment cannot use production identity, custody or mainnet submission")
 	}
-	if strings.TrimSpace(s.Environment.ExecutionMode) == "" || !s.Environment.OwnerApprovalRequired || !s.Environment.DefaultOff {
+	executionMode := strings.ToLower(strings.TrimSpace(s.Environment.ExecutionMode))
+	if !validDefenseValidationScenarioExecutionModeV02(executionMode) || !s.Environment.OwnerApprovalRequired || !s.Environment.DefaultOff {
 		return errors.New("scenario environment must be explicit, owner-approved and default-off")
 	}
-	if strings.TrimSpace(s.ControlContract.ControlClass) == "" || strings.TrimSpace(s.ControlContract.CandidateControl) == "" {
+	controlClass := strings.TrimSpace(s.ControlContract.ControlClass)
+	candidateControl := strings.TrimSpace(s.ControlContract.CandidateControl)
+	expectedCandidate, supportedControlClass := defenseValidationScenarioCandidateControlsV02[controlClass]
+	if controlClass == "" || candidateControl == "" || !supportedControlClass || candidateControl != expectedCandidate {
 		return errors.New("scenario control contract is incomplete")
 	}
 	if !s.ControlContract.IndependentCollectorRequired || !s.ControlContract.AdapterVersionRequired || !s.ControlContract.ConfigurationHashRequired || !s.ControlContract.ProductionWiringRequiredForProductionClaim {
@@ -126,8 +160,8 @@ func ValidateDefenseValidationScenarioV02(s DefenseValidationScenarioV02) error 
 			return fmt.Errorf("scenario required_run_evidence missing %q", required)
 		}
 	}
-	if len(s.AcceptanceGate) == 0 {
-		return errors.New("scenario acceptance gate is required")
+	if err := validateDefenseValidationScenarioAcceptanceGateV02(controlClass, s.AcceptanceGate); err != nil {
+		return err
 	}
 	if len(s.Limitations) == 0 {
 		return errors.New("scenario limitations are required")
@@ -156,7 +190,7 @@ func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenario
 			if c.ImpactDeadlineMS == nil || *c.ImpactDeadlineMS < 0 || *c.ImpactDeadlineMS > c.ObservationWindowMS {
 				return fmt.Errorf("attack case %q has invalid impact deadline", ref)
 			}
-			if !c.ExpectedControlBehavior.BlockOrAlertRequired || c.ExpectedControlBehavior.LatestDetectionOffsetMS == nil || *c.ExpectedControlBehavior.LatestDetectionOffsetMS > *c.ImpactDeadlineMS {
+			if !c.ExpectedControlBehavior.BlockOrAlertRequired || c.ExpectedControlBehavior.LatestDetectionOffsetMS == nil || *c.ExpectedControlBehavior.LatestDetectionOffsetMS < 0 || *c.ExpectedControlBehavior.LatestDetectionOffsetMS > c.ObservationWindowMS || *c.ExpectedControlBehavior.LatestDetectionOffsetMS > *c.ImpactDeadlineMS {
 				return fmt.Errorf("attack case %q does not require timely control behavior", ref)
 			}
 		case DefenseValidationCaseBenignV02:
@@ -170,6 +204,43 @@ func validateDefenseValidationScenarioCasesV02(cases []DefenseValidationScenario
 	}
 	if attackCount == 0 || benignCount == 0 {
 		return errors.New("scenario must include at least one attack and one benign case")
+	}
+	return nil
+}
+
+func validDefenseValidationScenarioExecutionModeV02(value string) bool {
+	switch value {
+	case DefenseValidationExecutionForkV02, DefenseValidationExecutionSandboxV02, DefenseValidationScenarioExecutionForkV02, DefenseValidationScenarioExecutionSandboxV02:
+		return true
+	default:
+		return false
+	}
+}
+
+func validateDefenseValidationScenarioAcceptanceGateV02(controlClass string, gates map[string]any) error {
+	if len(gates) == 0 {
+		return errors.New("scenario acceptance gate is required")
+	}
+	for key, value := range gates {
+		if !strings.HasPrefix(strings.TrimSpace(key), "requires_") {
+			continue
+		}
+		enabled, ok := value.(bool)
+		if !ok || !enabled {
+			return fmt.Errorf("scenario acceptance gate %q must be boolean true", key)
+		}
+	}
+	controlRequired, ok := defenseValidationScenarioAcceptanceGatesV02[controlClass]
+	if !ok {
+		return fmt.Errorf("scenario acceptance gate has unsupported control class %q", controlClass)
+	}
+	required := append([]string(nil), defenseValidationScenarioAcceptanceGatesV02[""]...)
+	required = append(required, controlRequired...)
+	for _, key := range required {
+		enabled, ok := gates[key].(bool)
+		if !ok || !enabled {
+			return fmt.Errorf("scenario acceptance gate missing enabled %q", key)
+		}
 	}
 	return nil
 }
