@@ -1,7 +1,10 @@
 package securityevidence
 
 import (
+	"crypto/ed25519"
 	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,7 +13,10 @@ import (
 	"strings"
 )
 
-const SchemaVersionV1 = "koschei.security-evidence/v1"
+const (
+	SchemaVersionV1                  = "koschei.security-evidence/v1"
+	AuthenticationAlgorithmEd25519V1 = "ed25519"
+)
 
 type EvidenceState string
 
@@ -48,15 +54,24 @@ type LegacyObservation struct {
 	Score *int   `json:"score,omitempty"`
 }
 
+// EventAuthentication authenticates the producer independently from the
+// event's unkeyed content digest. The trusted public key is supplied by the
+// consumer's control configuration and is never accepted from the event.
+type EventAuthentication struct {
+	Algorithm string `json:"algorithm"`
+	Signature string `json:"signature"`
+}
+
 type Event struct {
-	SchemaVersion string             `json:"schema_version"`
-	Producer      string             `json:"producer"`
-	Subject       Subject            `json:"subject"`
-	Window        ObservationWindow  `json:"window"`
-	SourceDigests []string           `json:"source_digests_sha256,omitempty"`
-	Findings      []Finding          `json:"findings"`
-	Legacy        *LegacyObservation `json:"legacy_observation,omitempty"`
-	EventSHA256   string             `json:"event_sha256"`
+	SchemaVersion  string               `json:"schema_version"`
+	Producer       string               `json:"producer"`
+	Subject        Subject              `json:"subject"`
+	Window         ObservationWindow    `json:"window"`
+	SourceDigests  []string             `json:"source_digests_sha256,omitempty"`
+	Findings       []Finding            `json:"findings"`
+	Legacy         *LegacyObservation   `json:"legacy_observation,omitempty"`
+	Authentication *EventAuthentication `json:"authentication,omitempty"`
+	EventSHA256    string               `json:"event_sha256"`
 }
 
 func (e Event) Canonical() (Event, error) {
@@ -138,6 +153,18 @@ func (e Event) Canonical() (Event, error) {
 		legacy.Grade = strings.ToUpper(strings.TrimSpace(legacy.Grade))
 		out.Legacy = &legacy
 	}
+	if out.Authentication != nil {
+		authentication := *out.Authentication
+		authentication.Algorithm = strings.ToLower(strings.TrimSpace(authentication.Algorithm))
+		authentication.Signature = strings.TrimSpace(authentication.Signature)
+		if authentication.Algorithm != AuthenticationAlgorithmEd25519V1 {
+			return Event{}, fmt.Errorf("unsupported event authentication algorithm %q", authentication.Algorithm)
+		}
+		if _, err := decodeCanonicalBase64URLV1(authentication.Signature, ed25519.SignatureSize); err != nil {
+			return Event{}, fmt.Errorf("invalid event authentication signature: %w", err)
+		}
+		out.Authentication = &authentication
+	}
 
 	return out, nil
 }
@@ -181,6 +208,86 @@ func (e Event) Verify() error {
 		return errors.New("security evidence event digest mismatch")
 	}
 	return nil
+}
+
+// SignEd25519 authenticates the canonical event as its declared producer and
+// then seals the complete signed event. It intentionally replaces any
+// caller-supplied authentication metadata.
+func (e Event) SignEd25519(privateKey ed25519.PrivateKey) (Event, error) {
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return Event{}, errors.New("ed25519 private key has invalid length")
+	}
+	derived := ed25519.NewKeyFromSeed(privateKey[:ed25519.SeedSize])
+	if subtle.ConstantTimeCompare(privateKey, derived) != 1 {
+		return Event{}, errors.New("ed25519 private key is not canonical seed-derived key material")
+	}
+	e.Authentication = nil
+	canonical, err := e.Canonical()
+	if err != nil {
+		return Event{}, err
+	}
+	payload, err := eventEd25519SigningBytesV1(canonical)
+	if err != nil {
+		return Event{}, err
+	}
+	canonical.Authentication = &EventAuthentication{
+		Algorithm: AuthenticationAlgorithmEd25519V1,
+		Signature: base64.RawURLEncoding.EncodeToString(ed25519.Sign(privateKey, payload)),
+	}
+	return canonical.Seal()
+}
+
+// VerifyEd25519 verifies both the event digest and producer authentication
+// against trust material supplied out of band by the consuming control.
+func (e Event) VerifyEd25519(expectedProducer, trustedPublicKey string) error {
+	if err := e.Verify(); err != nil {
+		return err
+	}
+	canonical, err := e.Canonical()
+	if err != nil {
+		return err
+	}
+	expectedProducer = strings.TrimSpace(expectedProducer)
+	if expectedProducer == "" || canonical.Producer != expectedProducer {
+		return errors.New("event producer does not match authenticated collector identity")
+	}
+	if canonical.Authentication == nil || canonical.Authentication.Algorithm != AuthenticationAlgorithmEd25519V1 {
+		return errors.New("ed25519 event authentication is required")
+	}
+	publicKey, err := decodeCanonicalBase64URLV1(strings.TrimSpace(trustedPublicKey), ed25519.PublicKeySize)
+	if err != nil {
+		return fmt.Errorf("invalid trusted event public key: %w", err)
+	}
+	signature, err := decodeCanonicalBase64URLV1(canonical.Authentication.Signature, ed25519.SignatureSize)
+	if err != nil {
+		return fmt.Errorf("invalid event authentication signature: %w", err)
+	}
+	payload, err := eventEd25519SigningBytesV1(canonical)
+	if err != nil {
+		return err
+	}
+	if !ed25519.Verify(ed25519.PublicKey(publicKey), payload, signature) {
+		return errors.New("event authentication signature did not verify against trusted collector key")
+	}
+	return nil
+}
+
+func eventEd25519SigningBytesV1(e Event) ([]byte, error) {
+	e.Authentication = nil
+	canonical, err := e.Canonical()
+	if err != nil {
+		return nil, err
+	}
+	canonical.Authentication = &EventAuthentication{Algorithm: AuthenticationAlgorithmEd25519V1}
+	return json.Marshal(canonical)
+}
+
+func decodeCanonicalBase64URLV1(value string, size int) ([]byte, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil || len(decoded) != size || base64.RawURLEncoding.EncodeToString(decoded) != value {
+		return nil, errors.New("value is not canonical base64url with the required length")
+	}
+	return decoded, nil
 }
 
 func validSHA256(v string) bool {
