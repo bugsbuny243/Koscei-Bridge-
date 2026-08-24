@@ -96,5 +96,5 @@ function preserveAdvancedState(){
   }));
 }
 
-ready(()=>{mountAdvancedModes();mountTypeOverride();mountDetectionStatus();simplifyCopy();const explicitMode=installDefaultMode();installDetection(explicitMode);preserveAdvancedState();});
+ready(()=>{mountAdvancedModes();mountTypeOverride();mountDetectionStatus();const explicitMode=installDefaultMode();simplifyCopy();installDetection(explicitMode);preserveAdvancedState();});
 })();
