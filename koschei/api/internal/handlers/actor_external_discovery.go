@@ -31,7 +31,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 	return actorExternalDiscoveryRun{
 		Status: "not_requested",
 		Discovery: actorProviderDiscovery{
-			Status: "rpc_only", Provider: "helius_solana_rpc", Wallet: wallet,
+			Status: "rpc_only", Provider: "solana_rpc", Wallet: wallet,
 			Limitations: []string{},
 		},
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
@@ -57,7 +57,7 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	if out.CreatedMintPortfolio.Discovery.Available {
-		out.Status = "created_mint_portfolio_helius"
+		out.Status = "created_mint_portfolio_available"
 	} else {
 		out.Status = "no_external_discovery"
 	}
