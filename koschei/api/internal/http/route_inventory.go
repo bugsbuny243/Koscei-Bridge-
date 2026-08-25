@@ -37,6 +37,7 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 			"Owner, customer and automatic Pump discovery routes feed the same canonical investigation worker.",
 			"Signed medium-or-higher ARVIS verdicts and non-allow transaction guard decisions enter the durable alert pipeline.",
 			"Enterprise defense validation recomputes isolated execution evidence and authenticates independent collector observations; it never submits mainnet transactions or mutates production controls.",
+			"Enterprise Safe execution assurance independently recomputes the complete Safe EIP-712 transaction hash and Execution Proof before returning ALLOW or BLOCK; it has no signing or forwarding authority.",
 			"Defense OS routes are registered only when KOSCHEI_DEFENSE_OS_ENABLED=true.",
 		},
 	})
@@ -81,7 +82,7 @@ func productionRouteInventory() []routeInventoryGroup {
 		{Name: "developer_api", Auth: "api_key_plus_enterprise_entitlement", Routes: []string{
 			"POST /api/v1/scan/token", "GET /api/v1/usage", "POST /api/v1/shield/preflight",
 			"POST /api/v1/shield/transaction", "POST /api/v1/shield/state-recheck", "POST /api/v1/shield/address-poisoning",
-			"POST /api/v1/defense/validation",
+			"POST /api/v1/defense/validation", "POST /api/v1/execution-assurance/safe/verify",
 		}},
 		{Name: "dossier", Auth: "mixed", Routes: []string{
 			"POST /api/v1/dossier/",
