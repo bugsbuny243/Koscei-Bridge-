@@ -100,6 +100,10 @@ func (h *Handler) ownerChatSend(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ai_provider_not_configured"})
 		return
 	}
+	if strings.HasPrefix(message, "SOCIAL_STUDIO_REQUEST") {
+		h.ownerSocialCompose(w, r, message)
+		return
+	}
 	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("mode")), "tts") {
 		h.ownerChatSpeech(w, r, message)
 		return
