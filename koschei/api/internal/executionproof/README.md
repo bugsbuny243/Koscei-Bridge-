@@ -2,15 +2,19 @@
 
 ## Current integration status
 
-Execution Proof is a substantial internal security subsystem, but it is **not currently wired into the deployed Koschei Web3 API/runtime path**. Repository-level callers for its signing/forwarding entrypoints remain inside `internal/executionproof` and its tests. Until an explicit handler/service/worker call chain and production evidence exist, this package must not be described as production-active enforcement.
+Execution Proof is a substantial internal security subsystem. One narrow main-product integration is now explicitly wired into the API boot chain: Enterprise `POST /api/v1/execution-assurance/safe/verify` imports this package through the HTTP handler and performs read-only Safe signing verification.
 
-The package is therefore classified as **internal/experimental security control-plane code under connectivity audit**.
+That endpoint recomputes the complete Safe EIP-712 `safeTxHash`, recomputes the Execution Proof envelope decision/hash, and requires exact identity between the raw Safe transaction and the approved signing request before it can return `ALLOW`.
+
+This closes the repository connectivity gap for the **verification-only** boundary. It does **not** mean Koschei Web3 holds signing authority, forwards Safe transactions, submits mainnet transactions, or mutates production controls. Side-effecting forwarder paths in this package remain internal/experimental unless separately wired and proven.
+
+A registered route is still not by itself proof that a deployed environment has served the path. Production-active claims require deployment/runtime evidence in addition to repository wiring and CI.
 
 ## Intended authority rule
 
 `NO VALID EXECUTION PROOF = NO SIGNING FORWARD`
 
-If/when this subsystem is connected to a real signing path, that path must never trust a serialized `ALLOW`, a Transaction Service supplied Safe hash, or a runtime-provided artifact identity as authoritative by itself.
+Any signer or forwarding integration must never trust a serialized `ALLOW`, a Transaction Service supplied Safe hash, or a runtime-provided artifact identity as authoritative by itself.
 
 ## Evidence chain
 
@@ -22,11 +26,11 @@ Mandatory edges are designed to fail closed. Decisions are deterministic `ALLOW`
 
 ## Safe boundary implemented in this package
 
-For Safe transactions, the package recomputes `safeTxHash` locally from the complete raw Safe transaction using Safe EIP-712 semantics. The presented service hash is comparison-only evidence; mismatches block the package forwarding boundary.
+For Safe transactions, the package recomputes `safeTxHash` locally from the complete raw Safe transaction using Safe EIP-712 semantics. The presented service hash is comparison-only evidence; mismatches block the authorization boundary.
 
-`VerifyAndForwardSafeTransaction` is the package's native Safe hash/forwarding boundary. It is **not a deployed production boundary merely because the function exists**. Production status requires a verified non-test caller from the deployed product plus runtime evidence that the path executes.
+`AuthorizeSafeForward` is reused by the production-wired verification handler, but the HTTP path supplies no `SafeForwarder` and performs no side effect. `VerifyAndForwardSafeTransaction` and other forwarding functions remain non-production until a separately authorized integration proves their need, caller chain, configuration, tests, and deployed runtime evidence.
 
-Within the package, a `BLOCK` decision is enforced before the side-effecting `SafeForwarder` interface. The forwarder must not be called for invalid evidence, proof tampering, Safe hash mismatch, request mismatch, or a cancelled context. A downstream forward transport failure is returned as failed/BLOCK, never as ALLOW.
+Within the package, a `BLOCK` decision is enforced before any side-effecting `SafeForwarder` interface. The forwarder must not be called for invalid evidence, proof tampering, Safe hash mismatch, request mismatch, or a cancelled context. A downstream forward transport failure is returned as failed/BLOCK, never as ALLOW.
 
 ## Safe upstream conformance
 
@@ -36,11 +40,11 @@ No static Safe-owned golden JSON fixture is claimed by this package.
 
 ## Validation status
 
-Package/unit/integration validation can prove implementation behavior, but it does **not** prove deployed reachability.
+Package/unit/integration validation proves implementation behavior and repository connectivity, but it does **not** prove a deployed environment has served the route.
 
 The old `Dockerfile.execution-proof-validator` / dedicated external Railway validator path was removed from `main` by PR #853 and must not be referenced as a current validation dependency.
 
-Current acceptance for production wiring must include all of the following:
+Current acceptance for any additional production wiring includes all of the following:
 
 1. a non-test deployed caller outside `internal/executionproof`;
 2. caller -> handler/service/worker -> route/startup wiring trace;
@@ -49,8 +53,10 @@ Current acceptance for production wiring must include all of the following:
 5. production evidence proving the call path executes;
 6. no bypass path that can forward/sign without the required proof boundary.
 
-## Non-goals / no current production claim
+## Non-goals / production claim boundary
 
-No claim is made here that Koschei Web3 currently routes production signing, Safe Transaction Service writes, custody, or user funds through this package. Generic EVM/fork evidence and Safe-aware contracts present in this package remain implementation evidence until the connectivity audit closes.
+The verification API does not make Koschei Web3 a custody system. No claim is made that Koschei routes production signing, Safe Transaction Service writes, custody, or user funds through this package.
 
-See issue #864 for the connectivity audit and classification work.
+Generic EVM/fork evidence and side-effecting Safe-aware contracts present in this package remain implementation evidence until their own connectivity and production-evidence requirements are met.
+
+See issue #864 for the original connectivity-audit finding and resolution rules.
