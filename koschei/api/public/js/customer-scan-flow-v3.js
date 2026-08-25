@@ -7,6 +7,8 @@ const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMCo
 
 function isLikelyURL(value){try{const url=new URL(value);return /^https?:$/.test(url.protocol)}catch{return false}}
 function isLikelySolanaAddress(value){return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)}
+function isLikelyPiAccount(value){return /^G[A-Z2-7]{55}$/.test(value)}
+function isLikelyPiAsset(value){const split=value.lastIndexOf(':');if(split<=0)return false;const code=value.slice(0,split),issuer=value.slice(split+1);return /^[A-Za-z0-9]{1,12}$/.test(code)&&isLikelyPiAccount(issuer)}
 function isLikelyBase64Transaction(value){const compact=value.replace(/\s+/g,'');return compact.length>120&&compact.length%4===0&&/^[A-Za-z0-9+/]+={0,2}$/.test(compact)}
 
 function mountAdvancedModes(){
@@ -58,6 +60,18 @@ function installDetection(explicitMode){
       setDetected('Site URL detected · Quick Check selected');
       return;
     }
+    if(isLikelyPiAsset(value)){
+      if(!manualKind)kind.value='token';
+      if(!manualMode)activateMode('token');
+      setDetected('Pi asset detected · CODE:G... issuer evidence route selected');
+      return;
+    }
+    if(isLikelyPiAccount(value)){
+      if(!manualKind)kind.value='wallet';
+      if(!manualMode)activateMode('quick');
+      setDetected('Pi account detected · G-address evidence route selected');
+      return;
+    }
     if(isLikelyBase64Transaction(value)){
       setDetected('Serialized Solana transaction detected · read-only simulation selected');
       if(transaction&&!transaction.value.trim())transaction.value=value.replace(/\s+/g,'');
@@ -78,12 +92,12 @@ function installDetection(explicitMode){
 function simplifyCopy(){
   const hero=document.querySelector('section.surface.panel');
   const heading=hero?.querySelector('h1');if(heading)heading.textContent='Paste it. Check it before you trust it.';
-  const sub=hero?.querySelector('p.sub');if(sub)sub.textContent='Start with one target. Koschei runs the fast evidence boundary first unless you explicitly choose a deeper investigation or transaction simulation.';
+  const sub=hero?.querySelector('p.sub');if(sub)sub.textContent='Start with one target. Koschei detects Pi and Solana public targets, then keeps chain-specific evidence inside the correct adapter.';
   const form=$('scanForm');if(form&&!form.querySelector('.customer-scan-helper')){
-    const helper=document.createElement('p');helper.className='customer-scan-helper';helper.innerHTML='<strong>One customer flow:</strong> paste a token, wallet, site or serialized transaction. Ambiguous Solana addresses stay explicit instead of being silently reclassified.';
+    const helper=document.createElement('p');helper.className='customer-scan-helper';helper.innerHTML='<strong>One customer flow:</strong> paste a Pi CODE:G... asset, Pi G-address, Solana token or wallet, site, or serialized Solana transaction. Ambiguous targets stay explicit instead of being silently reclassified.';
     form.parentNode.insertBefore(helper,form);
   }
-  const target=$('target');if(target)target.placeholder='Paste token mint, wallet address, site URL, or transaction';
+  const target=$('target');if(target)target.placeholder='Paste Pi CODE:G... asset, Pi G-address, Solana target, site URL, or transaction';
   const targetLabel=target?.closest('label');if(targetLabel?.firstChild)targetLabel.firstChild.textContent='What do you want to check?';
   const note=$('note');if(note)note.placeholder='Optional: what are you about to do? Example: buy this token, connect to this site, sign this transaction';
   const noteLabel=note?.closest('label');if(noteLabel?.firstChild)noteLabel.firstChild.textContent='What are you about to do? (optional)';
