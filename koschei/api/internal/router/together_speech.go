@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const maxSpeechResponseBytes = 12 << 20
+
 type SpeechRequest struct {
 	Input    string
 	Model    string
@@ -65,7 +67,7 @@ func Speech(ctx context.Context, req SpeechRequest) (SpeechResponse, error) {
 		voice = firstEnv("TOGETHER_TTS_VOICE")
 	}
 	if voice == "" {
-		voice = "friendly sidekick"
+		voice = defaultTogetherVoice(model)
 	}
 	language := strings.ToLower(strings.TrimSpace(req.Language))
 	if language == "" {
@@ -107,17 +109,23 @@ func Speech(ctx context.Context, req SpeechRequest) (SpeechResponse, error) {
 		return SpeechResponse{}, err
 	}
 	defer resp.Body.Close()
-	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 12<<20))
+	data, readErr := io.ReadAll(io.LimitReader(resp.Body, maxSpeechResponseBytes+1))
 	if readErr != nil {
 		return SpeechResponse{}, readErr
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return SpeechResponse{}, fmt.Errorf("speech provider returned %d", resp.StatusCode)
 	}
+	if len(data) > maxSpeechResponseBytes {
+		return SpeechResponse{}, errors.New("speech provider response exceeded size limit")
+	}
 	if len(data) == 0 {
 		return SpeechResponse{}, errors.New("speech provider returned empty audio")
 	}
-	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
+	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
+	if strings.Contains(contentType, "application/json") || strings.Contains(contentType, "text/html") {
+		return SpeechResponse{}, errors.New("speech provider returned non-audio content")
+	}
 	if contentType == "" || strings.Contains(contentType, "application/octet-stream") {
 		if format == "wav" {
 			contentType = "audio/wav"
@@ -126,4 +134,18 @@ func Speech(ctx context.Context, req SpeechRequest) (SpeechResponse, error) {
 		}
 	}
 	return SpeechResponse{Provider: "together", Model: model, Voice: voice, Format: format, ContentType: contentType, Audio: data}, nil
+}
+
+func defaultTogetherVoice(model string) string {
+	model = strings.ToLower(strings.TrimSpace(model))
+	switch {
+	case strings.Contains(model, "sonic-2"):
+		return "laidback woman"
+	case strings.Contains(model, "kokoro"):
+		return "af_alloy"
+	case strings.Contains(model, "orpheus"):
+		return "tara"
+	default:
+		return "friendly sidekick"
+	}
 }
