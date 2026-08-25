@@ -271,10 +271,24 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 		client = http.DefaultClient
 	}
 
+	signaturePressure := solanaRPCSignaturePressureEnabled(method)
+	if signaturePressure {
+		if err := acquireSolanaRPCSignaturePressure(ctx); err != nil {
+			return err
+		}
+		defer releaseSolanaRPCSignaturePressure()
+	}
+
 	var lastErr error
 	endpointTimeout := solanaRPCEndpointTimeout()
 	endpoints := uniqueRPCURLs(s.URL(network), SolanaRPCFallbackURL(network))
 	for index, endpoint := range endpoints {
+		if signaturePressure {
+			if until, cooling := solanaRPCSignatureEndpointCooldown(endpoint); cooling {
+				lastErr = fmt.Errorf("solana signature rpc endpoint cooling down until %s", until.UTC().Format(time.RFC3339))
+				continue
+			}
+		}
 		if until, cooling := s.rpcEndpointCooldown(endpoint); cooling {
 			lastErr = fmt.Errorf("solana rpc endpoint cooling down until %s", until.UTC().Format(time.RFC3339))
 			continue
@@ -284,11 +298,17 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 		}
 		attemptCtx, cancel := solanaRPCAttemptContext(ctx, endpointTimeout, len(endpoints)-index)
 		err := callSolanaRPC(attemptCtx, client, endpoint, method, body, target)
+		attemptErr := attemptCtx.Err()
 		cancel()
 		if err != nil {
 			lastErr = err
 			if statusErr, ok := err.(*solanaRPCStatusError); ok && statusErr.Status == http.StatusTooManyRequests {
 				s.deferRPCEndpoint(endpoint, solanaRPC429Cooldown(statusErr.RetryAfter))
+				if signaturePressure {
+					deferSolanaRPCSignatureEndpoint(endpoint, solanaRPCSignature429Cooldown(statusErr.RetryAfter))
+				}
+			} else if signaturePressure && ctx.Err() == nil && attemptErr != nil {
+				deferSolanaRPCSignatureEndpoint(endpoint, solanaRPCSignatureTimeoutCooldown())
 			}
 			if ctx.Err() != nil {
 				return ctx.Err()
