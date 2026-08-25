@@ -244,6 +244,9 @@ func tokenInfoString(info map[string]any, key string) string {
 }
 
 func (h *Handler) callSolanaRPC(ctx context.Context, client *http.Client, rpcURL, network, method string, params interface{}, target interface{}) error {
+	if handled, err := h.tryHeliusProgramAccountsV2(ctx, client, rpcURL, network, method, params, target); handled {
+		return err
+	}
 	if h != nil && h.SolanaRPC != nil {
 		return h.SolanaRPC.Call(ctx, network, method, params, target, 0)
 	}
