@@ -157,6 +157,34 @@ See `docs/transaction-firewall.md` for the detailed Guard contract.
 
 ---
 
+## Registered developer preview: POST /api/v1/shield/state-recheck
+
+Rechecks state-bound Transaction Guard evidence before a previously evaluated decision is relied on again.
+
+Authentication: developer API key + active Enterprise SaaS entitlement.
+
+The recheck route does not turn stale, missing or changed state into an `allow` decision.
+
+---
+
+## Registered Enterprise: POST /api/v1/defense/validation
+
+Evaluates whether a declared execution-integrity defense passed an isolated attack/benign validation scenario.
+
+Authentication: developer API key + active Enterprise SaaS entitlement.
+
+The request carries the complete scenario contract, control/collector trust configuration, isolated execution-containment receipt, execution proof, exact approved/candidate canonical Safe action bytes, and optionally the independent collector's signed observation for each case.
+
+The server recomputes the scenario hash, containment/proof bindings and Ed25519 observation authentication before any case can contribute VERIFIED evidence. Caller-asserted `verified` state is not accepted.
+
+The deterministic case outcomes are `caught_in_time`, `caught_late`, `missed`, `clean`, `false_positive`, or `incomplete`; the report verdict is `validated`, `failed`, or `incomplete`.
+
+The route does not execute arbitrary commands, submit mainnet transactions, mutate production controls or use AI as verdict authority. Missing observations remain incomplete instead of becoming a pass.
+
+See `docs/defense-validation-api.md` for the complete request/evidence boundary.
+
+---
+
 ## Registered developer preview: POST /api/v1/shield/address-poisoning
 
 Runs API-key-protected address-poisoning analysis.
@@ -242,6 +270,7 @@ The following remain roadmap work until they are registered, tested and added to
 
 - dedicated wallet-specific developer API route;
 - dedicated sybil/campaign-cluster batch API;
+- provider-neutral third-party Defense Validation adapters;
 - multi-provider Evidence Court API for critical evidence quorum;
 - State Witness / state-bound pre-signing receipt API;
 - signed Evidence Receipt verification surface;
