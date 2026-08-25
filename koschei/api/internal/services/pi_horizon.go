@@ -53,23 +53,23 @@ type piHorizonSigner struct {
 }
 
 type piHorizonBalance struct {
-	Balance     string `json:"balance"`
-	AssetType   string `json:"asset_type"`
-	AssetCode   string `json:"asset_code"`
-	AssetIssuer string `json:"asset_issuer"`
-	Limit       string `json:"limit"`
-	IsAuthorized bool  `json:"is_authorized"`
+	Balance      string `json:"balance"`
+	AssetType    string `json:"asset_type"`
+	AssetCode    string `json:"asset_code"`
+	AssetIssuer  string `json:"asset_issuer"`
+	Limit        string `json:"limit"`
+	IsAuthorized bool   `json:"is_authorized"`
 }
 
 type piHorizonAccount struct {
-	ID            string               `json:"id"`
-	AccountID     string               `json:"account_id"`
-	Sequence      string               `json:"sequence"`
-	SubentryCount int                  `json:"subentry_count"`
-	HomeDomain    string               `json:"home_domain"`
-	Thresholds    piHorizonThresholds  `json:"thresholds"`
-	Signers       []piHorizonSigner    `json:"signers"`
-	Balances      []piHorizonBalance   `json:"balances"`
+	ID            string              `json:"id"`
+	AccountID     string              `json:"account_id"`
+	Sequence      string              `json:"sequence"`
+	SubentryCount int                 `json:"subentry_count"`
+	HomeDomain    string              `json:"home_domain"`
+	Thresholds    piHorizonThresholds `json:"thresholds"`
+	Signers       []piHorizonSigner   `json:"signers"`
+	Balances      []piHorizonBalance  `json:"balances"`
 }
 
 type piHorizonPayment struct {
@@ -101,14 +101,14 @@ type piHorizonOperation struct {
 }
 
 type piHorizonTransaction struct {
-	Hash             string `json:"hash"`
-	Ledger           int64  `json:"ledger"`
-	CreatedAt        string `json:"created_at"`
-	SourceAccount    string `json:"source_account"`
-	OperationCount   int    `json:"operation_count"`
-	Successful       bool   `json:"successful"`
-	FeeCharged       string `json:"fee_charged"`
-	MaxFee           string `json:"max_fee"`
+	Hash           string `json:"hash"`
+	Ledger         int64  `json:"ledger"`
+	CreatedAt      string `json:"created_at"`
+	SourceAccount  string `json:"source_account"`
+	OperationCount int    `json:"operation_count"`
+	Successful     bool   `json:"successful"`
+	FeeCharged     string `json:"fee_charged"`
+	MaxFee         string `json:"max_fee"`
 }
 
 type piHorizonLink struct {
@@ -306,6 +306,7 @@ func collectPiHorizonSnapshot(ctx context.Context, target PiRadarTarget) piHoriz
 			if strings.EqualFold(payment.Type, "payment") && payment.AssetCode == target.AssetCode && payment.AssetIssuer == target.Issuer && (payment.From == target.Issuer || payment.SourceAccount == target.Issuer) {
 				out.IssuerPayments = append(out.IssuerPayments, payment)
 			}
+		}
 	}
 
 	operationsQuery := url.Values{"order": []string{"desc"}, "limit": []string{strconv.Itoa(piHorizonOperationLimit)}}
