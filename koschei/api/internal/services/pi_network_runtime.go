@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	piMainnetNetwork          = "pi-mainnet"
+	piMainnetNetwork           = "pi-mainnet"
 	piDefaultMainnetHorizonURL = "https://api.mainnet.minepi.com"
-	piMainnetEvidenceSource   = "pi_mainnet_horizon"
-	piTestnetEvidenceSourceV2 = "pi_testnet_horizon"
-	piMainnetHorizonEnv       = "PI_MAINNET_HORIZON_URL"
-	piTestnetHorizonEnv       = "PI_TESTNET_HORIZON_URL"
-	piLegacyTestnetHorizonEnv = "PI_HORIZON_URL"
+	piMainnetEvidenceSource    = "pi_mainnet_horizon"
+	piTestnetEvidenceSourceV2  = "pi_testnet_horizon"
+	piMainnetHorizonEnv        = "PI_MAINNET_HORIZON_URL"
+	piTestnetHorizonEnv        = "PI_TESTNET_HORIZON_URL"
+	piLegacyTestnetHorizonEnv  = "PI_HORIZON_URL"
 )
 
 func DefaultPiRadarNetwork() string { return piMainnetNetwork }
