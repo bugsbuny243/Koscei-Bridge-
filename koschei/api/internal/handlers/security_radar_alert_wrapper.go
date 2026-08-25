@@ -15,7 +15,8 @@ const maxSecurityRadarAlertBody = 1 << 20
 
 // SecurityRadarCheckWithAlerts preserves the existing investigation response
 // contract and adds a durable alert only after a signed, evidence-ready verdict
-// has been produced. The alert pipeline never changes the deterministic grade.
+// has been produced. Pi targets are diverted before the Solana target classifier
+// so chain-specific evidence never crosses collector boundaries.
 func (h *Handler) SecurityRadarCheckWithAlerts(w http.ResponseWriter, r *http.Request) {
 	rawBody, err := io.ReadAll(io.LimitReader(r.Body, maxSecurityRadarAlertBody+1))
 	if err != nil {
@@ -33,7 +34,11 @@ func (h *Handler) SecurityRadarCheckWithAlerts(w http.ResponseWriter, r *http.Re
 	target := strings.TrimSpace(firstNonEmptyString(input.Target, input.Address))
 
 	recorder := httptest.NewRecorder()
-	h.SecurityRadarCheck(recorder, r)
+	if securityRadarInputIsPi(input) {
+		h.SecurityRadarPiCheck(recorder, r)
+	} else {
+		h.SecurityRadarCheck(recorder, r)
+	}
 	result := recorder.Result()
 	defer result.Body.Close()
 	responseBody, _ := io.ReadAll(result.Body)
