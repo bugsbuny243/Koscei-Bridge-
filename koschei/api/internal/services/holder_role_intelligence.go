@@ -112,6 +112,11 @@ func AnalyzeSolanaHolderRoles(ctx context.Context, rpcURL string, totalSupply fl
 		}
 	}
 
+	// Helius Wallet API charges per request rather than per address. Resolve the
+	// bounded Top-N owner set in one batch request instead of paying the same
+	// 100-credit cost repeatedly for individual holders.
+	ownerLabels := ResolveWalletLabels(ctx, rpcURL, ownerList)
+
 	rawBalances := make([]float64, 0, len(largest))
 	excludedBalance := 0.0
 	protocolBalance := 0.0
@@ -130,14 +135,12 @@ func AnalyzeSolanaHolderRoles(ctx context.Context, rpcURL string, totalSupply fl
 			Balance: holderRoleRound(balance, 8), RawPercentage: holderRoleRound(rawPct, 4),
 			Role: role, Confidence: confidence, ExcludedFromHolderRisk: excluded, Evidence: evidence,
 		}
-		if owners[i] != "" && ctx.Err() == nil {
-			if label := ResolveWalletLabel(ctx, rpcURL, owners[i]); label != nil {
-				if display := walletLabelDisplay(label); display != "" {
-					row.Label = display
-					row.LabelEntity = label.Entity
-					row.LabelSource = label.Source
-					row.Evidence = append(row.Evidence, "Wallet resolves to a known entity in the Helius identity database: "+display+". Label is sourced from a third-party dataset, not a Koschei claim.")
-				}
+		if label := ownerLabels[owners[i]]; label != nil {
+			if display := walletLabelDisplay(label); display != "" {
+				row.Label = display
+				row.LabelEntity = label.Entity
+				row.LabelSource = label.Source
+				row.Evidence = append(row.Evidence, "Wallet resolves to a known entity in the Helius identity database: "+display+". Label is sourced from a third-party dataset, not a Koschei claim.")
 			}
 		}
 		if excluded {
