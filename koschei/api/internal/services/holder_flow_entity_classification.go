@@ -11,9 +11,9 @@ const holderFlowIdentityLookupLimit = 24
 // enrichHolderClusterFlowObservations attaches positively-resolved Helius
 // identity metadata to bounded transfer observations. Unknown addresses remain
 // unlabeled; no entity or risk flag is guessed from transfer behavior alone.
-// Candidate endpoints are collected first so one Helius batch-identity request
-// can resolve the bounded set instead of paying 100 Wallet API credits for each
-// address independently.
+// Paid identity lookups are collected first so an explicitly enabled deployment
+// can resolve the bounded set with one batch request instead of one 100-credit
+// Wallet API request per address.
 func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, holderWallets map[string]bool, observations []HolderClusterFlowObservation, budget *holderScanRPCBudget) []HolderClusterFlowObservation {
 	if len(observations) == 0 {
 		return observations
@@ -22,6 +22,7 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 	labels := map[string]*WalletLabel{}
 	pending := []string{}
 	seen := map[string]bool{}
+	identityLookupAllowed := heliusWalletIdentityEnabled() && !heliusWalletIdentityUnavailable()
 	for _, observation := range observations {
 		for _, address := range holderFlowIdentityAddresses(observation) {
 			if seen[address] {
@@ -30,6 +31,9 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 			seen[address] = true
 			if cached, ok := labelCacheGet(address); ok {
 				labels[address] = cached
+				continue
+			}
+			if !identityLookupAllowed {
 				continue
 			}
 			if budget != nil && !budget.ReserveIdentity(1) {
@@ -253,7 +257,6 @@ func holderFlowTaxonomyContains(values, candidates []string) bool {
 			if normalized == candidate || strings.Contains(" "+normalized+" ", " "+candidate+" ") {
 				return true
 			}
-		}
 	}
 	return false
 }
