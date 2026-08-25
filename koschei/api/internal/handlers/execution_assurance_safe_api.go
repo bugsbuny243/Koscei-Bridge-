@@ -24,7 +24,7 @@ const (
 
 type safeExecutionAssuranceAPIRequest struct {
 	ExecutionProof      executionproof.Proof                      `json:"execution_proof"`
-	ProofAttestation    securityevidence.Event                     `json:"proof_attestation"`
+	ProofAttestation    securityevidence.Event                    `json:"proof_attestation"`
 	Transaction         safeExecutionAssuranceTransactionAPIInput `json:"transaction"`
 	PresentedSafeTxHash string                                    `json:"presented_safe_tx_hash"`
 }
