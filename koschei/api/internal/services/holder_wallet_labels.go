@@ -201,8 +201,9 @@ func walletLabelFromHeliusIdentity(requested string, decoded heliusIdentityRespo
 	if entity == "" {
 		entity = name
 	}
+	normalizedType := strings.ToLower(strings.TrimSpace(decoded.Type))
 	category := strings.TrimSpace(decoded.Category)
-	if category == "" {
+	if category == "" && normalizedType != "" && normalizedType != "unknown" && normalizedType != "wallet" {
 		category = strings.TrimSpace(decoded.Type)
 	}
 	if category == "" && len(decoded.Labels) > 0 {
