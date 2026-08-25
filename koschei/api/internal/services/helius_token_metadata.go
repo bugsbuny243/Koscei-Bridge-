@@ -15,25 +15,30 @@ import (
 // until the creation transaction is re-read from canonical Solana RPC and the
 // candidate wallet is confirmed as a signer of the exact create instruction.
 type HeliusTokenMetadata struct {
-	Configured           bool            `json:"configured"`
-	Available            bool            `json:"available"`
-	Status               string          `json:"status"`
-	Provider             string          `json:"provider"`
-	Address              string          `json:"address"`
-	Name                 string          `json:"name,omitempty"`
-	Symbol               string          `json:"symbol,omitempty"`
-	Creator              string          `json:"creator,omitempty"`
-	CreateTransaction    string          `json:"create_transaction,omitempty"`
-	CreatedTime          int64           `json:"created_time,omitempty"`
-	CreatedAt            time.Time       `json:"created_at,omitempty"`
-	FirstMintTransaction string          `json:"first_mint_transaction,omitempty"`
-	FirstMintTime        int64           `json:"first_mint_time,omitempty"`
-	FirstMintAt          time.Time       `json:"first_mint_at,omitempty"`
-	MintAuthority        string          `json:"mint_authority,omitempty"`
-	FreezeAuthority      string          `json:"freeze_authority,omitempty"`
-	OnchainExtensions    json.RawMessage `json:"onchain_extensions,omitempty"`
-	ObservedAt           time.Time       `json:"observed_at"`
-	Limitations          []string        `json:"limitations"`
+	Configured                    bool            `json:"configured"`
+	Available                     bool            `json:"available"`
+	Status                        string          `json:"status"`
+	Provider                      string          `json:"provider"`
+	Address                       string          `json:"address"`
+	Name                          string          `json:"name,omitempty"`
+	Symbol                        string          `json:"symbol,omitempty"`
+	Creator                       string          `json:"creator,omitempty"`
+	CreateTransaction             string          `json:"create_transaction,omitempty"`
+	CreatedTime                   int64           `json:"created_time,omitempty"`
+	CreatedAt                     time.Time       `json:"created_at,omitempty"`
+	FirstMintTransaction          string          `json:"first_mint_transaction,omitempty"`
+	FirstMintTime                 int64           `json:"first_mint_time,omitempty"`
+	FirstMintAt                   time.Time       `json:"first_mint_at,omitempty"`
+	CreationHistorySource         string          `json:"creation_history_source,omitempty"`
+	CreationHistoryBounded        bool            `json:"creation_history_bounded"`
+	CreationSignaturesSeen        int             `json:"creation_signatures_seen,omitempty"`
+	CreationTransactionsRequested int             `json:"creation_transactions_requested,omitempty"`
+	CreationTransactionsParsed    int             `json:"creation_transactions_parsed,omitempty"`
+	MintAuthority                 string          `json:"mint_authority,omitempty"`
+	FreezeAuthority               string          `json:"freeze_authority,omitempty"`
+	OnchainExtensions             json.RawMessage `json:"onchain_extensions,omitempty"`
+	ObservedAt                    time.Time       `json:"observed_at"`
+	Limitations                   []string        `json:"limitations"`
 }
 
 type heliusTokenMetadataResponse struct {
@@ -110,8 +115,35 @@ func FetchHeliusTokenMetadata(ctx context.Context, rpcURL, mint string) HeliusTo
 		out.Limitations = append(out.Limitations, "Helius DAS getAsset failed: "+compactClusterError(assetErr))
 	}
 
-	creation, creationErr := fetchHeliusMintCreationObservation(ctx, endpoint, mint)
-	if creationErr == nil && strings.TrimSpace(creation.Signature) != "" {
+	creation := heliusMintCreationObservation{}
+	var creationErr error
+	if heliusCreatedMintArchivalEnabled() {
+		out.CreationHistorySource = "helius_get_transactions_for_address"
+		creation, creationErr = fetchHeliusMintCreationObservation(ctx, endpoint, mint)
+	} else {
+		out.CreationHistorySource = "solana_rpc_bounded_mint_history"
+		creationRPCURL := strings.TrimSpace(rpcURL)
+		if creationRPCURL == "" {
+			creationRPCURL = endpoint
+		}
+		bounded, err := fetchBoundedMintCreationObservation(ctx, creationRPCURL, mint)
+		creation = bounded.Observation
+		creationErr = err
+		out.CreationHistoryBounded = bounded.HistoryBounded
+		out.CreationSignaturesSeen = bounded.SignaturesSeen
+		out.CreationTransactionsRequested = bounded.TransactionsRequested
+		out.CreationTransactionsParsed = bounded.TransactionsParsed
+		if bounded.HistoryBounded {
+			out.Limitations = append(out.Limitations, fmt.Sprintf(
+				"Mint-creation discovery inspected %d signatures and %d/%d bounded transaction details; older mint history remains outside this run.",
+				bounded.SignaturesSeen,
+				bounded.TransactionsParsed,
+				bounded.TransactionsRequested,
+			))
+		}
+	}
+
+	if strings.TrimSpace(creation.Signature) != "" {
 		out.Available = true
 		out.CreateTransaction = strings.TrimSpace(creation.Signature)
 		out.FirstMintTransaction = strings.TrimSpace(creation.Signature)
@@ -124,8 +156,15 @@ func FetchHeliusTokenMetadata(ctx context.Context, rpcURL, mint string) HeliusTo
 		if out.Creator == "" {
 			out.Creator = strings.TrimSpace(creation.Creator)
 		}
-	} else if creationErr != nil {
-		out.Limitations = append(out.Limitations, "Helius mint-creation history failed: "+compactClusterError(creationErr))
+	}
+	if creationErr != nil {
+		if heliusCreatedMintArchivalEnabled() {
+			out.Limitations = append(out.Limitations, "Helius mint-creation archival history failed: "+compactClusterError(creationErr))
+		} else {
+			out.Limitations = append(out.Limitations, "Bounded Solana mint-creation history failed: "+compactClusterError(creationErr))
+		}
+	} else if strings.TrimSpace(creation.Signature) == "" && !heliusCreatedMintArchivalEnabled() {
+		out.Limitations = append(out.Limitations, "No exact creation transaction was observed in the bounded Solana mint-history window; this is not proof that no older creation evidence exists.")
 	}
 
 	if !out.Available {
@@ -138,7 +177,11 @@ func FetchHeliusTokenMetadata(ctx context.Context, rpcURL, mint string) HeliusTo
 		return out
 	}
 	out.Status = "complete"
-	out.Limitations = append(out.Limitations, "Creator attribution is discovery-only and must be re-verified from canonical RPC before VERIFIED status.")
+	if strings.TrimSpace(out.CreateTransaction) == "" {
+		out.Limitations = append(out.Limitations, "Creator attribution remains OBSERVED because no exact create-transaction signature was available for canonical signer verification.")
+	} else {
+		out.Limitations = append(out.Limitations, "Creator attribution is discovery-only and must be re-verified from canonical RPC before VERIFIED status.")
+	}
 	return out
 }
 
