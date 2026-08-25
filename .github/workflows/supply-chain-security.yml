@@ -160,10 +160,15 @@ jobs:
           ! grep -Fq 'VerdictAuthority: true' "${harness}"
 
           grep -Fq 'ENV KOSCHEI_DEFENSE_WORKER_ENABLED=false' "${worker}"
-          grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=false' "${sentinel}"
           grep -Fq 'USER 10001:10001' "${worker}"
-          grep -Fq 'USER nonroot:nonroot' "${sentinel}"
           ! grep -Fq 'ENV KOSCHEI_DEFENSE_WORKER_ENABLED=true' "${worker}"
-          ! grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=true' "${sentinel}"
 
-          echo "Defense OS execution, verdict authority, and image defaults remain disabled."
+          if [ -f "${sentinel}" ]; then
+            grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=false' "${sentinel}"
+            grep -Fq 'USER nonroot:nonroot' "${sentinel}"
+            ! grep -Fq 'ENV KOSCHEI_DEFENSE_SENTINEL_ENABLED=true' "${sentinel}"
+          else
+            echo "Defense sentinel image is retired; no sentinel container defaults to validate."
+          fi
+
+          echo "Defense OS execution and verdict authority remain disabled."

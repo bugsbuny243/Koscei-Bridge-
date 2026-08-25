@@ -77,7 +77,7 @@ func (h *Handler) ownerChatHistory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":        true,
 		"ai_ready":  ownerAIProviderConfigured(),
-		"provider":  "anthropic",
+		"provider":  "together",
 		"model":     ownerChatModel(),
 		"thread_id": threadID,
 		"threads":   threads,
@@ -98,6 +98,14 @@ func (h *Handler) ownerChatSend(w http.ResponseWriter, r *http.Request) {
 	}
 	if !ownerAIProviderConfigured() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ai_provider_not_configured"})
+		return
+	}
+	if strings.HasPrefix(message, "SOCIAL_STUDIO_REQUEST") {
+		h.ownerSocialCompose(w, r, message)
+		return
+	}
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("mode")), "tts") {
+		h.ownerChatSpeech(w, r, message)
 		return
 	}
 
@@ -142,7 +150,7 @@ func (h *Handler) ownerChatSend(w http.ResponseWriter, r *http.Request) {
 		deterministic = map[string]any{"intent": intent, "message": humanMessage, "result": result}
 	}
 	prompt := buildOwnerChatPrompt(snapshot, history, deterministic)
-	aiReply, err := router.OwnerChat(ctx, router.ChatRequest{System: ownerChatSystemPrompt, Prompt: prompt, Model: ownerChatModel(), Timeout: 65 * time.Second, MaxTokens: 1600, Temperature: 0.2})
+	aiReply, err := router.Chat(ctx, router.ChatRequest{System: ownerChatSystemPrompt, Prompt: prompt, Model: ownerChatModel(), Timeout: 65 * time.Second, MaxTokens: 1600, Temperature: 0.2})
 	reply := aiReply.Content
 	if err != nil {
 		_, _ = h.DB.ExecContext(ctx, `INSERT INTO ai_command_logs (command,output,status,created_at) VALUES ($1,$2,'error',now())`, message, ownerChatGenerationError(err))

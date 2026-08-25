@@ -1,0 +1,58 @@
+name: Owner Growth Console Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "koschei/api/public/owner-production.html"
+      - "koschei/api/public/js/owner-customer-directory.js"
+      - "koschei/api/public/js/owner-social-studio.js"
+      - "koschei/api/public/js/owner-social-voice.js"
+      - "koschei/api/internal/handlers/owner_ai_chat.go"
+      - "koschei/api/internal/handlers/owner_ai_chat_context.go"
+      - "koschei/api/internal/handlers/owner_social_tts.go"
+      - "koschei/api/internal/router/together_speech.go"
+      - "koschei/api/internal/http/server.go"
+      - "koschei/api/scripts/verify-owner-growth-console.js"
+      - ".github/workflows/owner-growth-console.yml"
+  push:
+    branches: [main]
+    paths:
+      - "koschei/api/public/owner-production.html"
+      - "koschei/api/public/js/owner-customer-directory.js"
+      - "koschei/api/public/js/owner-social-studio.js"
+      - "koschei/api/public/js/owner-social-voice.js"
+      - "koschei/api/internal/handlers/owner_ai_chat.go"
+      - "koschei/api/internal/handlers/owner_ai_chat_context.go"
+      - "koschei/api/internal/handlers/owner_social_tts.go"
+      - "koschei/api/internal/router/together_speech.go"
+      - "koschei/api/internal/http/server.go"
+      - "koschei/api/scripts/verify-owner-growth-console.js"
+      - ".github/workflows/owner-growth-console.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-growth-console-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Customers, Together AI and social video contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Check JavaScript syntax
+        run: |
+          node --check koschei/api/public/js/owner-customer-directory.js
+          node --check koschei/api/public/js/owner-social-studio.js
+          node --check koschei/api/public/js/owner-social-voice.js
+          node --check koschei/api/scripts/verify-owner-growth-console.js
+      - name: Verify Owner Growth Console contract
+        run: node koschei/api/scripts/verify-owner-growth-console.js
+      - name: Run Together speech router unit test
+        working-directory: koschei/api
+        run: go test ./internal/router -run TestDefaultTogetherVoice -count=1
