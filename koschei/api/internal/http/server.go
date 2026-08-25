@@ -117,6 +117,7 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, planAccess rout
 	mux.HandleFunc("/api/auth/neon-callback", method("GET", h.NeonCallback))
 	mux.HandleFunc("/api/me", handlers.RequireAuth(method("GET", h.Me)))
 	mux.HandleFunc("/api/arvis/preflight", method("POST", h.ARVISPreflight))
+	mux.HandleFunc("/api/pi/testnet/launch/preflight", method("POST", h.PiLaunchPreflight))
 	mux.HandleFunc("/api/public/impact", method("GET", h.PublicImpact))
 	mux.HandleFunc("/api/public/metrics", method("GET", h.GetPublicMetrics))
 	mux.HandleFunc("/api/agent/health", requiresDB(h, method("GET", h.AgentTool)))
