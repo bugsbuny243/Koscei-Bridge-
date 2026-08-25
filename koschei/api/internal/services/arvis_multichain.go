@@ -17,7 +17,7 @@ func AnalyzeArvisRadarsMultiChainContext(ctx context.Context, req SecurityRadarR
 		analysis := analyzePiArvisRadarsContext(ctx, req, piTarget)
 		analysis = enrichPiIssuerControlEvidence(analysis, piTarget)
 		analysis = enrichPiLiquidityHistoryEvidence(ctx, analysis, piTarget)
-		analysis = enrichPiFundingClusterEvidence(ctx, analysis, piTarget)
+		analysis = enrichPiFundingClusterEvidenceFromHorizon(ctx, analysis, piTarget)
 		analysis = enrichPiDomainBindingEvidence(ctx, analysis, piTarget)
 		return refreshPiAnalysisEvidenceMetadata(analysis)
 	}
