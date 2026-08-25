@@ -9,11 +9,11 @@ import (
 	"koschei/api/internal/services"
 )
 
-const piCustomerInvestigationSchemaVersion = "koschei-customer-pi-investigation-v1"
+const piCustomerInvestigationSchemaVersion = "koschei-customer-pi-investigation-v2"
 
 func securityRadarInputIsPi(input securityRadarInput) bool {
 	target := strings.TrimSpace(firstNonEmptyString(input.Target, input.Address))
-	if services.IsPiRadarNetwork(input.Network) {
+	if _, ok := services.NormalizePiRadarNetwork(input.Network); ok {
 		return true
 	}
 	_, ok := services.ParsePiRadarTarget(target)
@@ -34,7 +34,6 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusPaymentRequired, insufficientOutputsResponse())
 		return
 	}
-
 	var input securityRadarInput
 	if err := decodeJSON(r, &input); err != nil {
 		writeAPIError(w, http.StatusBadRequest, APICodeInvalidInput, "Invalid request body")
@@ -47,49 +46,27 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	piTarget, validTarget := services.ParsePiRadarTarget(target)
 	if !validTarget {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
-			"ok":      false,
-			"error":   "pi_target_required",
-			"message": "Pi Radar expects a public G-address or an asset in CODE:G...ISSUER form.",
-			"target":  target,
-			"charged": false,
-			"final_verdict": map[string]any{
-				"grade":          "-",
-				"risk_index":     nil,
-				"risk_level":     "unknown",
-				"signed":         false,
-				"recommendation": "provide_pi_public_account_or_asset",
-			},
-		})
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"ok": false, "error": "pi_target_required", "message": "Pi Radar expects a public G-address or an asset in CODE:G...ISSUER form.", "target": target, "charged": false, "final_verdict": map[string]any{"grade": "-", "risk_index": nil, "risk_level": "unknown", "signed": false, "recommendation": "provide_pi_public_account_or_asset"}})
 		return
 	}
-	if strings.TrimSpace(input.Network) != "" && !services.IsPiRadarNetwork(input.Network) {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
-			"ok":      false,
-			"error":   "pi_network_mismatch",
-			"message": "The target is a Pi target but the requested network is not Pi Testnet.",
-			"target":  target,
-			"network": input.Network,
-			"charged": false,
-		})
-		return
+	network := services.DefaultPiRadarNetwork()
+	if strings.TrimSpace(input.Network) != "" {
+		normalized, piNetwork := services.NormalizePiRadarNetwork(input.Network)
+		if !piNetwork {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"ok": false, "error": "pi_network_mismatch", "message": "The target is a Pi target. Select Pi Mainnet or Pi Testnet; ARVIS will not reinterpret it as another chain.", "target": target, "network": input.Network, "charged": false})
+			return
+		}
+		network = normalized
 	}
-
+	label := services.PiRadarNetworkLabel(network)
 	mode := firstNonEmptyString(input.Mode, "manual_dashboard_check")
-	services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "radar_pi_check_requested", "customer", "info", map[string]any{
-		"network": "pi-testnet",
-		"mode":    mode,
-		"target":  target,
-		"kind":    piTarget.Kind,
-	}))
-
+	services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "radar_pi_check_requested", "customer", "info", map[string]any{"network": network, "mode": mode, "target": target, "kind": piTarget.Kind}))
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
-	analysis := services.AnalyzeArvisRadarsMultiChainContext(ctx, services.SecurityRadarRequest{Target: target, Network: "pi-testnet", Mode: mode})
+	analysis := services.AnalyzeArvisRadarsMultiChainContext(ctx, services.SecurityRadarRequest{Target: target, Network: network, Mode: mode})
 	observed := piObservedArmCount(analysis.Arms)
 	hasEvidence := observed > 0
 	_ = h.saveSecurityRadarBundle(ctx, claims.Sub, "manual_pi_check", analysis.Bundle)
-
 	charged := false
 	if hasEvidence {
 		if err := h.consumePremiumOutput(claims.Sub, claimEmail, "security_radar_pi_check"); err != nil {
@@ -98,55 +75,20 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 		}
 		charged = true
 	}
-
 	status := "evidence_pending"
-	message := "Pi Testnet evidence collection is incomplete; missing evidence is not treated as safe."
+	message := label + " evidence collection is incomplete; missing evidence is not treated as safe."
 	if hasEvidence {
-		message = "Pi Testnet evidence collected. A signed Pi risk grade is withheld until the Pi-specific deterministic ruleset is validated."
+		message = label + " evidence collected. A signed Pi risk grade is withheld until the Pi-specific deterministic ruleset is validated."
 	}
 	h.logTool(claimEmail, "security_radar_pi_check", status)
 	h.trackEvent(claimEmail, "security_radar_pi_check", r.URL.Path)
-
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                      true,
-		"response_schema_version": piCustomerInvestigationSchemaVersion,
-		"status":                  status,
-		"message":                 message,
-		"target":                  target,
-		"target_kind":             piTarget.Kind,
-		"network":                 "pi-testnet",
-		"provider":                analysis.Bundle.Provider,
-		"has_live_evidence":       hasEvidence,
-		"observed_arm_count":      observed,
-		"charged":                 charged,
-		"bundle":                  analysis.Bundle,
-		"arms":                    analysis.Arms,
-		"final_verdict":           analysis.Final,
-		"analysis_summary": map[string]any{
-			"decision":           "review_pi_evidence",
-			"why":                message,
-			"observed_arm_count": observed,
-			"signed":             false,
-			"risk_level":         "unknown",
-		},
-		"investigation_report": map[string]any{
-			"chain_adapter":      "pi_horizon_v1",
-			"target":             target,
-			"target_kind":        piTarget.Kind,
-			"network":            "pi-testnet",
-			"provider":           analysis.Bundle.Provider,
-			"evidence_arms":      analysis.Arms,
-			"intelligence_graph": analysis.Graph,
-			"metadata":           analysis.Bundle.Metadata,
-			"final_verdict":      analysis.Final,
-		},
-		"evidence_policy": map[string]any{
-			"missing_evidence_is_not_safe":          true,
-			"numeric_final_score_disabled":          true,
-			"pi_signed_grade_enabled":               false,
-			"wallet_secrets_required":               false,
-			"server_transaction_submission_enabled": false,
-		},
+		"ok": true, "response_schema_version": piCustomerInvestigationSchemaVersion, "status": status, "message": message,
+		"target": target, "target_kind": piTarget.Kind, "network": network, "network_label": label, "provider": analysis.Bundle.Provider,
+		"has_live_evidence": hasEvidence, "observed_arm_count": observed, "charged": charged, "bundle": analysis.Bundle, "arms": analysis.Arms, "final_verdict": analysis.Final,
+		"analysis_summary": map[string]any{"decision": "review_pi_evidence", "why": message, "observed_arm_count": observed, "signed": false, "risk_level": "unknown", "network": network},
+		"investigation_report": map[string]any{"chain": "pi", "chain_adapter": "pi_horizon_v2", "target": target, "target_kind": piTarget.Kind, "network": network, "network_label": label, "provider": analysis.Bundle.Provider, "evidence_arms": analysis.Arms, "intelligence_graph": analysis.Graph, "metadata": analysis.Bundle.Metadata, "final_verdict": analysis.Final},
+		"evidence_policy": map[string]any{"missing_evidence_is_not_safe": true, "numeric_final_score_disabled": true, "pi_signed_grade_enabled": false, "wallet_secrets_required": false, "server_transaction_submission_enabled": false, "cross_chain_reinterpretation_allowed": false},
 	})
 }
 
