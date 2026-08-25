@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"koschei/api/internal/defense"
@@ -19,6 +20,8 @@ const (
 	defenseValidationAPIMaxControls      = 8
 	defenseValidationAPIMaxCases         = 64
 	defenseValidationAPIMaxActionBytes   = 128 << 10
+
+	defenseValidationTrustedCollectorsEnv = "KOSCHEI_DEFENSE_VALIDATION_TRUSTED_COLLECTORS_JSON"
 )
 
 type defenseValidationAPIRequest struct {
@@ -83,6 +86,20 @@ func (h *Handler) DefenseValidationV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	trustedCollectors, err := trustedDefenseValidationCollectorsFromEnv()
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok": false, "code": "defense_validation_trust_unavailable", "message": "Defense validation collector trust is unavailable.",
+		})
+		return
+	}
+	if err := validateDefenseValidationAPICollectorTrust(input.Controls, trustedCollectors); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"ok": false, "code": "defense_validation_evidence_rejected", "message": err.Error(),
+		})
+		return
+	}
+
 	result, err := evaluateDefenseValidationAPIRequest(input)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{
@@ -91,6 +108,61 @@ func (h *Handler) DefenseValidationV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func trustedDefenseValidationCollectorsFromEnv() (map[string]string, error) {
+	raw := strings.TrimSpace(os.Getenv(defenseValidationTrustedCollectorsEnv))
+	if raw == "" {
+		return nil, errors.New("trusted collector registry is not configured")
+	}
+	configured := map[string]string{}
+	if err := json.Unmarshal([]byte(raw), &configured); err != nil {
+		return nil, errors.New("trusted collector registry must be a JSON object")
+	}
+	if len(configured) == 0 {
+		return nil, errors.New("trusted collector registry is empty")
+	}
+
+	trusted := make(map[string]string, len(configured))
+	for rawRef, rawKey := range configured {
+		collectorRef := strings.TrimSpace(rawRef)
+		collectorPublicKey := strings.TrimSpace(rawKey)
+		if collectorRef == "" || collectorPublicKey == "" {
+			return nil, errors.New("trusted collector registry entries require non-empty collector refs and public keys")
+		}
+		if _, exists := trusted[collectorRef]; exists {
+			return nil, fmt.Errorf("duplicate trusted collector_ref %q", collectorRef)
+		}
+		if _, err := defense.NewExecutionIntegrityControlV02("trust-registry:"+collectorRef, collectorRef, defense.DefenseValidationExecutionIntegrityConfigV02{
+			CollectorPublicKey:           collectorPublicKey,
+			IndependentCollectorRequired: true,
+			MainnetSubmissionAllowed:     false,
+			ProductionWiringClaim:        false,
+		}); err != nil {
+			return nil, fmt.Errorf("trusted collector %q is invalid: %w", collectorRef, err)
+		}
+		trusted[collectorRef] = collectorPublicKey
+	}
+	return trusted, nil
+}
+
+func validateDefenseValidationAPICollectorTrust(controls []defenseValidationAPIControl, trustedCollectors map[string]string) error {
+	if len(trustedCollectors) == 0 {
+		return errors.New("trusted collector registry is unavailable")
+	}
+	for _, raw := range controls {
+		controlRef := strings.TrimSpace(raw.ControlRef)
+		collectorRef := strings.TrimSpace(raw.CollectorRef)
+		suppliedPublicKey := strings.TrimSpace(raw.CollectorPublicKey)
+		trustedPublicKey, ok := trustedCollectors[collectorRef]
+		if !ok {
+			return fmt.Errorf("control %q references untrusted collector %q", controlRef, collectorRef)
+		}
+		if suppliedPublicKey != trustedPublicKey {
+			return fmt.Errorf("control %q collector public key does not match the server trust registry", controlRef)
+		}
+	}
+	return nil
 }
 
 func evaluateDefenseValidationAPIRequest(input defenseValidationAPIRequest) (defenseValidationAPIResponse, error) {
