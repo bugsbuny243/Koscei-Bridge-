@@ -49,7 +49,7 @@ Some routes in this group are public while others still enforce their own authen
 - `GET /api/auth/token-access`
 - `GET /api/auth/premium-access`
 
-Developer API keys remain credentials. They do not bypass live KOSCH eligibility checks.
+Developer API keys remain credentials. Commercial authorization is derived from the active SaaS entitlement; wallet/token holdings do not grant developer API access.
 
 ## Customer Radar and reports
 
@@ -68,7 +68,7 @@ Developer API keys remain credentials. They do not bypass live KOSCH eligibility
 - `POST /api/jobs/token-scan`
 - `GET /api/jobs/`
 
-These routes are session-authenticated and apply the configured KOSCH tier and quota policy.
+These routes are session-authenticated and apply the configured SaaS entitlement and quota policy.
 
 ## Developer API
 
@@ -76,9 +76,15 @@ These routes are session-authenticated and apply the configured KOSCH tier and q
 - `GET /api/v1/usage`
 - `POST /api/v1/shield/preflight`
 - `POST /api/v1/shield/transaction`
+- `POST /api/v1/shield/state-recheck`
 - `POST /api/v1/shield/address-poisoning`
+- `POST /api/v1/defense/validation`
+
+Developer routes require an API key backed by an active Enterprise entitlement.
 
 The transaction route is the evidence-first Transaction Guard. It may return `allow`, `warn`, `block` or `withhold`; missing required evidence never becomes an `allow` result.
+
+The defense-validation route evaluates an already-collected isolated defense test. It reparses the complete scenario contract, recomputes execution-containment and execution-proof evidence, authenticates independent Ed25519 collector observations, and then produces the deterministic attack/benign validation report. It cannot run arbitrary commands, send a mainnet transaction or mutate a production control. See `docs/defense-validation-api.md`.
 
 ## Immutable dossier surface
 
@@ -104,11 +110,11 @@ Dossier publication transports immutable evidence. It does not create evidence o
 - `/api/webhooks/deliveries`
 - `/api/webhooks/deliveries/`
 
-Watchlist routes require the configured Pro access policy. Webhook management uses the Enterprise access policy. Security subscriptions include durable ARVIS and Transaction Guard alert delivery.
+Watchlist routes require the configured Professional access policy. Webhook management uses the Enterprise access policy. Security subscriptions include durable ARVIS and Transaction Guard alert delivery.
 
 ## Owner operations
 
-The owner surface includes command-center, operations, ARVIS/radar jobs, creator and actor intelligence, funding-corpus warmup, Defense investigation tracks, route-map inspection, KOSCH access inspection, security events, user operations, owner brain/chat and dossier publication controls.
+The owner surface includes command-center, operations, ARVIS/radar jobs, creator and actor intelligence, funding-corpus warmup, Defense investigation tracks, route-map inspection, legacy telemetry inspection, security events, user operations, owner brain/chat and dossier publication controls.
 
 The exact current list is returned by `GET /api/owner/route-map`; do not maintain a second hand-written owner list in product code.
 
@@ -135,13 +141,13 @@ Registered owner-only paths under that gate are:
 - `/api/owner/defense/harness-materialization`
 - `/api/owner/defense/litesvm-execution`
 
-These are lab/reproduction surfaces and remain separate from ARVIS verdict authority.
+These are lab/reproduction surfaces and remain separate from ARVIS verdict authority and from the Enterprise defense-validation evidence-evaluation route.
 
 ## Route hygiene contract
 
 - Boot-chain registration defines whether a handler is live.
 - `productionRouteInventory()` must contain every literal `/api/*` boot-chain registration and must not retain removed routes.
 - The database-optional allowlist must not contain an unregistered API path.
-- Documentation must not resurrect legacy Shopier, Paddle, package-purchase or owner-payment routes that are no longer registered.
+- Documentation must not resurrect legacy Shopier, package-purchase or owner-payment routes that are no longer registered.
 - Evidence-backed outputs are signed only when verified evidence exists.
 - Missing, malformed or unavailable evidence fails closed rather than becoming a safety signal.
