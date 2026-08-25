@@ -25,11 +25,11 @@ const (
 )
 
 type SafeExecutionAttestationBindingV1 struct {
-	Version              string `json:"version"`
-	ChainID              uint64 `json:"chain_id"`
-	Safe                 string `json:"safe"`
-	SafeTxHash           string `json:"safe_tx_hash"`
-	ExecutionProofSHA256 string `json:"execution_proof_sha256"`
+	Version                      string `json:"version"`
+	ChainID                      uint64 `json:"chain_id"`
+	Safe                         string `json:"safe"`
+	SafeTxHash                   string `json:"safe_tx_hash"`
+	ExecutionProofEnvelopeSHA256 string `json:"execution_proof_envelope_sha256"`
 }
 
 type SafeExecutionAttestationTrustV1 struct {
@@ -60,9 +60,9 @@ func (b SafeExecutionAttestationBindingV1) Canonical() (SafeExecutionAttestation
 	if !validHex32(out.SafeTxHash) {
 		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation safeTxHash is invalid")
 	}
-	out.ExecutionProofSHA256 = strings.ToLower(strings.TrimSpace(out.ExecutionProofSHA256))
-	if !validSHA256(out.ExecutionProofSHA256) {
-		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation proof digest is invalid")
+	out.ExecutionProofEnvelopeSHA256 = strings.ToLower(strings.TrimSpace(out.ExecutionProofEnvelopeSHA256))
+	if !validSHA256(out.ExecutionProofEnvelopeSHA256) {
+		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation proof envelope digest is invalid")
 	}
 	return out, nil
 }
@@ -82,8 +82,9 @@ func SafeExecutionAttestationBindingDigestV1(binding SafeExecutionAttestationBin
 
 // VerifySafeExecutionAttestationV1 authenticates the independently produced
 // evidence event against trust material supplied by the server, never by the
-// request. The signed event must bind the exact recomputed Execution Proof and
-// Safe transaction hash, and its observation window must still be fresh.
+// request. The signed event must bind the exact recomputed Execution Proof
+// envelope digest and Safe transaction hash, and its complete observation
+// window must still be fresh.
 func VerifySafeExecutionAttestationV1(event securityevidence.Event, binding SafeExecutionAttestationBindingV1, trust SafeExecutionAttestationTrustV1, now time.Time) []ReasonCode {
 	trust.Producer = strings.TrimSpace(trust.Producer)
 	trust.PublicKey = strings.TrimSpace(trust.PublicKey)
@@ -111,7 +112,7 @@ func VerifySafeExecutionAttestationV1(event securityevidence.Event, binding Safe
 		canonicalEvent.Subject.Type != SafeExecutionAttestationSubjectTypeV1 ||
 		!strings.EqualFold(canonicalEvent.Subject.ID, canonicalBinding.SafeTxHash) ||
 		len(canonicalEvent.SourceDigests) != 1 ||
-		!strings.EqualFold(canonicalEvent.SourceDigests[0], canonicalBinding.ExecutionProofSHA256) ||
+		!strings.EqualFold(canonicalEvent.SourceDigests[0], canonicalBinding.ExecutionProofEnvelopeSHA256) ||
 		!hasVerifiedSafeExecutionBindingV1(canonicalEvent.Findings, bindingDigest) {
 		return []ReasonCode{ReasonUntrustedAttestation}
 	}
@@ -119,7 +120,7 @@ func VerifySafeExecutionAttestationV1(event securityevidence.Event, binding Safe
 	nowMS := now.UTC().UnixMilli()
 	maxFutureMS := trust.MaxFutureSkew.Milliseconds()
 	maxAgeMS := trust.MaxAge.Milliseconds()
-	if canonicalEvent.Window.ToUnixMS > nowMS+maxFutureMS || nowMS-canonicalEvent.Window.ToUnixMS > maxAgeMS {
+	if canonicalEvent.Window.ToUnixMS > nowMS+maxFutureMS || nowMS-canonicalEvent.Window.FromUnixMS > maxAgeMS {
 		return []ReasonCode{ReasonStaleAttestation}
 	}
 	return nil
