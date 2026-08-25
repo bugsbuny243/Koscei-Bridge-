@@ -68,6 +68,7 @@ function render(){
   const removed=all.filter(user=>statusOf(user)==='removed').length;
   const wallets=all.filter(hasWallet).length;
   const paid=all.filter(user=>planOf(user)!=='free').length;
+  const starter=all.filter(user=>planOf(user)==='starter').length;
   const professional=all.filter(user=>planOf(user)==='professional').length;
   const enterprise=all.filter(user=>planOf(user)==='enterprise').length;
   root.innerHTML=`<section class="owner-customer-directory" data-customer-directory="1">
@@ -79,7 +80,7 @@ function render(){
       ${metric('Toplam müşteri',all.length,'Kayıtlı hesap','cyan')}
       ${metric('Aktif',active,'Kullanabilir','green')}
       ${metric('Cüzdan bağlı',wallets,`${Math.max(0,all.length-wallets)} hesaptan cüzdan yok`,'cyan')}
-      ${metric('Ücretli paket',paid,`${professional} Professional · ${enterprise} Enterprise`,'green')}
+      ${metric('Ücretli paket',paid,`${starter} Starter · ${professional} Pro · ${enterprise} Enterprise`,'green')}
       ${metric('Yasaklı',banned,'Owner kontrolü','amber')}
       ${metric('Kaldırılmış',removed,'Erişimi kapalı','red')}
     </div>
@@ -116,7 +117,7 @@ function row(user){
     <td>${pill(plan.toUpperCase(),planClass)}<div class="muted small">${esc(user.active_entitlement_status||'No active package')}</div></td>
     <td>${pill(status.toUpperCase(),statusClass)}</td>
     <td>${esc(dateText(user.updated_at||user.created_at))}</td>
-    <td><button class="btn small" data-customer-manage="${esc(user.id)}" type="button">Yönet</button></td>
+    <td><button class="btn small" data-customer-manage="${esc(user.id)}" type="button">Detay / Yönet</button></td>
   </tr>`;
 }
 
@@ -130,21 +131,50 @@ function bind(){
   document.querySelectorAll('[data-customer-manage]').forEach(button=>button.addEventListener('click',()=>manage(state.users.find(user=>String(user.id)===String(button.dataset.customerManage)))));
 }
 
-async function manage(user){
+function closeCustomerModal(){const root=$('modalRoot');if(root)root.innerHTML='';}
+function manage(user){
   if(!user)return;
-  const status=statusOf(user);
-  const action=prompt(`Müşteri: ${user.email}\nDurum: ${status}\n\nYaz: ban / unban / remove / cancel`,'cancel');
-  if(!action||action==='cancel')return;
-  const command=String(action).trim().toLowerCase();
+  const root=$('modalRoot');if(!root)return;
+  const status=statusOf(user),plan=planOf(user),wallet=String(user.wallet_address||'');
+  const expires=user.entitlement_expires_at?dateText(user.entitlement_expires_at):'Süre sınırı yok / aktif paket yok';
+  root.innerHTML=`<div class="modal-backdrop" data-customer-modal-backdrop><section class="modal" role="dialog" aria-modal="true" aria-label="Müşteri detayı">
+    <div class="modal-head"><div><span class="eyebrow">MÜŞTERİ DETAYI</span><h2>${esc(user.email||'—')}</h2></div><button class="modal-close" data-customer-close type="button">×</button></div>
+    <div class="metadata">
+      <div><label>Hesap durumu</label><b>${esc(status.toUpperCase())}</b></div>
+      <div><label>Paket</label><b>${esc(plan.toUpperCase())}</b></div>
+      <div><label>Cüzdan</label><b class="mono">${esc(wallet||'Bağlı değil')}</b></div>
+      <div><label>Auth subject</label><b class="mono">${esc(user.auth_subject||'—')}</b></div>
+      <div><label>Kayıt</label><b>${esc(dateText(user.created_at))}</b></div>
+      <div><label>Son güncelleme</label><b>${esc(dateText(user.updated_at||user.created_at))}</b></div>
+      <div><label>Entitlement</label><b>${esc(user.active_entitlement_status||'No active package')}</b></div>
+      <div><label>Paket bitişi</label><b>${esc(expires)}</b></div>
+    </div>
+    <div class="modal-actions">
+      ${status==='banned'?'<button class="btn primary" data-customer-action="unban" type="button">Yasağı kaldır</button>':'<button class="btn warn" data-customer-action="ban" type="button">Kullanıcıyı yasakla</button>'}
+      ${status!=='removed'?'<button class="btn danger" data-customer-action="remove" type="button">Erişimi kaldır</button>':''}
+      <button class="btn" data-customer-close type="button">Kapat</button>
+    </div>
+    <div class="muted small section-gap">Bu işlemler Owner API üzerinden uygulanır ve müşteri kimliği e-posta/auth kaydı ile doğrulanır.</div>
+  </section></div>`;
+  root.querySelectorAll('[data-customer-close]').forEach(button=>button.addEventListener('click',closeCustomerModal));
+  root.querySelector('[data-customer-modal-backdrop]')?.addEventListener('click',event=>{if(event.target===event.currentTarget)closeCustomerModal();});
+  root.querySelectorAll('[data-customer-action]').forEach(button=>button.addEventListener('click',()=>runCustomerAction(user,button.dataset.customerAction,button)));
+}
+
+async function runCustomerAction(user,action,button){
+  if(!user||!action)return;
+  const label=action==='ban'?'yasaklansın':action==='unban'?'yasağı kaldırılsın':'erişimi kaldırılsın';
+  if(!confirm(`${user.email} için ${label}?`))return;
+  button.disabled=true;
+  const previous=button.textContent;button.textContent='Uygulanıyor…';
   try{
-    if(command==='ban'||command==='unban'){
-      await owner().api('/api/owner/users/ban',{method:'POST',body:JSON.stringify({email:user.email,ban:command==='ban',reason:'owner_customer_directory'})});
-    }else if(command==='remove'){
-      if(!confirm(`${user.email} erişimi kaldırılsın mı?`))return;
+    if(action==='ban'||action==='unban'){
+      await owner().api('/api/owner/users/ban',{method:'POST',body:JSON.stringify({email:user.email,ban:action==='ban',reason:'owner_customer_directory'})});
+    }else if(action==='remove'){
       await owner().api('/api/owner/users/remove',{method:'POST',body:JSON.stringify({email:user.email,reason:'owner_customer_directory'})});
-    }else{return;}
-    await load();
-  }catch(error){alert(error.message||'İşlem başarısız.');}
+    }
+    closeCustomerModal();await load();
+  }catch(error){button.disabled=false;button.textContent=previous;alert(error.message||'İşlem başarısız.');}
 }
 
 function boot(){
@@ -161,6 +191,7 @@ function boot(){
     }).observe(root,{childList:true});
   }
   document.addEventListener('click',event=>{if(event.target.closest('[data-nav="customers"]'))scheduleLoad(160);});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('[data-customer-modal-backdrop]'))closeCustomerModal();});
   if($('page-customers')?.classList.contains('active'))scheduleLoad(60);
 }
 
