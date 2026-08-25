@@ -4,19 +4,16 @@ import (
 	"context"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 )
 
-const (
-	holderFlowIdentityLookupLimit       = 24
-	holderFlowIdentityLookupConcurrency = 4
-	holderFlowIdentityLookupTimeout     = 4 * time.Second
-)
+const holderFlowIdentityLookupLimit = 24
 
 // enrichHolderClusterFlowObservations attaches positively-resolved Helius
 // identity metadata to bounded transfer observations. Unknown addresses remain
 // unlabeled; no entity or risk flag is guessed from transfer behavior alone.
+// Paid identity lookups are collected first so an explicitly enabled deployment
+// can resolve the bounded set with one batch request instead of one 100-credit
+// Wallet API request per address.
 func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, holderWallets map[string]bool, observations []HolderClusterFlowObservation, budget *holderScanRPCBudget) []HolderClusterFlowObservation {
 	if len(observations) == 0 {
 		return observations
@@ -25,6 +22,7 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 	labels := map[string]*WalletLabel{}
 	pending := []string{}
 	seen := map[string]bool{}
+	identityLookupAllowed := heliusWalletIdentityEnabled() && !heliusWalletIdentityUnavailable()
 	for _, observation := range observations {
 		for _, address := range holderFlowIdentityAddresses(observation) {
 			if seen[address] {
@@ -33,6 +31,9 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 			seen[address] = true
 			if cached, ok := labelCacheGet(address); ok {
 				labels[address] = cached
+				continue
+			}
+			if !identityLookupAllowed {
 				continue
 			}
 			if budget != nil && !budget.ReserveIdentity(1) {
@@ -48,29 +49,11 @@ func enrichHolderClusterFlowObservations(ctx context.Context, rpcURL string, hol
 		}
 	}
 
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, holderFlowIdentityLookupConcurrency)
-	for _, address := range pending {
-		address := address
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-			defer func() { <-sem }()
-			lookupCtx, cancel := context.WithTimeout(ctx, holderFlowIdentityLookupTimeout)
-			defer cancel()
-			label := ResolveWalletLabel(lookupCtx, rpcURL, address)
-			mu.Lock()
+	if len(pending) > 0 && ctx.Err() == nil {
+		for address, label := range ResolveWalletLabels(ctx, rpcURL, pending) {
 			labels[address] = label
-			mu.Unlock()
-		}()
+		}
 	}
-	wg.Wait()
 
 	out := make([]HolderClusterFlowObservation, 0, len(observations))
 	for _, observation := range observations {
