@@ -1,17 +1,20 @@
 package http
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 )
 
+const piBrowserFrameAncestors = "frame-ancestors 'self' https://app-cdn.minepi.com https://sandbox.minepi.com https://*.minepi.com https://*.pinet.com"
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paddleCheckout := isPaddleCheckoutRequest(r)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
@@ -20,11 +23,18 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy", koscheiBaseCSP())
 		if paddleCheckout {
 			// The checkout page is intentionally the only public surface allowed to
-			// load Paddle.js and Paddle's payment frame. Do not disable the browser
-			// payment feature here; wallet methods may rely on it inside Paddle.
+			// load Paddle.js and Paddle's payment frame. It stays non-embeddable.
+			w.Header().Set("X-Frame-Options", "DENY")
 			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 			w.Header().Set("Content-Security-Policy", paddleCheckoutCSP())
 			w.Header().Set("Cache-Control", "no-store")
+		} else {
+			// Pi Browser/PiNet hosts the configured app inside Pi-controlled web
+			// surfaces. X-Frame-Options: DENY and frame-ancestors 'none' make
+			// Chromium reject that navigation with ERR_BLOCKED_BY_RESPONSE.
+			// Keep clickjacking protection through a narrow CSP ancestor allowlist
+			// instead of allowing arbitrary framing.
+			w.Header().Del("X-Frame-Options")
 		}
 		if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
@@ -33,10 +43,72 @@ func securityHeaders(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		secured := newCSPHTMLResponseWriter(w, r)
+
+		frameWriter := &piBrowserFrameResponseWriter{ResponseWriter: w}
+		secured := newCSPHTMLResponseWriter(frameWriter, r)
 		next.ServeHTTP(secured, r)
 		secured.finish()
 	})
+}
+
+type piBrowserFrameResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w *piBrowserFrameResponseWriter) Header() http.Header {
+	return w.ResponseWriter.Header()
+}
+
+func (w *piBrowserFrameResponseWriter) WriteHeader(status int) {
+	applyPiBrowserFramePolicy(w.Header())
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *piBrowserFrameResponseWriter) Write(p []byte) (int, error) {
+	applyPiBrowserFramePolicy(w.Header())
+	return w.ResponseWriter.Write(p)
+}
+
+func (w *piBrowserFrameResponseWriter) Flush() {
+	applyPiBrowserFramePolicy(w.Header())
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (w *piBrowserFrameResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hijacker.Hijack()
+}
+
+func (w *piBrowserFrameResponseWriter) Push(target string, options *http.PushOptions) error {
+	pusher, ok := w.ResponseWriter.(http.Pusher)
+	if !ok {
+		return http.ErrNotSupported
+	}
+	return pusher.Push(target, options)
+}
+
+func (w *piBrowserFrameResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+func applyPiBrowserFramePolicy(header http.Header) {
+	if header == nil {
+		return
+	}
+	header.Del("X-Frame-Options")
+	policy := header.Get("Content-Security-Policy")
+	if policy == "" {
+		return
+	}
+	if strings.Contains(policy, "frame-ancestors 'none'") {
+		policy = strings.Replace(policy, "frame-ancestors 'none'", piBrowserFrameAncestors, 1)
+		header.Set("Content-Security-Policy", policy)
+	}
 }
 
 func isPaddleCheckoutRequest(r *http.Request) bool {
