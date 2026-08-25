@@ -87,10 +87,12 @@ func TestHeliusWalletIdentityBatchesMultipleAddressesIntoOneRequest(t *testing.T
 			t.Fatalf("expected %d batched addresses, got %#v", len(addresses), payload.Addresses)
 		}
 		w.Header().Set("Content-Type", "application/json")
+		// Deliberately return rows out of request order. Evidence attribution
+		// must bind by exact address, never array position.
 		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{"address": addresses[2], "type": "market_maker", "name": "Market Maker", "category": "Market Maker", "tags": []string{}},
 			{"address": addresses[0], "type": "exchange", "name": "Binance 1", "category": "Centralized Exchange", "tags": []string{"Centralized Exchange"}},
 			{"address": addresses[1], "type": "protocol", "name": "Protocol Treasury", "category": "DeFi Protocol", "tags": []string{"Treasury"}},
-			{"address": addresses[2], "type": "market_maker", "name": "Market Maker", "category": "Market Maker", "tags": []string{}},
 		})
 	}))
 
@@ -104,7 +106,7 @@ func TestHeliusWalletIdentityBatchesMultipleAddressesIntoOneRequest(t *testing.T
 	if labels[addresses[1]] == nil || labels[addresses[1]].Category != "DeFi Protocol" {
 		t.Fatalf("unexpected second identity: %#v", labels[addresses[1]])
 	}
-	if labels[addresses[2]] == nil || labels[addresses[2]].Source != "helius_identity" {
+	if labels[addresses[2]] == nil || labels[addresses[2]].Entity != "Market Maker" || labels[addresses[2]].Source != "helius_identity" {
 		t.Fatalf("unexpected third identity: %#v", labels[addresses[2]])
 	}
 }
