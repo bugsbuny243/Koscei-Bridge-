@@ -41,12 +41,12 @@ func TestFetchBoundedMintCreationObservationPreservesExactCreateEvidence(t *test
 				_ = json.Unmarshal(payload.Params[0], &signature)
 			}
 			result := map[string]any{
-				"slot": float64(700),
+				"slot":      float64(700),
 				"blockTime": float64(1700000700),
 				"transaction": map[string]any{
 					"signatures": []any{signature},
 					"message": map[string]any{
-						"accountKeys": []any{map[string]any{"pubkey": "OtherSigner111", "signer": true}},
+						"accountKeys":  []any{map[string]any{"pubkey": "OtherSigner111", "signer": true}},
 						"instructions": []any{},
 					},
 				},
@@ -54,7 +54,7 @@ func TestFetchBoundedMintCreationObservationPreservesExactCreateEvidence(t *test
 			}
 			if signature == createSignature {
 				result = map[string]any{
-					"slot": float64(500),
+					"slot":      float64(500),
 					"blockTime": float64(1700000500),
 					"transaction": map[string]any{
 						"signatures": []any{createSignature},
