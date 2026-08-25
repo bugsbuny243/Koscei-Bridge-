@@ -1,0 +1,52 @@
+name: Pi funding main sync
+
+on:
+  push:
+    branches:
+      - feat/arvis-pi-funding-cluster-v4
+
+permissions:
+  contents: write
+
+jobs:
+  sync-main:
+    if: github.repository == 'bugsbuny243/Koschei-Web3-Hub' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout funding branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/arvis-pi-funding-cluster-v4
+          fetch-depth: 0
+      - name: Merge current main with controlled docs resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp docs/arvis-pi-migration-plan.md /tmp/arvis-pi-migration-plan.md
+          git config user.name "koschei-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main
+          set +e
+          git merge --no-ff --no-commit origin/main
+          merge_rc=$?
+          set -e
+          if [ "$merge_rc" -ne 0 ]; then
+            unmerged="$(git diff --name-only --diff-filter=U)"
+            if [ "$unmerged" != "docs/arvis-pi-migration-plan.md" ]; then
+              printf 'Unexpected merge conflicts:\n%s\n' "$unmerged"
+              git merge --abort || true
+              exit 1
+            fi
+            cp /tmp/arvis-pi-migration-plan.md docs/arvis-pi-migration-plan.md
+            git add docs/arvis-pi-migration-plan.md
+          fi
+          if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+            git diff --name-only --diff-filter=U
+            git merge --abort || true
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "merge(main): sync Pi funding evidence branch"
+          git push origin HEAD:feat/arvis-pi-funding-cluster-v4
