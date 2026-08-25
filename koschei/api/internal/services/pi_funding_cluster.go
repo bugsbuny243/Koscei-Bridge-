@@ -51,7 +51,7 @@ type PiFundingClusterObservation struct {
 	SharedSourceGroupCount   int                          `json:"shared_source_group_count"`
 	LargestSharedSourceGroup int                          `json:"largest_shared_source_group"`
 	SharedSources            []PiFundingSharedSourceGroup `json:"shared_sources"`
-	Rows                     []PiFundingOriginRow          `json:"rows"`
+	Rows                     []PiFundingOriginRow         `json:"rows"`
 	Limitations              []string                     `json:"limitations,omitempty"`
 	GeneratedAt              string                       `json:"generated_at"`
 }
