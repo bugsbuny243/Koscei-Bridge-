@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -143,22 +145,22 @@ func (h *Handler) SafeExecutionAssuranceV1(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, safeExecutionAssuranceAPIResponse{
-		OK:                       true,
-		Product:                  "Koschei Execution Assurance",
-		Decision:                 decision,
-		ReasonCodes:              reasons,
-		EvidenceModel:            "trusted_ed25519_attestation_plus_recomputed_execution_proof_plus_native_safe_eip712_hash",
-		ComputedSafeTxHash:       computedSafeTxHash,
-		PresentedSafeTxHash:      presentedSafeTxHash,
-		PresentedEnvelopeSHA256:  strings.TrimSpace(input.ExecutionProof.EnvelopeSHA256),
-		RecomputedEnvelopeSHA256: recomputedProof.EnvelopeSHA256,
-		AttestationVerified:      len(attestationReasons) == 0,
-		AttestationProducer:      strings.TrimSpace(input.ProofAttestation.Producer),
-		AttestationEventSHA256:   strings.TrimSpace(input.ProofAttestation.EventSHA256),
-		AttestationBindingSHA256: bindingDigest,
-		MainnetTransactionSent:   false,
-		SigningAuthority:         false,
-		ForwardingAuthority:      false,
+		OK:                        true,
+		Product:                   "Koschei Execution Assurance",
+		Decision:                  decision,
+		ReasonCodes:               reasons,
+		EvidenceModel:             "trusted_ed25519_attestation_plus_recomputed_execution_proof_plus_native_safe_eip712_hash",
+		ComputedSafeTxHash:        computedSafeTxHash,
+		PresentedSafeTxHash:       presentedSafeTxHash,
+		PresentedEnvelopeSHA256:   strings.TrimSpace(input.ExecutionProof.EnvelopeSHA256),
+		RecomputedEnvelopeSHA256:  recomputedProof.EnvelopeSHA256,
+		AttestationVerified:       len(attestationReasons) == 0,
+		AttestationProducer:       strings.TrimSpace(input.ProofAttestation.Producer),
+		AttestationEventSHA256:    strings.TrimSpace(input.ProofAttestation.EventSHA256),
+		AttestationBindingSHA256:  bindingDigest,
+		MainnetTransactionSent:    false,
+		SigningAuthority:          false,
+		ForwardingAuthority:       false,
 		ProductionControlMutation: false,
 		Limitations: []string{
 			"Verification applies only to the exact trusted attestation, recomputed Execution Proof envelope and complete Safe transaction supplied in this request.",
@@ -173,6 +175,10 @@ func safeExecutionAssuranceTrustFromEnv() (executionproof.SafeExecutionAttestati
 	publicKey := strings.TrimSpace(os.Getenv("KOSCHEI_EXECUTION_ASSURANCE_TRUSTED_ED25519_PUBLIC_KEY"))
 	if producer == "" || publicKey == "" {
 		return executionproof.SafeExecutionAttestationTrustV1{}, errors.New("trusted Safe execution assurance producer and Ed25519 public key are required")
+	}
+	decodedPublicKey, err := base64.RawURLEncoding.DecodeString(publicKey)
+	if err != nil || len(decodedPublicKey) != ed25519.PublicKeySize || base64.RawURLEncoding.EncodeToString(decodedPublicKey) != publicKey {
+		return executionproof.SafeExecutionAttestationTrustV1{}, errors.New("trusted Safe execution assurance Ed25519 public key must be canonical base64url")
 	}
 	return executionproof.SafeExecutionAttestationTrustV1{
 		Producer:      producer,
