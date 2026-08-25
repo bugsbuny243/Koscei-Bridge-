@@ -51,10 +51,24 @@ Pi evidence is not renamed Solana evidence.
 
 ## Phase 2
 
+Phase 2 is split into evidence slices so a new source cannot silently become verdict authority.
+
+### Implemented in provenance/control slice
+
+- issuer authorization interpretation from current signer-weight + medium/high threshold evidence;
+- future classic issuance is described as locked only when neither payment authorization nor Set Options authorization is currently possible;
+- exact historical maximum supply is **not** inferred from issuer lock state;
+- issuer `home_domain` is normalized as a bare public DNS name;
+- `https://<home_domain>/.well-known/pi.toml` is fetched with strict HTTPS, no redirects, bounded size/time and a public-IP-only dial policy;
+- the `[[CURRENCIES]]` entry must exactly match `CODE:ISSUER` and contain the Pi token metadata fields used by the official token guide;
+- verified domain binding remains protocol provenance and never becomes a real-world identity claim;
+- verified domain relation may be added to the ARVIS intelligence graph with its source URL and verification status.
+
+### Still required
+
 - Pi-specific deterministic ruleset with regression corpus;
 - Pi liquidity add/remove transaction parsing and reserve-delta evidence;
-- issuer lock/max-supply verification;
-- home-domain + `/.well-known/pi.toml` verifier with SSRF-safe fetch rules;
+- complete issuance-history proof before any exact maximum-supply statement;
 - Pi Sign-in identity binding through backend `/v2/me` verification;
 - durable Pi actor/issuer memory;
 - customer UI accepting `CODE:ISSUER` and Pi `G...` targets natively.
