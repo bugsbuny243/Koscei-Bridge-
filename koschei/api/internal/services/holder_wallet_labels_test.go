@@ -38,10 +38,29 @@ func useHeliusIdentityTestServer(t *testing.T, handler http.Handler) (*httptest.
 	return server, &calls
 }
 
+func TestHeliusWalletIdentityDisabledByDefault(t *testing.T) {
+	resetHeliusWalletIdentityStateForTest()
+	t.Cleanup(resetHeliusWalletIdentityStateForTest)
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "")
+	t.Setenv("HELIUS_API_KEY", "configured-key")
+
+	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("wallet identity must not call Helius without explicit opt-in")
+	}))
+
+	if label := ResolveWalletLabel(t.Context(), "", "Wallet1111111111111111111111111111111111111"); label != nil {
+		t.Fatalf("disabled wallet identity returned a label: %#v", label)
+	}
+	if *calls != 0 {
+		t.Fatalf("disabled wallet identity made %d provider calls", *calls)
+	}
+}
+
 func TestHeliusWalletIdentityBatchesMultipleAddressesIntoOneRequest(t *testing.T) {
 	resetHeliusWalletIdentityStateForTest()
 	t.Cleanup(resetHeliusWalletIdentityStateForTest)
-	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "true")
+	t.Setenv("HELIUS_API_KEY", "paid-plan-key")
 
 	addresses := []string{
 		"Wallet1111111111111111111111111111111111111",
@@ -55,7 +74,7 @@ func TestHeliusWalletIdentityBatchesMultipleAddressesIntoOneRequest(t *testing.T
 		if r.URL.Query().Get("api-key") != "" {
 			t.Fatal("wallet identity API key must not be placed in the request URL")
 		}
-		if got := r.Header.Get("X-Api-Key"); got != "free-plan-key" {
+		if got := r.Header.Get("X-Api-Key"); got != "paid-plan-key" {
 			t.Fatalf("unexpected X-Api-Key header: %q", got)
 		}
 		var payload struct {
@@ -90,10 +109,35 @@ func TestHeliusWalletIdentityBatchesMultipleAddressesIntoOneRequest(t *testing.T
 	}
 }
 
+func TestHeliusWalletIdentity403TripsProcessCapabilityCircuit(t *testing.T) {
+	resetHeliusWalletIdentityStateForTest()
+	t.Cleanup(resetHeliusWalletIdentityStateForTest)
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "1")
+	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+
+	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+
+	if label := ResolveWalletLabel(t.Context(), "", "Wallet4111111111111111111111111111111111111"); label != nil {
+		t.Fatalf("403 response returned a label: %#v", label)
+	}
+	if label := ResolveWalletLabel(t.Context(), "", "Wallet4222222222222222222222222222222222222"); label != nil {
+		t.Fatalf("capability-circuit response returned a label: %#v", label)
+	}
+	if *calls != 1 {
+		t.Fatalf("expected one provider call before the 403 circuit opened, got %d", *calls)
+	}
+	if !heliusWalletIdentityUnavailable() {
+		t.Fatal("expected wallet identity capability circuit to be unavailable after 403")
+	}
+}
+
 func TestHeliusWalletIdentitySingleWrapperUsesBatchAndCaches(t *testing.T) {
 	resetHeliusWalletIdentityStateForTest()
 	t.Cleanup(resetHeliusWalletIdentityStateForTest)
-	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "true")
+	t.Setenv("HELIUS_API_KEY", "paid-plan-key")
 
 	address := "Wallet4444444444444444444444444444444444444"
 	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +163,8 @@ func TestHeliusWalletIdentitySingleWrapperUsesBatchAndCaches(t *testing.T) {
 func TestHeliusWalletIdentityConfirmedUnknownIsNegativeCached(t *testing.T) {
 	resetHeliusWalletIdentityStateForTest()
 	t.Cleanup(resetHeliusWalletIdentityStateForTest)
-	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "true")
+	t.Setenv("HELIUS_API_KEY", "paid-plan-key")
 
 	address := "Wallet5555555555555555555555555555555555555"
 	_, calls := useHeliusIdentityTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +188,7 @@ func TestHeliusWalletIdentityConfirmedUnknownIsNegativeCached(t *testing.T) {
 func TestHeliusWalletIdentityMissingKeyIsNotCachedAsUnknown(t *testing.T) {
 	resetHeliusWalletIdentityStateForTest()
 	t.Cleanup(resetHeliusWalletIdentityStateForTest)
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "true")
 	t.Setenv("HELIUS_API_KEY", "")
 
 	address := "Wallet6666666666666666666666666666666666666"
@@ -160,7 +206,7 @@ func TestHeliusWalletIdentityMissingKeyIsNotCachedAsUnknown(t *testing.T) {
 		t.Fatalf("missing provider key made %d requests", *calls)
 	}
 
-	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+	t.Setenv("HELIUS_API_KEY", "paid-plan-key")
 	label := ResolveWalletLabel(t.Context(), "https://example.invalid", address)
 	if label == nil || label.Entity != "Known Entity" {
 		t.Fatalf("provider configuration recovery was blocked by a false negative cache: %#v", label)
@@ -173,7 +219,8 @@ func TestHeliusWalletIdentityMissingKeyIsNotCachedAsUnknown(t *testing.T) {
 func TestHeliusWalletIdentityProviderFailureIsRetryable(t *testing.T) {
 	resetHeliusWalletIdentityStateForTest()
 	t.Cleanup(resetHeliusWalletIdentityStateForTest)
-	t.Setenv("HELIUS_API_KEY", "free-plan-key")
+	t.Setenv("HELIUS_WALLET_IDENTITY_ENABLED", "true")
+	t.Setenv("HELIUS_API_KEY", "paid-plan-key")
 
 	address := "Wallet7777777777777777777777777777777777777"
 	attempt := 0
