@@ -56,7 +56,7 @@ func TestFetchHeliusTokenMetadataDefaultAvoidsArchivalHistory(t *testing.T) {
 
 	t.Setenv("HELIUS_API_KEY", "test-key")
 	t.Setenv("HELIUS_CREATED_MINT_ARCHIVAL_ENABLED", "")
-	metadata := FetchHeliusTokenMetadata(t.Context(), "", mint)
+	metadata := FetchHeliusTokenMetadata(t.Context(), server.URL, mint)
 	if archivalCalls != 0 {
 		t.Fatalf("default metadata made %d archival calls", archivalCalls)
 	}
