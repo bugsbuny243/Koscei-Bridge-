@@ -53,7 +53,6 @@ func TestPiHorizonSnapshotCollectsExactAssetEvidence(t *testing.T) {
 	}))
 	defer server.Close()
 	t.Setenv("PI_HORIZON_URL", server.URL)
-
 	target, _ := ParsePiRadarTarget("KSAFE:" + issuer)
 	snapshot := collectPiHorizonSnapshot(t.Context(), target)
 	if !snapshot.Available || !snapshot.AssetFound || snapshot.IssuerAccount == nil {
@@ -70,7 +69,7 @@ func TestPiHorizonSnapshotCollectsExactAssetEvidence(t *testing.T) {
 	}
 }
 
-func TestAnalyzeArvisRadarsMultiChainRoutesPiWithoutSigningGrade(t *testing.T) {
+func TestAnalyzeArvisRadarsMultiChainDefaultsPiTargetToMainnetWithoutSigningGrade(t *testing.T) {
 	issuer := piTestPublicKey(0x51)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -90,10 +89,9 @@ func TestAnalyzeArvisRadarsMultiChainRoutesPiWithoutSigningGrade(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	t.Setenv("PI_HORIZON_URL", server.URL)
-
+	t.Setenv("PI_MAINNET_HORIZON_URL", server.URL)
 	analysis := AnalyzeArvisRadarsMultiChainContext(t.Context(), SecurityRadarRequest{Target: "KSAFE:" + issuer, Mode: "test"})
-	if analysis.Bundle.Network != piTestnetNetwork || analysis.Bundle.Provider != piRadarEvidenceSourceHorizon {
+	if analysis.Bundle.Network != piMainnetNetwork || analysis.Bundle.Provider != piMainnetEvidenceSource {
 		t.Fatalf("wrong adapter: network=%s provider=%s", analysis.Bundle.Network, analysis.Bundle.Provider)
 	}
 	if len(analysis.Arms) != 14 {
@@ -107,10 +105,60 @@ func TestAnalyzeArvisRadarsMultiChainRoutesPiWithoutSigningGrade(t *testing.T) {
 	}
 }
 
+func TestAnalyzeArvisRadarsMultiChainSupportsExplicitPiTestnet(t *testing.T) {
+	issuer := piTestPublicKey(0x61)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/accounts/"+issuer {
+			fmt.Fprintf(w, `{"id":%q,"account_id":%q,"thresholds":{"low_threshold":1,"med_threshold":1,"high_threshold":1},"signers":[{"key":%q,"type":"ed25519_public_key","weight":1}],"balances":[]}`, issuer, issuer, issuer)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+	t.Setenv("PI_TESTNET_HORIZON_URL", server.URL)
+	analysis := AnalyzeArvisRadarsMultiChainContext(t.Context(), SecurityRadarRequest{Target: issuer, Network: "pi-testnet", Mode: "test"})
+	if analysis.Bundle.Network != piTestnetNetwork || analysis.Bundle.Provider != piTestnetEvidenceSourceV2 {
+		t.Fatalf("wrong testnet adapter: network=%s provider=%s", analysis.Bundle.Network, analysis.Bundle.Provider)
+	}
+	if analysis.Final.Signed {
+		t.Fatal("testnet evidence unexpectedly signed a grade")
+	}
+}
+
+func TestNormalizePiRadarNetwork(t *testing.T) {
+	cases := map[string]string{"pi": piMainnetNetwork, "pi-mainnet": piMainnetNetwork, "pinet-mainnet": piMainnetNetwork, "pi-testnet": piTestnetNetwork, "pinet-testnet": piTestnetNetwork}
+	for input, expected := range cases {
+		actual, ok := NormalizePiRadarNetwork(input)
+		if !ok || actual != expected {
+			t.Fatalf("NormalizePiRadarNetwork(%q) = %q,%t want %q,true", input, actual, ok, expected)
+		}
+	}
+	if _, ok := NormalizePiRadarNetwork("solana-mainnet"); ok {
+		t.Fatal("Solana network was accepted as Pi")
+	}
+}
+
+func TestPiMainnetHorizonDoesNotReuseLegacyTestnetOverride(t *testing.T) {
+	t.Setenv("PI_HORIZON_URL", "http://127.0.0.1:1")
+	t.Setenv("PI_MAINNET_HORIZON_URL", "")
+	base, err := piHorizonBaseURLForNetwork(piMainnetNetwork)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if base.String() != piDefaultMainnetHorizonURL {
+		t.Fatalf("mainnet base = %s want %s", base.String(), piDefaultMainnetHorizonURL)
+	}
+}
+
 func TestPiHorizonURLRejectsPublicHTTP(t *testing.T) {
 	t.Setenv("PI_HORIZON_URL", "http://example.com")
 	if _, err := piHorizonBaseURL(); err == nil {
 		t.Fatal("public HTTP Pi Horizon URL was accepted")
+	}
+	t.Setenv("PI_MAINNET_HORIZON_URL", "http://example.com")
+	if _, err := piHorizonBaseURLForNetwork(piMainnetNetwork); err == nil {
+		t.Fatal("public HTTP Pi mainnet Horizon URL was accepted")
 	}
 }
 
