@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Investigate Solana tokens, wallets, sites and transaction intent with evidence-backed Koschei Web3 security analysis.">
+<meta name="description" content="Investigate Pi accounts and assets with Pi-first evidence-backed Koschei Web3 analysis, while preserving explicit Solana investigation and transaction tooling.">
 <meta name="theme-color" content="#0b0f13">
 <title>Koschei Web3 | Investigation</title>
 <link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
@@ -25,25 +25,25 @@
 <main class="page">
 <nav class="top"><a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small>Investigation</small></span></a><div class="nav"><a class="btn" href="/cases">Evidence Cases</a><a class="btn" href="/dashboard">Workspace</a><a class="btn" href="/account">Account</a></div></nav>
 <section class="surface panel">
-<span class="eyebrow">Evidence-backed investigation</span>
+<span class="eyebrow">Pi-first evidence-backed investigation</span>
 <h1>Inspect a target before you trust it.</h1>
-<p class="sub">Use one investigation surface for a fast preflight, full token evidence, read-only transaction simulation or deeper actor and relationship analysis. Every mode keeps verified facts separate from observations and unresolved gaps.</p>
+<p class="sub">ARVIS now detects Pi accounts and assets first and collects Pi Mainnet evidence by default. Explicit Pi Testnet, Solana token investigation and Solana transaction simulation remain separate chain-specific paths so evidence is never silently reinterpreted.</p>
 <div class="modebar" role="group" aria-label="Investigation mode">
 <button class="mode" type="button" data-scan-mode="quick" aria-pressed="false"><span>Quick Check</span><small>Fast preflight</small></button>
-<button class="mode" type="button" data-scan-mode="token" aria-pressed="true"><span>Token Investigation</span><small>Full token evidence</small></button>
-<button class="mode" type="button" data-scan-mode="transaction" aria-pressed="false"><span>Transaction Simulation</span><small>Before signing</small></button>
+<button class="mode" type="button" data-scan-mode="token" aria-pressed="true"><span>Token Investigation</span><small>Chain-aware evidence</small></button>
+<button class="mode" type="button" data-scan-mode="transaction" aria-pressed="false"><span>Solana Transaction</span><small>Read-only simulation</small></button>
 <button class="mode" type="button" data-scan-mode="deep" aria-pressed="false"><span>Deep Investigation</span><small>Maximum evidence coverage</small></button>
 </div>
-<p class="mode-summary" id="modeSummary">Collect the complete token evidence file: authority state, owner-resolved distribution, launch context, graph relations, liquidity, and explicit evidence limits.</p>
+<p class="mode-summary" id="modeSummary">Collect the available chain-specific token evidence: authority state, distribution, launch context, graph relations, liquidity, provenance, and explicit evidence limits.</p>
 </section>
 <section class="hero">
 <article class="surface panel">
 <span class="eyebrow">Investigation request</span>
 <form class="form" id="scanForm">
 <div id="targetFields">
-<label class="label">Target to investigate<input class="input" id="target" autocomplete="off" placeholder="Solana token mint, wallet, or URL"></label>
-<label class="label" id="kindLabel">Target type<select class="select" id="kind"><option value="token">Token mint</option><option value="wallet">Wallet</option><option value="site">Site or URL</option><option value="transaction">Transaction intent</option></select></label>
-<label class="label">Intent or note<textarea class="textarea" id="note" placeholder="Example: I may buy this token or connect to this site"></textarea></label>
+<label class="label">Target to investigate<input class="input" id="target" autocomplete="off" placeholder="Pi G-address, CODE:G... issuer asset, Solana mint, wallet, or URL"></label>
+<label class="label" id="kindLabel">Target type<select class="select" id="kind"><option value="token">Token or asset</option><option value="wallet">Wallet</option><option value="site">Site or URL</option><option value="transaction">Transaction intent</option></select></label>
+<label class="label">Intent or note<textarea class="textarea" id="note" placeholder="Example: I may buy this asset or connect to this site"></textarea></label>
 </div>
 <div id="transactionFields" hidden>
 <label class="label">Base64 serialized Solana transaction<textarea class="textarea transaction-input" id="transaction" spellcheck="false" placeholder="AQAAAAAAAA..."></textarea></label>
@@ -51,13 +51,13 @@
 </div>
 <button class="primary" id="submit" type="submit">Run Token Investigation</button>
 </form>
-<p class="fine">Read-only analysis. Koschei never requests a recovery phrase, private key, custody, or blind signature. Transaction simulation never signs or broadcasts.</p>
+<p class="fine">Read-only analysis. Koschei never requests a recovery phrase, private key, custody, or blind signature. Pi evidence collection uses public chain data. Solana transaction simulation never signs or broadcasts.</p>
 </article>
 <aside class="surface panel">
 <span class="eyebrow">Evidence result</span>
-<div id="empty"><h2 style="margin-top:16px">Technical evidence will appear here.</h2><p class="sub" style="margin-top:9px">Verified, observed, unresolved, unavailable and not-applicable states remain distinct. Missing evidence is shown as a limitation, not converted into a safety claim.</p><div class="scan-context"><div><b>Reproducible inputs</b><span>Core facts and source references remain attached to the investigation.</span></div><div><b>Explicit coverage</b><span>Collector gaps and bounded observation windows remain visible.</span></div><div><b>Deterministic policy</b><span>Generated language cannot rewrite evidence, grade or policy output.</span></div></div></div>
+<div id="empty"><h2 style="margin-top:16px">Technical evidence will appear here.</h2><p class="sub" style="margin-top:9px">Verified, observed, unresolved, unavailable and not-applicable states remain distinct. Missing evidence is shown as a limitation, not converted into a safety claim.</p><div class="scan-context"><div><b>Reproducible inputs</b><span>Core facts and source references remain attached to the investigation.</span></div><div><b>Explicit coverage</b><span>Collector gaps and bounded observation windows remain visible.</span></div><div><b>Chain isolation</b><span>Pi evidence is not silently interpreted with Solana rules, and vice versa.</span></div></div></div>
 <div id="result" data-customer-arvis-result hidden></div>
-<div class="actions"><button id="shareResult" hidden>Share on X</button><a class="btn" id="openExplorer" target="_blank" rel="noopener" hidden>Open in Solscan</a></div>
+<div class="actions"><button id="shareResult" hidden>Share on X</button><a class="btn" id="openExplorer" target="_blank" rel="noopener" hidden>Open chain evidence</a></div>
 </aside>
 </section>
 <section class="product-section"><div class="product-section-head"><div><span class="eyebrow">Evidence policy</span><h2 class="section-title">A result is only as strong as the evidence behind it.</h2><p>No hidden demo data, no synthetic certainty and no custody requirement.</p></div></div><div class="proof-wall"><div class="proof-item"><span class="proof-icon">01</span><b>Source-aware</b><p>Reports preserve where evidence came from and distinguish source failure from a clean finding.</p></div><div class="proof-item"><span class="proof-icon">02</span><b>Unknown stays unknown</b><p>Unavailable or incomplete evidence cannot silently improve a risk outcome.</p></div><div class="proof-item"><span class="proof-icon">03</span><b>Read-only boundary</b><p>Investigation does not require private keys, custody or transaction broadcast authority.</p></div></div></section>
@@ -72,6 +72,7 @@
 <script src="/js/customer-arvis-premium-suite.js?v=2"></script>
 <script src="/js/public-scan-request-guard.js?v=1"></script>
 <script src="/js/investigation-share.js?v=1"></script>
+<script src="/js/pi-arvis-scan-router.js?v=1"></script>
 <script src="/js/public-solana-scan.js?v=11"></script>
 <script src="/js/customer-investigation-ux-v2.js?v=1"></script>
 <script src="/js/koschei-global-shell.js?v=4"></script>
