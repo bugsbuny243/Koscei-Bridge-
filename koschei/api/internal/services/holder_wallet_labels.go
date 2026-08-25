@@ -11,9 +11,15 @@ package services
 //
 // Design rules honored:
 //   - Reuses heliusEnhancedAPIKey; no new credentials.
-//   - Wallet API is available on Helius Free, but every Wallet API request costs
-//     100 credits. Multiple addresses are therefore resolved through the batch
-//     endpoint (up to 100 inputs for the same 100-credit request).
+//   - Helius documents identity and batch-identity as 100-credit paid-plan
+//     Wallet API endpoints. Identity is therefore explicit opt-in through
+//     HELIUS_WALLET_IDENTITY_ENABLED rather than a Free-plan default.
+//   - When enabled, multiple addresses are resolved through batch-identity (up
+//     to 100 inputs for the same 100-credit request) instead of one request per
+//     holder/flow endpoint.
+//   - A 401/403 opens a process-level capability circuit so a misconfigured or
+//     Free-plan deployment cannot repeat an unavailable paid call for every
+//     address in the same process.
 //   - Never fabricates: only labels positively returned by Helius are surfaced.
 //     Unknown/empty entries become cached unknowns, not safety claims.
 //   - Missing provider configuration and transient/provider failures are not
@@ -28,6 +34,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -67,7 +74,34 @@ var (
 
 	heliusIdentityHTTPClient   = http.DefaultClient
 	heliusIdentityHTTPClientMu sync.RWMutex
+	heliusIdentityCapability   = struct {
+		sync.RWMutex
+		Unavailable bool
+		StatusCode  int
+	}{}
 )
+
+func heliusWalletIdentityEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("HELIUS_WALLET_IDENTITY_ENABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func heliusWalletIdentityUnavailable() bool {
+	heliusIdentityCapability.RLock()
+	defer heliusIdentityCapability.RUnlock()
+	return heliusIdentityCapability.Unavailable
+}
+
+func markHeliusWalletIdentityUnavailable(statusCode int) {
+	heliusIdentityCapability.Lock()
+	heliusIdentityCapability.Unavailable = true
+	heliusIdentityCapability.StatusCode = statusCode
+	heliusIdentityCapability.Unlock()
+}
 
 func currentHeliusIdentityHTTPClient() *http.Client {
 	heliusIdentityHTTPClientMu.RLock()
@@ -100,9 +134,7 @@ func labelCacheSet(address string, label *WalletLabel) {
 }
 
 // ResolveWalletLabels resolves a bounded set of wallet identities using Helius'
-// batch endpoint. Helius documents the batch endpoint as supporting up to 100
-// addresses/domains per 100-credit Wallet API request, so callers should prefer
-// this function whenever more than one address is already known.
+// batch endpoint only when the paid identity capability is explicitly enabled.
 func ResolveWalletLabels(ctx context.Context, rpcURL string, addresses []string) map[string]*WalletLabel {
 	out := map[string]*WalletLabel{}
 	clean := make([]string, 0, len(addresses))
@@ -119,7 +151,7 @@ func ResolveWalletLabels(ctx context.Context, rpcURL string, addresses []string)
 		}
 		clean = append(clean, address)
 	}
-	if len(clean) == 0 || ctx.Err() != nil {
+	if len(clean) == 0 || ctx.Err() != nil || !heliusWalletIdentityEnabled() || heliusWalletIdentityUnavailable() {
 		return out
 	}
 
@@ -130,7 +162,7 @@ func ResolveWalletLabels(ctx context.Context, rpcURL string, addresses []string)
 		return out
 	}
 
-	for start := 0; start < len(clean) && ctx.Err() == nil; start += heliusIdentityBatchSize {
+	for start := 0; start < len(clean) && ctx.Err() == nil && !heliusWalletIdentityUnavailable(); start += heliusIdentityBatchSize {
 		end := start + heliusIdentityBatchSize
 		if end > len(clean) {
 			end = len(clean)
@@ -138,8 +170,8 @@ func ResolveWalletLabels(ctx context.Context, rpcURL string, addresses []string)
 		chunk := clean[start:end]
 		rows, err := fetchHeliusIdentityBatch(ctx, apiKey, chunk)
 		if err != nil {
-			// Transient/auth/provider failure: preserve unknown and allow a later
-			// scan to retry. Do not convert provider failure into address evidence.
+			// Transient/auth/provider failure: preserve unknown. A 401/403 also
+			// trips the capability circuit inside fetchHeliusIdentityBatch.
 			continue
 		}
 		for index, requested := range chunk {
@@ -181,6 +213,9 @@ func fetchHeliusIdentityBatch(ctx context.Context, apiKey string, addresses []st
 	body, err := io.ReadAll(io.LimitReader(res.Body, 4<<20))
 	if err != nil {
 		return nil, err
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		markHeliusWalletIdentityUnavailable(res.StatusCode)
 	}
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("helius wallet identity batch status %d", res.StatusCode)
@@ -245,6 +280,12 @@ func resetHeliusWalletIdentityStateForTest() {
 	walletLabelCacheMu.Lock()
 	walletLabelCache = map[string]*WalletLabel{}
 	walletLabelCacheMu.Unlock()
+
+	heliusIdentityCapability.Lock()
+	heliusIdentityCapability.Unavailable = false
+	heliusIdentityCapability.StatusCode = 0
+	heliusIdentityCapability.Unlock()
+
 	setHeliusIdentityHTTPClientForTest(http.DefaultClient)
 }
 
