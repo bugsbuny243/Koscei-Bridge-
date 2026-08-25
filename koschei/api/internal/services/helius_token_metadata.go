@@ -15,30 +15,30 @@ import (
 // until the creation transaction is re-read from canonical Solana RPC and the
 // candidate wallet is confirmed as a signer of the exact create instruction.
 type HeliusTokenMetadata struct {
-	Configured                   bool            `json:"configured"`
-	Available                    bool            `json:"available"`
-	Status                       string          `json:"status"`
-	Provider                     string          `json:"provider"`
-	Address                      string          `json:"address"`
-	Name                         string          `json:"name,omitempty"`
-	Symbol                       string          `json:"symbol,omitempty"`
-	Creator                      string          `json:"creator,omitempty"`
-	CreateTransaction            string          `json:"create_transaction,omitempty"`
-	CreatedTime                  int64           `json:"created_time,omitempty"`
-	CreatedAt                    time.Time       `json:"created_at,omitempty"`
-	FirstMintTransaction         string          `json:"first_mint_transaction,omitempty"`
-	FirstMintTime                int64           `json:"first_mint_time,omitempty"`
-	FirstMintAt                  time.Time       `json:"first_mint_at,omitempty"`
-	CreationHistorySource        string          `json:"creation_history_source,omitempty"`
-	CreationHistoryBounded       bool            `json:"creation_history_bounded"`
-	CreationSignaturesSeen       int             `json:"creation_signatures_seen,omitempty"`
+	Configured                    bool            `json:"configured"`
+	Available                     bool            `json:"available"`
+	Status                        string          `json:"status"`
+	Provider                      string          `json:"provider"`
+	Address                       string          `json:"address"`
+	Name                          string          `json:"name,omitempty"`
+	Symbol                        string          `json:"symbol,omitempty"`
+	Creator                       string          `json:"creator,omitempty"`
+	CreateTransaction             string          `json:"create_transaction,omitempty"`
+	CreatedTime                   int64           `json:"created_time,omitempty"`
+	CreatedAt                     time.Time       `json:"created_at,omitempty"`
+	FirstMintTransaction          string          `json:"first_mint_transaction,omitempty"`
+	FirstMintTime                 int64           `json:"first_mint_time,omitempty"`
+	FirstMintAt                   time.Time       `json:"first_mint_at,omitempty"`
+	CreationHistorySource         string          `json:"creation_history_source,omitempty"`
+	CreationHistoryBounded        bool            `json:"creation_history_bounded"`
+	CreationSignaturesSeen        int             `json:"creation_signatures_seen,omitempty"`
 	CreationTransactionsRequested int             `json:"creation_transactions_requested,omitempty"`
-	CreationTransactionsParsed  int             `json:"creation_transactions_parsed,omitempty"`
-	MintAuthority                string          `json:"mint_authority,omitempty"`
-	FreezeAuthority              string          `json:"freeze_authority,omitempty"`
-	OnchainExtensions            json.RawMessage `json:"onchain_extensions,omitempty"`
-	ObservedAt                   time.Time       `json:"observed_at"`
-	Limitations                  []string        `json:"limitations"`
+	CreationTransactionsParsed    int             `json:"creation_transactions_parsed,omitempty"`
+	MintAuthority                 string          `json:"mint_authority,omitempty"`
+	FreezeAuthority               string          `json:"freeze_authority,omitempty"`
+	OnchainExtensions             json.RawMessage `json:"onchain_extensions,omitempty"`
+	ObservedAt                    time.Time       `json:"observed_at"`
+	Limitations                   []string        `json:"limitations"`
 }
 
 type heliusTokenMetadataResponse struct {
