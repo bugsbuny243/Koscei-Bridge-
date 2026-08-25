@@ -4,11 +4,21 @@ ARVIS is currently Solana-heavy in live evidence collection. The migration targe
 
 Koschei Web3 core intelligence must remain chain-independent. Pi transport, Horizon objects, trustlines, issuer controls and liquidity pools belong to a Pi adapter; Solana RPC, SPL mint accounts, Pump and Raydium belong to a Solana adapter.
 
-## Pi Testnet evidence source
+## Pi evidence networks
 
-Official Pi token documentation identifies Pi Testnet Horizon at:
+Pi Mainnet is the production/default Pi evidence network:
+
+`https://api.mainnet.minepi.com`
+
+Pi Testnet remains an explicit development/evidence environment:
 
 `https://api.testnet.minepi.com`
+
+Runtime overrides are isolated by network:
+
+- `PI_MAINNET_HORIZON_URL` -> Pi Mainnet only;
+- `PI_TESTNET_HORIZON_URL` -> Pi Testnet only;
+- legacy `PI_HORIZON_URL` remains a Testnet-only compatibility override and is never reused for Mainnet.
 
 Pi assets are identified by `asset_code + issuer public G-address`, not by a Solana mint address. ARVIS Pi asset targets therefore use the canonical form:
 
@@ -45,7 +55,9 @@ Pi evidence is not renamed Solana evidence.
 
 - Unknown/incomplete Horizon responses remain UNKNOWN.
 - Bounded holder and liquidity-operation windows are never described as complete history.
-- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3/4 slices.
+- No risk grade is signed from Pi evidence until a Pi-specific deterministic ruleset and regression corpus are validated.
+- Mainnet and Testnet evidence are never silently mixed.
+- A Pi target paired with a non-Pi network fails closed instead of being reinterpreted as Solana.
 - No server-side wallet secrets.
 - No Mainnet transaction submission.
 
@@ -74,7 +86,7 @@ Each structured movement row preserves:
 - exact target asset and amount;
 - native reserve amount when present;
 - received/redeemed pool shares;
-- verification status and evidence source.
+- verification status and network-bound evidence source.
 
 Collection is bounded by pool and operation limits. Hitting a bound marks the history incomplete; no observed withdrawal/deposit is never translated into a SAFE claim.
 
@@ -84,13 +96,23 @@ The canonical customer scan accepts Pi targets without sending them through Sola
 
 - Pi assets matching the public `CODE:G...ISSUER` shape are detected as Pi token targets;
 - Pi public `G...` accounts are detected as Pi account targets;
-- Pi targets are sent to the existing authenticated `/api/security/radar/check` route with `network=pi-testnet`;
+- Pi targets are sent to the existing authenticated `/api/security/radar/check` chain dispatcher;
 - the backend remains the authority for checksum/target validation; browser detection is routing assistance only;
 - Pi results render an evidence file with observed/pending/not-applicable arms instead of borrowing the signed Solana verdict card;
 - the UI explicitly withholds a Pi grade and preserves `UNKNOWN != SAFE`;
 - Solana token investigations, preflight and transaction simulation keep their existing routes.
 
 The legacy filename `public-solana-scan.js` now contains chain-aware customer routing. Renaming that asset is cleanup work only and must not create a second scan runtime.
+
+## Phase 5 — Pi Mainnet promotion
+
+- Pi public targets with no explicit network default to `pi-mainnet`;
+- `pi-testnet` remains available only when explicitly selected;
+- current state, holder, issuer, payment, operation and liquidity-history reads use the same selected Horizon network;
+- evidence-source labels identify Mainnet vs Testnet;
+- customer result links open the matching Pi Horizon evidence endpoint;
+- Mainnet does not inherit the legacy Testnet Horizon override;
+- signed Pi grading remains disabled: moving evidence transport to Mainnet does not itself validate a risk ruleset.
 
 ## Still required
 
