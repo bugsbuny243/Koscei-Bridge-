@@ -346,7 +346,7 @@ func parsePiTOMLCurrencies(body []byte) ([]piTOMLCurrency, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if strings.HasPrefix(line, "[[") && strings.HasSuffix(line, "]]" ) {
+		if strings.HasPrefix(line, "[[") && strings.HasSuffix(line, "]]") {
 			if current != nil {
 				currencies = append(currencies, *current)
 				current = nil

@@ -6,18 +6,18 @@ import (
 )
 
 type PiIssuerControlObservation struct {
-	Status                         string `json:"status"`
-	EvidenceStatus                 string `json:"evidence_status"`
-	ActiveSignerCount              int    `json:"active_signer_count"`
-	ActiveSignerWeightSum          int    `json:"active_signer_weight_sum"`
-	MediumThreshold                int    `json:"medium_threshold"`
-	HighThreshold                  int    `json:"high_threshold"`
-	PaymentAuthorizationPossible   bool   `json:"payment_authorization_possible"`
-	SetOptionsAuthorizationPossible bool  `json:"set_options_authorization_possible"`
-	FutureClassicIssuanceLocked    bool   `json:"future_classic_issuance_locked"`
-	MaximumSupplyClaim             bool   `json:"maximum_supply_claim"`
-	IdentityClaim                  bool   `json:"identity_claim"`
-	Reason                         string `json:"reason"`
+	Status                          string `json:"status"`
+	EvidenceStatus                  string `json:"evidence_status"`
+	ActiveSignerCount               int    `json:"active_signer_count"`
+	ActiveSignerWeightSum           int    `json:"active_signer_weight_sum"`
+	MediumThreshold                 int    `json:"medium_threshold"`
+	HighThreshold                   int    `json:"high_threshold"`
+	PaymentAuthorizationPossible    bool   `json:"payment_authorization_possible"`
+	SetOptionsAuthorizationPossible bool   `json:"set_options_authorization_possible"`
+	FutureClassicIssuanceLocked     bool   `json:"future_classic_issuance_locked"`
+	MaximumSupplyClaim              bool   `json:"maximum_supply_claim"`
+	IdentityClaim                   bool   `json:"identity_claim"`
+	Reason                          string `json:"reason"`
 }
 
 // enrichPiIssuerControlEvidence interprets only the current signer/threshold
