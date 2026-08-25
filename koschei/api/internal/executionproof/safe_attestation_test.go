@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
 
@@ -56,6 +57,31 @@ func TestVerifySafeExecutionAttestationV1RejectsUntrustedSigner(t *testing.T) {
 	}
 }
 
+func TestVerifySafeExecutionAttestationV1RejectsTrustedSignerBindingSubstitution(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	privateKey := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x42}, ed25519.SeedSize))
+	trust := SafeExecutionAttestationTrustV1{
+		Producer:      "collector-a",
+		PublicKey:     base64.RawURLEncoding.EncodeToString(privateKey.Public().(ed25519.PublicKey)),
+		MaxAge:        5 * time.Minute,
+		MaxFutureSkew: 30 * time.Second,
+	}
+	approvedBinding := SafeExecutionAttestationBindingV1{
+		ChainID:              1,
+		Safe:                 "0x1111111111111111111111111111111111111111",
+		SafeTxHash:           "0x" + repeatHexAttestation("aa", 32),
+		ExecutionProofSHA256: repeatHexAttestation("bb", 32),
+	}
+	event := signedSafeExecutionAttestationEvent(t, approvedBinding, trust.Producer, privateKey, now.Add(-30*time.Second), now.Add(-time.Second))
+
+	substitutedBinding := approvedBinding
+	substitutedBinding.SafeTxHash = "0x" + repeatHexAttestation("cc", 32)
+	reasons := VerifySafeExecutionAttestationV1(event, substitutedBinding, trust, now)
+	if len(reasons) != 1 || reasons[0] != ReasonUntrustedAttestation {
+		t.Fatalf("trusted signer binding substitution did not fail closed: %v", reasons)
+	}
+}
+
 func TestVerifySafeExecutionAttestationV1RejectsStaleBinding(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0).UTC()
 	privateKey := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x42}, ed25519.SeedSize))
@@ -92,7 +118,7 @@ func signedSafeExecutionAttestationEvent(t *testing.T, binding SafeExecutionAtte
 	event, err := (securityevidence.Event{
 		Producer: producer,
 		Subject: securityevidence.Subject{
-			Chain: "eip155:1",
+			Chain: fmt.Sprintf("eip155:%d", canonical.ChainID),
 			Type:  SafeExecutionAttestationSubjectTypeV1,
 			ID:    canonical.SafeTxHash,
 		},
