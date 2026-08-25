@@ -198,6 +198,7 @@ func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, enterpr
 	mux.HandleFunc("/api/v1/shield/state-recheck", solana(requiresDB(h, enterprise(method("POST", h.TransactionGuardStateRecheck)))))
 	mux.HandleFunc("/api/v1/shield/address-poisoning", solana(requiresDB(h, enterpriseMetered(method("POST", h.AddressPoisoningCheck)))))
 	mux.HandleFunc("/api/v1/defense/validation", requiresDB(h, enterpriseMetered(method("POST", h.DefenseValidationV1))))
+	mux.HandleFunc("/api/v1/execution-assurance/safe/verify", requiresDB(h, enterpriseMetered(method("POST", h.SafeExecutionAssuranceV1))))
 }
 
 func registerStatic(mux *http.ServeMux, staticDir string) {
