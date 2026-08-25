@@ -172,7 +172,7 @@ func defenseValidationAPITestCase(
 			execution.ExecutionProofSHA256,
 		},
 		Findings: []securityevidence.Finding{{
-			ID: defense.DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef),
+			ID:   defense.DefenseValidationObservationFindingIDV02(control.ControlRef, execution.Case.CaseRef),
 			Kind: defense.DefenseValidationObservationFindingKindV02, State: securityevidence.StateVerified,
 			EvidenceSHA256: bindingDigest, Summary: "Independent observation of the bound defense-validation case.",
 		}},
@@ -185,8 +185,8 @@ func defenseValidationAPITestCase(
 		CaseRef: caseRef, CaseKind: kind, TechniqueID: "safe-intent-mutation", ControlRef: control.ControlRef,
 		ExecutionMode: defense.DefenseValidationExecutionForkV02, ImpactOffsetMS: impact, ObservationWindowMS: 3000,
 		ContainmentReceipt: receipt, ExecutionProof: proof,
-		ApprovedAction:  defenseValidationAPIAction{Kind: approvedAction.Kind, CanonicalBase64: base64.StdEncoding.EncodeToString(approvedAction.Canonical)},
-		CandidateAction: defenseValidationAPIAction{Kind: candidateAction.Kind, CanonicalBase64: base64.StdEncoding.EncodeToString(candidateAction.Canonical)},
+		ApprovedAction:     defenseValidationAPIAction{Kind: approvedAction.Kind, CanonicalBase64: base64.StdEncoding.EncodeToString(approvedAction.Canonical)},
+		CandidateAction:    defenseValidationAPIAction{Kind: candidateAction.Kind, CanonicalBase64: base64.StdEncoding.EncodeToString(candidateAction.Canonical)},
 		ObservationBinding: &binding, ObservationEvent: &event,
 	}
 }
