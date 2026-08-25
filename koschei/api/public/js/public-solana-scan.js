@@ -17,10 +17,10 @@ function installScanViewContract(){
 installScanViewContract();
 const OFFICIAL_KOSCH_MINT='HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump';
 const MODES={
-  quick:{summary:'Run a fast target check. Pi public targets are routed to Pi Horizon evidence; Solana targets keep the existing preflight boundary.',button:'Run Quick Check'},
-  token:{summary:'Collect the chain-native token evidence file. Pi assets use issuer, trustline, launch and liquidity evidence; Solana mints keep their existing collectors.',button:'Run Token Investigation'},
+  quick:{summary:'Run a fast evidence boundary for a token, wallet, site, or transaction intent. Pi public targets use Pi Mainnet by default; chain-specific evidence stays explicit.',button:'Run Quick Check'},
+  token:{summary:'Collect the available chain-native token evidence file: authority state, distribution, launch context, graph relations, liquidity, provenance, and explicit evidence limits.',button:'Run Token Investigation'},
   transaction:{summary:'Simulate a base64 serialized Solana transaction before signing. Koschei never signs, broadcasts, or requests wallet custody.',button:'Simulate Transaction'},
-  deep:{summary:'Run maximum available chain-native evidence coverage. Unsupported evidence stays explicit and never becomes a safety claim.',button:'Run Deep Radar'}
+  deep:{summary:'Run maximum available evidence coverage for the detected chain. Unsupported evidence remains fail-closed instead of being guessed.',button:'Run Deep Radar'}
 };
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -34,6 +34,8 @@ const short=value=>{const text=String(value??'');return text.length>24?`${text.s
 const isLikelyPiAccount=value=>/^G[A-Z2-7]{55}$/.test(String(value||'').trim());
 const isLikelyPiAsset=value=>{const raw=String(value||'').trim(),split=raw.lastIndexOf(':');if(split<=0)return false;return /^[A-Za-z0-9]{1,12}$/.test(raw.slice(0,split))&&isLikelyPiAccount(raw.slice(split+1))};
 const isLikelyPiTarget=value=>isLikelyPiAccount(value)||isLikelyPiAsset(value);
+const parsePiTarget=value=>{const raw=String(value||'').trim();if(isLikelyPiAccount(raw))return{kind:'account',account:raw};if(isLikelyPiAsset(raw)){const split=raw.lastIndexOf(':');return{kind:'asset',asset_code:raw.slice(0,split),issuer:raw.slice(split+1)}}return null};
+const requestedPiNetwork=()=>{const raw=new URLSearchParams(location.search||'').get('network')||'';return /testnet/i.test(raw)?'pi-testnet':'pi-mainnet'};
 
 async function fetchJSON(url,options={}){
   const timeoutMs=url.includes('/api/security/radar/check')?125000:url.includes('/api/token/scan')?45000:url.includes('/api/public/transaction-simulate')?30000:15000;
@@ -57,7 +59,7 @@ async function fetchJSON(url,options={}){
   }
 }
 
-function stateLabel(state){return({verified:'VERIFIED',observed:'OBSERVED',window_open:'MONITORING WINDOW',not_applicable:'NOT APPLICABLE',arm_pending:'EVIDENCE ARM MISSING',insufficient_evidence:'INSUFFICIENT EVIDENCE'}[state]||String(state||'').toUpperCase())}
+function stateLabel(state){return({verified:'VERIFIED',observed:'OBSERVED',partial_observation:'PARTIAL OBSERVATION',window_open:'MONITORING WINDOW',not_applicable:'NOT APPLICABLE',arm_pending:'EVIDENCE ARM MISSING',insufficient_evidence:'INSUFFICIENT EVIDENCE'}[state]||String(state||'').toUpperCase())}
 function refChip(type,value){const raw=String(value??'').trim();if(!raw)return'';return`<button class="evidence-ref" type="button" data-copy-ref="${esc(raw)}" title="Copy ${esc(type)}"><span>${esc(type)}</span><b>${esc(short(raw))}</b></button>`}
 function renderRefs(refs={}){const chips=[];(Array.isArray(refs.wallets)?refs.wallets:[]).forEach(value=>chips.push(refChip('wallet',value)));(Array.isArray(refs.accounts)?refs.accounts:[]).forEach(value=>chips.push(refChip('account',value)));(Array.isArray(refs.signatures)?refs.signatures:[]).forEach(value=>chips.push(refChip('signature',value)));(Array.isArray(refs.slots)?refs.slots:[]).forEach(value=>chips.push(refChip('slot',value)));(Array.isArray(refs.evidence_keys)?refs.evidence_keys:[]).forEach(value=>chips.push(refChip('evidence',value)));return chips.length?`<div class="evidence-refs" aria-label="Evidence references">${chips.join('')}</div>`:''}
 function signalRows(rows){return rows.map(row=>`<div class="public-signal ${esc(row.state)}" id="evidence-${esc(row.id)}"><span><b>${esc(row.label)}</b><small>${esc(stateLabel(row.state))}</small>${row.detail?`<small>${esc(row.detail)}</small>`:''}</span><em>${esc(row.value)}</em>${renderRefs(row.refs)}</div>`).join('')}
@@ -81,36 +83,32 @@ function renderTechnicalReport(report,mint){
   const modeQuery=activeMode==='deep'?'?mode=deep':'';
   const publicURL=window.KoscheiInvestigationShare?.publicResultURL(report.target||mint,'token')||`${location.origin}/scan/${encodeURIComponent(report.target||mint)}${modeQuery}`;
   setSharePayload({target:report.target||mint,kind:'token',url:publicURL,status:finalVerdict.signed?'ready':'evidence_pending',final_verdict:finalVerdict,grade:h.grade,signature:finalVerdict.signature});
-  openExplorer.hidden=false;openExplorer.href=`https://solscan.io/token/${encodeURIComponent(mint)}`;
+  openExplorer.hidden=false;openExplorer.textContent='Open in Solscan';openExplorer.href=`https://solscan.io/token/${encodeURIComponent(mint)}`;
   history.replaceState({},'',`/scan/${encodeURIComponent(mint)}${modeQuery}`);
   return true;
 }
 
-function piArmRows(arms){
-  return (Array.isArray(arms)?arms:[]).map((arm,index)=>{
-    const signals=arm&&typeof arm.signals==='object'&&arm.signals?arm.signals:{};
-    const evidence=Array.isArray(arm?.evidence)?arm.evidence.filter(Boolean):[];
-    let state=String(signals.evidence_status||'').trim().toLowerCase();
-    if(!state)state=arm?.signed?'observed':'insufficient_evidence';
-    const detail=evidence[0]||arm?.verdict||arm?.recommendation||'';
-    return {id:arm?.module_id||`pi-arm-${index}`,label:arm?.module||arm?.module_id||'Pi evidence arm',state,value:stateLabel(state),detail};
-  });
-}
-
-function renderPiTechnicalReport(data,value){
-  const report=data?.investigation_report||{};
-  const arms=Array.isArray(data?.arms)?data.arms:Array.isArray(report.evidence_arms)?report.evidence_arms:[];
-  const rows=piArmRows(arms);
-  const observed=Number(data?.observed_arm_count||0);
+function piArmState(arm){const raw=String(arm?.signals?.evidence_status||arm?.risk_level||'insufficient_evidence').toLowerCase();if(raw==='evidence_only')return'observed';if(raw==='unknown')return'insufficient_evidence';return raw}
+function piArmRows(arms){return (Array.isArray(arms)?arms:[]).map((arm,index)=>{const evidence=Array.isArray(arm?.evidence)?arm.evidence:[];return{id:`pi-${index}`,label:arm?.module||arm?.module_id||`Evidence arm ${index+1}`,state:piArmState(arm),detail:evidence[0]||arm?.verdict||'',value:evidence.length>1?`${evidence.length} evidence rows`:stateLabel(piArmState(arm)),evidence}})}
+function renderPiTechnicalReport(data,value,parsed){
+  const report=data?.investigation_report||{},arms=Array.isArray(data?.arms)?data.arms:(Array.isArray(report.evidence_arms)?report.evidence_arms:[]),rows=piArmRows(arms);
+  const observed=Number(data?.observed_arm_count||rows.filter(row=>row.state==='observed'||row.state==='verified').length||0);
+  const network=data?.network||report.network||requestedPiNetwork(),networkLabel=data?.network_label||report.network_label||(network==='pi-testnet'?'Pi Testnet':'Pi Mainnet');
+  const provider=data?.provider||report.provider||'Pi Horizon';
   const finalVerdict=data?.final_verdict||report.final_verdict||{};
-  const provider=data?.provider||report.provider||'pi_horizon';
-  const message=data?.message||'Pi Testnet evidence collected. Missing evidence is not treated as safe.';
+  const graph=report.intelligence_graph||{},nodes=Array.isArray(graph?.signals?.nodes)?graph.signals.nodes:[],edges=Array.isArray(graph?.signals?.edges)?graph.signals.edges:[];
+  const completed=rows.filter(row=>!['arm_pending','insufficient_evidence','unknown','window_open'].includes(row.state));
+  const pending=rows.filter(row=>['arm_pending','insufficient_evidence','unknown','window_open'].includes(row.state));
+  const evidenceDetails=rows.filter(row=>row.evidence.length).map(row=>`<details class="section"><summary><strong>${esc(row.label)}</strong> · ${esc(stateLabel(row.state))}</summary><ul class="list">${row.evidence.slice(0,8).map(item=>`<li>${esc(item)}</li>`).join('')}</ul></details>`).join('');
   empty.hidden=true;result.hidden=false;
-  result.innerHTML=`<article class="public-investigation-card"><div class="resultHead"><div class="grade">PI</div><div><div class="risk">PI TESTNET EVIDENCE FILE</div><div class="badge medium">GRADE WITHHELD</div></div></div><p class="sub" style="margin-top:16px">${esc(message)}</p><div class="target">${esc(value)}</div><div class="verdictMeta" data-signed="false">Provider ${esc(provider)} · ${esc(observed)}/14 arms observed · signed grade disabled</div><div class="section"><h3>Chain-native evidence coverage</h3><p class="historySummary">Pi assets are evaluated from issuer, trustline, payment, liquidity-pool, domain-provenance and related Horizon evidence. Solana Pump/Raydium/program semantics are not reused.</p></div><div class="section"><h3>Observed, pending, and not-applicable Pi evidence</h3><div class="public-signal-list">${signalRows(rows)||'<div class="public-signal"><span><b>No Pi evidence arm completed.</b><small>INSUFFICIENT EVIDENCE</small></span></div>'}</div></div><div class="canonical-note">UNKNOWN is not SAFE. Koschei does not issue a signed Pi risk grade until the Pi-specific deterministic ruleset and regression corpus are validated.</div></article>`;
-  const url=`${location.origin}/scan?mode=${encodeURIComponent(activeMode)}&target=${encodeURIComponent(value)}&network=pi-testnet`;
-  setSharePayload({target:value,kind:isLikelyPiAsset(value)?'token':'wallet',url,status:'evidence_pending',final_verdict:finalVerdict,risk_level:'unknown'});
-  openExplorer.hidden=true;
-  history.replaceState({},'',`/scan?mode=${encodeURIComponent(activeMode)}&target=${encodeURIComponent(value)}&network=pi-testnet`);
+  result.innerHTML=`<article class="public-investigation-card"><div class="resultHead"><div class="grade">PI</div><div><div class="risk">${esc(networkLabel)} · EVIDENCE FILE</div><div class="badge medium">GRADE WITHHELD · RISK UNKNOWN</div></div></div><p class="sub" style="margin-top:16px">${esc(data?.message||'Pi evidence collected. Missing evidence remains unresolved and no signed Pi grade is issued yet.')}</p><div class="target">${esc(value)}</div><div class="verdictMeta" data-signed="false">Provider ${esc(provider)} · observed arms ${esc(observed)}/14 · ruleset ${esc(finalVerdict.rule_version||'pi-evidence')}</div><div class="section"><h3>Pi evidence coverage</h3><p class="historySummary">ARVIS detected this as a Pi ${esc(parsed.kind)} target. ${esc(observed)} of 14 evidence arms returned observed evidence. Solana-only program arms are not reinterpreted as Pi findings.</p></div><div class="section"><h3>Observed and not-applicable evidence</h3><div class="public-signal-list">${signalRows(completed)||'<div class="public-signal"><span><b>No completed evidence arm was attached.</b></span></div>'}</div></div>${pending.length?`<div class="section"><h3>Unresolved Pi evidence (${pending.length})</h3><p class="historySummary">These gaps do not improve the result to safe.</p><div class="public-signal-list">${signalRows(pending)}</div></div>`:''}<div class="section"><h3>Intelligence graph</h3><p class="historySummary">Observed nodes: ${esc(nodes.length)} · observed relations: ${esc(edges.length)}. Graph relations are evidence presentation, not real-world identity claims.</p></div>${evidenceDetails}<div class="canonical-note">No signed Pi risk grade is emitted until the Pi-specific deterministic ruleset has its own validated regression corpus. UNKNOWN is not SAFE.</div></article>`;
+  const query=`?mode=${encodeURIComponent(activeMode)}&target=${encodeURIComponent(value)}&network=${encodeURIComponent(network)}`;
+  setSharePayload({target:value,kind:parsed.kind==='asset'?'token':'wallet',url:`${location.origin}/scan${query}`,status:'evidence_pending',final_verdict:finalVerdict,risk_level:'unknown'});
+  const horizon=network==='pi-testnet'?'https://api.testnet.minepi.com':'https://api.mainnet.minepi.com';
+  openExplorer.hidden=false;openExplorer.textContent='Open Pi Horizon evidence';
+  if(parsed.kind==='account')openExplorer.href=`${horizon}/accounts/${encodeURIComponent(parsed.account)}`;
+  else openExplorer.href=`${horizon}/assets?asset_code=${encodeURIComponent(parsed.asset_code)}&asset_issuer=${encodeURIComponent(parsed.issuer)}`;
+  history.replaceState({},'',`/scan${query}`);
   return true;
 }
 
@@ -139,6 +137,7 @@ function updateModeURL(){
   const query=new URLSearchParams();query.set('mode',activeMode);
   if(activeMode!=='transaction'&&target.value.trim())query.set('target',target.value.trim());
   if(activeMode==='quick'||activeMode==='deep')query.set('kind',kind.value);
+  if(isLikelyPiTarget(target.value.trim()))query.set('network',requestedPiNetwork());
   history.replaceState({},'',`/scan?${query.toString()}`);
 }
 function applyMode(next,{updateURL=false,reset=true}={}){
@@ -165,22 +164,38 @@ async function runTransaction(){
   finally{submit.disabled=false;submit.textContent=MODES[activeMode].button}
 }
 
+async function runPiTargetScan(value,parsed){
+  const network=requestedPiNetwork();
+  const requestToken=requestGuard?requestGuard.begin(result,value):null;
+  submit.disabled=true;submit.textContent=`Collecting ${network==='pi-testnet'?'Pi Testnet':'Pi Mainnet'} evidence…`;
+  renderWorking('Pi ARVIS investigation is running','Horizon evidence, issuer controls, trustline distribution, liquidity movement, provenance, and explicit gaps are being assembled read-only.');
+  try{
+    const data=await fetchJSON('/api/security/radar/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:value,network,mode:`pi_${activeMode}_investigation`})});
+    const report=data.investigation_report||{};
+    const decision=requestToken?requestGuard.accept(requestToken,report):{accepted:true};
+    if(!decision.accepted){if(decision.reason==='stale_response')return;throw new Error(`scan_target_mismatch:${decision.expected}:${decision.returned}`)}
+    if(!renderPiTechnicalReport(data,value,parsed))throw new Error('pi_investigation_report_missing');
+  }catch(error){
+    if(requestToken&&requestGuard&&!requestGuard.isActive(requestToken))return;
+    const mismatch=String(error?.message||'').startsWith('scan_target_mismatch:');
+    renderFailure(mismatch?'scan target mismatch':'no Pi evidence result',mismatch?new Error('A stale or different target result was rejected.'):error);
+  }finally{
+    const ownsUI=!requestToken||!requestGuard||requestGuard.isActive(requestToken);
+    if(requestToken&&requestGuard)requestGuard.finish(requestToken);
+    if(ownsUI){submit.disabled=false;submit.textContent=MODES[activeMode].button}
+  }
+}
+
 async function runTargetScan(){
   const value=target.value.trim();if(!value)return;
-  const piTarget=isLikelyPiTarget(value);
+  const parsedPi=parsePiTarget(value);
+  if(parsedPi)return runPiTargetScan(value,parsedPi);
   const tokenScan=activeMode==='token'||(activeMode==='deep'&&kind.value==='token');
-  const guardedScan=piTarget||tokenScan;
-  const requestToken=guardedScan&&requestGuard?requestGuard.begin(result,value):null;
-  submit.disabled=true;submit.textContent=piTarget?'Collecting Pi evidence…':tokenScan?'Collecting complete evidence…':'Running preflight…';
-  renderWorking(piTarget?'Pi evidence investigation is running':tokenScan?'Technical investigation is running':'Quick preflight is running',piTarget?'Issuer, trustline, payment, liquidity and provenance evidence are being collected through the Pi adapter.':tokenScan?'Collector results, holder resolution, live windows, launch context, and market evidence are being assembled.':'ARVIS is evaluating the target against the fast preflight evidence boundary.');
+  const requestToken=tokenScan&&requestGuard?requestGuard.begin(result,value):null;
+  submit.disabled=true;submit.textContent=tokenScan?'Collecting complete evidence…':'Running preflight…';
+  renderWorking(tokenScan?'Technical investigation is running':'Quick preflight is running',tokenScan?'Collector results, holder resolution, live windows, launch context, and market evidence are being assembled.':'ARVIS is evaluating the target against the fast preflight evidence boundary.');
   try{
-    if(piTarget){
-      const data=await fetchJSON('/api/security/radar/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:value,network:'pi-testnet',mode:activeMode==='deep'?'deep_radar':'manual_dashboard_check'})});
-      const report=data.investigation_report||{};
-      const decision=requestToken?requestGuard.accept(requestToken,report):{accepted:true};
-      if(!decision.accepted){if(decision.reason==='stale_response')return;throw new Error(`scan_target_mismatch:${decision.expected}:${decision.returned}`)}
-      if(!renderPiTechnicalReport(data,value))throw new Error('pi_investigation_report_missing');
-    }else if(tokenScan){
+    if(tokenScan){
       const data=await fetchJSON('/api/token/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mint:value,network:'solana-mainnet'})});
       const report=data.investigation_report;
       const decision=requestToken?requestGuard.accept(requestToken,report):{accepted:true};
