@@ -2,9 +2,25 @@
 
 Koschei Web3 treats Helius as a Solana evidence provider, not as the intelligence or verdict authority.
 
+## Provider cost and plan boundaries
+
+Helius provider methods do not all have the same plan or credit model. The runtime must keep those boundaries explicit instead of assuming that a configured API key makes every Helius capability safe to call.
+
+Current Helius documentation states:
+
+- Standard Solana RPC methods are the low-cost default path; ordinary RPC calls are charged separately from high-cost product APIs.
+- DAS requests are provider-specific enrichment and must stay bounded.
+- Enhanced Transactions are high-credit provider calls and are not the default holder-history collector.
+- `getTransactionsForAddress` is a paid-plan archival method and costs 100 credits per call.
+- `getTransfersByAddress` is a paid-plan archival method and costs 10 credits per call.
+- Every Wallet API request costs 100 credits.
+- Wallet API `balances`, `balance-at`, `history`, and `transfers` are available on Free.
+- Wallet API `identity`, `batch-identity`, and `funded-by` require a paid plan; Free-plan requests return `403 Forbidden`.
+- `batch-identity` accepts up to 100 addresses/domains in one 100-credit request and is the required Koschei path when paid Identity enrichment is intentionally enabled.
+
 ## Default behavior
 
-Three provider-specific or paid-plan paths are disabled by default even when `HELIUS_API_KEY` is configured:
+Three provider-specific paid/high-credit paths stay disabled by default even when `HELIUS_API_KEY` is configured:
 
 - Holder-cluster Enhanced Transactions history: `KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED=false`
 - Created-mint `getTransactionsForAddress` archival discovery: `HELIUS_CREATED_MINT_ARCHIVAL_ENABLED=false`
@@ -25,11 +41,11 @@ Set `HELIUS_CREATED_MINT_ARCHIVAL_ENABLED=true` only when the deployment intenti
 
 Set `KOSCHEI_HELIUS_ENHANCED_HISTORY_ENABLED=true` only when the deployment intentionally uses Helius Enhanced Transactions for holder history.
 
-Set `HELIUS_WALLET_IDENTITY_ENABLED=true` only on a deployment whose Helius plan provides Wallet Identity. Helius currently documents `GET /v1/wallet/{wallet}/identity` as paid-plan-only and returns `403 Forbidden` on Free. Koschei therefore makes no Wallet Identity request by default. If an explicitly enabled deployment receives `401` or `403`, a process-level capability circuit prevents the same unavailable feature from being retried for every holder address in that process.
+Set `HELIUS_WALLET_IDENTITY_ENABLED=true` only on a deployment whose Helius plan provides Wallet Identity. Koschei then resolves bounded address sets through `POST /v1/wallet/batch-identity` instead of issuing one Identity request per holder or flow endpoint. A `401` or `403` opens a process-level capability circuit so the same unavailable feature is not retried for every address in that process.
 
-A missing Helius key, provider error, or unavailable paid capability is not cached as proof that an address is unlabeled. Only definitive `404`, a successful empty identity response, or a successful positive identity response is address-cached.
+A missing Helius key, provider error, unavailable paid capability, or short batch response is not cached as proof that an address is unlabeled. Only a successful positive identity or a successful resolved-unknown batch entry is address-cached.
 
-These switches do not disable normal Helius-backed Solana RPC, DAS metadata, or other provider-key uses.
+These switches do not disable normal Helius-backed Solana RPC, DAS metadata, or the Free-plan Wallet API endpoints that may be integrated separately with their own evidence and credit budgets.
 
 ## Evidence boundary
 
@@ -39,6 +55,10 @@ Wallet Identity labels are third-party attribution metadata. A positive label ma
 
 Provider availability, plan level, cache state, or missing history must never be converted into a safety claim.
 
+## Free-plan opportunities
+
+Helius Wallet API `balances`, `balance-at`, `history`, and `transfers` are available on the Free plan but each request costs 100 credits. Koschei should add them only where they replace more expensive or lower-quality evidence collection, and each integration must preserve source, timestamp, transaction signature/slot where available, coverage bounds, and an explicit distinction between provider-observed and canonically verified evidence.
+
 ## Secret handling
 
-`HELIUS_API_KEY` and RPC URLs containing provider keys are deployment secrets. Do not commit them, expose them to the browser bundle, or log complete credential-bearing URLs.
+`HELIUS_API_KEY` and RPC URLs containing provider keys are deployment secrets. Do not commit them, expose them to the browser bundle, or log complete credential-bearing URLs. Prefer the `X-Api-Key` header for Wallet API requests where supported.
