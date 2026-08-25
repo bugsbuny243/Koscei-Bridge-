@@ -37,15 +37,17 @@ Pi evidence is not renamed Solana evidence.
 - Liquidity Movement -> current pool state plus separately collected transaction-backed deposit/withdraw operations when available.
 - Creator Link Analysis -> issuer account is protocol-level issuer, not an identity claim.
 - Launch Distribution -> issuer-originated payment operations for this exact asset.
-- Repeat Actor / Funding Cluster -> pending until Pi-specific durable evidence exists.
+- Funding Cluster -> bounded top-holder account-creation/native-funding provenance and repeated funding-source groups.
+- Repeat Actor -> pending until Pi-specific durable issuer/actor memory exists.
 - Program Relation -> not applicable on Pi's Stellar-derived asset model.
 - Pump/Raydium arms -> not applicable on Pi.
 
 ## Security boundary
 
 - Unknown/incomplete Horizon responses remain UNKNOWN.
-- Bounded holder and liquidity-operation windows are never described as complete history.
-- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3 slices.
+- Bounded holder, funding and liquidity-operation windows are never described as complete history.
+- A shared on-chain funding source is not proof of common control, legal identity or wrongdoing.
+- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3/4 slices.
 - No server-side wallet secrets.
 - No Mainnet transaction submission.
 
@@ -77,6 +79,17 @@ Each structured movement row preserves:
 - verification status and evidence source.
 
 Collection is bounded by pool and operation limits. Hitting a bound marks the history incomplete; no observed withdrawal/deposit is never translated into a SAFE claim.
+
+## Phase 4 — holder funding provenance
+
+Funding Cluster uses a separately bounded evidence pass over the largest observed Pi trustline holders. For each candidate account ARVIS reads the oldest Horizon operation window and accepts only:
+
+- `create_account` where the scanned holder is the created account; or
+- the earliest native `payment` into the holder account when creation funding is not present in the observed window.
+
+Each funding row preserves holder account, source account, relation type, operation id, transaction hash, amount, timestamp, verification status and evidence source. Repeated source accounts are grouped as **shared funding-source evidence only**. They are never upgraded into a common-controller or real-world identity claim.
+
+Funding collection is bounded to eight holder candidates and one oldest-operation page per account. Candidate truncation, operation-page saturation or provider failures remain explicit limitations. No repeated funding source in the bounded set is not evidence that holders are unrelated.
 
 ## Still required
 
