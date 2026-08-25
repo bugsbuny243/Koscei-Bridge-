@@ -37,7 +37,7 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 			"Owner, customer and automatic Pump discovery routes feed the same canonical investigation worker.",
 			"Signed medium-or-higher ARVIS verdicts and non-allow transaction guard decisions enter the durable alert pipeline.",
 			"Enterprise defense validation recomputes isolated execution evidence and authenticates independent collector observations; it never submits mainnet transactions or mutates production controls.",
-			"Enterprise Safe execution assurance independently recomputes the complete Safe EIP-712 transaction hash and Execution Proof before returning ALLOW or BLOCK; it has no signing or forwarding authority.",
+			"Enterprise Safe execution assurance independently recomputes the complete Safe EIP-712 transaction hash and Execution Proof and requires a fresh Ed25519 attestation from the server-configured trusted producer before ALLOW; caller-selected trust material cannot authorize the request.",
 			"Defense OS routes are registered only when KOSCHEI_DEFENSE_OS_ENABLED=true.",
 		},
 	})
