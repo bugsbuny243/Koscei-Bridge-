@@ -37,6 +37,10 @@ Default created-mint discovery uses a provider-portable bounded Solana RPC windo
 
 The transaction sample is spread across the observed signature window instead of taking only the newest transactions. If older or unsampled history remains, the result is reported as `bounded`; absence of a created mint in that window is not treated as clean evidence.
 
+Token-metadata creator resolution follows the same free-first rule. Helius DAS `getAsset` may provide a verified metadata creator candidate, but the default path does **not** make a second `getTransactionsForAddress` archival call merely to find the mint-creation signature. Instead it reads a bounded standard Solana mint-signature window and inspects the oldest successful transaction details inside that window. Defaults are `TOKEN_METADATA_CREATION_SIGNATURE_LIMIT=100` and `TOKEN_METADATA_CREATION_TRANSACTION_LIMIT=16`.
+
+The token-metadata result exposes `creation_history_source`, `creation_history_bounded`, signatures seen, transaction details requested, and transaction details parsed. If the signature window boundary is reached or no exact create instruction is observed, that limitation is retained and the creator relation stays OBSERVED unless a concrete create transaction can be canonically verified. Setting `HELIUS_CREATED_MINT_ARCHIVAL_ENABLED=true` explicitly opts both created-mint archival discovery and token-metadata creation-history discovery back into Helius `getTransactionsForAddress`.
+
 ## Helius program-account pagination
 
 When the canonical Solana RPC host is Helius, handler-level `getProgramAccounts` reads are automatically routed through `getProgramAccountsV2` and normalized back into the standard Solana response shape expected by existing Koschei collectors. Non-Helius providers continue to receive ordinary `getProgramAccounts`, so core evidence logic remains provider-portable.
