@@ -1,0 +1,45 @@
+name: OpenAPI Branch Sync
+
+on:
+  push:
+    branches:
+      - "feat/enterprise-defense-validation-api-v1"
+    paths-ignore:
+      - "koschei/api/openapi.yaml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/feat/enterprise-defense-validation-api-v1'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/enterprise-defense-validation-api-v1
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Regenerate tracked OpenAPI contract
+        run: go run ./cmd/openapi-gen
+      - name: Commit generated contract when changed
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- koschei/api/openapi.yaml; then
+            echo "OpenAPI contract already synchronized."
+            exit 0
+          fi
+          git config user.name "koschei-openapi-sync"
+          git config user.email "actions@users.noreply.github.com"
+          git add koschei/api/openapi.yaml
+          git commit -m "docs(openapi): sync Enterprise defense validation route"
+          git push origin HEAD:feat/enterprise-defense-validation-api-v1
