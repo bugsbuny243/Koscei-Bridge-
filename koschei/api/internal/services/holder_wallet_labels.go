@@ -22,6 +22,9 @@ package services
 //     address in the same process.
 //   - Never fabricates: only labels positively returned by Helius are surfaced.
 //     Unknown/empty entries become cached unknowns, not safety claims.
+//   - Batch rows are bound back to the exact requested address before caching;
+//     response ordering or omitted rows can never attribute one entity to a
+//     different wallet.
 //   - Missing provider configuration and transient/provider failures are not
 //     cached as "unlabeled" evidence, so later healthy scans can retry.
 //   - API keys are sent in the X-Api-Key header rather than credential-bearing
@@ -174,14 +177,20 @@ func ResolveWalletLabels(ctx context.Context, rpcURL string, addresses []string)
 			// trips the capability circuit inside fetchHeliusIdentityBatch.
 			continue
 		}
-		for index, requested := range chunk {
-			if index >= len(rows) {
-				// A short response is not a definitive unknown result.
+		requested := make(map[string]bool, len(chunk))
+		for _, address := range chunk {
+			requested[address] = true
+		}
+		for _, row := range rows {
+			address := strings.TrimSpace(row.Address)
+			if address == "" || !requested[address] {
+				// Do not fall back to array position. A missing/mismatched address
+				// remains unknown rather than risking cross-wallet attribution.
 				continue
 			}
-			label := walletLabelFromHeliusIdentity(requested, rows[index])
-			labelCacheSet(requested, label)
-			out[requested] = label
+			label := walletLabelFromHeliusIdentity(address, row)
+			labelCacheSet(address, label)
+			out[address] = label
 		}
 	}
 	return out
