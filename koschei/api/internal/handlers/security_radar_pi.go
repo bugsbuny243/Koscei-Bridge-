@@ -86,9 +86,9 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "response_schema_version": piCustomerInvestigationSchemaVersion, "status": status, "message": message,
 		"target": target, "target_kind": piTarget.Kind, "network": network, "network_label": label, "provider": analysis.Bundle.Provider,
 		"has_live_evidence": hasEvidence, "observed_arm_count": observed, "charged": charged, "bundle": analysis.Bundle, "arms": analysis.Arms, "final_verdict": analysis.Final,
-		"analysis_summary": map[string]any{"decision": "review_pi_evidence", "why": message, "observed_arm_count": observed, "signed": false, "risk_level": "unknown", "network": network},
+		"analysis_summary":     map[string]any{"decision": "review_pi_evidence", "why": message, "observed_arm_count": observed, "signed": false, "risk_level": "unknown", "network": network},
 		"investigation_report": map[string]any{"chain": "pi", "chain_adapter": "pi_horizon_v2", "target": target, "target_kind": piTarget.Kind, "network": network, "network_label": label, "provider": analysis.Bundle.Provider, "evidence_arms": analysis.Arms, "intelligence_graph": analysis.Graph, "metadata": analysis.Bundle.Metadata, "final_verdict": analysis.Final},
-		"evidence_policy": map[string]any{"missing_evidence_is_not_safe": true, "numeric_final_score_disabled": true, "pi_signed_grade_enabled": false, "wallet_secrets_required": false, "server_transaction_submission_enabled": false, "cross_chain_reinterpretation_allowed": false},
+		"evidence_policy":      map[string]any{"missing_evidence_is_not_safe": true, "numeric_final_score_disabled": true, "pi_signed_grade_enabled": false, "wallet_secrets_required": false, "server_transaction_submission_enabled": false, "cross_chain_reinterpretation_allowed": false},
 	})
 }
 
