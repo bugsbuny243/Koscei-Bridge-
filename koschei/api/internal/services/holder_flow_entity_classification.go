@@ -257,6 +257,7 @@ func holderFlowTaxonomyContains(values, candidates []string) bool {
 			if normalized == candidate || strings.Contains(" "+normalized+" ", " "+candidate+" ") {
 				return true
 			}
+		}
 	}
 	return false
 }
