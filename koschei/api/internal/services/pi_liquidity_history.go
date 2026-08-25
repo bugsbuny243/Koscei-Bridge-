@@ -18,22 +18,22 @@ const (
 )
 
 type PiLiquidityMovementObservation struct {
-	Status             string                    `json:"status"`
-	EvidenceStatus     string                    `json:"evidence_status"`
-	Source             string                    `json:"source"`
-	Asset              string                    `json:"asset"`
-	PoolsDiscovered    int                       `json:"pools_discovered"`
-	PoolsQueried       int                       `json:"pools_queried"`
-	WindowComplete     bool                      `json:"window_complete"`
-	DepositCount       int                       `json:"deposit_count"`
-	WithdrawCount      int                       `json:"withdraw_count"`
-	TargetDeposited    float64                   `json:"target_deposited"`
-	TargetWithdrawn    float64                   `json:"target_withdrawn"`
-	NativeDeposited    float64                   `json:"native_deposited"`
-	NativeWithdrawn    float64                   `json:"native_withdrawn"`
-	Movements          []PiLiquidityMovementRow  `json:"movements"`
-	Limitations        []string                  `json:"limitations,omitempty"`
-	GeneratedAt        string                    `json:"generated_at"`
+	Status          string                   `json:"status"`
+	EvidenceStatus  string                   `json:"evidence_status"`
+	Source          string                   `json:"source"`
+	Asset           string                   `json:"asset"`
+	PoolsDiscovered int                      `json:"pools_discovered"`
+	PoolsQueried    int                      `json:"pools_queried"`
+	WindowComplete  bool                     `json:"window_complete"`
+	DepositCount    int                      `json:"deposit_count"`
+	WithdrawCount   int                      `json:"withdraw_count"`
+	TargetDeposited float64                  `json:"target_deposited"`
+	TargetWithdrawn float64                  `json:"target_withdrawn"`
+	NativeDeposited float64                  `json:"native_deposited"`
+	NativeWithdrawn float64                  `json:"native_withdrawn"`
+	Movements       []PiLiquidityMovementRow `json:"movements"`
+	Limitations     []string                 `json:"limitations,omitempty"`
+	GeneratedAt     string                   `json:"generated_at"`
 }
 
 type PiLiquidityMovementRow struct {
