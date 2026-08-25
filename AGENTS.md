@@ -13,8 +13,4 @@ This repository is **Koschei Web3** only.
 
 ## Chain architecture
 
-Solana and Pi are evidence adapters, not product identities. Existing working Solana collectors may remain while Pi becomes first-class. New chain work must not couple core intelligence to one chain's account, token, program, or transaction model.
-
-## Pi boundary
-
-Pi analysis is read-only unless a separately reviewed product flow explicitly requires a write. ARVIS Pi evidence must use public account/asset identifiers and must not require wallet secrets. A Pi final risk grade must remain withheld until a Pi-specific deterministic ruleset and regression corpus are validated.
+Chain adapters are evidence transports, not product identities. The existing working Solana collector remains isolated behind its adapter boundary. Future chain support must not couple core intelligence to one chain's account, token, program, or transaction model.
