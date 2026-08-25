@@ -63,10 +63,10 @@ func (h *Handler) ownerSocialCompose(w http.ResponseWriter, r *http.Request, mes
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":       true,
+		"ok":        true,
 		"stateless": true,
-		"provider": result.Provider,
-		"model":    result.Model,
+		"provider":  result.Provider,
+		"model":     result.Model,
 		"assistant_message": ownerChatMessage{
 			ID:        generateID(),
 			Role:      "assistant",
