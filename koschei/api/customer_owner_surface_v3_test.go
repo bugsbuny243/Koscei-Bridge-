@@ -38,9 +38,12 @@ func TestCustomerSurfaceV3KeepsOneSimpleNavigationAndScanEntry(t *testing.T) {
 		"Advanced scan options",
 		"Target type override",
 		"Site URL detected",
+		"Pi asset detected",
+		"Pi account detected",
+		"CODE:G... issuer evidence route selected",
 		"Serialized Solana transaction detected",
 		"Solana address detected",
-		"Ambiguous Solana addresses stay explicit",
+		"Ambiguous targets stay explicit",
 	} {
 		if !strings.Contains(scan, required) {
 			t.Fatalf("customer scan flow missing %q", required)
@@ -106,7 +109,7 @@ func TestOwnerSurfaceV3SeparatesSaaSCustomersFromTokenTelemetry(t *testing.T) {
 		"Commercial access is controlled only by active Starter, Professional or Enterprise SaaS entitlements.",
 	} {
 		if !strings.Contains(owner, required) {
-			t.Fatalf("owner v3 surface missing %q", required)
+			t.Fatalf("owner v3 commercial copy missing %q", required)
 		}
 	}
 	for _, forbidden := range []string{"KOSCH premium", "KOSCH erişimi", "full Radar"} {
