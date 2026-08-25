@@ -9,11 +9,11 @@ import (
 	"koschei/api/internal/services"
 )
 
-const piCustomerInvestigationSchemaVersion = "koschei-customer-pi-investigation-v1"
+const piCustomerInvestigationSchemaVersion = "koschei-customer-pi-investigation-v2"
 
 func securityRadarInputIsPi(input securityRadarInput) bool {
 	target := strings.TrimSpace(firstNonEmptyString(input.Target, input.Address))
-	if services.IsPiRadarNetwork(input.Network) {
+	if _, ok := services.NormalizePiRadarNetwork(input.Network); ok {
 		return true
 	}
 	_, ok := services.ParsePiRadarTarget(target)
@@ -63,21 +63,28 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if strings.TrimSpace(input.Network) != "" && !services.IsPiRadarNetwork(input.Network) {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
-			"ok":      false,
-			"error":   "pi_network_mismatch",
-			"message": "The target is a Pi target but the requested network is not Pi Testnet.",
-			"target":  target,
-			"network": input.Network,
-			"charged": false,
-		})
-		return
+
+	network := services.DefaultPiRadarNetwork()
+	if strings.TrimSpace(input.Network) != "" {
+		normalized, piNetwork := services.NormalizePiRadarNetwork(input.Network)
+		if !piNetwork {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
+				"ok":      false,
+				"error":   "pi_network_mismatch",
+				"message": "The target is a Pi target. Select Pi Mainnet or Pi Testnet; ARVIS will not reinterpret it as another chain.",
+				"target":  target,
+				"network": input.Network,
+				"charged": false,
+			})
+			return
+		}
+		network = normalized
 	}
+	label := services.PiRadarNetworkLabel(network)
 
 	mode := firstNonEmptyString(input.Mode, "manual_dashboard_check")
 	services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "radar_pi_check_requested", "customer", "info", map[string]any{
-		"network": "pi-testnet",
+		"network": network,
 		"mode":    mode,
 		"target":  target,
 		"kind":    piTarget.Kind,
@@ -85,7 +92,7 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
-	analysis := services.AnalyzeArvisRadarsMultiChainContext(ctx, services.SecurityRadarRequest{Target: target, Network: "pi-testnet", Mode: mode})
+	analysis := services.AnalyzeArvisRadarsMultiChainContext(ctx, services.SecurityRadarRequest{Target: target, Network: network, Mode: mode})
 	observed := piObservedArmCount(analysis.Arms)
 	hasEvidence := observed > 0
 	_ = h.saveSecurityRadarBundle(ctx, claims.Sub, "manual_pi_check", analysis.Bundle)
@@ -100,9 +107,9 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := "evidence_pending"
-	message := "Pi Testnet evidence collection is incomplete; missing evidence is not treated as safe."
+	message := label + " evidence collection is incomplete; missing evidence is not treated as safe."
 	if hasEvidence {
-		message = "Pi Testnet evidence collected. A signed Pi risk grade is withheld until the Pi-specific deterministic ruleset is validated."
+		message = label + " evidence collected. A signed Pi risk grade is withheld until the Pi-specific deterministic ruleset is validated."
 	}
 	h.logTool(claimEmail, "security_radar_pi_check", status)
 	h.trackEvent(claimEmail, "security_radar_pi_check", r.URL.Path)
@@ -114,7 +121,8 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 		"message":                 message,
 		"target":                  target,
 		"target_kind":             piTarget.Kind,
-		"network":                 "pi-testnet",
+		"network":                 network,
+		"network_label":           label,
 		"provider":                analysis.Bundle.Provider,
 		"has_live_evidence":       hasEvidence,
 		"observed_arm_count":      observed,
@@ -128,12 +136,15 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 			"observed_arm_count": observed,
 			"signed":             false,
 			"risk_level":         "unknown",
+			"network":            network,
 		},
 		"investigation_report": map[string]any{
-			"chain_adapter":      "pi_horizon_v1",
+			"chain":              "pi",
+			"chain_adapter":      "pi_horizon_v2",
 			"target":             target,
 			"target_kind":        piTarget.Kind,
-			"network":            "pi-testnet",
+			"network":            network,
+			"network_label":      label,
 			"provider":           analysis.Bundle.Provider,
 			"evidence_arms":      analysis.Arms,
 			"intelligence_graph": analysis.Graph,
@@ -146,6 +157,7 @@ func (h *Handler) SecurityRadarPiCheck(w http.ResponseWriter, r *http.Request) {
 			"pi_signed_grade_enabled":               false,
 			"wallet_secrets_required":               false,
 			"server_transaction_submission_enabled": false,
+			"cross_chain_reinterpretation_allowed":  false,
 		},
 	})
 }
