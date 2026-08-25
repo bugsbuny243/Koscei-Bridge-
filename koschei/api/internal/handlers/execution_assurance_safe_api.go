@@ -14,9 +14,9 @@ import (
 const safeExecutionAssuranceMaxDataBytes = 128 << 10
 
 type safeExecutionAssuranceAPIRequest struct {
-	ExecutionProof      executionproof.Proof                       `json:"execution_proof"`
-	Transaction         safeExecutionAssuranceTransactionAPIInput  `json:"transaction"`
-	PresentedSafeTxHash string                                     `json:"presented_safe_tx_hash"`
+	ExecutionProof      executionproof.Proof                      `json:"execution_proof"`
+	Transaction         safeExecutionAssuranceTransactionAPIInput `json:"transaction"`
+	PresentedSafeTxHash string                                    `json:"presented_safe_tx_hash"`
 }
 
 type safeExecutionAssuranceTransactionAPIInput struct {
@@ -35,20 +35,20 @@ type safeExecutionAssuranceTransactionAPIInput struct {
 }
 
 type safeExecutionAssuranceAPIResponse struct {
-	OK                            bool                        `json:"ok"`
-	Product                       string                      `json:"product"`
-	Decision                      executionproof.Decision     `json:"decision"`
-	ReasonCodes                   []executionproof.ReasonCode `json:"reason_codes"`
-	EvidenceModel                 string                      `json:"evidence_model"`
-	ComputedSafeTxHash            string                      `json:"computed_safe_tx_hash"`
-	PresentedSafeTxHash           string                      `json:"presented_safe_tx_hash"`
-	PresentedEnvelopeSHA256       string                      `json:"presented_envelope_sha256"`
-	RecomputedEnvelopeSHA256      string                      `json:"recomputed_envelope_sha256"`
-	MainnetTransactionSent        bool                        `json:"mainnet_transaction_sent"`
-	SigningAuthority              bool                        `json:"signing_authority"`
-	ForwardingAuthority           bool                        `json:"forwarding_authority"`
-	ProductionControlMutation     bool                        `json:"production_control_mutation"`
-	Limitations                   []string                    `json:"limitations"`
+	OK                        bool                        `json:"ok"`
+	Product                   string                      `json:"product"`
+	Decision                  executionproof.Decision     `json:"decision"`
+	ReasonCodes               []executionproof.ReasonCode `json:"reason_codes"`
+	EvidenceModel             string                      `json:"evidence_model"`
+	ComputedSafeTxHash        string                      `json:"computed_safe_tx_hash"`
+	PresentedSafeTxHash       string                      `json:"presented_safe_tx_hash"`
+	PresentedEnvelopeSHA256   string                      `json:"presented_envelope_sha256"`
+	RecomputedEnvelopeSHA256  string                      `json:"recomputed_envelope_sha256"`
+	MainnetTransactionSent    bool                        `json:"mainnet_transaction_sent"`
+	SigningAuthority          bool                        `json:"signing_authority"`
+	ForwardingAuthority       bool                        `json:"forwarding_authority"`
+	ProductionControlMutation bool                        `json:"production_control_mutation"`
+	Limitations               []string                    `json:"limitations"`
 }
 
 // SafeExecutionAssuranceV1 is a read-only Safe signing verification boundary.
@@ -102,18 +102,18 @@ func (h *Handler) SafeExecutionAssuranceV1(w http.ResponseWriter, r *http.Reques
 	}, computer)
 
 	writeJSON(w, http.StatusOK, safeExecutionAssuranceAPIResponse{
-		OK:                       true,
-		Product:                  "Koschei Execution Assurance",
-		Decision:                 gate.Decision,
-		ReasonCodes:              gate.Reasons,
-		EvidenceModel:            "recomputed_execution_proof_plus_native_safe_eip712_hash",
-		ComputedSafeTxHash:       computedSafeTxHash,
-		PresentedSafeTxHash:      presentedSafeTxHash,
-		PresentedEnvelopeSHA256:  strings.TrimSpace(input.ExecutionProof.EnvelopeSHA256),
-		RecomputedEnvelopeSHA256: recomputedProof.EnvelopeSHA256,
-		MainnetTransactionSent:   false,
-		SigningAuthority:         false,
-		ForwardingAuthority:      false,
+		OK:                        true,
+		Product:                   "Koschei Execution Assurance",
+		Decision:                  gate.Decision,
+		ReasonCodes:               gate.Reasons,
+		EvidenceModel:             "recomputed_execution_proof_plus_native_safe_eip712_hash",
+		ComputedSafeTxHash:        computedSafeTxHash,
+		PresentedSafeTxHash:       presentedSafeTxHash,
+		PresentedEnvelopeSHA256:   strings.TrimSpace(input.ExecutionProof.EnvelopeSHA256),
+		RecomputedEnvelopeSHA256:  recomputedProof.EnvelopeSHA256,
+		MainnetTransactionSent:    false,
+		SigningAuthority:          false,
+		ForwardingAuthority:       false,
 		ProductionControlMutation: false,
 		Limitations: []string{
 			"Verification applies only to the exact Execution Proof envelope and complete Safe transaction supplied in this request.",
