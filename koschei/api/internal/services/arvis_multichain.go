@@ -6,13 +6,17 @@ import (
 )
 
 // AnalyzeArvisRadarsMultiChainContext is the chain-dispatch boundary for ARVIS.
-// Pi targets are routed to the Pi Testnet Horizon adapter; existing Solana
-// targets continue through the mature Solana collector unchanged.
+// Pi targets are routed to the Pi Testnet evidence adapter; existing Solana
+// targets continue through the mature Solana collector unchanged. Pi external
+// provenance and issuer-control interpretations are layered after the on-chain
+// snapshot so those evidence classes cannot be confused with transport data.
 func AnalyzeArvisRadarsMultiChainContext(ctx context.Context, req SecurityRadarRequest) ArvisAnalysis {
 	req.Target = strings.TrimSpace(req.Target)
 	req.Network = strings.TrimSpace(req.Network)
 	if piTarget, ok := ParsePiRadarTarget(req.Target); ok && (req.Network == "" || IsPiRadarNetwork(req.Network)) {
-		return analyzePiArvisRadarsContext(ctx, req, piTarget)
+		analysis := analyzePiArvisRadarsContext(ctx, req, piTarget)
+		analysis = enrichPiIssuerControlEvidence(analysis, piTarget)
+		return enrichPiDomainBindingEvidence(ctx, analysis, piTarget)
 	}
 	if IsPiRadarNetwork(req.Network) {
 		return piInvalidTargetAnalysis(req)
