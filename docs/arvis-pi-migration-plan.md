@@ -47,7 +47,7 @@ Pi evidence is not renamed Solana evidence.
 - Unknown/incomplete Horizon responses remain UNKNOWN.
 - Bounded holder, funding and liquidity-operation windows are never described as complete history.
 - A shared on-chain funding source is not proof of common control, legal identity or wrongdoing.
-- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3/4 slices.
+- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3/4/5 slices.
 - No server-side wallet secrets.
 - No Mainnet transaction submission.
 
@@ -80,7 +80,21 @@ Each structured movement row preserves:
 
 Collection is bounded by pool and operation limits. Hitting a bound marks the history incomplete; no observed withdrawal/deposit is never translated into a SAFE claim.
 
-## Phase 4 — holder funding provenance
+## Phase 4 — customer Pi target surface
+
+The canonical customer scan accepts Pi targets without sending them through Solana collectors:
+
+- Pi assets matching the public `CODE:G...ISSUER` shape are detected as Pi token targets;
+- Pi public `G...` accounts are detected as Pi account targets;
+- Pi targets are sent to the existing authenticated `/api/security/radar/check` route with `network=pi-testnet`;
+- the backend remains the authority for checksum/target validation; browser detection is routing assistance only;
+- Pi results render an evidence file with observed/pending/not-applicable arms instead of borrowing the signed Solana verdict card;
+- the UI explicitly withholds a Pi grade and preserves `UNKNOWN != SAFE`;
+- Solana token investigations, preflight and transaction simulation keep their existing routes.
+
+The legacy filename `public-solana-scan.js` now contains chain-aware customer routing. Renaming that asset is cleanup work only and must not create a second scan runtime.
+
+## Phase 5 — holder funding provenance
 
 Funding Cluster uses a separately bounded evidence pass over the largest observed Pi trustline holders. For each candidate account ARVIS reads the oldest Horizon operation window and accepts only:
 
@@ -97,4 +111,4 @@ Funding collection is bounded to eight holder candidates and one oldest-operatio
 - complete issuance-history proof before any exact maximum-supply statement;
 - Pi Sign-in identity binding through backend `/v2/me` verification;
 - durable Pi actor/issuer memory;
-- customer UI accepting `CODE:ISSUER` and Pi `G...` targets natively.
+- Pi transaction/claim preflight semantics before any Pi MEV or claim-shield verdict is enabled.
