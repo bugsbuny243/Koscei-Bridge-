@@ -100,6 +100,10 @@ func (h *Handler) ownerChatSend(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "ai_provider_not_configured"})
 		return
 	}
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("mode")), "tts") {
+		h.ownerChatSpeech(w, r, message)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
 	defer cancel()
