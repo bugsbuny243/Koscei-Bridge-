@@ -34,7 +34,7 @@ Pi evidence is not renamed Solana evidence.
 
 - Token Authority Scanner -> issuer signer/threshold/authorization state.
 - Holder Concentration -> trustline account balances with bounded pagination disclosed.
-- Liquidity Movement -> current Pi liquidity-pool state only; movement remains pending until transaction-backed deltas exist.
+- Liquidity Movement -> current pool state plus separately collected transaction-backed deposit/withdraw operations when available.
 - Creator Link Analysis -> issuer account is protocol-level issuer, not an identity claim.
 - Launch Distribution -> issuer-originated payment operations for this exact asset.
 - Repeat Actor / Funding Cluster -> pending until Pi-specific durable evidence exists.
@@ -44,16 +44,12 @@ Pi evidence is not renamed Solana evidence.
 ## Security boundary
 
 - Unknown/incomplete Horizon responses remain UNKNOWN.
-- Bounded holder windows are never described as complete.
-- No risk grade is signed from Pi evidence in Phase 1.
+- Bounded holder and liquidity-operation windows are never described as complete history.
+- No risk grade is signed from Pi evidence in Phase 1 or the evidence-only Phase 2/3 slices.
 - No server-side wallet secrets.
 - No Mainnet transaction submission.
 
-## Phase 2
-
-Phase 2 is split into evidence slices so a new source cannot silently become verdict authority.
-
-### Implemented in provenance/control slice
+## Phase 2 — provenance and issuer control
 
 - issuer authorization interpretation from current signer-weight + medium/high threshold evidence;
 - future classic issuance is described as locked only when neither payment authorization nor Set Options authorization is currently possible;
@@ -64,10 +60,27 @@ Phase 2 is split into evidence slices so a new source cannot silently become ver
 - verified domain binding remains protocol provenance and never becomes a real-world identity claim;
 - verified domain relation may be added to the ARVIS intelligence graph with its source URL and verification status.
 
-### Still required
+## Phase 3 — liquidity movement evidence
+
+The current pool snapshot is not treated as historical movement. ARVIS separately queries successful operations related to the exact native/target-asset liquidity pool and accepts only `liquidity_pool_deposit` and `liquidity_pool_withdraw` records.
+
+Each structured movement row preserves:
+
+- liquidity pool id;
+- Horizon operation id;
+- transaction hash;
+- source account;
+- timestamp;
+- exact target asset and amount;
+- native reserve amount when present;
+- received/redeemed pool shares;
+- verification status and evidence source.
+
+Collection is bounded by pool and operation limits. Hitting a bound marks the history incomplete; no observed withdrawal/deposit is never translated into a SAFE claim.
+
+## Still required
 
 - Pi-specific deterministic ruleset with regression corpus;
-- Pi liquidity add/remove transaction parsing and reserve-delta evidence;
 - complete issuance-history proof before any exact maximum-supply statement;
 - Pi Sign-in identity binding through backend `/v2/me` verification;
 - durable Pi actor/issuer memory;
