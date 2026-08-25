@@ -17,20 +17,20 @@ func TestPiCustomerScanRoutesBeforeSolanaCollectors(t *testing.T) {
 		"isLikelyPiAsset",
 		"isLikelyPiTarget",
 		"/api/security/radar/check",
-		"network:'pi-testnet'",
+		"'pi-testnet':'pi-mainnet'",
+		"https://api.mainnet.minepi.com",
 		"renderPiTechnicalReport",
-		"PI TESTNET EVIDENCE FILE",
 		"GRADE WITHHELD",
 		"UNKNOWN is not SAFE",
-		"signed grade disabled",
+		"No signed Pi risk grade",
 	} {
 		if !strings.Contains(scan, required) {
 			t.Fatalf("Pi customer scan runtime missing %q", required)
 		}
 	}
 
-	piBranch := strings.Index(scan, "if(piTarget){")
-	solanaTokenBranch := strings.Index(scan, "}else if(tokenScan){")
+	piBranch := strings.Index(scan, "if(parsedPi)return runPiTargetScan")
+	solanaTokenBranch := strings.Index(scan, "const tokenScan=")
 	if piBranch < 0 || solanaTokenBranch < 0 || piBranch >= solanaTokenBranch {
 		t.Fatal("Pi targets must be diverted before the Solana token collector")
 	}
