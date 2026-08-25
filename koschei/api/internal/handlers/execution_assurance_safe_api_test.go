@@ -1,15 +1,21 @@
 package handlers
 
 import (
+	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"koschei/api/internal/executionproof"
+	"koschei/api/internal/securityevidence"
 )
 
 func TestSafeExecutionAssuranceV1AllowsExactVerifiedSafeRequest(t *testing.T) {
@@ -25,6 +31,9 @@ func TestSafeExecutionAssuranceV1AllowsExactVerifiedSafeRequest(t *testing.T) {
 	}
 	if !response.OK || response.Decision != executionproof.DecisionAllow {
 		t.Fatalf("unexpected decision: %+v", response)
+	}
+	if !response.AttestationVerified || response.AttestationProducer != safeExecutionAssuranceTestProducer {
+		t.Fatalf("trusted attestation was not verified: %+v", response)
 	}
 	if response.ComputedSafeTxHash == "" || !strings.EqualFold(response.ComputedSafeTxHash, request.PresentedSafeTxHash) {
 		t.Fatalf("safe hash was not independently reproduced: %+v", response)
@@ -52,6 +61,9 @@ func TestSafeExecutionAssuranceV1BlocksPresentedSafeHashMismatch(t *testing.T) {
 	if response.Decision != executionproof.DecisionBlock || !containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonSafeHashMismatch) {
 		t.Fatalf("hash mismatch did not fail closed: %+v", response)
 	}
+	if !response.AttestationVerified {
+		t.Fatalf("valid proof attestation should remain independently verified: %+v", response)
+	}
 	if strings.EqualFold(response.ComputedSafeTxHash, request.PresentedSafeTxHash) {
 		t.Fatalf("test fixture unexpectedly matched computed hash")
 	}
@@ -74,11 +86,72 @@ func TestSafeExecutionAssuranceV1DoesNotTrustSerializedAllow(t *testing.T) {
 		t.Fatalf("tampered proof was trusted: %+v", response)
 	}
 	if !containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonPayloadMismatch) ||
-		!containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonProofHashMismatch) {
+		!containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonProofHashMismatch) ||
+		!containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonUntrustedAttestation) {
 		t.Fatalf("tampered proof reasons missing: %+v", response)
+	}
+	if response.AttestationVerified {
+		t.Fatalf("attestation binding survived proof tampering: %+v", response)
 	}
 	if strings.EqualFold(response.PresentedEnvelopeSHA256, response.RecomputedEnvelopeSHA256) {
 		t.Fatalf("tampered envelope digest unexpectedly matched: %+v", response)
+	}
+}
+
+func TestSafeExecutionAssuranceV1BlocksSelfSignedInternallyConsistentProof(t *testing.T) {
+	request := safeExecutionAssuranceTestRequest(t)
+	attackerKey := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x24}, ed25519.SeedSize))
+	request.ProofAttestation = signSafeExecutionAssuranceTestAttestation(t, request, attackerKey, time.Now().UTC().Add(-30*time.Second), time.Now().UTC().Add(-time.Second))
+
+	recorder := executeSafeExecutionAssuranceRequest(t, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response safeExecutionAssuranceAPIResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Decision != executionproof.DecisionBlock || !containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonUntrustedAttestation) {
+		t.Fatalf("attacker-signed internally consistent proof was not blocked: %+v", response)
+	}
+	if response.AttestationVerified {
+		t.Fatalf("attacker attestation was marked verified: %+v", response)
+	}
+}
+
+func TestSafeExecutionAssuranceV1BlocksStaleTrustedAttestation(t *testing.T) {
+	request := safeExecutionAssuranceTestRequest(t)
+	privateKey := safeExecutionAssuranceTestPrivateKey()
+	now := time.Now().UTC()
+	request.ProofAttestation = signSafeExecutionAssuranceTestAttestation(t, request, privateKey, now.Add(-7*time.Minute), now.Add(-6*time.Minute))
+
+	recorder := executeSafeExecutionAssuranceRequest(t, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response safeExecutionAssuranceAPIResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Decision != executionproof.DecisionBlock || !containsSafeExecutionAssuranceReason(response.ReasonCodes, executionproof.ReasonStaleAttestation) {
+		t.Fatalf("stale trusted attestation did not fail closed: %+v", response)
+	}
+	if response.AttestationVerified {
+		t.Fatalf("stale attestation was marked verified: %+v", response)
+	}
+}
+
+func TestSafeExecutionAssuranceV1FailsClosedWhenTrustAnchorMissing(t *testing.T) {
+	request := safeExecutionAssuranceTestRequest(t)
+	t.Setenv("KOSCHEI_EXECUTION_ASSURANCE_TRUSTED_PRODUCER", "")
+	t.Setenv("KOSCHEI_EXECUTION_ASSURANCE_TRUSTED_ED25519_PUBLIC_KEY", "")
+
+	recorder := executeSafeExecutionAssuranceRequest(t, request)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "execution_assurance_unconfigured") {
+		t.Fatalf("missing unconfigured failure code: %s", recorder.Body.String())
 	}
 }
 
@@ -107,8 +180,14 @@ func executeSafeExecutionAssuranceRequest(t *testing.T, request safeExecutionAss
 	return recorder
 }
 
+const safeExecutionAssuranceTestProducer = "test-independent-collector"
+
 func safeExecutionAssuranceTestRequest(t *testing.T) safeExecutionAssuranceAPIRequest {
 	t.Helper()
+	privateKey := safeExecutionAssuranceTestPrivateKey()
+	t.Setenv("KOSCHEI_EXECUTION_ASSURANCE_TRUSTED_PRODUCER", safeExecutionAssuranceTestProducer)
+	t.Setenv("KOSCHEI_EXECUTION_ASSURANCE_TRUSTED_ED25519_PUBLIC_KEY", base64.RawURLEncoding.EncodeToString(privateKey.Public().(ed25519.PublicKey)))
+
 	transaction := safeExecutionAssuranceTransactionAPIInput{
 		ChainID:        1,
 		Safe:           "0x1111111111111111111111111111111111111111",
@@ -173,11 +252,71 @@ func safeExecutionAssuranceTestRequest(t *testing.T) safeExecutionAssuranceAPIRe
 		t.Fatalf("invalid test proof: %+v", proof.Evaluation)
 	}
 
-	return safeExecutionAssuranceAPIRequest{
+	request := safeExecutionAssuranceAPIRequest{
 		ExecutionProof:      proof,
 		Transaction:         transaction,
 		PresentedSafeTxHash: computedSafeTxHash,
 	}
+	now := time.Now().UTC()
+	request.ProofAttestation = signSafeExecutionAssuranceTestAttestation(t, request, privateKey, now.Add(-30*time.Second), now.Add(-time.Second))
+	return request
+}
+
+func signSafeExecutionAssuranceTestAttestation(t *testing.T, request safeExecutionAssuranceAPIRequest, privateKey ed25519.PrivateKey, from, to time.Time) securityevidence.Event {
+	t.Helper()
+	decoded, err := decodeSafeExecutionAssuranceTransaction(request.Transaction)
+	if err != nil {
+		t.Fatal(err)
+	}
+	computedSafeTxHash, err := (executionproof.NativeSafeTxHashComputer{}).ComputeSafeTxHash(decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recomputedProof, err := executionproof.Evaluate(request.ExecutionProof.Envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := executionproof.SafeExecutionAttestationBindingV1{
+		ChainID:              decoded.ChainID,
+		Safe:                 decoded.Safe,
+		SafeTxHash:           computedSafeTxHash,
+		ExecutionProofSHA256: recomputedProof.EnvelopeSHA256,
+	}
+	bindingDigest, err := executionproof.SafeExecutionAttestationBindingDigestV1(binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalBinding, err := binding.Canonical()
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := (securityevidence.Event{
+		Producer: safeExecutionAssuranceTestProducer,
+		Subject: securityevidence.Subject{
+			Chain: fmt.Sprintf("eip155:%d", canonicalBinding.ChainID),
+			Type:  executionproof.SafeExecutionAttestationSubjectTypeV1,
+			ID:    canonicalBinding.SafeTxHash,
+		},
+		Window: securityevidence.ObservationWindow{
+			FromUnixMS: from.UnixMilli(),
+			ToUnixMS:   to.UnixMilli(),
+		},
+		SourceDigests: []string{canonicalBinding.ExecutionProofSHA256},
+		Findings: []securityevidence.Finding{{
+			ID:             executionproof.SafeExecutionAttestationFindingIDV1,
+			Kind:           executionproof.SafeExecutionAttestationFindingKindV1,
+			State:          securityevidence.StateVerified,
+			EvidenceSHA256: bindingDigest,
+		}},
+	}).SignEd25519(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return event
+}
+
+func safeExecutionAssuranceTestPrivateKey() ed25519.PrivateKey {
+	return ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x42}, ed25519.SeedSize))
 }
 
 func containsSafeExecutionAssuranceReason(reasons []executionproof.ReasonCode, target executionproof.ReasonCode) bool {
