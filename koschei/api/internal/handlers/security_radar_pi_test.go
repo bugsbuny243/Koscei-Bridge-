@@ -5,8 +5,10 @@ import "testing"
 const piHandlerTestIssuer = "GAIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCF6M"
 
 func TestSecurityRadarInputIsPiByExplicitNetwork(t *testing.T) {
-	if !securityRadarInputIsPi(securityRadarInput{Target: "not-yet-valid", Network: "pi-testnet"}) {
-		t.Fatal("explicit Pi Testnet request was not routed to the Pi handler")
+	for _, network := range []string{"pi", "pi-mainnet", "pi-testnet"} {
+		if !securityRadarInputIsPi(securityRadarInput{Target: "not-yet-valid", Network: network}) {
+			t.Fatalf("explicit Pi request %q was not routed to the Pi handler", network)
+		}
 	}
 }
 
