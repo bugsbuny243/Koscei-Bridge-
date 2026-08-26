@@ -30,8 +30,18 @@ type RPCManager struct {
 type rpcEnvelope struct {
 	Result json.RawMessage `json:"result"`
 	Error  *struct {
+		Code    int    `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+type rpcManagerStatusError struct {
+	Status     int
+	RetryAfter string
+}
+
+func (e *rpcManagerStatusError) Error() string {
+	return fmt.Sprintf("rpc status %d", e.Status)
 }
 
 func NewRPCManager(client HTTPDoer, providers []RPCProviderConfig) *RPCManager {
@@ -59,8 +69,18 @@ func NewRPCManager(client HTTPDoer, providers []RPCProviderConfig) *RPCManager {
 func (m *RPCManager) Call(ctx context.Context, method string, params any, target any) (string, error) {
 	var last error
 	for _, p := range m.availableProviders(time.Now()) {
+		if until, cooling := SolanaRPCProviderCooldown(p.URL); cooling {
+			last = fmt.Errorf("solana rpc provider %s cooling down until %s", p.Name, until.UTC().Format(time.RFC3339))
+			continue
+		}
+		if err := WaitForSolanaRPCProviderSlot(ctx, p.URL); err != nil {
+			return "", err
+		}
 		if err := m.callProvider(ctx, p, method, params, target); err != nil {
 			last = err
+			if statusErr, ok := err.(*rpcManagerStatusError); ok && statusErr.Status == http.StatusTooManyRequests {
+				DeferSolanaRPCProvider(p.URL, solanaRPC429Cooldown(statusErr.RetryAfter))
+			}
 			m.recordFailure(p, err)
 			continue
 		}
@@ -148,7 +168,7 @@ func (m *RPCManager) callProvider(ctx context.Context, p RPCProviderConfig, meth
 		actualEndpoint = resp.Request.URL.String()
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		err := fmt.Errorf("%s rpc status %d", p.Name, resp.StatusCode)
+		err := &rpcManagerStatusError{Status: resp.StatusCode, RetryAfter: resp.Header.Get("Retry-After")}
 		LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
 		return err
 	}
@@ -158,6 +178,11 @@ func (m *RPCManager) callProvider(ctx context.Context, p RPCProviderConfig, meth
 		return err
 	}
 	if envelope.Error != nil {
+		if envelope.Error.Code == http.StatusTooManyRequests {
+			err := &rpcManagerStatusError{Status: http.StatusTooManyRequests}
+			LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
+			return err
+		}
 		err := fmt.Errorf("%s rpc error: %s", p.Name, envelope.Error.Message)
 		LogRPCFailure(method, actualEndpoint, resp.StatusCode, err)
 		return err
