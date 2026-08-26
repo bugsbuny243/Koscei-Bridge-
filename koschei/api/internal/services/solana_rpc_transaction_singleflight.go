@@ -18,6 +18,9 @@ var solanaTransactionFetchGroup singleflight.Group
 // slot, process-wide provider slot or upstream request. Completed responses are
 // never cached.
 func solanaGetTransactionJSONParsedSingleflight(ctx context.Context, rpcURL, signature string) (SolanaTransactionResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	rpcURL = strings.TrimSpace(rpcURL)
 	signature = strings.TrimSpace(signature)
 	key := solanaTransactionFetchKey(rpcURL, signature)
