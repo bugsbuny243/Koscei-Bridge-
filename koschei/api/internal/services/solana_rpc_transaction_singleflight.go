@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"koschei/api/internal/singleflight"
 )
@@ -21,12 +22,17 @@ func solanaGetTransactionJSONParsedSingleflight(ctx context.Context, rpcURL, sig
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	rpcURL = strings.TrimSpace(rpcURL)
 	signature = strings.TrimSpace(signature)
 	key := solanaTransactionFetchKey(rpcURL, signature)
 
 	value, err, _ := solanaTransactionFetchGroup.DoContext(ctx, key, func() (interface{}, error) {
-		result, callErr := solanaRPCDo[SolanaTransactionResult](ctx, rpcURL, "getTransaction", []any{signature, map[string]any{
+		workCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), solanaTransactionSharedFetchTimeout())
+		defer cancel()
+		result, callErr := solanaRPCDo[SolanaTransactionResult](workCtx, rpcURL, "getTransaction", []any{signature, map[string]any{
 			"encoding":                       "jsonParsed",
 			"commitment":                     "confirmed",
 			"maxSupportedTransactionVersion": 0,
@@ -54,6 +60,14 @@ func solanaGetTransactionJSONParsedSingleflight(ctx context.Context, rpcURL, sig
 		return nil, fmt.Errorf("restore solana transaction result: %w", err)
 	}
 	return result, nil
+}
+
+func solanaTransactionSharedFetchTimeout() time.Duration {
+	base := solanaRPCClient.Timeout
+	if base <= 0 {
+		base = 12 * time.Second
+	}
+	return base + 15*time.Second
 }
 
 func solanaTransactionFetchKey(rpcURL, signature string) string {
