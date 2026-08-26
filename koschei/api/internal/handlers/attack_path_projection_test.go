@@ -40,7 +40,7 @@ func TestTechnicalProjectionAddsAttackPathOnlyFromTypedThreatEvidence(t *testing
 	report := map[string]any{
 		"target": "mint-1",
 		"threat_anticipation": services.ThreatAnticipationReport{
-			Status: "insufficient_evidence",
+			Status:   "insufficient_evidence",
 			Pathways: []services.ThreatPathway{{ID: "mint_inflation", Status: "unknown", EvidenceStatus: "unverified"}},
 		},
 	}
