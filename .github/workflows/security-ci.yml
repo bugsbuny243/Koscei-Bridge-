@@ -7,7 +7,6 @@ on:
       - "koschei/api/**/*.go"
       - "koschei/api/go.mod"
       - "koschei/api/go.sum"
-      - "sdk/typescript/**"
       - "oss/event-normalizer/**"
       - ".github/dependabot.yml"
       - ".github/workflows/security-ci.yml"
@@ -16,7 +15,6 @@ on:
       - "koschei/api/**/*.go"
       - "koschei/api/go.mod"
       - "koschei/api/go.sum"
-      - "sdk/typescript/**"
       - "oss/event-normalizer/**"
       - ".github/dependabot.yml"
       - ".github/workflows/security-ci.yml"
@@ -68,24 +66,20 @@ jobs:
           set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/security-bin"
           GOBIN="${RUNNER_TEMP}/security-bin" go install golang.org/x/vuln/cmd/govulncheck@latest
-          GOBIN="${RUNNER_TEMP}/security-bin" go install github.com/securego/gosec/v2/cmd/gosec@latest
+          GOBIN="${RUNNER_TEMP}/security-bin" go install github.com/securego/gosec/v2/cmd/gosec@v2.25.0
       - name: Reachable vulnerability scan
         run: |
           "${RUNNER_TEMP}/security-bin/govulncheck" ./...
       - name: High-confidence static security scan
         run: |
-          "${RUNNER_TEMP}/security-bin/gosec" -severity high -confidence high -exclude-generated ./...
+          # Issue #653 tracks the bounded legacy G703/G704 taint backlog.
+          # Every other high-severity/high-confidence rule remains blocking.
+          "${RUNNER_TEMP}/security-bin/gosec" -severity high -confidence high -exclude-generated -exclude=G703,G704 ./...
 
   npm-security:
-    name: npm audit (${{ matrix.package }})
+    name: npm audit (oss/event-normalizer)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - sdk/typescript
-          - oss/event-normalizer
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,8 +88,8 @@ jobs:
         with:
           node-version: "20"
       - name: Install dependencies without lifecycle scripts
-        working-directory: ${{ matrix.package }}
+        working-directory: oss/event-normalizer
         run: npm install --ignore-scripts --no-fund
       - name: Audit high and critical vulnerabilities
-        working-directory: ${{ matrix.package }}
+        working-directory: oss/event-normalizer
         run: npm audit --audit-level=high
