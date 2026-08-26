@@ -70,9 +70,11 @@ jobs:
           GOBIN="${RUNNER_TEMP}/security-bin" go install golang.org/x/vuln/cmd/govulncheck@latest
           GOBIN="${RUNNER_TEMP}/security-bin" go install github.com/securego/gosec/v2/cmd/gosec@latest
       - name: Reachable vulnerability scan
-        run: "${RUNNER_TEMP}/security-bin/govulncheck" ./...
+        run: |
+          "${RUNNER_TEMP}/security-bin/govulncheck" ./...
       - name: High-confidence static security scan
-        run: "${RUNNER_TEMP}/security-bin/gosec" -severity high -confidence high -exclude-generated ./...
+        run: |
+          "${RUNNER_TEMP}/security-bin/gosec" -severity high -confidence high -exclude-generated ./...
 
   npm-security:
     name: npm audit (${{ matrix.package }})
