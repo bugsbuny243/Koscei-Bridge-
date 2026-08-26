@@ -32,11 +32,15 @@ func writeTransactionResult(w http.ResponseWriter, signature string) {
 
 func TestSolanaTransactionSingleflightCollapsesConcurrentIdenticalFetches(t *testing.T) {
 	configureSolanaTransactionSingleflightTest(t)
+	// Keep a production-like local pacing interval deliberately longer than the
+	// upstream request. If dedupe happened inside the transport, callers would
+	// be serialized before joining and would each reach the provider.
+	t.Setenv("SOLANA_RPC_MIN_INTERVAL_MS", "250")
 
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(75 * time.Millisecond)
 		writeTransactionResult(w, "same-signature")
 	}))
 	defer server.Close()
