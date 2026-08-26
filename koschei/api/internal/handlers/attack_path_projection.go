@@ -21,10 +21,10 @@ func buildEvidenceBackedAttackPathProjection(threat services.ThreatAnticipationR
 		"paths":            paths,
 		"source":           "threat_anticipation.pathways",
 		"evidence_policy": map[string]bool{
-			"evidence_backed_only":          true,
-			"predicts_intent":               false,
+			"evidence_backed_only":         true,
+			"predicts_intent":              false,
 			"numeric_probability_disabled": true,
-			"unknown_remains_unknown":       true,
+			"unknown_remains_unknown":      true,
 		},
 	}
 }
