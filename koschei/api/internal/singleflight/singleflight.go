@@ -24,35 +24,12 @@ type Group struct {
 // comes in, the duplicate caller waits for the original to complete and
 // receives the same results.
 func (g *Group) Do(key string, fn func() (interface{}, error)) (interface{}, error, bool) {
-	return g.do(context.Background(), key, fn, false)
-}
-
-// DoContext is Do with cancellation for duplicate waiters. The caller that
-// starts the work still owns fn and should pass its context into fn when it
-// needs cancellation. A later duplicate can stop waiting without cancelling
-// the shared in-flight work required by the original caller.
-func (g *Group) DoContext(ctx context.Context, key string, fn func() (interface{}, error)) (interface{}, error, bool) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return g.do(ctx, key, fn, true)
-}
-
-func (g *Group) do(ctx context.Context, key string, fn func() (interface{}, error), cancellableWait bool) (interface{}, error, bool) {
 	g.mu.Lock()
 	if g.m == nil {
 		g.m = make(map[string]*call)
 	}
 	if c, ok := g.m[key]; ok {
 		g.mu.Unlock()
-		if cancellableWait {
-			select {
-			case <-c.done:
-				return c.val, c.err, true
-			case <-ctx.Done():
-				return nil, ctx.Err(), true
-			}
-		}
 		<-c.done
 		return c.val, c.err, true
 	}
@@ -61,11 +38,50 @@ func (g *Group) do(ctx context.Context, key string, fn func() (interface{}, erro
 	g.mu.Unlock()
 
 	c.val, c.err = fn()
-	close(c.done)
+	g.finish(key, c)
+	return c.val, c.err, false
+}
+
+// DoContext executes one shared unit of work asynchronously and lets every
+// caller, including the leader, stop waiting when its own context is done.
+// Cancellation of a waiter does not cancel the shared work; fn must manage the
+// lifetime of the shared operation itself.
+func (g *Group) DoContext(ctx context.Context, key string, fn func() (interface{}, error)) (interface{}, error, bool) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err, false
+	}
 
 	g.mu.Lock()
-	delete(g.m, key)
+	if g.m == nil {
+		g.m = make(map[string]*call)
+	}
+	c, shared := g.m[key]
+	if !shared {
+		c = &call{done: make(chan struct{})}
+		g.m[key] = c
+		go func() {
+			c.val, c.err = fn()
+			g.finish(key, c)
+		}()
+	}
 	g.mu.Unlock()
 
-	return c.val, c.err, false
+	select {
+	case <-c.done:
+		return c.val, c.err, shared
+	case <-ctx.Done():
+		return nil, ctx.Err(), shared
+	}
+}
+
+func (g *Group) finish(key string, c *call) {
+	g.mu.Lock()
+	if current, ok := g.m[key]; ok && current == c {
+		delete(g.m, key)
+	}
+	g.mu.Unlock()
+	close(c.done)
 }
