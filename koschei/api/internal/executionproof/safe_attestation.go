@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"koschei/api/internal/securityevidence"
 )
 
@@ -51,11 +49,11 @@ func (b SafeExecutionAttestationBindingV1) Canonical() (SafeExecutionAttestation
 	if out.ChainID == 0 {
 		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation chain_id is required")
 	}
-	out.Safe = strings.TrimSpace(out.Safe)
-	if !common.IsHexAddress(out.Safe) {
+	canonicalSafe, err := canonicalHexAddress20(out.Safe)
+	if err != nil {
 		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation safe address is invalid")
 	}
-	out.Safe = strings.ToLower(common.HexToAddress(out.Safe).Hex())
+	out.Safe = canonicalSafe
 	out.SafeTxHash = strings.ToLower(strings.TrimSpace(out.SafeTxHash))
 	if !validHex32(out.SafeTxHash) {
 		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation safeTxHash is invalid")
@@ -65,6 +63,21 @@ func (b SafeExecutionAttestationBindingV1) Canonical() (SafeExecutionAttestation
 		return SafeExecutionAttestationBindingV1{}, errors.New("Safe execution attestation proof envelope digest is invalid")
 	}
 	return out, nil
+}
+
+func canonicalHexAddress20(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+		value = value[2:]
+	}
+	if len(value) != 40 {
+		return "", errors.New("address must contain exactly 20 bytes")
+	}
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != 20 {
+		return "", errors.New("address must be hexadecimal")
+	}
+	return "0x" + strings.ToLower(value), nil
 }
 
 func SafeExecutionAttestationBindingDigestV1(binding SafeExecutionAttestationBindingV1) (string, error) {
