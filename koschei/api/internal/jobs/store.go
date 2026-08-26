@@ -134,8 +134,18 @@ func (s *Store) Get(ctx context.Context, id, userID string) (Job, error) {
 	return scanJob(s.DB.QueryRowContext(ctx, q, args...))
 }
 
+const claimNextPriorityOrder = `CASE
+	WHEN job_type='canonical_investigation' AND COALESCE(request_payload->>'mode','')='customer_canonical_job' THEN 0
+	WHEN job_type='canonical_investigation' AND COALESCE(request_payload->>'mode','')='owner_manual_canonical_job' THEN 10
+	WHEN job_type='canonical_investigation' AND COALESCE(request_payload->>'mode','')='background_recursive_token_scan' THEN 30
+	WHEN job_type='canonical_investigation' AND COALESCE(request_payload->>'mode','') LIKE 'background_%' THEN 40
+	ELSE 20
+END, queued_at ASC, id ASC`
+
 // ClaimNext atomically leases one queued job. SKIP LOCKED permits multiple
-// Railway instances without processing the same investigation twice.
+// Railway instances without processing the same investigation twice. Canonical
+// customer work is ordered ahead of owner/manual and background investigations;
+// FIFO is preserved within every priority class.
 func (s *Store) ClaimNext(ctx context.Context, jobTypes ...string) (Job, error) {
 	if s == nil || s.DB == nil {
 		return Job{}, errors.New("job store database unavailable")
@@ -164,7 +174,7 @@ func (s *Store) ClaimNext(ctx context.Context, jobTypes ...string) (Job, error) 
 			FROM web3_jobs
 			WHERE status='queued' AND attempts < max_attempts
 			  AND job_type IN (` + strings.Join(placeholders, ",") + `)
-			ORDER BY queued_at ASC,id ASC
+			ORDER BY ` + claimNextPriorityOrder + `
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
 		)
