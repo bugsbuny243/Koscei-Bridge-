@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -143,7 +144,8 @@ func TestSolanaTransactionSingleflightCollapsesConcurrentFailover(t *testing.T) 
 		writeTransactionResult(w, "fallback-ok")
 	}))
 	defer fallback.Close()
-	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallback.URL)
+	fallbackURL := strings.Replace(fallback.URL, "127.0.0.1", "localhost", 1)
+	t.Setenv("SOLANA_RPC_FALLBACK_URL", fallbackURL)
 
 	const callers = 6
 	start := make(chan struct{})
