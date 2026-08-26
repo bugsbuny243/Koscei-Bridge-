@@ -28,6 +28,21 @@ func TestSolanaRPCProviderGovernorSharesCooldownByHost(t *testing.T) {
 	}
 }
 
+func TestSolanaRPCProviderGovernorKeepsLoopbackPortsIndependent(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("SOLANA_RPC_GOVERNOR_ENABLED", "true")
+	ResetSolanaRPCProviderGovernorForTest()
+	defer ResetSolanaRPCProviderGovernorForTest()
+
+	DeferSolanaRPCProvider("http://127.0.0.1:18001/rpc", time.Minute)
+	if _, cooling := SolanaRPCProviderCooldown("http://127.0.0.1:18001/other-path"); !cooling {
+		t.Fatal("same loopback endpoint did not share cooldown across paths")
+	}
+	if _, cooling := SolanaRPCProviderCooldown("http://127.0.0.1:18002/rpc"); cooling {
+		t.Fatal("cooldown leaked across independent loopback ports")
+	}
+}
+
 func TestSolanaRPCProviderGovernorPacesIndependentCallers(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("SOLANA_RPC_GOVERNOR_ENABLED", "true")
