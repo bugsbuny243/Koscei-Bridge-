@@ -166,7 +166,7 @@ func SolanaGetAccountInfoJSONParsed(ctx context.Context, rpcURL string, address 
 }
 
 func SolanaGetTransactionJSONParsed(ctx context.Context, rpcURL string, signature string) (SolanaTransactionResult, error) {
-	return solanaRPCDo[SolanaTransactionResult](ctx, strings.TrimSpace(rpcURL), "getTransaction", []any{strings.TrimSpace(signature), map[string]any{"encoding": "jsonParsed", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}})
+	return solanaGetTransactionJSONParsedSingleflight(ctx, rpcURL, signature)
 }
 
 func ensureSolanaTokenMint(ctx context.Context, rpcURL, address string) error {
