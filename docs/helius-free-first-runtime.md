@@ -41,6 +41,18 @@ Token-metadata creator resolution follows the same free-first rule. Helius DAS `
 
 The token-metadata result exposes `creation_history_source`, `creation_history_bounded`, signatures seen, transaction details requested, and transaction details parsed. If the signature window boundary is reached or no exact create instruction is observed, that limitation is retained and the creator relation stays OBSERVED unless a concrete create transaction can be canonically verified. Setting `HELIUS_CREATED_MINT_ARCHIVAL_ENABLED=true` explicitly opts both created-mint archival discovery and token-metadata creation-history discovery back into Helius `getTransactionsForAddress`.
 
+## Provider pressure and duplicate suppression
+
+Standard Solana RPC is shared infrastructure across ARVIS surfaces. Independent modules must not behave as independent rate-limit consumers when they are using the same upstream provider.
+
+In production, the process-wide Solana RPC governor is enabled by default. `SolanaRPC`, `RPCManager`, and the services failover transport share provider pressure state. A provider `429` observed by one layer publishes a cooldown that the other layers honor, and all participating clients share the provider pacing clock. Public provider URLs are grouped by hostname so different credential-bearing paths for the same upstream provider cannot bypass pressure control. Loopback endpoints are grouped by host and port so independent local RPC sidecars remain isolated.
+
+`SOLANA_RPC_GOVERNOR_ENABLED` can explicitly override the governor outside production. `SOLANA_RPC_MIN_INTERVAL_MS` controls the pacing interval. These controls are provider-neutral; Helius, Alchemy, QuickNode, and other Solana RPC providers are handled through the same transport policy.
+
+Concurrent services-layer `getTransaction` calls for the same RPC URL, transaction signature, and fixed `jsonParsed`/`confirmed`/transaction-version request are singleflighted. Only one upstream request is sent while that exact read is in flight. Duplicate callers receive separately decoded transaction maps so one intelligence module cannot mutate another module's view of the payload. A duplicate caller may cancel its own wait without canceling the leader request.
+
+This singleflight is **not** a persistent transaction cache. It does not turn a provider error, missing transaction, timeout, unavailable history, or incomplete response into reusable evidence. It also does not share verdicts, risk labels, findings, or reasoning between ARVIS modules. Batch RPC behavior remains separate and retains its existing bounded batching and provider-circuit semantics.
+
 ## Helius program-account pagination
 
 When the canonical Solana RPC host is Helius, handler-level `getProgramAccounts` reads are automatically routed through `getProgramAccountsV2` and normalized back into the standard Solana response shape expected by existing Koschei collectors. Non-Helius providers continue to receive ordinary `getProgramAccounts`, so core evidence logic remains provider-portable.
