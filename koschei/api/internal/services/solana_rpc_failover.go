@@ -25,7 +25,7 @@ func init() {
 }
 
 func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return solanaTransactionSingleflightRoundTrip(req, t.roundTripOnce)
+	return t.roundTripOnce(req)
 }
 
 func (t *solanaFailoverTransport) roundTripOnce(req *http.Request) (*http.Response, error) {
