@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -180,5 +181,81 @@ func TestSolanaTransactionSingleflightCollapsesConcurrentFailover(t *testing.T) 
 	}
 	if got := fallbackCalls.Load(); got != 1 {
 		t.Fatalf("fallback getTransaction calls=%d want 1", got)
+	}
+}
+
+func TestSolanaTransactionSingleflightLeaderCancellationDoesNotCancelSharedRPC(t *testing.T) {
+	configureSolanaTransactionSingleflightTest(t)
+
+	var calls atomic.Int32
+	requestStarted := make(chan struct{})
+	releaseRequest := make(chan struct{})
+	requestCanceled := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		close(requestStarted)
+		select {
+		case <-releaseRequest:
+			writeTransactionResult(w, "shared-ok")
+		case <-r.Context().Done():
+			requestCanceled <- struct{}{}
+		}
+	}))
+	defer server.Close()
+
+	leaderCtx, cancelLeader := context.WithCancel(context.Background())
+	leaderDone := make(chan error, 1)
+	go func() {
+		_, err := SolanaGetTransactionJSONParsed(leaderCtx, server.URL, "same-signature")
+		leaderDone <- err
+	}()
+
+	<-requestStarted
+	cancelLeader()
+	select {
+	case err := <-leaderDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("leader error=%v want context canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("leader did not stop waiting after cancellation")
+	}
+
+	select {
+	case <-requestCanceled:
+		t.Fatal("leader cancellation propagated into shared HTTP request")
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	type followerResult struct {
+		result SolanaTransactionResult
+		err    error
+	}
+	followerDone := make(chan followerResult, 1)
+	go func() {
+		result, err := SolanaGetTransactionJSONParsed(context.Background(), server.URL, "same-signature")
+		followerDone <- followerResult{result: result, err: err}
+	}()
+
+	select {
+	case result := <-followerDone:
+		t.Fatalf("follower returned before shared request release: result=%#v err=%v", result.result, result.err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	close(releaseRequest)
+	select {
+	case result := <-followerDone:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if result.result["signature"] != "shared-ok" {
+			t.Fatalf("follower result=%#v want shared-ok", result.result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("follower did not receive shared transaction result")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("upstream getTransaction calls=%d want 1 after leader cancellation", got)
 	}
 }
