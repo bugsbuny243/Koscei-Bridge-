@@ -112,6 +112,7 @@ func preferredMainnetRPCKeys(provider string) []string {
 				found = true
 				break
 			}
+		}
 		if !found {
 			ordered = append(ordered, key)
 		}
