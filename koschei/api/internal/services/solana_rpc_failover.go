@@ -25,6 +25,10 @@ func init() {
 }
 
 func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return solanaTransactionSingleflightRoundTrip(req, t.roundTripOnce)
+}
+
+func (t *solanaFailoverTransport) roundTripOnce(req *http.Request) (*http.Response, error) {
 	method := strings.TrimSpace(req.Header.Get("X-Koschei-RPC-Method"))
 	primary := req.URL.String()
 
