@@ -14,7 +14,9 @@ func TestAttackPathProjectionPreservesEvidenceBackedThreatPathways(t *testing.T)
 			{
 				ID: "liquidity_removal", Label: "Liquidity removal", Status: "open",
 				Capacity: "high", EvidenceStatus: "observed",
-				EvidenceKeys: []string{"liquidity_movement"},
+				EvidenceKeys:     []string{"liquidity_movement"},
+				RequiredEvidence: []string{"LP mint and LP token owner"},
+				Limitations:      []string{"unlock conditions remain unresolved"},
 			},
 		},
 	}
@@ -29,6 +31,12 @@ func TestAttackPathProjectionPreservesEvidenceBackedThreatPathways(t *testing.T)
 	}
 	if paths[0].ID != "liquidity_removal" || paths[0].EvidenceStatus != "observed" {
 		t.Fatalf("pathway evidence was not preserved: %#v", paths[0])
+	}
+	if len(paths[0].RequiredEvidence) != 1 || paths[0].RequiredEvidence[0] != "LP mint and LP token owner" {
+		t.Fatalf("required evidence was not preserved: %#v", paths[0].RequiredEvidence)
+	}
+	if len(paths[0].Limitations) != 1 || paths[0].Limitations[0] != "unlock conditions remain unresolved" {
+		t.Fatalf("pathway limitations were not preserved: %#v", paths[0].Limitations)
 	}
 	policy, ok := projection["evidence_policy"].(map[string]bool)
 	if !ok || !policy["evidence_backed_only"] || policy["predicts_intent"] {
