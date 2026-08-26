@@ -3,6 +3,8 @@ package web3
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,11 +20,22 @@ var solanaRPCProviderGovernor = struct {
 	providers map[string]solanaRPCProviderGovernorState
 }{providers: map[string]solanaRPCProviderGovernorState{}}
 
+func solanaRPCProviderGovernorEnabled() bool {
+	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_GOVERNOR_ENABLED")); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		return err == nil && enabled
+	}
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
+}
+
 // WaitForSolanaRPCProviderSlot applies one process-wide pacing clock per
 // provider host. Every Solana client layer should pass through this gate before
 // making an upstream request so independent modules cannot each consume the
 // same provider's rate limit as if they were alone.
 func WaitForSolanaRPCProviderSlot(ctx context.Context, endpoint string) error {
+	if !solanaRPCProviderGovernorEnabled() {
+		return nil
+	}
 	key := solanaRPCGovernorProviderKey(endpoint)
 	if key == "" {
 		return fmt.Errorf("solana rpc governor endpoint is invalid")
@@ -61,6 +74,9 @@ func WaitForSolanaRPCProviderSlot(ctx context.Context, endpoint string) error {
 // It is intentionally host-scoped rather than URL-scoped so clients using
 // different API-key paths for the same provider still share pressure state.
 func SolanaRPCProviderCooldown(endpoint string) (time.Time, bool) {
+	if !solanaRPCProviderGovernorEnabled() {
+		return time.Time{}, false
+	}
 	key := solanaRPCGovernorProviderKey(endpoint)
 	if key == "" {
 		return time.Time{}, false
@@ -82,6 +98,9 @@ func SolanaRPCProviderCooldown(endpoint string) (time.Time, bool) {
 // this process. A 429 learned by one ARVIS surface therefore prevents another
 // surface from immediately retrying the same provider unaware of that signal.
 func DeferSolanaRPCProvider(endpoint string, delay time.Duration) {
+	if !solanaRPCProviderGovernorEnabled() {
+		return
+	}
 	key := solanaRPCGovernorProviderKey(endpoint)
 	if key == "" || delay <= 0 {
 		return
