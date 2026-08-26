@@ -14,11 +14,14 @@ func unifiedInvestigationTechnicalProjection(report map[string]any) map[string]a
 		"evidence_references", "actor_investigation", "graph",
 		"investigation_output_policy", "evidence_policy",
 	}
-	out := make(map[string]any, len(keys))
+	out := make(map[string]any, len(keys)+1)
 	for _, key := range keys {
 		if value, ok := report[key]; ok {
 			out[key] = value
 		}
+	}
+	if attackPath, ok := attackPathProjectionFromReport(report); ok {
+		out["attack_path"] = attackPath
 	}
 	return out
 }
