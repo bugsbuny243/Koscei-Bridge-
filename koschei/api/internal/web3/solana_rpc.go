@@ -289,11 +289,18 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 				continue
 			}
 		}
+		if until, cooling := SolanaRPCProviderCooldown(endpoint); cooling {
+			lastErr = fmt.Errorf("solana rpc provider cooling down until %s", until.UTC().Format(time.RFC3339))
+			continue
+		}
 		if until, cooling := s.rpcEndpointCooldown(endpoint); cooling {
 			lastErr = fmt.Errorf("solana rpc endpoint cooling down until %s", until.UTC().Format(time.RFC3339))
 			continue
 		}
 		if err := s.waitForRPCSlot(ctx); err != nil {
+			return err
+		}
+		if err := WaitForSolanaRPCProviderSlot(ctx, endpoint); err != nil {
 			return err
 		}
 		attemptCtx, cancel := solanaRPCAttemptContext(ctx, endpointTimeout, len(endpoints)-index)
@@ -303,7 +310,9 @@ func (s *SolanaRPC) Call(ctx context.Context, network, method string, params any
 		if err != nil {
 			lastErr = err
 			if statusErr, ok := err.(*solanaRPCStatusError); ok && statusErr.Status == http.StatusTooManyRequests {
-				s.deferRPCEndpoint(endpoint, solanaRPC429Cooldown(statusErr.RetryAfter))
+				delay := solanaRPC429Cooldown(statusErr.RetryAfter)
+				s.deferRPCEndpoint(endpoint, delay)
+				DeferSolanaRPCProvider(endpoint, delay)
 				if signaturePressure {
 					deferSolanaRPCSignatureEndpoint(endpoint, solanaRPCSignature429Cooldown(statusErr.RetryAfter))
 				}
