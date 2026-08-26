@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"koschei/api/internal/singleflight"
 	"koschei/api/internal/web3"
 )
 
@@ -106,6 +108,8 @@ var solanaRPCRateLimiter = struct {
 	Next time.Time
 }{}
 
+var solanaTransactionSingleflight singleflight.Group
+
 var solanaRPCClient = &http.Client{Timeout: 12 * time.Second}
 
 func SolanaGetSignaturesForAddress(ctx context.Context, rpcURL string, address string, limit int) ([]SolanaSignatureInfo, error) {
@@ -166,7 +170,43 @@ func SolanaGetAccountInfoJSONParsed(ctx context.Context, rpcURL string, address 
 }
 
 func SolanaGetTransactionJSONParsed(ctx context.Context, rpcURL string, signature string) (SolanaTransactionResult, error) {
-	return solanaRPCDo[SolanaTransactionResult](ctx, strings.TrimSpace(rpcURL), "getTransaction", []any{strings.TrimSpace(signature), map[string]any{"encoding": "jsonParsed", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}})
+	rpcURL = strings.TrimSpace(rpcURL)
+	signature = strings.TrimSpace(signature)
+	key := solanaTransactionSingleflightKey(rpcURL, signature)
+	value, err, _ := solanaTransactionSingleflight.DoContext(ctx, key, func() (interface{}, error) {
+		result, err := solanaRPCDo[SolanaTransactionResult](ctx, rpcURL, "getTransaction", []any{signature, map[string]any{"encoding": "jsonParsed", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}})
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return []byte(nil), nil
+		}
+		encoded, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("solana getTransaction canonical encode: %w", err)
+		}
+		return encoded, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	encoded, ok := value.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("solana getTransaction singleflight returned unexpected payload type")
+	}
+	if len(encoded) == 0 {
+		return nil, nil
+	}
+	var result SolanaTransactionResult
+	if err := json.Unmarshal(encoded, &result); err != nil {
+		return nil, fmt.Errorf("solana getTransaction canonical decode: %w", err)
+	}
+	return result, nil
+}
+
+func solanaTransactionSingleflightKey(rpcURL, signature string) string {
+	digest := sha256.Sum256([]byte("solana:getTransaction:jsonParsed:confirmed:v0|" + strings.TrimSpace(rpcURL) + "|" + strings.TrimSpace(signature)))
+	return fmt.Sprintf("%x", digest[:])
 }
 
 func ensureSolanaTokenMint(ctx context.Context, rpcURL, address string) error {
@@ -274,6 +314,7 @@ func resetSolanaRPCCachesForTest() {
 	solanaRPCRateLimiter.Lock()
 	solanaRPCRateLimiter.Next = time.Time{}
 	solanaRPCRateLimiter.Unlock()
+	solanaTransactionSingleflight = singleflight.Group{}
 	resetSolanaRPCBudgetForTest()
 }
 
