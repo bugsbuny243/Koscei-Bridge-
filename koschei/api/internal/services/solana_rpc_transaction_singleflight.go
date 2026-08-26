@@ -49,7 +49,7 @@ func solanaTransactionSingleflightRoundTrip(req *http.Request, next func(*http.R
 		return next(req)
 	}
 
-	value, err, _ := solanaTransactionFetchGroup.Do(key, func() (interface{}, error) {
+	value, err, _ := solanaTransactionFetchGroup.DoContext(req.Context(), key, func() (interface{}, error) {
 		resp, callErr := next(req)
 		if callErr != nil {
 			if resp != nil && resp.Body != nil {
