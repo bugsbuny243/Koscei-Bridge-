@@ -21,10 +21,10 @@ func TestVerifySafeExecutionAttestationV1AcceptsTrustedFreshBinding(t *testing.T
 		MaxFutureSkew: 30 * time.Second,
 	}
 	binding := SafeExecutionAttestationBindingV1{
-		ChainID:              1,
-		Safe:                 "0x1111111111111111111111111111111111111111",
-		SafeTxHash:           "0x" + repeatHexAttestation("aa", 32),
-		ExecutionProofSHA256: repeatHexAttestation("bb", 32),
+		ChainID:                      1,
+		Safe:                         "0x1111111111111111111111111111111111111111",
+		SafeTxHash:                   "0x" + repeatHexAttestation("aa", 32),
+		ExecutionProofEnvelopeSHA256: repeatHexAttestation("bb", 32),
 	}
 	event := signedSafeExecutionAttestationEvent(t, binding, trust.Producer, privateKey, now.Add(-30*time.Second), now.Add(-time.Second))
 
@@ -44,10 +44,10 @@ func TestVerifySafeExecutionAttestationV1RejectsUntrustedSigner(t *testing.T) {
 		MaxFutureSkew: 30 * time.Second,
 	}
 	binding := SafeExecutionAttestationBindingV1{
-		ChainID:              1,
-		Safe:                 "0x1111111111111111111111111111111111111111",
-		SafeTxHash:           "0x" + repeatHexAttestation("aa", 32),
-		ExecutionProofSHA256: repeatHexAttestation("bb", 32),
+		ChainID:                      1,
+		Safe:                         "0x1111111111111111111111111111111111111111",
+		SafeTxHash:                   "0x" + repeatHexAttestation("aa", 32),
+		ExecutionProofEnvelopeSHA256: repeatHexAttestation("bb", 32),
 	}
 	event := signedSafeExecutionAttestationEvent(t, binding, trust.Producer, attackerKey, now.Add(-30*time.Second), now.Add(-time.Second))
 
@@ -67,10 +67,10 @@ func TestVerifySafeExecutionAttestationV1RejectsTrustedSignerBindingSubstitution
 		MaxFutureSkew: 30 * time.Second,
 	}
 	approvedBinding := SafeExecutionAttestationBindingV1{
-		ChainID:              1,
-		Safe:                 "0x1111111111111111111111111111111111111111",
-		SafeTxHash:           "0x" + repeatHexAttestation("aa", 32),
-		ExecutionProofSHA256: repeatHexAttestation("bb", 32),
+		ChainID:                      1,
+		Safe:                         "0x1111111111111111111111111111111111111111",
+		SafeTxHash:                   "0x" + repeatHexAttestation("aa", 32),
+		ExecutionProofEnvelopeSHA256: repeatHexAttestation("bb", 32),
 	}
 	event := signedSafeExecutionAttestationEvent(t, approvedBinding, trust.Producer, privateKey, now.Add(-30*time.Second), now.Add(-time.Second))
 
@@ -92,10 +92,10 @@ func TestVerifySafeExecutionAttestationV1RejectsStaleBinding(t *testing.T) {
 		MaxFutureSkew: 30 * time.Second,
 	}
 	binding := SafeExecutionAttestationBindingV1{
-		ChainID:              1,
-		Safe:                 "0x1111111111111111111111111111111111111111",
-		SafeTxHash:           "0x" + repeatHexAttestation("aa", 32),
-		ExecutionProofSHA256: repeatHexAttestation("bb", 32),
+		ChainID:                      1,
+		Safe:                         "0x1111111111111111111111111111111111111111",
+		SafeTxHash:                   "0x" + repeatHexAttestation("aa", 32),
+		ExecutionProofEnvelopeSHA256: repeatHexAttestation("bb", 32),
 	}
 	event := signedSafeExecutionAttestationEvent(t, binding, trust.Producer, privateKey, now.Add(-7*time.Minute), now.Add(-6*time.Minute))
 
@@ -126,7 +126,7 @@ func signedSafeExecutionAttestationEvent(t *testing.T, binding SafeExecutionAtte
 			FromUnixMS: from.UnixMilli(),
 			ToUnixMS:   to.UnixMilli(),
 		},
-		SourceDigests: []string{canonical.ExecutionProofSHA256},
+		SourceDigests: []string{canonical.ExecutionProofEnvelopeSHA256},
 		Findings: []securityevidence.Finding{{
 			ID:             SafeExecutionAttestationFindingIDV1,
 			Kind:           SafeExecutionAttestationFindingKindV1,
