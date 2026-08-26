@@ -62,3 +62,76 @@ func TestTechnicalProjectionAddsAttackPathOnlyFromTypedThreatEvidence(t *testing
 		t.Fatal("attack_path must not be fabricated from untyped/untrusted data")
 	}
 }
+
+func TestAttackPathProjectionLinksConcreteEvidenceReferences(t *testing.T) {
+	threat := services.ThreatAnticipationReport{
+		Target: "Mint111",
+		Status: "evidence_backed_pathway_analysis",
+		Pathways: []services.ThreatPathway{
+			{ID: "liquidity_removal", Status: "open", EvidenceStatus: "observed"},
+			{ID: "creator_sell_acceleration", Status: "observed", EvidenceStatus: "observed"},
+			{ID: "coordinated_holder_exit", Status: "watch", EvidenceStatus: "observed"},
+		},
+	}
+	report := map[string]any{
+		"threat_anticipation": threat,
+		"evidence_references": map[string]unifiedEvidenceReference{
+			"liquidity": {
+				Accounts:     []string{"Mint111", "Pool111", "LPMint111"},
+				Slots:        []int64{200},
+				EvidenceKeys: []string{"pool:Pool111@200"},
+			},
+			"liq-move": {
+				Signatures: []string{"LiquiditySig111"},
+				Slots:      []int64{201},
+			},
+			"creator-sell": {
+				Wallets:      []string{"Creator111"},
+				Signatures:   []string{"CreatorSellSig111"},
+				Slots:        []int64{300},
+				EvidenceKeys: []string{"creator-sell:CreatorSellSig111"},
+			},
+		},
+	}
+
+	projection, ok := attackPathProjectionFromReport(report)
+	if !ok {
+		t.Fatal("expected typed attack path projection")
+	}
+	linked, ok := projection["evidence_references"].(map[string]unifiedEvidenceReference)
+	if !ok {
+		t.Fatalf("expected attack-path evidence links, got %#v", projection["evidence_references"])
+	}
+	liquidity := linked["liquidity_removal"]
+	assertContainsString(t, liquidity.Accounts, "Pool111")
+	assertContainsString(t, liquidity.Signatures, "LiquiditySig111")
+	assertContainsInt64(t, liquidity.Slots, 200)
+	assertContainsInt64(t, liquidity.Slots, 201)
+	creator := linked["creator_sell_acceleration"]
+	assertContainsString(t, creator.Wallets, "Creator111")
+	assertContainsString(t, creator.Signatures, "CreatorSellSig111")
+	if _, exists := linked["coordinated_holder_exit"]; exists {
+		t.Fatal("coordinated holder exit must not be linked until a direct evidence-row contract exists")
+	}
+}
+
+func TestAttackPathProjectionDoesNotPromoteTargetOnlyReferenceToEvidence(t *testing.T) {
+	threat := services.ThreatAnticipationReport{
+		Target:   "MintOnly",
+		Pathways: []services.ThreatPathway{{ID: "mint_inflation", Status: "unknown", EvidenceStatus: "unverified"}},
+	}
+	report := map[string]any{
+		"threat_anticipation": threat,
+		"evidence_references": map[string]unifiedEvidenceReference{
+			"mint": {Accounts: []string{"MintOnly"}},
+		},
+	}
+
+	projection, ok := attackPathProjectionFromReport(report)
+	if !ok {
+		t.Fatal("expected typed attack path projection")
+	}
+	if _, exists := projection["evidence_references"]; exists {
+		t.Fatalf("target-only reference must not be promoted to attack-path evidence: %#v", projection["evidence_references"])
+	}
+}
