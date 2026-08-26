@@ -84,9 +84,6 @@ jobs:
         package:
           - sdk/typescript
           - oss/event-normalizer
-    defaults:
-      run:
-        working-directory: ${{ matrix.package }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,6 +92,8 @@ jobs:
         with:
           node-version: "20"
       - name: Install dependencies without lifecycle scripts
+        working-directory: ${{ matrix.package }}
         run: npm install --ignore-scripts --no-fund
       - name: Audit high and critical vulnerabilities
+        working-directory: ${{ matrix.package }}
         run: npm audit --audit-level=high
