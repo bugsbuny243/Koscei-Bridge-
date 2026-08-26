@@ -26,7 +26,9 @@ func init() {
 
 func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	method := strings.TrimSpace(req.Header.Get("X-Koschei-RPC-Method"))
-	resp, err := t.base.RoundTrip(req)
+	primary := req.URL.String()
+
+	resp, err := t.roundTripGoverned(req)
 	if err != nil || (resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300)) {
 		status := 0
 		failureErr := err
@@ -37,7 +39,7 @@ func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, 
 			}
 		}
 		if !solanaAdaptiveBatchDegradationStatus(req, status) {
-			web3.LogRPCFailure(method, req.URL.String(), status, failureErr)
+			web3.LogRPCFailure(method, primary, status, failureErr)
 		}
 	}
 	if !solanaFailoverEnabled() || !solanaFailoverRequired(resp, err) {
@@ -53,7 +55,7 @@ func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, 
 	}
 	body, bodyErr := req.GetBody()
 	if bodyErr != nil {
-		web3.LogRPCFailure(method, req.URL.String(), 0, bodyErr)
+		web3.LogRPCFailure(method, primary, 0, bodyErr)
 		return nil, bodyErr
 	}
 	fallbackURL, parseErr := url.Parse(fallbackRaw)
@@ -67,7 +69,7 @@ func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, 
 	fallbackReq.RequestURI = ""
 	fallbackReq.Body = body
 	fallbackReq.GetBody = req.GetBody
-	fallbackResp, fallbackErr := t.base.RoundTrip(fallbackReq)
+	fallbackResp, fallbackErr := t.roundTripGoverned(fallbackReq)
 	if fallbackErr != nil || (fallbackResp != nil && (fallbackResp.StatusCode < 200 || fallbackResp.StatusCode >= 300)) {
 		status := 0
 		failureErr := fallbackErr
@@ -80,6 +82,25 @@ func (t *solanaFailoverTransport) RoundTrip(req *http.Request) (*http.Response, 
 		web3.LogRPCFailure(method, fallbackRaw, status, failureErr)
 	}
 	return fallbackResp, fallbackErr
+}
+
+func (t *solanaFailoverTransport) roundTripGoverned(req *http.Request) (*http.Response, error) {
+	if req == nil || req.URL == nil {
+		return nil, fmt.Errorf("solana rpc request is invalid")
+	}
+	endpoint := req.URL.String()
+	if until, cooling := web3.SolanaRPCProviderCooldown(endpoint); cooling {
+		return nil, fmt.Errorf("solana rpc provider cooling down until %s", until.UTC().Format("2006-01-02T15:04:05Z"))
+	}
+	if err := web3.WaitForSolanaRPCProviderSlot(req.Context(), endpoint); err != nil {
+		return nil, err
+	}
+	resp, err := t.base.RoundTrip(req)
+	if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+		delay := maxDuration(solanaRPC429Delay(0, resp.Header.Get("Retry-After")), solanaRPC429Cooldown())
+		web3.DeferSolanaRPCProvider(endpoint, delay)
+	}
+	return resp, err
 }
 
 func solanaFailoverEnabled() bool {
