@@ -59,10 +59,10 @@ func TestRPCManagerPublishes429AndUsesIndependentFallback(t *testing.T) {
 	client := roundTrip(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Hostname() == "primary.example" {
 			return &http.Response{
-			StatusCode: http.StatusTooManyRequests,
-			Header:     http.Header{"Retry-After": []string{"1"}},
-			Body:       ioNopCloser{strings.NewReader(`{"jsonrpc":"2.0","error":{"code":429,"message":"rate limited"}}`)},
-			Request:    r,
+				StatusCode: http.StatusTooManyRequests,
+				Header:     http.Header{"Retry-After": {"1"}},
+				Body:       ioNopCloser{strings.NewReader(`{"jsonrpc":"2.0","error":{"code":429,"message":"rate limited"}}`)},
+				Request:    r,
 			}, nil
 		}
 		resp := jsonResponse(`{"jsonrpc":"2.0","result":{"ok":true}}`)
