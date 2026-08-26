@@ -125,10 +125,10 @@ func (h *Handler) SafeExecutionAssuranceV1(w http.ResponseWriter, r *http.Reques
 	}, computer)
 
 	binding := executionproof.SafeExecutionAttestationBindingV1{
-		ChainID:              tx.ChainID,
-		Safe:                 tx.Safe,
-		SafeTxHash:           computedSafeTxHash,
-		ExecutionProofSHA256: recomputedProof.EnvelopeSHA256,
+		ChainID:                      tx.ChainID,
+		Safe:                         tx.Safe,
+		SafeTxHash:                   computedSafeTxHash,
+		ExecutionProofEnvelopeSHA256: recomputedProof.EnvelopeSHA256,
 	}
 	bindingDigest, err := executionproof.SafeExecutionAttestationBindingDigestV1(binding)
 	if err != nil {
