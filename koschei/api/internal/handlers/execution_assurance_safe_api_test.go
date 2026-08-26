@@ -277,10 +277,10 @@ func signSafeExecutionAssuranceTestAttestation(t *testing.T, request safeExecuti
 		t.Fatal(err)
 	}
 	binding := executionproof.SafeExecutionAttestationBindingV1{
-		ChainID:              decoded.ChainID,
-		Safe:                 decoded.Safe,
-		SafeTxHash:           computedSafeTxHash,
-		ExecutionProofSHA256: recomputedProof.EnvelopeSHA256,
+		ChainID:                      decoded.ChainID,
+		Safe:                         decoded.Safe,
+		SafeTxHash:                   computedSafeTxHash,
+		ExecutionProofEnvelopeSHA256: recomputedProof.EnvelopeSHA256,
 	}
 	bindingDigest, err := executionproof.SafeExecutionAttestationBindingDigestV1(binding)
 	if err != nil {
@@ -301,7 +301,7 @@ func signSafeExecutionAssuranceTestAttestation(t *testing.T, request safeExecuti
 			FromUnixMS: from.UnixMilli(),
 			ToUnixMS:   to.UnixMilli(),
 		},
-		SourceDigests: []string{canonicalBinding.ExecutionProofSHA256},
+		SourceDigests: []string{canonicalBinding.ExecutionProofEnvelopeSHA256},
 		Findings: []securityevidence.Finding{{
 			ID:             executionproof.SafeExecutionAttestationFindingIDV1,
 			Kind:           executionproof.SafeExecutionAttestationFindingKindV1,
