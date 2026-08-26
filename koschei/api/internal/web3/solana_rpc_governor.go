@@ -3,6 +3,8 @@ package web3
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -71,8 +73,9 @@ func WaitForSolanaRPCProviderSlot(ctx context.Context, endpoint string) error {
 }
 
 // SolanaRPCProviderCooldown returns the shared cooldown for a provider host.
-// It is intentionally host-scoped rather than URL-scoped so clients using
-// different API-key paths for the same provider still share pressure state.
+// Public provider URLs are host-scoped so different credential paths share
+// pressure state. Loopback endpoints are host:port scoped because separate
+// local RPC sidecars are independent providers.
 func SolanaRPCProviderCooldown(endpoint string) (time.Time, bool) {
 	if !solanaRPCProviderGovernorEnabled() {
 		return time.Time{}, false
@@ -119,11 +122,34 @@ func DeferSolanaRPCProvider(endpoint string, delay time.Duration) {
 }
 
 func solanaRPCGovernorProviderKey(endpoint string) string {
-	host := strings.TrimSpace(RPCProviderHost(endpoint))
+	raw := strings.TrimSpace(endpoint)
+	parsed, err := url.Parse(raw)
+	if err == nil && parsed != nil {
+		hostname := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+		if hostname != "" {
+			if isLoopbackRPCGovernorHost(hostname) {
+				if port := strings.TrimSpace(parsed.Port()); port != "" {
+					return net.JoinHostPort(hostname, port)
+				}
+			}
+			return hostname
+		}
+	}
+
+	host := strings.TrimSpace(RPCProviderHost(raw))
 	if host == "" || host == "unconfigured" || host == "invalid-host" {
 		return ""
 	}
 	return strings.ToLower(host)
+}
+
+func isLoopbackRPCGovernorHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // ResetSolanaRPCProviderGovernorForTest is exported because the services layer
