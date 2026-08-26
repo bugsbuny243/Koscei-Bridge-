@@ -238,33 +238,30 @@ func isParsedSolanaMint(raw any) bool {
 	return strings.EqualFold(strings.TrimSpace(anyString(parsed["type"])), "mint")
 }
 
-func solanaRPCCacheKey(rpcURL, address string) string {
-	return strings.TrimSpace(rpcURL) + "|" + strings.TrimSpace(address)
-}
-
-func cachedSolanaLargestAccounts(key string) (SolanaLargestAccountsResult, bool) {
+func cachedSolanaLargestAccounts(key string) (solanaLargestAccountsCacheEntry, bool) {
 	solanaLargestAccountsCache.RLock()
 	entry, ok := solanaLargestAccountsCache.Items[key]
 	solanaLargestAccountsCache.RUnlock()
 	if !ok {
-		return SolanaLargestAccountsResult{}, false
+		return solanaLargestAccountsCacheEntry{}, false
 	}
 	if time.Now().After(entry.ExpiresAt) {
 		solanaLargestAccountsCache.Lock()
 		delete(solanaLargestAccountsCache.Items, key)
 		solanaLargestAccountsCache.Unlock()
-		return SolanaLargestAccountsResult{}, false
+		return solanaLargestAccountsCacheEntry{}, false
 	}
-	return entry.Result, true
+	return entry, true
 }
 
 func cacheSolanaLargestAccounts(key string, result SolanaLargestAccountsResult, err error, ttl time.Duration) {
-	if key == "|" || ttl <= 0 {
-		return
-	}
 	solanaLargestAccountsCache.Lock()
 	solanaLargestAccountsCache.Items[key] = solanaLargestAccountsCacheEntry{Result: result, Err: err, ExpiresAt: time.Now().Add(ttl)}
 	solanaLargestAccountsCache.Unlock()
+}
+
+func solanaRPCCacheKey(rpcURL, address string) string {
+	return strings.TrimSpace(rpcURL) + "|" + strings.TrimSpace(address)
 }
 
 func resetSolanaRPCCachesForTest() {
@@ -277,36 +274,27 @@ func resetSolanaRPCCachesForTest() {
 	solanaRPCRateLimiter.Lock()
 	solanaRPCRateLimiter.Next = time.Time{}
 	solanaRPCRateLimiter.Unlock()
-}
-
-func isParsedSolanaTokenAccount(raw any) bool {
-	data, ok := raw.(map[string]any)
-	if !ok {
-		return false
-	}
-	parsed, ok := data["parsed"].(map[string]any)
-	if !ok {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(anyString(parsed["type"])), "account")
+	resetSolanaRPCBudgetForTest()
 }
 
 func solanaRPCDo[T any](ctx context.Context, rpcURL, method string, params any) (T, error) {
 	var zero T
-	if strings.TrimSpace(rpcURL) == "" {
+	rpcURL = strings.TrimSpace(rpcURL)
+	if rpcURL == "" {
 		return zero, fmt.Errorf("solana rpc url is empty")
-	}
-	if err := reserveSolanaRPCBudget(ctx, method); err != nil {
-		web3.LogRPCFailure(method, rpcURL, 0, err)
-		return zero, err
 	}
 	payload, err := json.Marshal(solanaRPCRequest{JSONRPC: "2.0", ID: 1, Method: method, Params: params})
 	if err != nil {
 		web3.LogRPCFailure(method, rpcURL, 0, err)
 		return zero, err
 	}
+
 	maxRetries := solanaRPCMax429Retries()
 	for attempt := 0; ; attempt++ {
+		if err := reserveSolanaRPCBudget(ctx, method); err != nil {
+			web3.LogRPCFailure(method, rpcURL, 0, err)
+			return zero, err
+		}
 		if err := waitForSolanaRPCSlot(ctx); err != nil {
 			web3.LogRPCFailure(method, rpcURL, 0, err)
 			return zero, err
@@ -332,58 +320,88 @@ func solanaRPCDo[T any](ctx context.Context, rpcURL, method string, params any) 
 			web3.LogRPCFailure(method, actualEndpoint, res.StatusCode, readErr)
 			return zero, readErr
 		}
+
 		if res.StatusCode == http.StatusTooManyRequests {
 			delay := maxDuration(solanaRPC429Delay(attempt, res.Header.Get("Retry-After")), solanaRPC429Cooldown())
 			deferSolanaRPCRequests(delay)
 			if attempt < maxRetries {
 				continue
 			}
-			return zero, fmt.Errorf("solana rpc http status %d: %s", res.StatusCode, compactSolanaBatchBody(body))
+			return zero, fmt.Errorf("solana rpc http status %d: %s", res.StatusCode, string(body))
 		}
 		if res.StatusCode < 200 || res.StatusCode >= 300 {
-			return zero, fmt.Errorf("solana rpc http status %d: %s", res.StatusCode, compactSolanaBatchBody(body))
+			return zero, fmt.Errorf("solana rpc http status %d: %s", res.StatusCode, string(body))
 		}
-		var decoded solanaRPCResponse[T]
-		if err := json.Unmarshal(body, &decoded); err != nil {
-			wrapped := fmt.Errorf("decode solana rpc response: %w", err)
+
+		var out solanaRPCResponse[T]
+		if err := json.Unmarshal(body, &out); err != nil {
+			wrapped := fmt.Errorf("solana rpc malformed response: %w", err)
 			web3.LogRPCFailure(method, actualEndpoint, res.StatusCode, wrapped)
 			return zero, wrapped
 		}
-		if decoded.Error != nil {
-			wrapped := fmt.Errorf("solana rpc error %d: %s", decoded.Error.Code, decoded.Error.Message)
-			web3.LogRPCFailure(method, actualEndpoint, res.StatusCode, wrapped)
-			return zero, wrapped
+		if out.Error != nil && out.Error.Code == http.StatusTooManyRequests {
+			rpcErr := fmt.Errorf("solana rpc error %d: %s", out.Error.Code, out.Error.Message)
+			web3.LogRPCFailure(method, actualEndpoint, res.StatusCode, rpcErr)
+			delay := maxDuration(solanaRPC429Delay(attempt, ""), solanaRPC429Cooldown())
+			deferSolanaRPCRequests(delay)
+			if attempt < maxRetries {
+				continue
+			}
 		}
-		return decoded.Result, nil
+		if out.Error != nil {
+			err := fmt.Errorf("solana rpc error %d: %s", out.Error.Code, out.Error.Message)
+			if out.Error.Code != http.StatusTooManyRequests {
+				web3.LogRPCFailure(method, actualEndpoint, res.StatusCode, err)
+			}
+			return zero, err
+		}
+		return out.Result, nil
 	}
 }
 
 func waitForSolanaRPCSlot(ctx context.Context) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	interval := solanaRPCMinInterval()
-	if interval <= 0 {
-		return ctx.Err()
-	}
-	solanaRPCRateLimiter.Lock()
-	now := time.Now()
-	waitUntil := solanaRPCRateLimiter.Next
-	if waitUntil.Before(now) {
-		waitUntil = now
-	}
-	solanaRPCRateLimiter.Next = waitUntil.Add(interval)
-	solanaRPCRateLimiter.Unlock()
-	if wait := time.Until(waitUntil); wait > 0 {
-		timer := time.NewTimer(wait)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
+	for {
+		now := time.Now()
+		solanaRPCRateLimiter.Lock()
+		next := solanaRPCRateLimiter.Next
+		if !next.After(now) {
+			solanaRPCRateLimiter.Next = now.Add(interval)
+			solanaRPCRateLimiter.Unlock()
+			return nil
+		}
+		delay := time.Until(next)
+		solanaRPCRateLimiter.Unlock()
+		if err := waitForSolanaRPCRetry(ctx, delay); err != nil {
+			return err
 		}
 	}
-	return ctx.Err()
+}
+
+func deferSolanaRPCRequests(delay time.Duration) {
+	if delay <= 0 {
+		return
+	}
+	until := time.Now().Add(delay)
+	solanaRPCRateLimiter.Lock()
+	if until.After(solanaRPCRateLimiter.Next) {
+		solanaRPCRateLimiter.Next = until
+	}
+	solanaRPCRateLimiter.Unlock()
+}
+
+func waitForSolanaRPCRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func solanaRPCMinInterval() time.Duration {
@@ -398,39 +416,65 @@ func solanaRPCMinInterval() time.Duration {
 	return 0
 }
 
-func solanaRPC429Cooldown() time.Duration {
-	seconds := 60
-	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_429_COOLDOWN_SECONDS")); raw != "" {
-		if value, err := strconv.Atoi(raw); err == nil && value >= 1 && value <= 3600 {
-			seconds = value
-		}
-	}
-	return time.Duration(seconds) * time.Second
-}
-
-func solanaRPC429Delay(attempt int, retryAfter string) time.Duration {
-	if seconds, err := strconv.Atoi(strings.TrimSpace(retryAfter)); err == nil && seconds > 0 {
-		return time.Duration(seconds) * time.Second
-	}
-	delay := 750 * time.Millisecond
-	for i := 0; i < attempt && delay < 4*time.Second; i++ {
-		delay *= 2
-	}
-	if delay > 4*time.Second {
-		delay = 4 * time.Second
-	}
-	return delay
-}
-
 func solanaRPCMax429Retries() int {
-	fallback := 0
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
-		fallback = 1
-	}
 	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_MAX_429_RETRIES")); raw != "" {
-		if value, err := strconv.Atoi(raw); err == nil && value >= 0 && value <= 4 {
+		if value, err := strconv.Atoi(raw); err == nil && value >= 0 && value <= 5 {
 			return value
 		}
 	}
-	return fallback
+	return 2
+}
+
+func solanaRPC429Delay(attempt int, retryAfter string) time.Duration {
+	retryAfter = strings.TrimSpace(retryAfter)
+	if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	if when, err := http.ParseTime(retryAfter); err == nil {
+		if delay := time.Until(when); delay > 0 {
+			return delay
+		}
+	}
+	base := 1000
+	if raw := strings.TrimSpace(os.Getenv("SOLANA_RPC_429_BACKOFF_MS")); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value >= 0 && value <= 10000 {
+			base = value
+		}
+	}
+	if attempt < 0 {
+		attempt = 0
+	}
+	if attempt > 4 {
+		attempt = 4
+	}
+	return time.Duration(base*(1<<attempt)) * time.Millisecond
+}
+
+func solanaTokenFloat(amount SolanaTokenAmount) float64 {
+	if amount.UIAmount != nil {
+		return *amount.UIAmount
+	}
+	if strings.TrimSpace(amount.UIAmountString) != "" {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(amount.UIAmountString), 64); err == nil {
+			return value
+		}
+	}
+	if strings.TrimSpace(amount.Amount) == "" {
+		return 0
+	}
+	raw, err := strconv.ParseFloat(strings.TrimSpace(amount.Amount), 64)
+	if err != nil {
+		return 0
+	}
+	if amount.Decimals <= 0 {
+		return raw
+	}
+	divisor := 1.0
+	for i := 0; i < amount.Decimals; i++ {
+		divisor *= 10
+	}
+	if divisor <= 0 {
+		return raw
+	}
+	return raw / divisor
 }
