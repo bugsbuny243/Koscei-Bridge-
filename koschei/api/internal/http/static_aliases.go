@@ -8,6 +8,13 @@ import (
 // registerStaticAliases keeps removed legacy product/demo URLs on the real
 // production surfaces instead of serving stale standalone pages.
 func registerStaticAliases(mux *http.ServeMux, staticDir string) {
+	// TradePI AI Agents runs inside the existing TradePI/Koschei HTTP service.
+	// The product domain stays isolated under /agents and /api/agents without
+	// introducing a second deployment or copying Koschei security internals.
+	registerTradePIAgentRoutes(mux)
+	registerStaticFileAlias(mux, "/agents", filepath.Join(staticDir, "agents.html"))
+	registerStaticFileAlias(mux, "/agents/", filepath.Join(staticDir, "agents.html"))
+
 	// There is one customer-facing investigation surface. Legacy scanner URLs
 	// preserve their intent through a mode query, but no longer render separate
 	// products with overlapping forms and verdict language.
