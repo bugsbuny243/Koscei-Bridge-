@@ -11,6 +11,8 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 
 requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
 requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
+requireText(html,'/css/customer-command-center-v1.css?v=1','premium customer command center style');
+requireText(html,'/js/customer-command-center-v1.js?v=1','premium customer command center behavior');
 requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
 requireText(html,'id="workspaceMissionControl"','operations mount');
 requireText(html,'id="workspaceLatestReport"','latest investigation mount');
@@ -45,6 +47,14 @@ requireText(js,"!text(item.read_at)",'existing alert unread handling');
 requireText(css,'.workspace-live','operations styles');
 requireText(css,'.workspace-alert','alert styles');
 requireText(css,'.workspace-report-card','investigation card styles');
+const shellCss=fs.readFileSync(path.join(root,'public','css','customer-command-center-v1.css'),'utf8');
+const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-center-v1.js'),'utf8');
+requireText(shellCss,'.customer-app-shell','premium app shell');
+requireText(shellCss,'.customer-sidebar','premium sidebar');
+requireText(shellJs,"['Deep Investigation','/scan?mode=deep','primary']",'canonical investigation nav');
+requireText(shellJs,"['Account & Plan','/account']",'account entitlement nav');
+if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
+if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
