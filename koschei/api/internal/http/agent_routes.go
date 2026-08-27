@@ -2,10 +2,12 @@ package http
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,10 +33,106 @@ func registerTradePIAgentRoutes(mux *http.ServeMux) {
 			"persistence_enabled": tradePIAgentService.PersistenceEnabled(),
 			"persistence_ready":   tradePIAgentService.PersistenceReady(r.Context()),
 			"telegram_enabled":    strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")) != "",
+			"llm_enabled":         tradePIAgentService.LLMEnabled(),
+			"admin_configured":    strings.TrimSpace(os.Getenv("TRADEPI_AGENT_ADMIN_TOKEN")) != "",
 		})
 	}))
 	mux.HandleFunc("/api/agents/demo", method("POST", tradePIAgentDemo))
 	mux.HandleFunc("/webhooks/telegram", method("POST", tradePITelegramWebhook))
+	mux.HandleFunc("/api/agents/admin/queue", method("GET", tradePIAgentAdminQueue))
+	mux.HandleFunc("/api/agents/admin/leads", method("GET", tradePIAgentAdminLeads))
+	mux.HandleFunc("/api/agents/admin/handoffs", method("GET", tradePIAgentAdminHandoffs))
+	mux.HandleFunc("/api/agents/admin/appointments", method("GET", tradePIAgentAdminAppointments))
+}
+
+func tradePIAgentAdminAuthorized(w http.ResponseWriter, r *http.Request) bool {
+	expected := strings.TrimSpace(os.Getenv("TRADEPI_AGENT_ADMIN_TOKEN"))
+	if expected == "" {
+		http.Error(w, "agent admin is not configured", http.StatusServiceUnavailable)
+		return false
+	}
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if !strings.HasPrefix(auth, "Bearer ") {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	provided := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+	if len(provided) != len(expected) || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
+func tradePIAgentAdminTenant(r *http.Request) string {
+	return firstNonEmpty(r.URL.Query().Get("tenant_id"), os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
+}
+
+func tradePIAgentAdminLimit(r *http.Request) int {
+	value, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
+	if err != nil || value <= 0 {
+		return 25
+	}
+	if value > 100 {
+		return 100
+	}
+	return value
+}
+
+func tradePIAgentAdminQueue(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	queue, err := tradePIAgentService.AdminQueue(r.Context(), tradePIAgentAdminTenant(r), tradePIAgentAdminLimit(r))
+	if err != nil {
+		http.Error(w, "agent queue unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, queue)
+}
+
+func tradePIAgentAdminLeads(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	items, err := tradePIAgentService.AdminLeads(r.Context(), tradePIAgentAdminTenant(r), tradePIAgentAdminLimit(r))
+	if err != nil {
+		http.Error(w, "agent leads unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func tradePIAgentAdminHandoffs(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	status := firstNonEmpty(r.URL.Query().Get("status"), "requested")
+	items, err := tradePIAgentService.AdminHandoffs(r.Context(), tradePIAgentAdminTenant(r), status, tradePIAgentAdminLimit(r))
+	if err != nil {
+		http.Error(w, "agent handoffs unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func tradePIAgentAdminAppointments(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	status := firstNonEmpty(r.URL.Query().Get("status"), "requested")
+	items, err := tradePIAgentService.AdminAppointments(r.Context(), tradePIAgentAdminTenant(r), status, tradePIAgentAdminLimit(r))
+	if err != nil {
+		http.Error(w, "agent appointments unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func writeTradePIAgentJSON(w http.ResponseWriter, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 func tradePIAgentDemo(w http.ResponseWriter, r *http.Request) {
@@ -63,8 +161,7 @@ func tradePIAgentDemo(w http.ResponseWriter, r *http.Request) {
 	}
 	result := tradePIAgentService.Handle(r.Context(), msg)
 	tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)
+	writeTradePIAgentJSON(w, result)
 }
 
 func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
@@ -118,8 +215,7 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 			tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
 		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "outbound": outbound, "reply": result.Reply, "lead": result.Lead, "vehicles": result.Vehicles})
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "outbound": outbound, "reply": result.Reply, "lead": result.Lead, "vehicles": result.Vehicles})
 }
 
 func sendTelegramText(r *http.Request, token string, chatID int64, text string) error {
