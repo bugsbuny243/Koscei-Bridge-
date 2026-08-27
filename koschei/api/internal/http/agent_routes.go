@@ -262,7 +262,7 @@ func tradePIAgentAdminRecordRevenue(w http.ResponseWriter, r *http.Request) {
 	}
 	event := agents.AdminRevenueEvent{
 		TenantID: firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-		Channel: req.Channel, ExternalID: req.ExternalID, AmountMinor: req.AmountMinor,
+		Channel:  req.Channel, ExternalID: req.ExternalID, AmountMinor: req.AmountMinor,
 		Currency: req.Currency, Source: req.Source, EvidenceRef: req.EvidenceRef, OccurredAt: occurredAt.UTC(),
 	}
 	if err := tradePIAgentService.AdminRecordRevenue(r.Context(), event); err != nil {
@@ -312,11 +312,17 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		UpdateID int64 `json:"update_id"`
 		Message  *struct {
-			MessageID int64 `json:"message_id"`
-			Date int64 `json:"date"`
-			Text string `json:"text"`
-			Chat struct { ID int64 `json:"id"` } `json:"chat"`
-			From *struct { ID int64 `json:"id"`; FirstName string `json:"first_name"`; LastName string `json:"last_name"` } `json:"from"`
+			MessageID int64  `json:"message_id"`
+			Date      int64  `json:"date"`
+			Text      string `json:"text"`
+			Chat      struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+			From *struct {
+				ID        int64  `json:"id"`
+				FirstName string `json:"first_name"`
+				LastName  string `json:"last_name"`
+			} `json:"from"`
 		} `json:"message"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&payload); err != nil {
@@ -330,7 +336,7 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(payload.Message.From.FirstName + " " + payload.Message.From.LastName)
 	msg := agents.Message{
 		TenantID: firstNonEmpty(os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-		Channel: agents.ChannelTelegram, ChannelChatID: int64String(payload.Message.Chat.ID),
+		Channel:  agents.ChannelTelegram, ChannelChatID: int64String(payload.Message.Chat.ID),
 		ChannelUserID: int64String(payload.Message.From.ID), DisplayName: name,
 		Text: payload.Message.Text, ReceivedAt: time.Unix(payload.Message.Date, 0).UTC(),
 	}
@@ -349,22 +355,32 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 
 func sendTelegramText(r *http.Request, token string, chatID int64, text string) error {
 	body, err := json.Marshal(map[string]any{"chat_id": chatID, "text": text})
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	endpoint := "https://api.telegram.org/bot" + token + "/sendMessage"
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 { return fmt.Errorf("telegram send status %d", resp.StatusCode) }
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("telegram send status %d", resp.StatusCode)
+	}
 	return nil
 }
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
-		if strings.TrimSpace(value) != "" { return strings.TrimSpace(value) }
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
 	}
 	return ""
 }
