@@ -1,0 +1,38 @@
+name: Temp Resync Hygiene Latest Main
+on:
+  push:
+    branches: [fix/openapi-main-drift-20260827-v2]
+    paths: [.github/workflows/tmp-resync-hygiene-latest-main.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/openapi-main-drift-20260827-v2
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Merge latest main and regenerate deterministic hygiene
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge --no-ff --no-edit origin/main
+          gofmt -w \
+            koschei/api/internal/agents/channel_delivery.go \
+            koschei/api/internal/agents/followup_worker.go \
+            koschei/api/internal/http/agent_extended_routes.go
+          cd koschei/api
+          go run ./cmd/openapi-gen
+          go test ./internal/openapi -count=1
+          cd ../..
+          test -z "$(gofmt -l koschei/api/internal/agents/channel_delivery.go koschei/api/internal/agents/followup_worker.go koschei/api/internal/http/agent_extended_routes.go)"
+          git diff --check
+          git add koschei/api/internal/agents/channel_delivery.go koschei/api/internal/agents/followup_worker.go koschei/api/internal/http/agent_extended_routes.go koschei/api/openapi.yaml
+          if ! git diff --cached --quiet; then git commit -m 'fix(ci): resync hygiene on latest main'; fi
+          git push origin HEAD:fix/openapi-main-drift-20260827-v2
