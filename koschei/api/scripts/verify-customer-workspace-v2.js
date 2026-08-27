@@ -51,13 +51,18 @@ const shellCss=fs.readFileSync(path.join(root,'public','css','customer-command-c
 const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-center-v1.js'),'utf8');
 requireText(shellCss,'.customer-app-shell','premium app shell');
 requireText(shellCss,'.customer-sidebar','premium sidebar');
+requireText(shellCss,'.customer-command-palette','navigation command palette style');
 requireText(shellJs,"['Deep Investigation','/scan?mode=deep','primary']",'canonical investigation nav');
 requireText(shellJs,"['Account & Plan','/account']",'account entitlement nav');
 requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
 requireText(shellJs,".top, .ops-nav",'shared customer header mount');
+requireText(shellJs,'customer-command-palette','navigation command palette');
+requireText(shellJs,"event.key.toLowerCase()==='k'",'keyboard command palette shortcut');
+requireText(shellJs,"event.key==='Escape'",'command palette escape close');
 for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=1',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=2',page+' shared shell behavior');}
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
+if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');
 
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');

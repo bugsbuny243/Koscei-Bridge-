@@ -28,6 +28,18 @@ function link(label,href,mode){
   return a;
 }
 
+function closePalette(){const node=document.querySelector('.customer-command-palette');if(node)node.hidden=true;}
+function buildPalette(){
+  const wrap=document.createElement('div');wrap.className='customer-command-palette';wrap.hidden=true;wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');wrap.setAttribute('aria-label','Koschei command palette');
+  const panel=document.createElement('div');panel.className='customer-command-palette__panel';
+  const input=document.createElement('input');input.type='search';input.placeholder='Go to investigation, history, monitoring…';input.setAttribute('aria-label','Filter customer commands');
+  const list=document.createElement('div');list.className='customer-command-palette__list';
+  const render=()=>{const query=input.value.trim().toLowerCase();list.replaceChildren();routes.filter(([name])=>name.toLowerCase().includes(query)).forEach(([name,href,mode])=>{const item=link(name,href,mode);item.classList.add('customer-command-result');list.appendChild(item);});};
+  input.addEventListener('input',render);wrap.addEventListener('click',event=>{if(event.target===wrap)closePalette();});panel.append(input,list);wrap.appendChild(panel);document.body.appendChild(wrap);render();return wrap;
+}
+function palette(){return document.querySelector('.customer-command-palette')||buildPalette();}
+function openPalette(){const node=palette();node.hidden=false;node.querySelector('input')?.focus();}
+
 function buildSidebar(){
   const aside=document.createElement('aside');
   aside.className='customer-sidebar';
@@ -38,6 +50,7 @@ function buildSidebar(){
   const label=document.createElement('div');label.className='customer-section-label';label.textContent='Workspace';
   const nav=document.createElement('nav');nav.className='customer-sidebar__nav';nav.setAttribute('aria-label','Customer security workspace');
   routes.forEach(([name,href,mode])=>nav.appendChild(link(name,href,mode)));
+  const quick=document.createElement('button');quick.type='button';quick.className='customer-command-trigger';quick.textContent='Quick switch';quick.setAttribute('aria-keyshortcuts','Control+K Meta+K');quick.addEventListener('click',openPalette);nav.appendChild(quick);
   const footer=document.createElement('div');footer.className='customer-sidebar__footer';
   const status=document.createElement('span');status.innerHTML='<i class="customer-status-dot"></i>Evidence-first security workspace';
   footer.append(status,link('Pricing','/pricing'),link('Home','/'));
@@ -67,6 +80,7 @@ function mount(){
   shell.append(buildSidebar(),content);
   content.appendChild(main);
   enhanceHeader(content);
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();openPalette();return;}if(event.key==='Escape')closePalette();});
   document.addEventListener('click',event=>{
     if(!document.body.classList.contains('customer-nav-open'))return;
     const sidebar=document.getElementById('customerSidebar');
