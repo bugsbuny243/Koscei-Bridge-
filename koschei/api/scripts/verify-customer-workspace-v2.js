@@ -52,8 +52,14 @@ const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-cen
 requireText(shellCss,'.customer-app-shell','premium app shell');
 requireText(shellCss,'.customer-sidebar','premium sidebar');
 requireText(shellCss,'.customer-command-palette','navigation command palette style');
-requireText(shellJs,"['Deep Investigation','/scan?mode=deep','primary']",'canonical investigation nav');
-requireText(shellJs,"['Account & Plan','/account']",'account entitlement nav');
+requireText(shellCss,'.customer-capability-access','capability access label style');
+requireText(shellJs,"{label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'STARTER+'}",'canonical investigation capability');
+requireText(shellJs,"{label:'Evidence History',href:'/reports',access:'STARTER+'}",'history capability');
+requireText(shellJs,"{label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'}",'professional monitoring capability');
+requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'ENTERPRISE API'}",'enterprise developer capability');
+requireText(shellJs,"{label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'}",'public evidence capability');
+requireText(shellJs,"{label:'Account & Plan',href:'/account',access:'ACCOUNT'}",'account capability');
+requireText(shellJs,'Access labels describe minimum route policy; server authorization remains authoritative.','server authorization boundary');
 requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
 requireText(shellJs,".top, .ops-nav",'shared customer header mount');
 requireText(shellJs,'customer-command-palette','navigation command palette');
@@ -63,6 +69,7 @@ for(const page of ['scan.html','reports.html','watchlist.html','account.html']){
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');
+if(/data-plan-gated|disabled\s*=/.test(shellJs))throw new Error('capability labels must not become client-side authorization gates');
 
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
