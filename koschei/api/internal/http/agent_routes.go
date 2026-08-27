@@ -24,10 +24,31 @@ type agentDemoRequest struct {
 }
 
 type agentAdminActionRequest struct {
-	TenantID     string `json:"tenant_id"`
-	ID           int64  `json:"id"`
-	Status       string `json:"status"`
-	ScheduledFor string `json:"scheduled_for"`
+	TenantID         string `json:"tenant_id"`
+	ID               int64  `json:"id"`
+	Status           string `json:"status"`
+	ScheduledFor     string `json:"scheduled_for"`
+	CalendarProvider string `json:"calendar_provider"`
+	CalendarEventID  string `json:"calendar_event_id"`
+}
+
+type agentAdminLeadAssignRequest struct {
+	TenantID      string `json:"tenant_id"`
+	Channel       string `json:"channel"`
+	ExternalID    string `json:"external_id"`
+	OwnerID       string `json:"owner_id"`
+	CRMExternalID string `json:"crm_external_id"`
+}
+
+type agentAdminRevenueRequest struct {
+	TenantID    string `json:"tenant_id"`
+	Channel     string `json:"channel"`
+	ExternalID  string `json:"external_id"`
+	AmountMinor int64  `json:"amount_minor"`
+	Currency    string `json:"currency"`
+	Source      string `json:"source"`
+	EvidenceRef string `json:"evidence_ref"`
+	OccurredAt  string `json:"occurred_at"`
 }
 
 func registerTradePIAgentRoutes(mux *http.ServeMux) {
@@ -48,10 +69,13 @@ func registerTradePIAgentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/webhooks/telegram", method("POST", tradePITelegramWebhook))
 	mux.HandleFunc("/api/agents/admin/queue", method("GET", tradePIAgentAdminQueue))
 	mux.HandleFunc("/api/agents/admin/leads", method("GET", tradePIAgentAdminLeads))
+	mux.HandleFunc("/api/agents/admin/leads/assign", method("POST", tradePIAgentAdminAssignLead))
 	mux.HandleFunc("/api/agents/admin/handoffs", method("GET", tradePIAgentAdminHandoffs))
 	mux.HandleFunc("/api/agents/admin/handoffs/resolve", method("POST", tradePIAgentAdminResolveHandoff))
 	mux.HandleFunc("/api/agents/admin/appointments", method("GET", tradePIAgentAdminAppointments))
 	mux.HandleFunc("/api/agents/admin/appointments/update", method("POST", tradePIAgentAdminUpdateAppointment))
+	mux.HandleFunc("/api/agents/admin/revenue", method("GET", tradePIAgentAdminRevenue))
+	mux.HandleFunc("/api/agents/admin/revenue/record", method("POST", tradePIAgentAdminRecordRevenue))
 }
 
 func tradePIAgentAdminAuthorized(w http.ResponseWriter, r *http.Request) bool {
@@ -110,6 +134,27 @@ func tradePIAgentAdminLeads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func tradePIAgentAdminAssignLead(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	var req agentAdminLeadAssignRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	tenantID := firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
+	if strings.TrimSpace(req.Channel) == "" || strings.TrimSpace(req.ExternalID) == "" || strings.TrimSpace(req.OwnerID) == "" {
+		http.Error(w, "channel, external_id and owner_id are required", http.StatusBadRequest)
+		return
+	}
+	if err := tradePIAgentService.AdminAssignLead(r.Context(), tenantID, req.Channel, req.ExternalID, req.OwnerID, req.CRMExternalID); err != nil {
+		http.Error(w, "lead assignment failed", http.StatusConflict)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "external_id": req.ExternalID, "owner_id": req.OwnerID})
 }
 
 func tradePIAgentAdminHandoffs(w http.ResponseWriter, r *http.Request) {
@@ -176,11 +221,55 @@ func tradePIAgentAdminUpdateAppointment(w http.ResponseWriter, r *http.Request) 
 		scheduledFor = &parsed
 	}
 	tenantID := firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
-	if err := tradePIAgentService.AdminUpdateAppointment(r.Context(), tenantID, req.ID, status, scheduledFor); err != nil {
+	if err := tradePIAgentService.AdminUpdateAppointmentCalendar(r.Context(), tenantID, req.ID, status, scheduledFor, req.CalendarProvider, req.CalendarEventID); err != nil {
 		http.Error(w, "appointment update failed", http.StatusConflict)
 		return
 	}
-	writeTradePIAgentJSON(w, map[string]any{"ok": true, "id": req.ID, "status": status, "scheduled_for": scheduledFor})
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "id": req.ID, "status": status, "scheduled_for": scheduledFor, "calendar_provider": req.CalendarProvider, "calendar_event_id": req.CalendarEventID})
+}
+
+func tradePIAgentAdminRevenue(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	tenantID := tradePIAgentAdminTenant(r)
+	summary, err := tradePIAgentService.AdminRevenueSummary(r.Context(), tenantID)
+	if err != nil {
+		http.Error(w, "revenue summary unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := tradePIAgentService.AdminRevenueEvents(r.Context(), tenantID, tradePIAgentAdminLimit(r))
+	if err != nil {
+		http.Error(w, "revenue events unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"summary": summary, "items": items})
+}
+
+func tradePIAgentAdminRecordRevenue(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	var req agentAdminRevenueRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	occurredAt, err := time.Parse(time.RFC3339, strings.TrimSpace(req.OccurredAt))
+	if err != nil {
+		http.Error(w, "occurred_at must be RFC3339", http.StatusBadRequest)
+		return
+	}
+	event := agents.AdminRevenueEvent{
+		TenantID: firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
+		Channel:  req.Channel, ExternalID: req.ExternalID, AmountMinor: req.AmountMinor,
+		Currency: req.Currency, Source: req.Source, EvidenceRef: req.EvidenceRef, OccurredAt: occurredAt.UTC(),
+	}
+	if err := tradePIAgentService.AdminRecordRevenue(r.Context(), event); err != nil {
+		http.Error(w, "revenue record rejected", http.StatusConflict)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "external_id": req.ExternalID, "amount_minor": req.AmountMinor, "currency": strings.ToUpper(strings.TrimSpace(req.Currency))})
 }
 
 func writeTradePIAgentJSON(w http.ResponseWriter, value any) {
@@ -206,12 +295,8 @@ func tradePIAgentDemo(w http.ResponseWriter, r *http.Request) {
 		req.UserID = "demo-user"
 	}
 	msg := agents.Message{
-		TenantID:      req.TenantID,
-		Channel:       agents.ChannelWeb,
-		ChannelUserID: req.UserID,
-		DisplayName:   req.DisplayName,
-		Text:          req.Text,
-		ReceivedAt:    time.Now().UTC(),
+		TenantID: req.TenantID, Channel: agents.ChannelWeb, ChannelUserID: req.UserID,
+		DisplayName: req.DisplayName, Text: req.Text, ReceivedAt: time.Now().UTC(),
 	}
 	result := tradePIAgentService.Handle(r.Context(), msg)
 	tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
@@ -250,16 +335,12 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	name := strings.TrimSpace(payload.Message.From.FirstName + " " + payload.Message.From.LastName)
 	msg := agents.Message{
-		TenantID:      firstNonEmpty(os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-		Channel:       agents.ChannelTelegram,
-		ChannelChatID: int64String(payload.Message.Chat.ID),
-		ChannelUserID: int64String(payload.Message.From.ID),
-		DisplayName:   name,
-		Text:          payload.Message.Text,
-		ReceivedAt:    time.Unix(payload.Message.Date, 0).UTC(),
+		TenantID: firstNonEmpty(os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
+		Channel:  agents.ChannelTelegram, ChannelChatID: int64String(payload.Message.Chat.ID),
+		ChannelUserID: int64String(payload.Message.From.ID), DisplayName: name,
+		Text: payload.Message.Text, ReceivedAt: time.Unix(payload.Message.Date, 0).UTC(),
 	}
 	result := tradePIAgentService.Handle(r.Context(), msg)
-
 	outbound := "disabled"
 	if token := strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")); token != "" {
 		if err := sendTelegramText(r, token, payload.Message.Chat.ID, result.Reply); err != nil {

@@ -51,6 +51,7 @@ func NewService() *Service {
 			s.db = db
 		}
 	}
+	s.startIntegrationWorker()
 	return s
 }
 
@@ -66,6 +67,8 @@ func (s *Service) PersistenceReady(ctx context.Context) bool {
 		"tradepi_agent_messages",
 		"tradepi_agent_handoffs",
 		"tradepi_agent_appointment_requests",
+		"tradepi_agent_revenue_events",
+		"tradepi_agent_integration_outbox",
 	} {
 		var ok bool
 		if err := s.db.QueryRowContext(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, table).Scan(&ok); err != nil || !ok {
