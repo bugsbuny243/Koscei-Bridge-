@@ -4,13 +4,13 @@ if(window.__koscheiCustomerCommandCenterV1)return;
 window.__koscheiCustomerCommandCenterV1=true;
 
 const routes=[
-  ['Overview','/dashboard'],
-  ['Deep Investigation','/scan?mode=deep','primary'],
-  ['Evidence History','/reports'],
-  ['Watchlist & Alerts','/watchlist'],
-  ['Public Evidence Cases','/cases'],
-  ['API Reference','/docs/api'],
-  ['Account & Plan','/account']
+  {label:'Overview',href:'/dashboard',access:'ACCOUNT'},
+  {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'STARTER+'},
+  {label:'Evidence History',href:'/reports',access:'STARTER+'},
+  {label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'},
+  {label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'},
+  {label:'API Reference',href:'/docs/api',access:'ENTERPRISE API'},
+  {label:'Account & Plan',href:'/account',access:'ACCOUNT'}
 ];
 
 function activeFor(href){
@@ -20,21 +20,25 @@ function activeFor(href){
   return path!=='/'&&current.startsWith(path);
 }
 
-function link(label,href,mode){
+function link(item){
   const a=document.createElement('a');
-  a.href=href;a.textContent=label;
-  if(activeFor(href))a.dataset.active='true';
-  if(mode==='primary')a.dataset.primary='true';
+  a.href=item.href;
+  const label=document.createElement('span');label.textContent=item.label;
+  a.appendChild(label);
+  if(item.access){const badge=document.createElement('small');badge.className='customer-capability-access';badge.textContent=item.access;a.appendChild(badge);}
+  if(activeFor(item.href))a.dataset.active='true';
+  if(item.mode==='primary')a.dataset.primary='true';
   return a;
 }
 
+function utilityLink(label,href){return link({label,href});}
 function closePalette(){const node=document.querySelector('.customer-command-palette');if(node)node.hidden=true;}
 function buildPalette(){
   const wrap=document.createElement('div');wrap.className='customer-command-palette';wrap.hidden=true;wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');wrap.setAttribute('aria-label','Koschei command palette');
   const panel=document.createElement('div');panel.className='customer-command-palette__panel';
   const input=document.createElement('input');input.type='search';input.placeholder='Go to investigation, history, monitoring…';input.setAttribute('aria-label','Filter customer commands');
   const list=document.createElement('div');list.className='customer-command-palette__list';
-  const render=()=>{const query=input.value.trim().toLowerCase();list.replaceChildren();routes.filter(([name])=>name.toLowerCase().includes(query)).forEach(([name,href,mode])=>{const item=link(name,href,mode);item.classList.add('customer-command-result');list.appendChild(item);});};
+  const render=()=>{const query=input.value.trim().toLowerCase();list.replaceChildren();routes.filter(item=>(item.label+' '+(item.access||'')).toLowerCase().includes(query)).forEach(item=>{const node=link(item);node.classList.add('customer-command-result');list.appendChild(node);});};
   input.addEventListener('input',render);wrap.addEventListener('click',event=>{if(event.target===wrap)closePalette();});panel.append(input,list);wrap.appendChild(panel);document.body.appendChild(wrap);render();return wrap;
 }
 function palette(){return document.querySelector('.customer-command-palette')||buildPalette();}
@@ -47,13 +51,13 @@ function buildSidebar(){
   const brand=document.createElement('a');
   brand.href='/';brand.className='customer-sidebar__brand';
   brand.innerHTML='<span class="customer-sidebar__mark">K</span><span><strong>Koschei Web3</strong><small>Security Command Center</small></span>';
-  const label=document.createElement('div');label.className='customer-section-label';label.textContent='Workspace';
+  const label=document.createElement('div');label.className='customer-section-label';label.textContent='Capabilities';
   const nav=document.createElement('nav');nav.className='customer-sidebar__nav';nav.setAttribute('aria-label','Customer security workspace');
-  routes.forEach(([name,href,mode])=>nav.appendChild(link(name,href,mode)));
+  routes.forEach(item=>nav.appendChild(link(item)));
   const quick=document.createElement('button');quick.type='button';quick.className='customer-command-trigger';quick.textContent='Quick switch';quick.setAttribute('aria-keyshortcuts','Control+K Meta+K');quick.addEventListener('click',openPalette);nav.appendChild(quick);
   const footer=document.createElement('div');footer.className='customer-sidebar__footer';
-  const status=document.createElement('span');status.innerHTML='<i class="customer-status-dot"></i>Evidence-first security workspace';
-  footer.append(status,link('Pricing','/pricing'),link('Home','/'));
+  const status=document.createElement('span');status.innerHTML='<i class="customer-status-dot"></i>Access labels describe minimum route policy; server authorization remains authoritative.';
+  footer.append(status,utilityLink('Pricing','/pricing'),utilityLink('Home','/'));
   aside.append(brand,label,nav,footer);
   return aside;
 }
