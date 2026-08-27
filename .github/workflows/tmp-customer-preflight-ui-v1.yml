@@ -1,0 +1,62 @@
+name: Temp Customer Preflight UI V1
+on:
+  push:
+    branches: [feat/customer-transaction-preflight-ui-v1]
+    paths: [.github/workflows/tmp-customer-preflight-ui-v1.yml]
+permissions:
+  contents: write
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/customer-transaction-preflight-ui-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Wire existing scan surface
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          scan = Path('koschei/api/public/scan.html')
+          text = scan.read_text()
+          old = '<button class="mode" type="button" data-scan-mode="transaction" aria-pressed="false"><span>Transaction Simulation</span><small>Before signing</small></button>'
+          new = '<button class="mode" type="button" data-scan-mode="transaction" aria-pressed="false"><span>Transaction Preflight</span><small>Professional+ before signing</small></button>'
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+          old_script = '<script src="/js/public-solana-scan.js?v=11"></script>'
+          new_script = old_script + '\n<script src="/js/customer-transaction-preflight-v1.js?v=1"></script>'
+          assert text.count(old_script) == 1, text.count(old_script)
+          text = text.replace(old_script, new_script)
+          scan.write_text(text)
+
+          command = Path('koschei/api/public/js/customer-command-center-v1.js')
+          text = command.read_text()
+          old = "  {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'PUBLIC'},"
+          new = old + "\n  {label:'Transaction Preflight',href:'/scan?mode=transaction',access:'PROFESSIONAL+'},"
+          assert text.count(old) == 1, text.count(old)
+          text = text.replace(old, new)
+          command.write_text(text)
+          PY
+      - name: Verify UI contract
+        working-directory: koschei/api
+        run: |
+          node scripts/verify-customer-transaction-preflight-ui-v1.js
+          node scripts/verify-customer-investigation-ui.js
+          go test ./internal/http ./internal/handlers -count=1
+          git diff --check
+      - name: Commit exact UI wiring
+        run: |
+          changed="$(git diff --name-only | sort)"
+          printf '%s\n' "$changed"
+          expected=$(printf '%s\n' \
+            koschei/api/public/js/customer-command-center-v1.js \
+            koschei/api/public/scan.html | sort)
+          test "$changed" = "$expected"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/public/scan.html koschei/api/public/js/customer-command-center-v1.js
+          git commit -m 'feat(customer): wire Professional preflight into scan'
+          git push origin HEAD:feat/customer-transaction-preflight-ui-v1
