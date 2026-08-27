@@ -1,6 +1,8 @@
 name: Temp Customer Capability Label Fix
 on:
-  workflow_dispatch:
+  push:
+    branches: [fix/customer-capability-labels-v2]
+    paths: [.github/workflows/temp-customer-label-fix.yml]
 permissions:
   contents: write
 jobs:
@@ -17,6 +19,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           root=Path('koschei/api')
           js=root/'public/js/customer-command-center-v1.js'
           s=js.read_text()
@@ -34,7 +37,6 @@ jobs:
           for name in pages:
             p=root/'public'/name
             t=p.read_text()
-            import re
             t,n1=re.subn(r'/css/customer-command-center-v1\.css\?v=\d+', '/css/customer-command-center-v1.css?v=3', t)
             t,n2=re.subn(r'/js/customer-command-center-v1\.js\?v=\d+', '/js/customer-command-center-v1.js?v=3', t)
             if n1!=1 or n2!=1: raise SystemExit(f'{name}: expected one css/js shell ref, got {n1}/{n2}')
@@ -63,5 +65,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add koschei/api/public koschei/api/scripts/verify-customer-workspace-v2.js
           git diff --cached --check
-          git commit -m 'fix(customer): correct capability route labels' || exit 0
+          git commit -m 'fix(customer): correct capability route labels'
           git push origin HEAD:fix/customer-capability-labels-v2
