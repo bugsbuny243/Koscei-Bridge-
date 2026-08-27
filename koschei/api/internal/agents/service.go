@@ -55,6 +55,20 @@ func NewService() *Service {
 
 func (s *Service) PersistenceEnabled() bool { return s.db != nil }
 
+func (s *Service) PersistenceReady(ctx context.Context) bool {
+	if s.db == nil {
+		return false
+	}
+	var leads, messages bool
+	if err := s.db.QueryRowContext(ctx, `SELECT to_regclass('public.tradepi_agent_leads') IS NOT NULL`).Scan(&leads); err != nil {
+		return false
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT to_regclass('public.tradepi_agent_messages') IS NOT NULL`).Scan(&messages); err != nil {
+		return false
+	}
+	return leads && messages
+}
+
 func (s *Service) Handle(ctx context.Context, msg Message) Result {
 	key := msg.TenantID + ":" + string(msg.Channel) + ":" + msg.ChannelUserID
 	current, ok := s.loadLead(ctx, msg)
