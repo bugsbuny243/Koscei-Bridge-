@@ -46,10 +46,22 @@ func attackPathProjectionFromReport(report map[string]any) (map[string]any, bool
 		return nil, false
 	}
 	projection := buildEvidenceBackedAttackPathProjection(threat)
+	linked := map[string]unifiedEvidenceReference{}
 	if refs, ok := report["evidence_references"].(map[string]unifiedEvidenceReference); ok {
-		if linked := buildAttackPathEvidenceReferences(threat, refs); len(linked) > 0 {
-			projection["evidence_references"] = linked
+		linked = buildAttackPathEvidenceReferences(threat, refs)
+	}
+	if cluster, ok := report["holder_cluster"].(services.HolderClusterAnalysis); ok {
+		if ref := holderClusterAttackPathEvidenceReference(cluster); attackPathEvidenceReferencePresent(ref, threat.Target) {
+			for _, path := range threat.Pathways {
+				if path.ID == "coordinated_holder_exit" {
+					linked[path.ID] = ref
+					break
+				}
+			}
 		}
+	}
+	if len(linked) > 0 {
+		projection["evidence_references"] = linked
 	}
 	return projection, true
 }
@@ -72,6 +84,37 @@ func buildAttackPathEvidenceReferences(threat services.ThreatAnticipationReport,
 		}
 	}
 	return out
+}
+
+func holderClusterAttackPathEvidenceReference(cluster services.HolderClusterAnalysis) unifiedEvidenceReference {
+	ref := unifiedEvidenceReference{}
+	if !cluster.Available {
+		return ref
+	}
+	for _, wallet := range cluster.Wallets {
+		ref.Wallets = append(ref.Wallets, wallet.Wallet)
+		if wallet.AcquisitionSlot > 0 {
+			ref.Slots = append(ref.Slots, wallet.AcquisitionSlot)
+		}
+		for _, observation := range wallet.FlowObservations {
+			ref.Wallets = append(ref.Wallets, observation.SourceWallet, observation.Destination)
+			ref.Accounts = append(ref.Accounts, observation.SourceTokenAccount, observation.DestinationTokenAccount)
+			ref.Signatures = append(ref.Signatures, observation.Signature)
+			ref.Slots = append(ref.Slots, observation.Slot)
+		}
+	}
+	for _, group := range cluster.SharedFundingGroups {
+		ref.Wallets = append(ref.Wallets, group.Key)
+		ref.Wallets = append(ref.Wallets, group.Wallets...)
+	}
+	ref.Wallets = append(ref.Wallets, cluster.SynchronizedWallets...)
+	for _, observation := range cluster.Flow.Observations {
+		ref.Wallets = append(ref.Wallets, observation.SourceWallet, observation.Destination)
+		ref.Accounts = append(ref.Accounts, observation.SourceTokenAccount, observation.DestinationTokenAccount)
+		ref.Signatures = append(ref.Signatures, observation.Signature)
+		ref.Slots = append(ref.Slots, observation.Slot)
+	}
+	return normalizedUnifiedEvidenceReference(ref)
 }
 
 func attackPathEvidenceReferencePresent(ref unifiedEvidenceReference, target string) bool {
