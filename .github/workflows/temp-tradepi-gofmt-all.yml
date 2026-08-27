@@ -1,0 +1,37 @@
+name: Temp TradePI Agent Gofmt All
+on:
+  push:
+    branches: [fix/tradepi-agent-gofmt-v3]
+    paths: [.github/workflows/temp-tradepi-gofmt-all.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/tradepi-agent-gofmt-v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Format TradePI Agent Go surface
+        working-directory: koschei/api
+        run: |
+          gofmt -w internal/agents/*.go internal/http/agent_routes.go
+          test -z "$(gofmt -l internal/agents/*.go internal/http/agent_routes.go)"
+      - name: Verify scope and compile
+        working-directory: koschei/api
+        run: |
+          git diff --check
+          unexpected="$(git diff --name-only | grep -Ev '^koschei/api/internal/agents/[^/]+\.go$|^koschei/api/internal/http/agent_routes\.go$' || true)"
+          test -z "$unexpected"
+          go test ./internal/agents ./internal/http -count=1
+      - name: Commit formatting only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/internal/agents/*.go koschei/api/internal/http/agent_routes.go
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(agents): gofmt TradePI agent Go surface'
+          git push origin HEAD:fix/tradepi-agent-gofmt-v3
