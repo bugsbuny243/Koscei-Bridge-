@@ -1,0 +1,102 @@
+name: Temporary Customer Command Center V3 Sync
+
+on:
+  push:
+    branches:
+      - feat/customer-premium-command-center-v3
+    paths:
+      - .github/workflows/tmp-customer-command-center-v3-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/customer-premium-command-center-v3
+          fetch-depth: 0
+      - name: Patch plan hints and command palette
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          shell=Path('koschei/api/public/js/customer-command-center-v1.js')
+          s=shell.read_text()
+          s=s.replace("const routes=[\n  ['Overview','/dashboard'],\n  ['Deep Investigation','/scan?mode=deep','primary'],\n  ['Evidence History','/reports'],\n  ['Watchlist & Alerts','/watchlist'],\n  ['Public Evidence Cases','/cases'],\n  ['API Reference','/docs/api'],\n  ['Account & Plan','/account']\n];", "const routes=[\n  {label:'Overview',href:'/dashboard'},\n  {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',minPlan:'starter'},\n  {label:'Evidence History',href:'/reports',minPlan:'starter'},\n  {label:'Watchlist & Alerts',href:'/watchlist',minPlan:'professional'},\n  {label:'Public Evidence Cases',href:'/cases'},\n  {label:'API Reference',href:'/docs/api'},\n  {label:'Account & Plan',href:'/account'}\n];\nconst entitlementKey='koschei:customer-entitlement-hint:v1';\nconst planRank={starter:1,professional:2,enterprise:3};\nlet entitlementHint=null;")
+          s=s.replace("function link(label,href,mode){\n  const a=document.createElement('a');\n  a.href=href;a.textContent=label;\n  if(activeFor(href))a.dataset.active='true';\n  if(mode==='primary')a.dataset.primary='true';\n  return a;\n}", "function planLabel(value){const raw=String(value||'').trim().toLowerCase();return planRank[raw]?raw:'';}\nfunction readEntitlementHint(){try{const raw=sessionStorage.getItem(entitlementKey);if(!raw)return null;const parsed=JSON.parse(raw);if(!parsed||parsed.source!=='entitlement'||typeof parsed.active!=='boolean'||!planLabel(parsed.plan))return null;return parsed;}catch{return null;}}\nfunction applyGateState(a,minPlan){if(!minPlan)return;const required=planRank[minPlan]||0,current=entitlementHint?.active===true?(planRank[planLabel(entitlementHint.plan)]||0):0;if(!entitlementHint)return;if(current<required){a.dataset.planGated='true';a.title=`${minPlan.toUpperCase()} plan or higher required. Server entitlement remains authoritative.`;const badge=document.createElement('small');badge.className='customer-plan-badge';badge.textContent=minPlan.toUpperCase();a.appendChild(badge);}}\nfunction link(label,href,mode,minPlan){\n  const a=document.createElement('a');\n  a.href=href;const span=document.createElement('span');span.textContent=label;a.appendChild(span);\n  if(activeFor(href))a.dataset.active='true';\n  if(mode==='primary')a.dataset.primary='true';\n  applyGateState(a,minPlan);\n  return a;\n}")
+          s=s.replace("routes.forEach(([name,href,mode])=>nav.appendChild(link(name,href,mode)));", "routes.forEach(item=>nav.appendChild(link(item.label,item.href,item.mode,item.minPlan)));\n  const quick=document.createElement('button');quick.type='button';quick.className='customer-command-trigger';quick.textContent='Quick switch';quick.setAttribute('aria-keyshortcuts','Control+K Meta+K');quick.addEventListener('click',openPalette);nav.appendChild(quick);")
+          s=s.replace("footer.append(status,link('Pricing','/pricing'),link('Home','/'));", "footer.append(status,link('Pricing','/pricing'),link('Home','/'));")
+          palette="""
+function buildPalette(){
+  const wrap=document.createElement('div');wrap.className='customer-command-palette';wrap.hidden=true;wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');wrap.setAttribute('aria-label','Koschei command palette');
+  const panel=document.createElement('div');panel.className='customer-command-palette__panel';
+  const input=document.createElement('input');input.type='search';input.placeholder='Go to investigation, history, monitoring…';input.setAttribute('aria-label','Filter customer commands');
+  const list=document.createElement('div');list.className='customer-command-palette__list';
+  const render=()=>{const query=input.value.trim().toLowerCase();list.replaceChildren();routes.filter(item=>item.label.toLowerCase().includes(query)).forEach(item=>{const a=link(item.label,item.href,item.mode,item.minPlan);a.classList.add('customer-command-result');list.appendChild(a);});};
+  input.addEventListener('input',render);wrap.addEventListener('click',event=>{if(event.target===wrap)closePalette();});panel.append(input,list);wrap.appendChild(panel);document.body.appendChild(wrap);render();return wrap;
+}
+function palette(){return document.querySelector('.customer-command-palette')||buildPalette();}
+function openPalette(){const node=palette();node.hidden=false;node.querySelector('input')?.focus();}
+function closePalette(){const node=document.querySelector('.customer-command-palette');if(node)node.hidden=true;}
+function refreshEntitlementHint(detail){if(detail&&detail.source==='entitlement'&&typeof detail.active==='boolean'&&planLabel(detail.plan))entitlementHint=detail;else entitlementHint=readEntitlementHint();const old=document.getElementById('customerSidebar');if(old){const replacement=buildSidebar();old.replaceWith(replacement);}}
+"""
+          s=s.replace("function enhanceHeader(main){", palette+"\nfunction enhanceHeader(main){")
+          s=s.replace("function mount(){\n  const main=", "function mount(){\n  entitlementHint=readEntitlementHint();\n  window.addEventListener('koschei:customer-entitlement',event=>refreshEntitlementHint(event.detail));\n  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();openPalette();}else if(event.key==='Escape')closePalette();});\n  const main=")
+          shell.write_text(s)
+
+          workspace=Path('koschei/api/public/js/customer-workspace-v2.js')
+          w=workspace.read_text()
+          marker="const historyStates=new Set(['queued','running','completed','failed']);"
+          helper=marker+"\nfunction publishEntitlementHint(result,access){if(!result?.ok||result?.data?.ok!==true||!access||access.source!=='entitlement'||typeof access.active!=='boolean'||!String(access.plan||'').trim())return;const hint={active:access.active===true,plan:String(access.plan).trim().toLowerCase(),source:'entitlement'};try{sessionStorage.setItem('koschei:customer-entitlement-hint:v1',JSON.stringify(hint));}catch{}window.dispatchEvent(new CustomEvent('koschei:customer-entitlement',{detail:hint}));}"
+          if 'publishEntitlementHint' not in w:w=w.replace(marker,helper,1)
+          anchor="const access=obj(accessResult.data?.access),active=accessResult.ok&&access.active===true;"
+          w=w.replace(anchor,anchor+"\n  publishEntitlementHint(accessResult,access);",1)
+          workspace.write_text(w)
+
+          access=Path('koschei/api/public/js/customer-access-v2.js')
+          a=access.read_text()
+          marker="function parsePremium(result){"
+          helper="function publishPremiumHint(premium){if(!premium?.available||!premium.access)return;const access=premium.access,hint={active:access.active===true,plan:text(access.plan).toLowerCase(),source:'entitlement'};try{sessionStorage.setItem('koschei:customer-entitlement-hint:v1',JSON.stringify(hint));}catch{}window.dispatchEvent(new CustomEvent('koschei:customer-entitlement',{detail:hint}));}\n\n"+marker
+          if 'publishPremiumHint' not in a:a=a.replace(marker,helper,1)
+          anchor="renderWallet(parseWallet(walletResult));renderPremium(parsePremium(premiumResult));"
+          a=a.replace(anchor,"renderWallet(parseWallet(walletResult));const premium=parsePremium(premiumResult);publishPremiumHint(premium);renderPremium(premium);",1)
+          access.write_text(a)
+
+          css=Path('koschei/api/public/css/customer-command-center-v1.css')
+          c=css.read_text()
+          extra=".customer-sidebar__nav a{display:flex;align-items:center;justify-content:space-between;gap:8px}.customer-plan-badge{font:700 8px var(--k-mono);letter-spacing:.08em;color:#d9b875;border:1px solid #5b4a2b;border-radius:999px;padding:3px 6px}.customer-sidebar__nav a[data-plan-gated=\"true\"]{opacity:.72}.customer-command-trigger{width:100%;margin-top:8px;padding:10px 12px;border:1px dashed #30404b;border-radius:10px;background:#0b1116;color:#9dabb5;text-align:left;font:700 12px inherit;cursor:pointer}.customer-command-palette{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.62);display:grid;place-items:start center;padding-top:min(16vh,140px);backdrop-filter:blur(8px)}.customer-command-palette[hidden]{display:none}.customer-command-palette__panel{width:min(620px,92vw);padding:12px;border:1px solid #30404b;border-radius:16px;background:#0b1116;box-shadow:0 30px 90px rgba(0,0,0,.55)}.customer-command-palette__panel input{width:100%;padding:14px 15px;border:1px solid #30404b;border-radius:11px;background:#111820;color:#eef4f6;font:700 14px inherit;outline:none}.customer-command-palette__list{display:grid;gap:6px;margin-top:10px}.customer-command-result{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1px solid transparent;border-radius:10px;color:#c8d2d8;background:#0e151b;text-decoration:none}.customer-command-result:hover{border-color:#345044;background:#122019}"
+          if '.customer-command-palette{' not in c:c += extra
+          css.write_text(c)
+
+          verify=Path('koschei/api/scripts/verify-customer-workspace-v2.js')
+          v=verify.read_text()
+          marker="if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');"
+          additions=marker+"\nrequireText(shellJs,'customer-command-palette','navigation-only command palette');\nrequireText(shellJs,\"sessionStorage.getItem(entitlementKey)\",'server-derived entitlement hint reader');\nrequireText(shellJs,\"Server entitlement remains authoritative\",'entitlement UI authority boundary');\nif(/fetch\\s*\\(/.test(shellJs))throw new Error('command center shell must not fetch entitlement or product data directly');\nconst workspaceJs=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'),'utf8');\nconst accountJs=fs.readFileSync(path.join(root,'public','js','customer-access-v2.js'),'utf8');\nrequireText(workspaceJs,'publishEntitlementHint','workspace publishes server-derived entitlement hint');\nrequireText(accountJs,'publishPremiumHint','account publishes server-derived entitlement hint');\nrequireText(shellJs,\"minPlan:'professional'\",'professional capability marker');"
+          if 'navigation-only command palette' not in v:v=v.replace(marker,additions,1)
+          verify.write_text(v)
+          PY
+      - name: Verify customer workspace
+        working-directory: koschei/api
+        run: node scripts/verify-customer-workspace-v2.js
+      - name: Verify customer access
+        working-directory: koschei/api
+        run: node scripts/verify-customer-access-v2.js
+      - name: Verify investigation UI
+        working-directory: koschei/api
+        run: node scripts/verify-customer-investigation-ui.js
+      - name: Commit product changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/public/js/customer-command-center-v1.js koschei/api/public/js/customer-workspace-v2.js koschei/api/public/js/customer-access-v2.js koschei/api/public/css/customer-command-center-v1.css koschei/api/scripts/verify-customer-workspace-v2.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "feat(customer): add plan-aware command palette"
+          git push origin HEAD:feat/customer-premium-command-center-v3
