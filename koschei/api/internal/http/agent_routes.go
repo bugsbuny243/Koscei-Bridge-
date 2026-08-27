@@ -29,6 +29,7 @@ func registerTradePIAgentRoutes(mux *http.ServeMux) {
 			"product": "tradepi-ai-agents",
 			"mode": "single-service",
 			"persistence_enabled": tradePIAgentService.PersistenceEnabled(),
+			"persistence_ready": tradePIAgentService.PersistenceReady(r.Context()),
 			"telegram_enabled": strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")) != "",
 		})
 	}))
