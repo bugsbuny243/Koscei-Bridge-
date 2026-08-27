@@ -4,70 +4,66 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>TradePI AI Agents — Sales Queue</title>
+  <title>TradePI AI Agents — Sales Operations</title>
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color-scheme:dark;background:#0b0d12;color:#eef2ff}
-    body{margin:0;padding:32px;max-width:1280px;margin-inline:auto}
-    h1{margin:0 0 6px} p{color:#9aa4b2}.bar,.grid,.actions{display:flex;gap:12px;flex-wrap:wrap}.grid{margin-top:24px}
-    input,button{border:1px solid #2b3442;background:#121722;color:#eef2ff;border-radius:10px;padding:11px 13px}
-    input{min-width:220px}button{cursor:pointer;font-weight:700}.card{border:1px solid #202836;background:#10151e;border-radius:14px;padding:16px;flex:1;min-width:300px}
-    .item{padding:12px 0;border-bottom:1px solid #202836}.item:last-child{border:0}.score{font-size:24px;font-weight:800}.muted{color:#8d98a7;font-size:13px}.err{color:#ff9b9b}.ok{color:#8ce99a}.actions{margin-top:10px}.actions input{min-width:180px;padding:8px}.actions button{padding:8px 10px}
+    body{margin:0;padding:32px;max-width:1400px;margin-inline:auto}h1{margin:0 0 6px}p{color:#9aa4b2}
+    .bar,.grid,.actions,.metrics{display:flex;gap:12px;flex-wrap:wrap}.grid{margin-top:24px}.metrics{margin:20px 0}
+    input,button,select{border:1px solid #2b3442;background:#121722;color:#eef2ff;border-radius:10px;padding:11px 13px}
+    input{min-width:190px}button{cursor:pointer;font-weight:700}.card{border:1px solid #202836;background:#10151e;border-radius:14px;padding:16px;flex:1;min-width:300px}
+    .metric{border:1px solid #202836;background:#10151e;border-radius:14px;padding:16px;min-width:190px}.metric strong{display:block;font-size:28px;margin-top:6px}
+    .item{padding:12px 0;border-bottom:1px solid #202836}.item:last-child{border:0}.score{font-size:24px;font-weight:800}.muted{color:#8d98a7;font-size:13px}.err{color:#ff9b9b}.ok{color:#8ce99a}
+    .actions{margin-top:10px}.actions input,.actions select{min-width:150px;padding:8px}.actions button{padding:8px 10px}.wide{flex-basis:100%}
   </style>
 </head>
 <body>
-  <h1>TradePI AI Sales Queue</h1>
-  <p>Hot leads, human handoffs and appointment requests. AI requests actions; only the owner console can resolve or confirm them.</p>
+  <h1>TradePI AI Sales Operations</h1>
+  <p>Lead ownership, human handoffs, confirmed appointments and evidence-backed revenue attribution.</p>
   <div class="bar">
     <input id="token" type="password" autocomplete="off" placeholder="Owner/admin secret">
     <input id="tenant" value="demo-automotive" placeholder="Tenant ID">
-    <button id="load">Load queue</button>
+    <button id="load">Load operations</button>
   </div>
   <p id="status" class="muted">The secret is used only for API calls from this page and is never embedded in the site.</p>
+
+  <div id="metrics" class="metrics"></div>
+
   <div class="grid">
     <section class="card"><h2>Hot leads</h2><div id="leads"></div></section>
     <section class="card"><h2>Human handoffs</h2><div id="handoffs"></div></section>
     <section class="card"><h2>Appointments</h2><div id="appointments"></div></section>
+    <section class="card wide">
+      <h2>Record verified revenue</h2>
+      <p class="muted">Only record a sale when you have a source record, invoice, CRM deal ID, payment ID or another evidence reference.</p>
+      <div class="actions">
+        <input id="rev-channel" placeholder="channel (telegram/web)">
+        <input id="rev-external" placeholder="lead external ID">
+        <input id="rev-amount" type="number" min="1" placeholder="amount, e.g. 2450000">
+        <input id="rev-currency" value="TRY" placeholder="currency">
+        <input id="rev-source" placeholder="source, e.g. crm">
+        <input id="rev-evidence" placeholder="evidence ref / deal ID">
+        <input id="rev-when" type="datetime-local">
+        <button onclick="recordRevenue()">Record verified sale</button>
+      </div>
+    </section>
   </div>
 <script>
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function empty(text){return `<div class="muted">${esc(text)}</div>`}
-function lead(x){return `<div class="item"><div class="score">${esc(x.score)}</div><b>${esc(x.display_name||x.external_id)}</b><div>${esc(x.stage)} · ${esc(x.channel)}</div><div class="muted">model ${x.model_known?'✓':'–'} · budget ${x.budget_known?'✓':'–'} · location ${x.location_known?'✓':'–'} · trade-in ${x.trade_in_known?'✓':'–'}</div></div>`}
+function formatMoney(minor,currency){try{return new Intl.NumberFormat(undefined,{style:'currency',currency}).format(Number(minor)/100)}catch{return `${Number(minor)/100} ${currency}`}}
+function metrics(revenue){const totals=revenue?.totals||[];return totals.length?totals.map(x=>`<div class="metric"><span class="muted">Attributed revenue · ${esc(x.currency)}</span><strong>${esc(formatMoney(x.amount_minor,x.currency))}</strong><span class="muted">${esc(x.sales)} verified sale(s)</span></div>`).join(''):`<div class="metric"><span class="muted">Attributed revenue</span><strong>0</strong><span class="muted">No verified sales yet</span></div>`}
+function lead(x){return `<div class="item"><div class="score">${esc(x.score)}</div><b>${esc(x.display_name||x.external_id)}</b><div>${esc(x.stage)} · ${esc(x.channel)}</div><div class="muted">owner ${esc(x.owner_id||'unassigned')} · CRM ${esc(x.crm_status||'unassigned')} · model ${x.model_known?'✓':'–'} · budget ${x.budget_known?'✓':'–'} · location ${x.location_known?'✓':'–'} · trade-in ${x.trade_in_known?'✓':'–'}</div><div class="actions"><input id="owner-${esc(x.channel)}-${esc(x.external_id)}" placeholder="sales owner ID" value="${esc(x.owner_id||'')}"><input id="crm-${esc(x.channel)}-${esc(x.external_id)}" placeholder="CRM deal/lead ID" value="${esc(x.crm_external_id||'')}"><button onclick='assignLead(${JSON.stringify(x.channel)},${JSON.stringify(x.external_id)})'>Assign</button></div></div>`}
 function handoff(x){return `<div class="item"><b>${esc(x.display_name||x.external_id)}</b><div>${esc(x.reason)}</div><div class="muted">${esc(x.channel)} · ${esc(x.status)} · ${esc(new Date(x.requested_at).toLocaleString())}</div><div class="actions"><button onclick="resolveHandoff(${Number(x.id)})">Mark resolved</button></div></div>`}
-function appt(x){return `<div class="item"><b>${esc(x.display_name||x.external_id)}</b><div>${esc(x.request_text)}</div><div class="muted">${esc(x.channel)} · request only, not confirmed</div><div class="actions"><input id="when-${Number(x.id)}" type="datetime-local"><button onclick="confirmAppointment(${Number(x.id)})">Confirm</button><button onclick="cancelAppointment(${Number(x.id)})">Cancel</button></div></div>`}
+function appt(x){return `<div class="item"><b>${esc(x.display_name||x.external_id)}</b><div>${esc(x.request_text)}</div><div class="muted">${esc(x.channel)} · request only, not confirmed</div><div class="actions"><input id="when-${Number(x.id)}" type="datetime-local"><input id="cal-provider-${Number(x.id)}" value="manual" placeholder="calendar provider"><input id="cal-event-${Number(x.id)}" placeholder="calendar event ID"><button onclick="confirmAppointment(${Number(x.id)})">Confirm</button><button onclick="cancelAppointment(${Number(x.id)})">Cancel</button></div></div>`}
 function credentials(){return {token:$('token').value.trim(),tenant:$('tenant').value.trim()||'demo-automotive'}}
-async function api(path,options={}){
-  const {token}=credentials();
-  if(!token) throw new Error('Owner/admin secret required.');
-  const headers={Authorization:'Bearer '+token,'Content-Type':'application/json',...(options.headers||{})};
-  const r=await fetch(path,{...options,headers,cache:'no-store'});
-  if(!r.ok) throw new Error(r.status===503?'Admin API is not configured yet.':'Admin action failed ('+r.status+').');
-  return r.json();
-}
-async function load(){
-  const {tenant}=credentials();
-  $('status').textContent='Loading…';$('status').className='muted';
-  try{
-    const q=await api('/api/agents/admin/queue?tenant_id='+encodeURIComponent(tenant));
-    $('leads').innerHTML=q.leads?.length?q.leads.map(lead).join(''):empty('No leads yet.');
-    $('handoffs').innerHTML=q.handoffs?.length?q.handoffs.map(handoff).join(''):empty('No pending handoffs.');
-    $('appointments').innerHTML=q.appointments?.length?q.appointments.map(appt).join(''):empty('No pending appointment requests.');
-    $('status').textContent='Queue loaded. Tenant: '+q.tenant_id;$('status').className='ok';
-  }catch(e){$('status').textContent=e.message;$('status').className='err'}
-}
-async function resolveHandoff(id){
-  const {tenant}=credentials();
-  try{await api('/api/agents/admin/handoffs/resolve',{method:'POST',body:JSON.stringify({tenant_id:tenant,id})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}
-}
-async function confirmAppointment(id){
-  const {tenant}=credentials(), raw=$('when-'+id)?.value;
-  if(!raw){$('status').textContent='Select a real date/time before confirming.';$('status').className='err';return}
-  try{await api('/api/agents/admin/appointments/update',{method:'POST',body:JSON.stringify({tenant_id:tenant,id,status:'confirmed',scheduled_for:new Date(raw).toISOString()})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}
-}
-async function cancelAppointment(id){
-  const {tenant}=credentials();
-  try{await api('/api/agents/admin/appointments/update',{method:'POST',body:JSON.stringify({tenant_id:tenant,id,status:'cancelled'})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}
-}
+async function api(path,options={}){const {token}=credentials();if(!token) throw new Error('Owner/admin secret required.');const headers={Authorization:'Bearer '+token,'Content-Type':'application/json',...(options.headers||{})};const r=await fetch(path,{...options,headers,cache:'no-store'});if(!r.ok) throw new Error(r.status===503?'Admin API unavailable.':'Admin action failed ('+r.status+').');return r.json()}
+async function load(){const {tenant}=credentials();$('status').textContent='Loading…';$('status').className='muted';try{const q=await api('/api/agents/admin/queue?tenant_id='+encodeURIComponent(tenant));$('metrics').innerHTML=metrics(q.revenue);$('leads').innerHTML=q.leads?.length?q.leads.map(lead).join(''):empty('No leads yet.');$('handoffs').innerHTML=q.handoffs?.length?q.handoffs.map(handoff).join(''):empty('No pending handoffs.');$('appointments').innerHTML=q.appointments?.length?q.appointments.map(appt).join(''):empty('No pending appointment requests.');$('status').textContent='Operations loaded. Tenant: '+q.tenant_id;$('status').className='ok'}catch(e){$('status').textContent=e.message;$('status').className='err'}}
+async function assignLead(channel,externalID){const {tenant}=credentials(),key=channel+'-'+externalID,owner=$('owner-'+key)?.value.trim(),crm=$('crm-'+key)?.value.trim();if(!owner){$('status').textContent='Sales owner ID required.';$('status').className='err';return}try{await api('/api/agents/admin/leads/assign',{method:'POST',body:JSON.stringify({tenant_id:tenant,channel,external_id:externalID,owner_id:owner,crm_external_id:crm})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}}
+async function resolveHandoff(id){const {tenant}=credentials();try{await api('/api/agents/admin/handoffs/resolve',{method:'POST',body:JSON.stringify({tenant_id:tenant,id})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}}
+async function confirmAppointment(id){const {tenant}=credentials(),raw=$('when-'+id)?.value;if(!raw){$('status').textContent='Select a real date/time before confirming.';$('status').className='err';return}try{await api('/api/agents/admin/appointments/update',{method:'POST',body:JSON.stringify({tenant_id:tenant,id,status:'confirmed',scheduled_for:new Date(raw).toISOString(),calendar_provider:$('cal-provider-'+id)?.value.trim(),calendar_event_id:$('cal-event-'+id)?.value.trim()})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}}
+async function cancelAppointment(id){const {tenant}=credentials();try{await api('/api/agents/admin/appointments/update',{method:'POST',body:JSON.stringify({tenant_id:tenant,id,status:'cancelled'})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}}
+async function recordRevenue(){const {tenant}=credentials(),amount=Number($('rev-amount').value),when=$('rev-when').value;if(!amount||amount<=0||!when||!$('rev-channel').value.trim()||!$('rev-external').value.trim()||!$('rev-source').value.trim()||!$('rev-evidence').value.trim()){$('status').textContent='Revenue requires lead, amount, source, evidence reference and date/time.';$('status').className='err';return}try{await api('/api/agents/admin/revenue/record',{method:'POST',body:JSON.stringify({tenant_id:tenant,channel:$('rev-channel').value.trim(),external_id:$('rev-external').value.trim(),amount_minor:Math.round(amount*100),currency:$('rev-currency').value.trim()||'TRY',source:$('rev-source').value.trim(),evidence_ref:$('rev-evidence').value.trim(),occurred_at:new Date(when).toISOString()})});await load()}catch(e){$('status').textContent=e.message;$('status').className='err'}}
 $('load').addEventListener('click',load);
 </script>
 </body>
