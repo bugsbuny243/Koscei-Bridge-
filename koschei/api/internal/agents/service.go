@@ -38,10 +38,11 @@ type Service struct {
 	leads map[string]Lead
 	core  *Core
 	db    *sql.DB
+	llm   *LLMClient
 }
 
 func NewService() *Service {
-	s := &Service{leads: map[string]Lead{}, core: NewCore(NewDemoInventory())}
+	s := &Service{leads: map[string]Lead{}, core: NewCore(NewDemoInventory()), llm: NewLLMClientFromEnv()}
 	if dsn := strings.TrimSpace(os.Getenv("DATABASE_URL")); dsn != "" {
 		if db, err := sql.Open("postgres", dsn); err == nil {
 			db.SetMaxOpenConns(2)
@@ -54,6 +55,7 @@ func NewService() *Service {
 }
 
 func (s *Service) PersistenceEnabled() bool { return s.db != nil }
+func (s *Service) LLMEnabled() bool { return s.llm != nil && s.llm.Enabled() }
 
 func (s *Service) PersistenceReady(ctx context.Context) bool {
 	if s.db == nil {
@@ -79,6 +81,11 @@ func (s *Service) Handle(ctx context.Context, msg Message) Result {
 	}
 
 	result := s.core.Handle(ctx, msg, current)
+	if s.llm != nil && s.llm.Enabled() {
+		if reply, err := s.llm.Rewrite(ctx, msg.Text, result.Reply, result.Lead, result.Vehicles); err == nil && strings.TrimSpace(reply) != "" {
+			result.Reply = reply
+		}
+	}
 
 	s.mu.Lock()
 	s.leads[key] = result.Lead
