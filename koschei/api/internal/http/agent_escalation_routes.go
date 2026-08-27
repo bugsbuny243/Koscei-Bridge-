@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"koschei/api/internal/agents"
 )
 
 type agentEscalationActionRequest struct {
@@ -51,5 +49,3 @@ func tradePIAgentAdminUpdateEscalation(w http.ResponseWriter, r *http.Request) {
 	}
 	writeTradePIAgentJSON(w, map[string]any{"ok": true, "id": req.ID, "status": status, "source": "operator"})
 }
-
-var _ = agents.ChannelWeb
