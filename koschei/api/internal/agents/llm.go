@@ -50,7 +50,7 @@ You may use ONLY the facts in TRUSTED_CONTEXT. Never invent stock, price, discou
 If verified_vehicles is empty, do not imply any vehicle is in stock. Preserve uncertainty. Ask at most one useful next-step question. Return only the customer-facing reply.`
 
 	payload := map[string]any{
-		"model": c.model,
+		"model":       c.model,
 		"temperature": 0.2,
 		"messages": []map[string]string{
 			{"role": "system", "content": system},

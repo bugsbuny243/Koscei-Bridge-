@@ -55,7 +55,7 @@ func NewService() *Service {
 }
 
 func (s *Service) PersistenceEnabled() bool { return s.db != nil }
-func (s *Service) LLMEnabled() bool { return s.llm != nil && s.llm.Enabled() }
+func (s *Service) LLMEnabled() bool         { return s.llm != nil && s.llm.Enabled() }
 
 func (s *Service) PersistenceReady(ctx context.Context) bool {
 	if s.db == nil {
