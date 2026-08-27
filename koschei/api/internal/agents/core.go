@@ -96,14 +96,28 @@ func qualify(msg Message, lead Lead) Lead {
 	}
 
 	score := 10
-	if lead.ModelKnown { score += 25 }
-	if lead.BudgetKnown { score += 25 }
-	if lead.LocationKnown { score += 20 }
-	if lead.TradeInKnown { score += 10 }
-	if containsAny(text, "test sürüş", "test surus", "randevu", "bugün", "bugun", "yarın", "yarin") { score += 20 }
-	if score > 100 { score = 100 }
+	if lead.ModelKnown {
+		score += 25
+	}
+	if lead.BudgetKnown {
+		score += 25
+	}
+	if lead.LocationKnown {
+		score += 20
+	}
+	if lead.TradeInKnown {
+		score += 10
+	}
+	if containsAny(text, "test sürüş", "test surus", "randevu", "bugün", "bugun", "yarın", "yarin") {
+		score += 20
+	}
+	if score > 100 {
+		score = 100
+	}
 	lead.Score = score
-	if score >= 60 && lead.Stage == "engaged" { lead.Stage = "qualified" }
+	if score >= 60 && lead.Stage == "engaged" {
+		lead.Stage = "qualified"
+	}
 	lead.UpdatedAt = time.Now().UTC()
 	return lead
 }
@@ -122,14 +136,18 @@ func buildReply(lead Lead, vehicles []Vehicle) string {
 func modelQuery(text string) string {
 	lower := strings.ToLower(text)
 	for _, model := range []string{"320i", "520i", "c200"} {
-		if strings.Contains(lower, model) { return model }
+		if strings.Contains(lower, model) {
+			return model
+		}
 	}
 	return text
 }
 
 func containsAny(s string, values ...string) bool {
 	for _, value := range values {
-		if strings.Contains(s, value) { return true }
+		if strings.Contains(s, value) {
+			return true
+		}
 	}
 	return false
 }
