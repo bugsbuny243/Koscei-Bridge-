@@ -23,6 +23,13 @@ type agentDemoRequest struct {
 	Text        string `json:"text"`
 }
 
+type agentAdminActionRequest struct {
+	TenantID     string `json:"tenant_id"`
+	ID           int64  `json:"id"`
+	Status       string `json:"status"`
+	ScheduledFor string `json:"scheduled_for"`
+}
+
 func registerTradePIAgentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/agents/health", method("GET", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -42,7 +49,9 @@ func registerTradePIAgentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/agents/admin/queue", method("GET", tradePIAgentAdminQueue))
 	mux.HandleFunc("/api/agents/admin/leads", method("GET", tradePIAgentAdminLeads))
 	mux.HandleFunc("/api/agents/admin/handoffs", method("GET", tradePIAgentAdminHandoffs))
+	mux.HandleFunc("/api/agents/admin/handoffs/resolve", method("POST", tradePIAgentAdminResolveHandoff))
 	mux.HandleFunc("/api/agents/admin/appointments", method("GET", tradePIAgentAdminAppointments))
+	mux.HandleFunc("/api/agents/admin/appointments/update", method("POST", tradePIAgentAdminUpdateAppointment))
 }
 
 func tradePIAgentAdminAuthorized(w http.ResponseWriter, r *http.Request) bool {
@@ -116,6 +125,23 @@ func tradePIAgentAdminHandoffs(w http.ResponseWriter, r *http.Request) {
 	writeTradePIAgentJSON(w, map[string]any{"items": items})
 }
 
+func tradePIAgentAdminResolveHandoff(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	var req agentAdminActionRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.ID <= 0 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	tenantID := firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
+	if err := tradePIAgentService.AdminResolveHandoff(r.Context(), tenantID, req.ID); err != nil {
+		http.Error(w, "handoff update failed", http.StatusConflict)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "id": req.ID, "status": "resolved"})
+}
+
 func tradePIAgentAdminAppointments(w http.ResponseWriter, r *http.Request) {
 	if !tradePIAgentAdminAuthorized(w, r) {
 		return
@@ -127,6 +153,34 @@ func tradePIAgentAdminAppointments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func tradePIAgentAdminUpdateAppointment(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	var req agentAdminActionRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || req.ID <= 0 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	var scheduledFor *time.Time
+	if status == "confirmed" {
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ScheduledFor))
+		if err != nil {
+			http.Error(w, "scheduled_for must be RFC3339 for confirmed appointments", http.StatusBadRequest)
+			return
+		}
+		parsed = parsed.UTC()
+		scheduledFor = &parsed
+	}
+	tenantID := firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
+	if err := tradePIAgentService.AdminUpdateAppointment(r.Context(), tenantID, req.ID, status, scheduledFor); err != nil {
+		http.Error(w, "appointment update failed", http.StatusConflict)
+		return
+	}
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "id": req.ID, "status": status, "scheduled_for": scheduledFor})
 }
 
 func writeTradePIAgentJSON(w http.ResponseWriter, value any) {
