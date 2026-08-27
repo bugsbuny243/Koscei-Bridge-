@@ -53,6 +53,9 @@ requireText(shellCss,'.customer-app-shell','premium app shell');
 requireText(shellCss,'.customer-sidebar','premium sidebar');
 requireText(shellJs,"['Deep Investigation','/scan?mode=deep','primary']",'canonical investigation nav');
 requireText(shellJs,"['Account & Plan','/account']",'account entitlement nav');
+requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
+requireText(shellJs,".top, .ops-nav",'shared customer header mount');
+for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=1',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=2',page+' shared shell behavior');}
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 
