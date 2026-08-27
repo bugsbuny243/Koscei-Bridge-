@@ -12,6 +12,7 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	// namespace and does not alter Koschei Web3 security behavior.
 	registerTradePIAgentRoutes(mux)
 	registerTradePIAgentExtendedRoutes(mux)
+	registerTradePIAgentFollowupRoutes(mux)
 	registerStaticFileAlias(mux, "/agents", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/admin", filepath.Join(staticDir, "agents-admin.html"))
