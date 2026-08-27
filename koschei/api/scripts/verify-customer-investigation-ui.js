@@ -67,4 +67,75 @@ for (const marker of ownerMarkers) {
 if (ownerCreator.includes('/api/owner/defense/investigate') || ownerCreator.includes('/api/owner/defense/distribution')) {
   throw new Error('owner creator renderer must not start a duplicate actor investigation request');
 }
+
+const ownerServer = fs.readFileSync('internal/http/server.go', 'utf8');
+const ownerLab = fs.readFileSync('public/js/owner-web3-lab.js', 'utf8');
+const ownerSocial = fs.readFileSync('public/js/owner-social-studio.js', 'utf8');
+new Function(ownerLab);
+new Function(ownerSocial);
+
+const ownerWeb3Routes = [
+  '/api/owner/web3/shield/preflight',
+  '/api/owner/web3/transaction-guard',
+  '/api/owner/web3/defense-validation',
+  '/api/owner/web3/execution-assurance/safe/verify'
+];
+for (const route of ownerWeb3Routes) {
+  if (!ownerServer.includes(`mux.HandleFunc("${route}", requiresDB(h, ownerOnly(h,`)) {
+    throw new Error(`owner Web3 route is not protected by the owner-only boundary: ${route}`);
+  }
+  if (!ownerLab.includes(route)) throw new Error(`owner Web3 lab is missing route: ${route}`);
+}
+if (ownerLab.includes("'/api/v1/") || ownerLab.includes('"/api/v1/')) {
+  throw new Error('owner Web3 lab must not call API-key protected public developer routes directly');
+}
+
+const ownerLabMarkers = [
+  'Owner Web3 Validation Lab',
+  'Shield Preflight',
+  'Transaction Guard V2',
+  'Defense Validation',
+  'Safe Execution Assurance',
+  'sanitizeSocialResult',
+  'owner_web3_evidence',
+  'attack_path',
+  'program_policy',
+  'intent_policy',
+  'recordVideo',
+  'canvasBlob',
+  'koschei:owner-web3-result'
+];
+for (const marker of ownerLabMarkers) {
+  if (!ownerLab.includes(marker)) throw new Error(`missing owner Web3 lab marker: ${marker}`);
+}
+const sanitizeStart = ownerLab.indexOf('function sanitizeSocialResult');
+const sanitizeEnd = ownerLab.indexOf('function socialPayload', sanitizeStart);
+if (sanitizeStart < 0 || sanitizeEnd <= sanitizeStart) throw new Error('owner Web3 social sanitizer contract is missing');
+const sanitizeBlock = ownerLab.slice(sanitizeStart, sanitizeEnd);
+for (const forbidden of ['canonical_base64', 'execution_proof', 'proof_attestation', 'transaction:']) {
+  if (sanitizeBlock.includes(forbidden)) throw new Error(`raw request material leaked into owner social sanitizer: ${forbidden}`);
+}
+if (ownerLab.includes('latestRequest') || ownerLab.includes('requestPayload')) {
+  throw new Error('owner Web3 lab must not retain raw validation requests in shared state');
+}
+
+const ownerSocialMarkers = [
+  '/js/owner-web3-lab.js?v=1',
+  'latestSocialPayload',
+  'owner_web3_evidence',
+  'OWNER_EVIDENCE_STUDIO_REQUEST',
+  'lab().drawMediaCanvas',
+  'lab().recordVideo',
+  'lab().canvasBlob',
+  'Video / Reels oluştur',
+  'Gönderi / X görselini indir',
+  'Raw serialized transaction, execution proof ve canonical action sosyal pakete taşınmaz.'
+];
+for (const marker of ownerSocialMarkers) {
+  if (!ownerSocial.includes(marker)) throw new Error(`missing owner evidence studio marker: ${marker}`);
+}
+if (ownerSocial.includes('X-API-Key') || ownerSocial.includes('Authorization: Bearer')) {
+  throw new Error('owner social studio must never embed developer API credentials');
+}
+
 console.log('customer and owner investigation UI contracts verified');

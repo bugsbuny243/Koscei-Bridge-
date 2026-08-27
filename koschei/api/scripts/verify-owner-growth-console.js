@@ -30,7 +30,7 @@ for(const platform of ["x:{label:'X'","instagram:{label:'Instagram Reels'","tikt
 requireText(social,"owner().api('/api/owner/chat'",'Together social copy');
 requireText(social,'hashtags and mentions must be arrays of strings','structured social pack');
 requireText(social,'Use ONLY the supplied ARVIS scan facts','evidence boundary');
-requireText(social,'Never invent a wallet, transaction, price, score, crime, identity, partnership, endorsement or certainty','anti-hallucination boundary');
+requireText(social,'Never invent a wallet, transaction, block/slot, price, score, crime, identity, partnership, endorsement or certainty','anti-hallucination boundary');
 
 requireText(voice,"/api/owner/chat?mode=tts&language=en",'Together TTS owner path');
 requireText(voice,'recordWithAudio','narrated video mux');
