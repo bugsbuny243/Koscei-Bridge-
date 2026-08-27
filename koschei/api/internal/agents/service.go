@@ -69,6 +69,10 @@ func (s *Service) PersistenceReady(ctx context.Context) bool {
 		"tradepi_agent_appointment_requests",
 		"tradepi_agent_revenue_events",
 		"tradepi_agent_integration_outbox",
+		"tradepi_agent_provider_events",
+		"tradepi_agent_catalog_items",
+		"tradepi_agent_knowledge_entries",
+		"tradepi_agent_followups",
 	} {
 		var ok bool
 		if err := s.db.QueryRowContext(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, table).Scan(&ok); err != nil || !ok {
@@ -106,6 +110,7 @@ func (s *Service) Handle(ctx context.Context, msg Message) Result {
 			result.Reply = reply
 		}
 	}
+	result = s.ApplyBusinessContext(ctx, msg, result)
 
 	s.mu.Lock()
 	s.leads[key] = result.Lead
