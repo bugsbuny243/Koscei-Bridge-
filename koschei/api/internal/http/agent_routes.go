@@ -28,6 +28,7 @@ func registerTradePIAgentRoutes(mux *http.ServeMux) {
 			"ok": true,
 			"product": "tradepi-ai-agents",
 			"mode": "single-service",
+			"persistence_enabled": tradePIAgentService.PersistenceEnabled(),
 			"telegram_enabled": strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")) != "",
 		})
 	}))
@@ -47,14 +48,16 @@ func tradePIAgentDemo(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.TenantID) == "" { req.TenantID = "demo-automotive" }
 	if strings.TrimSpace(req.UserID) == "" { req.UserID = "demo-user" }
-	result := tradePIAgentService.Handle(r.Context(), agents.Message{
+	msg := agents.Message{
 		TenantID: req.TenantID,
 		Channel: agents.ChannelWeb,
 		ChannelUserID: req.UserID,
 		DisplayName: req.DisplayName,
 		Text: req.Text,
 		ReceivedAt: time.Now().UTC(),
-	})
+	}
+	result := tradePIAgentService.Handle(r.Context(), msg)
+	tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
@@ -88,7 +91,7 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimSpace(payload.Message.From.FirstName + " " + payload.Message.From.LastName)
-	result := tradePIAgentService.Handle(r.Context(), agents.Message{
+	msg := agents.Message{
 		TenantID: firstNonEmpty(os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
 		Channel: agents.ChannelTelegram,
 		ChannelChatID: int64String(payload.Message.Chat.ID),
@@ -96,7 +99,8 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 		DisplayName: name,
 		Text: payload.Message.Text,
 		ReceivedAt: time.Unix(payload.Message.Date, 0).UTC(),
-	})
+	}
+	result := tradePIAgentService.Handle(r.Context(), msg)
 
 	outbound := "disabled"
 	if token := strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")); token != "" {
@@ -104,6 +108,7 @@ func tradePITelegramWebhook(w http.ResponseWriter, r *http.Request) {
 			outbound = "failed"
 		} else {
 			outbound = "sent"
+			tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
