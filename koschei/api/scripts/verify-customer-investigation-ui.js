@@ -22,6 +22,22 @@ if (postBlock.indexOf('renderDetail(directReport') > postBlock.indexOf('await op
   throw new Error('direct investigation rendering must precede legacy detail fallback');
 }
 
+const customerPremium = fs.readFileSync('public/js/customer-arvis-premium-suite.js', 'utf8');
+const attackPathMarkers = [
+  'mountAttackPath',
+  'report.attack_path',
+  'attack.evidence_references',
+  'data-arvis-attack-path',
+  'ATTACK PATH → CONCRETE EVIDENCE',
+  'Kapasite, niyet kanıtı değildir.'
+];
+for (const marker of attackPathMarkers) {
+  if (!customerPremium.includes(marker)) throw new Error(`missing customer attack-path UI marker: ${marker}`);
+}
+if (customerPremium.includes("fetch('/api/v1/radar/detail") || customerPremium.includes("fetch('/api/v1/radar/check")) {
+  throw new Error('attack-path renderer must reuse the canonical customer payload instead of starting a duplicate investigation request');
+}
+
 const ownerHTML = fs.readFileSync('public/owner-production.html', 'utf8');
 const ownerCreator = fs.readFileSync('public/js/owner-creator-intelligence.js', 'utf8');
 const ownerControlIndex = ownerHTML.indexOf('owner-control-center.js');
