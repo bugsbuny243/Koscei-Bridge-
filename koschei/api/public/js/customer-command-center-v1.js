@@ -6,6 +6,7 @@ window.__koscheiCustomerCommandCenterV1=true;
 const routes=[
   {label:'Overview',href:'/dashboard',access:'PUBLIC'},
   {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'PUBLIC'},
+  {label:'Transaction Preflight',href:'/scan?mode=transaction',access:'PROFESSIONAL+'},
   {label:'Evidence History',href:'/reports',access:'STARTER+'},
   {label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'},
   {label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'},
