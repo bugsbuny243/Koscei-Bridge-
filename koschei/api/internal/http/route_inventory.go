@@ -75,7 +75,7 @@ func productionRouteInventory() []routeInventoryGroup {
 			"POST /api/owner/dossier/publications", "POST /api/owner/arvis/acceptance",
 		}},
 		{Name: "premium_radar_and_reports", Auth: "customer_session_plus_saas_entitlement", Routes: []string{
-			"POST /api/v1/token/extensions", "POST /api/v1/address-poisoning/check",
+			"POST /api/v1/token/extensions", "POST /api/v1/address-poisoning/check", "POST /api/customer/web3/transaction-preflight",
 			"POST /api/v1/radar/check", "POST /api/v1/radar/jobs", "GET /api/v1/radar/jobs/", "GET /api/v1/radar/detail", "GET /api/v1/radar/feed",
 			"GET /api/v1/radar/creator-intelligence", "GET /api/v1/radar/actor-intelligence", "GET /api/v1/radar/graph", "GET /api/v1/radar/exposure", "POST /api/v1/radar/court",
 			"POST /api/jobs/token-scan", "GET /api/jobs/",
