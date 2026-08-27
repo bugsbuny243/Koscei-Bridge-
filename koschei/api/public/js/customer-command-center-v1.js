@@ -4,12 +4,12 @@ if(window.__koscheiCustomerCommandCenterV1)return;
 window.__koscheiCustomerCommandCenterV1=true;
 
 const routes=[
-  {label:'Overview',href:'/dashboard',access:'ACCOUNT'},
-  {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'STARTER+'},
+  {label:'Overview',href:'/dashboard',access:'PUBLIC'},
+  {label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'PUBLIC'},
   {label:'Evidence History',href:'/reports',access:'STARTER+'},
   {label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'},
   {label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'},
-  {label:'API Reference',href:'/docs/api',access:'ENTERPRISE API'},
+  {label:'API Reference',href:'/docs/api',access:'PUBLIC · MIXED'},
   {label:'Account & Plan',href:'/account',access:'ACCOUNT'}
 ];
 
@@ -56,7 +56,7 @@ function buildSidebar(){
   routes.forEach(item=>nav.appendChild(link(item)));
   const quick=document.createElement('button');quick.type='button';quick.className='customer-command-trigger';quick.textContent='Quick switch';quick.setAttribute('aria-keyshortcuts','Control+K Meta+K');quick.addEventListener('click',openPalette);nav.appendChild(quick);
   const footer=document.createElement('div');footer.className='customer-sidebar__footer';
-  const status=document.createElement('span');status.innerHTML='<i class="customer-status-dot"></i>Access labels describe minimum route policy; server authorization remains authoritative.';
+  const status=document.createElement('span');status.innerHTML='<i class="customer-status-dot"></i>Access labels describe the current route surface; server authorization remains authoritative.';
   footer.append(status,utilityLink('Pricing','/pricing'),utilityLink('Home','/'));
   aside.append(brand,label,nav,footer);
   return aside;

@@ -11,8 +11,8 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 
 requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
 requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
-requireText(html,'/css/customer-command-center-v1.css?v=1','premium customer command center style');
-requireText(html,'/js/customer-command-center-v1.js?v=1','premium customer command center behavior');
+requireText(html,'/css/customer-command-center-v1.css?v=3','premium customer command center style');
+requireText(html,'/js/customer-command-center-v1.js?v=3','premium customer command center behavior');
 requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
 requireText(html,'id="workspaceMissionControl"','operations mount');
 requireText(html,'id="workspaceLatestReport"','latest investigation mount');
@@ -53,19 +53,20 @@ requireText(shellCss,'.customer-app-shell','premium app shell');
 requireText(shellCss,'.customer-sidebar','premium sidebar');
 requireText(shellCss,'.customer-command-palette','navigation command palette style');
 requireText(shellCss,'.customer-capability-access','capability access label style');
-requireText(shellJs,"{label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'STARTER+'}",'canonical investigation capability');
+requireText(shellJs,"{label:'Overview',href:'/dashboard',access:'PUBLIC'}",'public overview capability');
+requireText(shellJs,"{label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'PUBLIC'}",'public investigation capability');
 requireText(shellJs,"{label:'Evidence History',href:'/reports',access:'STARTER+'}",'history capability');
 requireText(shellJs,"{label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'}",'professional monitoring capability');
-requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'ENTERPRISE API'}",'enterprise developer capability');
+requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'PUBLIC · MIXED'}",'mixed public API reference capability');
 requireText(shellJs,"{label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'}",'public evidence capability');
 requireText(shellJs,"{label:'Account & Plan',href:'/account',access:'ACCOUNT'}",'account capability');
-requireText(shellJs,'Access labels describe minimum route policy; server authorization remains authoritative.','server authorization boundary');
+requireText(shellJs,'Access labels describe the current route surface; server authorization remains authoritative.','server authorization boundary');
 requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
 requireText(shellJs,".top, .ops-nav",'shared customer header mount');
 requireText(shellJs,'customer-command-palette','navigation command palette');
 requireText(shellJs,"event.key.toLowerCase()==='k'",'keyboard command palette shortcut');
 requireText(shellJs,"event.key==='Escape'",'command palette escape close');
-for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=1',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=2',page+' shared shell behavior');}
+for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=3',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=3',page+' shared shell behavior');}
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');
