@@ -11,6 +11,15 @@ func customerInvestigationStatus(final services.UnifiedRadarVerdict, hasLiveEvid
 	return "evidence_pending"
 }
 
+func attachCustomerAttackPath(assembly *unifiedInvestigationAssembly) {
+	if assembly == nil || assembly.Report == nil {
+		return
+	}
+	if attackPath, ok := attackPathProjectionFromReport(assembly.Report); ok {
+		assembly.Report["attack_path"] = attackPath
+	}
+}
+
 // attachCustomerAnalysisSummary is the single wiring point used by every
 // customer-facing investigation response. The same deterministic summary is
 // embedded in the canonical report and may also be exposed at the response
@@ -32,6 +41,12 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	} else {
 		assembly.Report["final_verdict"] = assembly.UnifiedVerdict
 	}
+
+	// Customer responses must expose the same evidence-backed attack-path
+	// projection used by the technical parity contract. This does not add new
+	// inference: the projection is derived only from the typed threat report and
+	// already-collected concrete evidence references.
+	attachCustomerAttackPath(assembly)
 
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
