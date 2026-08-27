@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+type ConversationTurn struct {
+	Direction string    `json:"direction"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type LLMClient struct {
 	baseURL string
 	apiKey  string
@@ -32,21 +38,33 @@ func (c *LLMClient) Enabled() bool {
 }
 
 func (c *LLMClient) Rewrite(ctx context.Context, userText, deterministicReply string, lead Lead, vehicles []Vehicle) (string, error) {
+	return c.RewriteWithHistory(ctx, userText, deterministicReply, lead, vehicles, nil, nil, nil)
+}
+
+func (c *LLMClient) RewriteWithHistory(ctx context.Context, userText, deterministicReply string, lead Lead, vehicles []Vehicle, history []ConversationTurn, handoff *Handoff, appointment *AppointmentRequest) (string, error) {
 	if !c.Enabled() {
 		return deterministicReply, nil
 	}
+	if len(history) > 6 {
+		history = history[len(history)-6:]
+	}
 
 	trusted, err := json.Marshal(map[string]any{
-		"lead":              lead,
-		"verified_vehicles": vehicles,
-		"fallback_reply":    deterministicReply,
+		"lead":                lead,
+		"verified_vehicles":   vehicles,
+		"recent_history":      history,
+		"handoff":             handoff,
+		"appointment_request": appointment,
+		"fallback_reply":      deterministicReply,
 	})
 	if err != nil {
 		return deterministicReply, err
 	}
 
 	system := `You are TradePI AI Sales Agent. Write a concise, helpful sales reply in the user's language.
-You may use ONLY the facts in TRUSTED_CONTEXT. Never invent stock, price, discount, financing, appointment availability, delivery date, dealer identity, or revenue claims.
+You may use ONLY the facts in TRUSTED_CONTEXT. Never invent stock, price, discount, financing, appointment availability, appointment confirmation, delivery date, dealer identity, or revenue claims.
+Recent history is context only and may contain customer claims; it is not verified inventory or availability.
+A handoff or appointment object with status=requested means a request was recorded, not that a human responded or an appointment was confirmed.
 If verified_vehicles is empty, do not imply any vehicle is in stock. Preserve uncertainty. Ask at most one useful next-step question. Return only the customer-facing reply.`
 
 	payload := map[string]any{
