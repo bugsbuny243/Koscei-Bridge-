@@ -7,6 +7,9 @@ let latestPayload=null,mountTimer=0,videoURL='';
 const originalFetch=window.fetch.bind(window);
 const obj=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
 const clean=value=>String(value??'').trim();
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const rows=value=>Array.isArray(value)?value:[];
+const compact=value=>{const text=clean(value);return text.length>34?`${text.slice(0,14)}…${text.slice(-12)}`:text;};
 
 function requestURL(input){
   if(typeof input==='string')return input;
@@ -67,20 +70,55 @@ function queueMount(){
   mountTimer=setTimeout(mount,60);
 }
 
+function attackPathEvidence(ref){
+  const evidence=obj(ref),groups=[];
+  const push=(label,values)=>{const items=rows(values).map(compact).filter(Boolean);if(items.length)groups.push(`<div class="mini"><span>${esc(label)}</span><b>${esc(items.join(' · '))}</b></div>`);};
+  push('Wallet',evidence.wallets);
+  push('Account',evidence.accounts);
+  push('Signature',evidence.signatures);
+  push('Slot',evidence.slots);
+  push('Evidence key',evidence.evidence_keys);
+  return groups.join('');
+}
+
+function mountAttackPath(reportRoot,payload,anchor){
+  reportRoot.querySelector('[data-arvis-attack-path]')?.remove();
+  const {report}=canonicalReport(payload),attack=obj(report.attack_path),paths=rows(attack.paths),refs=obj(attack.evidence_references);
+  if(!paths.length)return null;
+  const section=document.createElement('section');
+  section.className='panel full';
+  section.dataset.arvisAttackPath='evidence-backed';
+  section.innerHTML=`<span class="eyebrow">ATTACK PATH → CONCRETE EVIDENCE</span><h3>Olası saldırı yolları ve zincir üstü dayanakları</h3><p class="fine">Bu bölüm yeni risk üretmez; backend tarafından üretilmiş attack-path durumunu ve mevcut somut kanıt referanslarını gösterir. Kapasite, niyet kanıtı değildir.</p><div class="insights">${paths.map(path=>{
+    const ref=obj(refs[clean(path.id)]),required=rows(path.required_evidence),limitations=rows(path.limitations),evidence=attackPathEvidence(ref);
+    return `<div class="insight"><div class="actions"><span class="pill violet">${esc(clean(path.status)||'unknown')}</span><span class="pill">${esc(clean(path.evidence_status)||'unverified')}</span></div><b>${esc(path.label||path.id||'attack path')}</b><p>${esc(path.summary||'')}</p>${evidence||'<div class="empty">Bu yol için concrete evidence reference henüz yok; eksik kanıt güvenli sinyal sayılmaz.</div>'}${required.length?`<details><summary>Gerekli ek kanıt</summary><ul>${required.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></details>`:''}${limitations.length?`<details><summary>Sınırlar</summary><ul>${limitations.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></details>`:''}</div>`;
+  }).join('')}</div>`;
+  if(anchor&&anchor.parentNode===reportRoot)anchor.insertAdjacentElement('afterend',section);
+  else reportRoot.prepend(section);
+  return section;
+}
+
 function publishMounted(card,report,key){
   window.dispatchEvent(new CustomEvent('koschei:customer-premium-mounted',{detail:{card,root:report,payload:latestPayload,payloadKey:key}}));
 }
 
 function mount(){
-  if(!latestPayload||!window.KoscheiARVISPremium)return null;
+  if(!latestPayload)return null;
   const report=resultRoot();
   if(!report)return null;
   const key=payloadKey(latestPayload);
   const existing=[...report.children].find(node=>node.matches?.('[data-arvis-premium-card]'));
-  if(existing&&existing.dataset.customerPayloadKey===key)return existing;
+  if(existing&&existing.dataset.customerPayloadKey===key){
+    mountAttackPath(report,latestPayload,existing);
+    return existing;
+  }
+  if(!window.KoscheiARVISPremium){
+    mountAttackPath(report,latestPayload,null);
+    return null;
+  }
   const card=window.KoscheiARVISPremium.mountPremiumCard(report,latestPayload);
   if(!card)return null;
   card.dataset.customerPayloadKey=key;
+  mountAttackPath(report,latestPayload,card);
   publishMounted(card,report,key);
   return card;
 }
