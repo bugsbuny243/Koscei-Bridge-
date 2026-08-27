@@ -7,6 +7,8 @@ import (
 )
 
 var ErrPersistenceUnavailable = errors.New("agent persistence unavailable")
+var ErrAdminRecordNotFound = errors.New("agent admin record not found")
+var ErrInvalidAdminTransition = errors.New("invalid agent admin transition")
 
 type AdminLead struct {
 	TenantID      string    `json:"tenant_id"`
@@ -169,4 +171,54 @@ func (s *Service) AdminQueue(ctx context.Context, tenantID string, limit int) (A
 		return AdminQueue{}, err
 	}
 	return AdminQueue{TenantID: tenantID, Leads: leads, Handoffs: handoffs, Appointments: appointments}, nil
+}
+
+func (s *Service) AdminResolveHandoff(ctx context.Context, tenantID string, id int64) error {
+	if s.db == nil {
+		return ErrPersistenceUnavailable
+	}
+	result, err := s.db.ExecContext(ctx, `
+UPDATE tradepi_agent_handoffs
+SET status='resolved', resolved_at=NOW()
+WHERE id=$1 AND tenant_id=$2 AND status='requested'`, id, tenantID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return ErrAdminRecordNotFound
+	}
+	return nil
+}
+
+func (s *Service) AdminUpdateAppointment(ctx context.Context, tenantID string, id int64, status string, scheduledFor *time.Time) error {
+	if s.db == nil {
+		return ErrPersistenceUnavailable
+	}
+	if status != "confirmed" && status != "cancelled" {
+		return ErrInvalidAdminTransition
+	}
+	if status == "confirmed" && (scheduledFor == nil || scheduledFor.IsZero()) {
+		return ErrInvalidAdminTransition
+	}
+	result, err := s.db.ExecContext(ctx, `
+UPDATE tradepi_agent_appointment_requests
+SET status=$3,
+    scheduled_for=CASE WHEN $3='confirmed' THEN $4 ELSE scheduled_for END,
+    updated_at=NOW()
+WHERE id=$1 AND tenant_id=$2 AND status='requested'`, id, tenantID, status, scheduledFor)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return ErrAdminRecordNotFound
+	}
+	return nil
 }
