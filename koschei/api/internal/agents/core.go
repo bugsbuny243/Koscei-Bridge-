@@ -54,8 +54,8 @@ type Handoff struct {
 }
 
 type AppointmentRequest struct {
-	Status      string     `json:"status"`
-	RequestText string     `json:"request_text"`
+	Status       string     `json:"status"`
+	RequestText  string     `json:"request_text"`
 	ScheduledFor *time.Time `json:"scheduled_for,omitempty"`
 }
 
