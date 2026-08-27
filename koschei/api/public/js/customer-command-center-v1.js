@@ -46,9 +46,9 @@ function buildSidebar(){
 }
 
 function enhanceHeader(main){
-  const header=main.querySelector('.top');if(!header)return;
+  const header=main.querySelector('.top, .ops-nav');if(!header)return;
   const trigger=document.createElement('button');
-  trigger.type='button';trigger.className='btn customer-mobile-trigger';trigger.textContent='Menu';
+  trigger.type='button';trigger.className=(header.classList.contains('ops-nav')?'ops-btn ':'btn ')+'customer-mobile-trigger';trigger.textContent='Menu';
   trigger.setAttribute('aria-controls','customerSidebar');trigger.setAttribute('aria-expanded','false');
   trigger.addEventListener('click',()=>{
     const open=document.body.classList.toggle('customer-nav-open');
@@ -58,7 +58,7 @@ function enhanceHeader(main){
 }
 
 function mount(){
-  const main=document.querySelector('main.wrap');
+  const main=document.querySelector('main.wrap, main.page, main.ops-page');
   if(!main||main.closest('.customer-app-shell'))return;
   const shell=document.createElement('div');shell.className='customer-app-shell';
   const content=document.createElement('div');content.className='customer-main';
