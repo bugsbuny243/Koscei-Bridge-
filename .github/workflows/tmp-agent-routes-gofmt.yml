@@ -1,0 +1,28 @@
+name: Temp Agent Routes Gofmt
+on:
+  push:
+    branches: [fix/main-agent-routes-gofmt-current]
+    paths: [.github/workflows/tmp-agent-routes-gofmt.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/main-agent-routes-gofmt-current
+      - name: Format exact blocker
+        run: |
+          gofmt -w koschei/api/internal/http/agent_routes.go
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = 'koschei/api/internal/http/agent_routes.go'
+          git diff --check
+      - name: Commit exact formatting diff
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/internal/http/agent_routes.go
+          git commit -m 'fix(ci): gofmt current agent routes'
+          git push origin HEAD:fix/main-agent-routes-gofmt-current
