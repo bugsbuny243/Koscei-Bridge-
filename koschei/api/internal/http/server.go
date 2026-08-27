@@ -151,6 +151,8 @@ func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir stri
 	mux.HandleFunc("/api/owner/defense/distribution", requiresDB(h, ownerOnly(h, method("POST", h.OwnerActorDistributionInvestigation))))
 	mux.HandleFunc("/api/owner/web3/shield/preflight", requiresDB(h, ownerOnly(h, requireRuntimeFeature(featureSolana, method("POST", h.ShieldPreflight)))))
 	mux.HandleFunc("/api/owner/web3/transaction-guard", requiresDB(h, ownerOnly(h, requireRuntimeFeature(featureSolana, method("POST", h.TransactionGuardV2Configured)))))
+	mux.HandleFunc("/api/owner/web3/transaction-guard/state-recheck", requiresDB(h, ownerOnly(h, requireRuntimeFeature(featureSolana, method("POST", h.TransactionGuardStateRecheck)))))
+	mux.HandleFunc("/api/owner/web3/address-poisoning/check", requiresDB(h, ownerOnly(h, requireRuntimeFeature(featureSolana, method("POST", h.AddressPoisoningCheck)))))
 	mux.HandleFunc("/api/owner/web3/defense-validation", requiresDB(h, ownerOnly(h, method("POST", h.DefenseValidationV1))))
 	mux.HandleFunc("/api/owner/web3/execution-assurance/safe/verify", requiresDB(h, ownerOnly(h, method("POST", h.SafeExecutionAssuranceV1))))
 	mux.HandleFunc("/api/owner/radar/sources", requiresDB(h, ownerOnly(h, h.OwnerRadarSources)))

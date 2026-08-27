@@ -77,6 +77,8 @@ new Function(ownerSocial);
 const ownerWeb3Routes = [
   '/api/owner/web3/shield/preflight',
   '/api/owner/web3/transaction-guard',
+  '/api/owner/web3/transaction-guard/state-recheck',
+  '/api/owner/web3/address-poisoning/check',
   '/api/owner/web3/defense-validation',
   '/api/owner/web3/execution-assurance/safe/verify'
 ];
@@ -94,6 +96,8 @@ const ownerLabMarkers = [
   'Owner Web3 Validation Lab',
   'Shield Preflight',
   'Transaction Guard V2',
+  'State Witness Recheck',
+  'Address Poisoning Shield',
   'Defense Validation',
   'Safe Execution Assurance',
   'sanitizeSocialResult',
@@ -112,7 +116,7 @@ const sanitizeStart = ownerLab.indexOf('function sanitizeSocialResult');
 const sanitizeEnd = ownerLab.indexOf('function socialPayload', sanitizeStart);
 if (sanitizeStart < 0 || sanitizeEnd <= sanitizeStart) throw new Error('owner Web3 social sanitizer contract is missing');
 const sanitizeBlock = ownerLab.slice(sanitizeStart, sanitizeEnd);
-for (const forbidden of ['canonical_base64', 'execution_proof', 'proof_attestation', 'transaction:']) {
+for (const forbidden of ['canonical_base64', 'execution_proof', 'proof_attestation', 'permit_token', 'state_witness', 'transaction:']) {
   if (sanitizeBlock.includes(forbidden)) throw new Error(`raw request material leaked into owner social sanitizer: ${forbidden}`);
 }
 if (ownerLab.includes('latestRequest') || ownerLab.includes('requestPayload')) {

@@ -6,6 +6,8 @@ window.__ownerWeb3LabInstalled=true;
 const TOOL_DEFS={
   shield:{label:'Shield Preflight',endpoint:'/api/owner/web3/shield/preflight',template:{target:'',target_mint:'',address:'',network:'solana-mainnet',wallet:'',transaction:'',encoding:'base64',expected_programs:[],context:{}}},
   guard:{label:'Transaction Guard V2',endpoint:'/api/owner/web3/transaction-guard',template:{transaction:'',encoding:'base64',network:'solana-mainnet',wallet:'',expected_programs:[],required_programs:[],blocked_programs:[],accounts:[]}},
+  state:{label:'State Witness Recheck',endpoint:'/api/owner/web3/transaction-guard/state-recheck',template:{permit_token:'',transaction:'',network:'solana-mainnet',state_witness:{}}},
+  poison:{label:'Address Poisoning Shield',endpoint:'/api/owner/web3/address-poisoning/check',template:{wallet:'',candidate:'',network:'solana-mainnet',known_contacts:[],limit:12}},
   defense:{label:'Defense Validation',endpoint:'/api/owner/web3/defense-validation',template:{run_ref:'',scenario:{},controls:[],cases:[]}},
   safe:{label:'Safe Execution Assurance',endpoint:'/api/owner/web3/execution-assurance/safe/verify',template:{execution_proof:{},proof_attestation:{},transaction:{chain_id:0,safe:'',to:'',value:'',data:'0x',operation:0,safe_tx_gas:'',base_gas:'',gas_price:'',gas_token:'',refund_receiver:'',nonce:''},presented_safe_tx_hash:''}}
 };
@@ -46,7 +48,7 @@ function activate(){
   document.querySelectorAll('.page').forEach(section=>section.classList.toggle('active',section===page));
   document.querySelectorAll('[data-nav],[data-publishing-nav],[data-social-studio-nav],[data-owner-web3-lab-nav]').forEach(button=>button.classList.toggle('active',button.dataset.ownerWeb3LabNav==='1'));
   if($('pageTitle'))$('pageTitle').textContent='Owner Web3 Validation Lab';
-  if($('pageEyebrow'))$('pageEyebrow').textContent='ARVIS · PREFLIGHT · DEFENSE VALIDATION · EXECUTION ASSURANCE';
+  if($('pageEyebrow'))$('pageEyebrow').textContent='ARVIS · PREFLIGHT · STATE RECHECK · RECIPIENT SHIELD · DEFENSE VALIDATION · EXECUTION ASSURANCE';
   render();
 }
 function templateFor(type){return JSON.stringify(TOOL_DEFS[type]?.template||{},null,2);}
@@ -57,11 +59,11 @@ function selectTool(type){
   render();
 }
 function importantFields(result){
-  const report=obj(result?.report),final=obj(result?.final_verdict),program=obj(result?.program_policy),intent=obj(result?.intent_policy);
+  const report=obj(result?.report),final=obj(result?.final_verdict),program=obj(result?.program_policy),intent=obj(result?.intent_policy),decision=obj(result?.decision);
   const rows=[];
   const push=(label,value)=>{if(value!==undefined&&value!==null&&clean(value)!=='')rows.push([label,value]);};
   push('Product',result?.product);
-  push('Decision',result?.decision||result?.action||result?.policy_outcome||report.decision||report.status);
+  push('Decision',decision.status||decision.decision||result?.action||result?.policy_outcome||result?.policy||report.decision||report.status);
   push('Status',result?.status||result?.report_status||report.status);
   push('Network',result?.network||report.network||report.chain);
   push('Request',result?.request_id||result?.run_ref||report.run_ref);
@@ -71,14 +73,21 @@ function importantFields(result){
   push('Attestation verified',result?.attestation_verified);
   push('Verified executions',result?.verified_executions);
   push('Verified observations',result?.verified_observations);
+  push('Safe to proceed',result?.safe_to_proceed);
+  push('Policy',result?.policy);
+  push('Risk level',result?.risk_level);
+  push('Observed contacts',result?.observed_contact_count);
   push('Programs complete',program.complete);
   push('Intent complete',intent.complete);
   push('Signed',result?.signed||final.signed);
   return rows;
 }
 function evidenceLines(result){
-  const report=obj(result?.report),attack=obj(result?.attack_path||report.attack_path),program=obj(result?.program_policy),intent=obj(result?.intent_policy);
+  const report=obj(result?.report),attack=obj(result?.attack_path||report.attack_path),program=obj(result?.program_policy),intent=obj(result?.intent_policy),decision=obj(result?.decision),rpc=obj(result?.rpc_evidence);
   const out=[];
+  if(clean(decision.reason))out.push(`State recheck: ${clean(decision.reason)}`);
+  arr(result?.matches).forEach(match=>out.push([match.signal,match.known_address,match.prefix!==undefined?`prefix ${match.prefix}`:'',match.suffix!==undefined?`suffix ${match.suffix}`:''].filter(Boolean).join(' · ')));
+  if(rpc.collected===true)out.push(`Recipient evidence: ${Number(rpc.signature_count||0)} recent signatures · ${Number(rpc.contact_count||0)} observed contacts`);
   arr(result?.findings).forEach(item=>out.push(typeof item==='string'?item:[item.code,item.title,item.evidence].filter(Boolean).join(' · ')));
   arr(result?.reason_codes).forEach(item=>out.push(clean(item)));
   arr(program.blocked_invoked).forEach(item=>out.push(`Blocked program invoked: ${item}`));
@@ -89,16 +98,16 @@ function evidenceLines(result){
   return out.filter(Boolean).slice(0,40);
 }
 function sanitizeSocialResult(type,result){
-  const report=obj(result?.report),attack=obj(result?.attack_path||report.attack_path),program=obj(result?.program_policy),intent=obj(result?.intent_policy),final=obj(result?.final_verdict);
+  const report=obj(result?.report),attack=obj(result?.attack_path||report.attack_path),program=obj(result?.program_policy),intent=obj(result?.intent_policy),final=obj(result?.final_verdict),decisionObj=obj(result?.decision);
   return {
     source_type:type,
     source_label:TOOL_DEFS[type]?.label||type,
-    product:clean(result?.product)||TOOL_DEFS[type]?.label||'Koschei Web3',
-    target:clean(result?.target||result?.wallet||result?.computed_safe_tx_hash||result?.scenario_contract_hash||result?.request_id||report.target||report.run_ref),
+    product:clean(result?.product||result?.module)||TOOL_DEFS[type]?.label||'Koschei Web3',
+    target:clean(result?.target||result?.candidate||result?.wallet||result?.computed_safe_tx_hash||result?.scenario_contract_hash||result?.request_id||report.target||report.run_ref),
     network:clean(result?.network||report.network||report.chain),
-    decision:clean(result?.decision||result?.action||result?.policy_outcome||report.decision||report.status),
-    status:clean(result?.status||result?.report_status||report.status),
-    summary:clean(result?.summary||result?.verdict||final.verdict||report.summary),
+    decision:clean(decisionObj.status||decisionObj.decision||result?.action||result?.policy_outcome||result?.policy||report.decision||report.status),
+    status:clean(result?.status||result?.report_status||decisionObj.status||report.status),
+    summary:clean(result?.summary||result?.verdict||decisionObj.reason||final.verdict||report.summary),
     signed:result?.signed===true||final.signed===true,
     evidence_model:clean(result?.evidence_model),
     request_id:clean(result?.request_id),
@@ -143,7 +152,7 @@ function render(){
   ensureNav();
   const root=$('ownerWeb3LabContent');if(!root)return;
   const def=TOOL_DEFS[state.tool];
-  root.innerHTML=`<section class="arvis-social-studio"><div class="arvis-social-top"><div><span class="arvis-kicker">OWNER ONLY · WEB3 VALIDATION LAB</span><h2>Web3 çekirdeğinin çalışan güvenlik araçları tek panelde.</h2><p>ARVIS ayrı canonical investigation akışını korur. Bu laboratuvar Shield Preflight, Transaction Guard V2, Defense Validation ve Safe Execution Assurance endpoint'lerini owner session üzerinden çalıştırır. API key frontend'e taşınmaz.</p></div><div class="arvis-chip-row"><span class="arvis-chip good">OWNER SESSION</span><span class="arvis-chip info">EVIDENCE FIRST</span><span class="arvis-chip">NO SIGNING</span></div></div><div class="arvis-social-tabs">${Object.entries(TOOL_DEFS).map(([id,item])=>`<button class="arvis-social-tab ${state.tool===id?'active':''}" data-owner-web3-tool="${id}" type="button">${esc(item.label)}</button>`).join('')}</div><div class="social-pack-grid"><div class="social-pack-panel"><h3>${esc(def.label)}</h3><p class="muted">Aşağıdaki JSON bir TEMPLATE'tir; boş alanlar gerçek kanıt/request ile doldurulmalıdır. Koschei burada örnek transaction veya proof uydurmaz.</p><textarea class="arvis-caption mono" id="ownerWeb3Request" style="min-height:420px">${esc(templateFor(state.tool))}</textarea><div class="social-action-stack"><button class="arvis-action primary" id="ownerWeb3Run" type="button" ${state.busy?'disabled':''}>${state.busy?'Doğrulanıyor…':'Gerçek Request Çalıştır'}</button><button class="arvis-action" id="ownerWeb3Reset" type="button">Template'i Sıfırla</button></div><p class="social-evidence-note">Başarılı response sonrası request editor buffer'ı temizlenir. Raw serialized transaction, proof veya canonical action sosyal medya state'ine kopyalanmaz.</p></div><div class="social-pack-panel"><h3>Kanıt görünümü</h3>${resultHTML()}</div></div></section>`;
+  root.innerHTML=`<section class="arvis-social-studio"><div class="arvis-social-top"><div><span class="arvis-kicker">OWNER ONLY · WEB3 VALIDATION LAB</span><h2>Web3 çekirdeğinin çalışan güvenlik araçları tek panelde.</h2><p>ARVIS ayrı canonical investigation akışını korur. Bu laboratuvar Shield Preflight, Transaction Guard V2, State Witness Recheck, Address Poisoning Shield, Defense Validation ve Safe Execution Assurance endpoint'lerini owner session üzerinden çalıştırır. API key frontend'e taşınmaz.</p></div><div class="arvis-chip-row"><span class="arvis-chip good">OWNER SESSION</span><span class="arvis-chip info">EVIDENCE FIRST</span><span class="arvis-chip">NO SIGNING</span></div></div><div class="arvis-social-tabs">${Object.entries(TOOL_DEFS).map(([id,item])=>`<button class="arvis-social-tab ${state.tool===id?'active':''}" data-owner-web3-tool="${id}" type="button">${esc(item.label)}</button>`).join('')}</div><div class="social-pack-grid"><div class="social-pack-panel"><h3>${esc(def.label)}</h3><p class="muted">Aşağıdaki JSON bir TEMPLATE'tir; boş alanlar gerçek kanıt/request ile doldurulmalıdır. Koschei burada örnek transaction veya proof uydurmaz.</p><textarea class="arvis-caption mono" id="ownerWeb3Request" style="min-height:420px">${esc(templateFor(state.tool))}</textarea><div class="social-action-stack"><button class="arvis-action primary" id="ownerWeb3Run" type="button" ${state.busy?'disabled':''}>${state.busy?'Doğrulanıyor…':'Gerçek Request Çalıştır'}</button><button class="arvis-action" id="ownerWeb3Reset" type="button">Template'i Sıfırla</button></div><p class="social-evidence-note">Başarılı response sonrası request editor buffer'ı temizlenir. Raw serialized transaction, proof veya canonical action sosyal medya state'ine kopyalanmaz.</p></div><div class="social-pack-panel"><h3>Kanıt görünümü</h3>${resultHTML()}</div></div></section>`;
   document.querySelectorAll('[data-owner-web3-tool]').forEach(button=>button.onclick=()=>selectTool(button.dataset.ownerWeb3Tool));
   $('ownerWeb3Reset')?.addEventListener('click',()=>{const editor=$('ownerWeb3Request');if(editor)editor.value=templateFor(state.tool);});
   $('ownerWeb3Run')?.addEventListener('click',runCurrent);
