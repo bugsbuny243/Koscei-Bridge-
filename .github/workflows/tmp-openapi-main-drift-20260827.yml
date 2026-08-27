@@ -1,0 +1,35 @@
+name: Temp OpenAPI Main Drift 20260827
+on:
+  push:
+    branches: [fix/openapi-main-drift-20260827]
+    paths: [.github/workflows/tmp-openapi-main-drift-20260827.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/openapi-main-drift-20260827
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Generate OpenAPI from registered routes
+        working-directory: koschei/api
+        run: |
+          go run ./cmd/openapi-gen
+          go test ./internal/openapi -count=1
+      - name: Require OpenAPI-only generated diff
+        run: |
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = 'koschei/api/openapi.yaml'
+          git diff --check
+      - name: Commit generated OpenAPI
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/openapi.yaml
+          git commit -m 'fix(openapi): sync latest registered routes'
+          git push origin HEAD:fix/openapi-main-drift-20260827
