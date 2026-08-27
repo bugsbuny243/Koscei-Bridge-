@@ -1,0 +1,40 @@
+name: Temp TradePI Agent Gofmt V3
+on:
+  push:
+    branches: [fix/tradepi-agent-gofmt-v3]
+    paths: [.github/workflows/temp-tradepi-gofmt-v3.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/tradepi-agent-gofmt-v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Format current agent files
+        working-directory: koschei/api
+        run: |
+          gofmt -w internal/agents/core.go internal/http/agent_routes.go
+          test -z "$(gofmt -l internal/agents/core.go internal/http/agent_routes.go)"
+      - name: Verify diff scope and compile
+        working-directory: koschei/api
+        run: |
+          git diff --check
+          go test ./internal/agents ./internal/http -count=1
+      - name: Commit formatting only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          case "$changed" in
+            $'koschei/api/internal/agents/core.go\nkoschei/api/internal/http/agent_routes.go'|$'koschei/api/internal/http/agent_routes.go\nkoschei/api/internal/agents/core.go') ;;
+            *) echo 'unexpected formatting scope'; exit 1;;
+          esac
+          git add koschei/api/internal/agents/core.go koschei/api/internal/http/agent_routes.go
+          git commit -m 'fix(agents): gofmt latest TradePI agent files'
+          git push origin HEAD:fix/tradepi-agent-gofmt-v3
