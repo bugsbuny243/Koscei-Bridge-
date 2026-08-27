@@ -48,10 +48,23 @@ type Vehicle struct {
 	InStock  bool   `json:"in_stock"`
 }
 
+type Handoff struct {
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+}
+
+type AppointmentRequest struct {
+	Status      string     `json:"status"`
+	RequestText string     `json:"request_text"`
+	ScheduledFor *time.Time `json:"scheduled_for,omitempty"`
+}
+
 type Result struct {
-	Lead     Lead      `json:"lead"`
-	Reply    string    `json:"reply"`
-	Vehicles []Vehicle `json:"vehicles,omitempty"`
+	Lead        Lead                `json:"lead"`
+	Reply       string              `json:"reply"`
+	Vehicles    []Vehicle           `json:"vehicles,omitempty"`
+	Handoff     *Handoff            `json:"handoff,omitempty"`
+	Appointment *AppointmentRequest `json:"appointment,omitempty"`
 }
 
 type Inventory interface {
@@ -68,7 +81,19 @@ func (c *Core) Handle(ctx context.Context, msg Message, current Lead) Result {
 	if c.inventory != nil && lead.ModelKnown {
 		vehicles, _ = c.inventory.Search(ctx, modelQuery(msg.Text))
 	}
-	return Result{Lead: lead, Reply: buildReply(lead, vehicles), Vehicles: vehicles}
+	result := Result{Lead: lead, Reply: buildReply(lead, vehicles), Vehicles: vehicles}
+	text := strings.ToLower(msg.Text)
+	if containsAny(text, "temsilci", "insan", "yetkili", "canlı destek", "canli destek", "beni ara", "arasın", "arasin") {
+		result.Handoff = &Handoff{Status: "requested", Reason: "customer_requested_human"}
+		result.Reply = "Satış temsilcisine aktarım talebini kaydettim. Bir temsilcinin yanıt verdiğini veya arama zamanını, gerçekten gerçekleşmeden onaylamayacağım."
+	}
+	if containsAny(text, "randevu", "test sürüş", "test surus", "test sürüşü", "test surusu") {
+		result.Appointment = &AppointmentRequest{Status: "requested", RequestText: strings.TrimSpace(msg.Text)}
+		if result.Handoff == nil {
+			result.Reply = "Randevu/test sürüş talebini kaydettim. Uygun saat henüz doğrulanmadı; takvim entegrasyonundan onay gelmeden kesin saat vermeyeceğim."
+		}
+	}
+	return result
 }
 
 func qualify(msg Message, lead Lead) Lead {
