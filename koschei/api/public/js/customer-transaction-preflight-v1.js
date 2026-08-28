@@ -45,7 +45,8 @@ function prepareStateRecheck(data){
   clearPendingRecheck();
   const permit=data?.enforcement_permit;
   const witness=data?.state_witness;
-  if(data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){
+  const action=String(data?.action||'').toLowerCase();
+  if(action==='allow'&&data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){
     pendingRecheck={permitToken:String(permit.token),network:String(data?.network||'solana-mainnet'),stateWitness:witness,expiresAt:String(permit?.claims?.expires_at||'')};
   }
 }
@@ -73,7 +74,7 @@ async function runStateRecheck(){
     const response=await fetch(recheckEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({permit_token:snapshot.permitToken,transaction:serialized,network:snapshot.network,state_witness:snapshot.stateWitness})});
     const data=await response.json().catch(()=>({}));
     const decision=data?.decision||{};
-    const safe=data?.safe_to_proceed===true;
+    const safe=response.ok&&data?.ok===true&&data?.safe_to_proceed===true;
     if(output){
       const title=safe?'STATE UNCHANGED — SERVER SAYS SAFE TO PROCEED':'DO NOT RELY ON PRIOR PREFLIGHT';
       const detail=decision?.reason||data?.message||data?.code||`HTTP ${response.status}`;
@@ -89,6 +90,7 @@ async function runStateRecheck(){
 }
 
 function working(){
+  clearPendingRecheck();
   hideUtilities();
   result.hidden=true;
   result.replaceChildren();
