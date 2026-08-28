@@ -20,6 +20,8 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	registerStaticFileAlias(mux, "/agents/", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/admin", filepath.Join(staticDir, "agents-admin.html"))
 	registerStaticFileAlias(mux, "/agents/admin/", filepath.Join(staticDir, "agents-admin.html"))
+	registerStaticFileAlias(mux, "/agents/install", filepath.Join(staticDir, "agents-install.html"))
+	registerStaticFileAlias(mux, "/agents/install/", filepath.Join(staticDir, "agents-install.html"))
 
 	// There is one customer-facing investigation surface. Legacy scanner URLs
 	// preserve their intent through a mode query, but no longer render separate
