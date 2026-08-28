@@ -1,0 +1,110 @@
+name: Temporary State Recheck Review Fix
+
+on:
+  push:
+    branches:
+      - feat/customer-state-recheck-v1
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Apply bounded review fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected marker missing in {path}: {old[:120]!r}")
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one marker in {path}, found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1))
+
+          server = 'koschei/api/internal/http/server.go'
+          replace_once(server,
+              'registerProductRoutes(mux, h, planTier)',
+              'registerProductRoutes(mux, h, planTier, planTierAccess)')
+          replace_once(server,
+              'func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier tierRouteGate) {',
+              'func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier, planTierAccess tierRouteGate) {')
+          replace_once(server,
+              'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardStateRecheck)))))',
+              'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", method("POST", h.TransactionGuardStateRecheck)))))')
+
+          access_test = 'koschei/api/internal/http/server_access_test.go'
+          replace_once(access_test,
+              '''\ttiers := []string{}\n\tgate := func(tier string, next http.HandlerFunc) http.HandlerFunc {\n\t\ttiers = append(tiers, tier)\n\t\treturn next\n\t}\n\tregisterProductRoutes(mux, h, gate)''',
+              '''\tmeteredTiers := []string{}\n\taccessTiers := []string{}\n\tmeteredGate := func(tier string, next http.HandlerFunc) http.HandlerFunc {\n\t\tmeteredTiers = append(meteredTiers, tier)\n\t\treturn next\n\t}\n\taccessGate := func(tier string, next http.HandlerFunc) http.HandlerFunc {\n\t\taccessTiers = append(accessTiers, tier)\n\t\treturn next\n\t}\n\tregisterProductRoutes(mux, h, meteredGate, accessGate)''')
+          replace_once(access_test,
+              '''\t// SaaS plan names are the route authorization contract: Starter includes the\n\t// paid investigation routes and canonical durable-job create routes, while\n\t// Professional covers transaction preflight, state witness recheck, and advanced radar surfaces. Job\n\t// reads remain authenticated but are not counted here because they do not\n\t// consume a new premium output.\n\twant := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}\n\tif !reflect.DeepEqual(tiers, want) {\n\t\tt.Fatalf("route tiers=%v want=%v", tiers, want)\n\t}''',
+              '''\t// SaaS plan names are the route authorization contract: Starter includes the\n\t// paid investigation routes and canonical durable-job create routes. Professional\n\t// preflight and advanced radar outputs are metered; the immediate state recheck\n\t// is entitlement-only so the same signing decision is not charged twice. Job\n\t// reads remain authenticated but are not counted here because they do not\n\t// consume a new premium output.\n\twantMetered := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}\n\tif !reflect.DeepEqual(meteredTiers, wantMetered) {\n\t\tt.Fatalf("metered route tiers=%v want=%v", meteredTiers, wantMetered)\n\t}\n\twantAccess := []string{"professional"}\n\tif !reflect.DeepEqual(accessTiers, wantAccess) {\n\t\tt.Fatalf("entitlement-only route tiers=%v want=%v", accessTiers, wantAccess)\n\t}''')
+          replace_once(access_test,
+              'gate above and changed the tier list.',
+              'the SaaS gates above and changed the tier lists.')
+
+          ui = 'koschei/api/public/js/customer-transaction-preflight-v1.js'
+          replace_once(ui,
+              '''  const action=String(data?.action||'').toLowerCase();\n  if(action==='allow'&&data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){''',
+              '''  const action=String(data?.action||'').toLowerCase();\n  const permitVersion=String(permit?.version||'');\n  const stateBoundPermit=permitVersion==='koschei-transaction-guard-permit-v2'||permitVersion==='koschei-transaction-guard-permit-v3';\n  if(action==='allow'&&stateBoundPermit&&data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){''')
+
+          verify = 'koschei/api/scripts/verify-customer-state-recheck-v1.js'
+          replace_once(verify,
+              'const route=\'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardStateRecheck)))))\';',
+              'const route=\'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", method("POST", h.TransactionGuardStateRecheck)))))\';')
+          replace_once(verify,
+              'if(!server.includes(route))throw new Error(\'customer state recheck must reuse existing handler behind Professional planTier\');',
+              'if(!server.includes(route))throw new Error(\'customer state recheck must reuse existing handler behind Professional entitlement-only access\');\nif(server.includes(\'planTier("professional", method("POST", h.TransactionGuardStateRecheck))\'))throw new Error(\'customer state recheck must not consume a second SaaS output\');')
+          replace_once(verify,
+              '"const action=String(data?.action||\'\').toLowerCase();","if(action===\'allow\'&&data?.enforcement_permit_issued===true"',
+              '"const action=String(data?.action||\'\').toLowerCase();","const permitVersion=String(permit?.version||\'\');","const stateBoundPermit=permitVersion===\'koschei-transaction-guard-permit-v2\'||permitVersion===\'koschei-transaction-guard-permit-v3\';","if(action===\'allow\'&&stateBoundPermit&&data?.enforcement_permit_issued===true"')
+
+          docs = 'docs/transaction-state-recheck.md'
+          replace_once(docs,
+              'The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement and the customer product output meter.',
+              'The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement without consuming a second SaaS output; the preceding Transaction Preflight remains the metered product decision.')
+          PY
+          gofmt -w koschei/api/internal/http/server.go koschei/api/internal/http/server_access_test.go
+      - name: Verify focused contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd koschei/api
+          node scripts/verify-customer-state-recheck-v1.js
+          node scripts/verify-customer-transaction-preflight-v1.js
+          node scripts/verify-customer-transaction-preflight-ui-v1.js
+          go test ./internal/http ./internal/openapi -count=1
+          go run ./cmd/openapi-gen -check
+          git diff --check
+      - name: Commit bounded fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add docs/transaction-state-recheck.md \
+            koschei/api/internal/http/server.go \
+            koschei/api/internal/http/server_access_test.go \
+            koschei/api/public/js/customer-transaction-preflight-v1.js \
+            koschei/api/scripts/verify-customer-state-recheck-v1.js
+          if git diff --cached --quiet; then
+            echo "No review fixes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(customer): harden state recheck continuation"
+          git push origin HEAD:feat/customer-state-recheck-v1
