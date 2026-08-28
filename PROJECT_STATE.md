@@ -6,70 +6,103 @@ This file is the repository checkpoint for continuing Koschei Web3 work across c
 
 - Active product PR: **none**.
 - Open pull requests: **none** at this checkpoint.
-- Transaction Preflight v1 was merged through PR **#960**.
-- Product behavior: Professional users can use `/scan?mode=transaction` to obtain the real pre-sign Transaction Guard result.
-- The client does not sign or broadcast the transaction and does not persist the raw transaction.
-- The legacy numeric risk score is not the decision authority for Transaction Preflight.
-- `openapi.yaml` has been regenerated from the final merged route inventory after the PR #960/main race.
-- Canonical generated OpenAPI blob at this checkpoint: `200ecfadec6153880ed53317b49269d6af5e8ae6` (155 registered API paths).
-- Last code-affecting verification head: `e2a2995cf10c477db94dda16c35da4c3c3151b20`.
+- Latest verified product merge: PR **#962**, `feat(customer): add Professional state witness recheck`.
+- Verified product merge commit: `e2a0fff1f2730c3862f9679659e82ed6aa586a59`.
+- Professional Transaction Preflight is the metered pre-sign decision.
+- Professional State Recheck is the immediate entitlement-only continuation and does **not** consume a second SaaS output for the same signing decision.
+- State Recheck reuses the existing fail-closed `TransactionGuardStateRecheck` engine and never signs or broadcasts a transaction.
+- A customer receives a positive continuation only when the recheck HTTP response succeeds and reports both `ok: true` and `safe_to_proceed: true`; every other result requires withholding the prior preflight decision.
+- `main` is still not branch-protected.
+- The repository still contains many historical unprotected branches. They are not evidence of active work and must not be revived without comparing them against current `main`.
 
 ## CHANGED
 
-- PR #960 merged the customer Transaction Preflight UI plus the generated API contract and formatting-only Agent Go cleanup present in that final PR head.
-- The final merge exposed four Agent routes that had landed on `main` after PR-head validation:
-  - `/api/agents/admin/onboard`
-  - `/api/agents/admin/pilots`
-  - `/api/agents/admin/pilots/status`
-  - `/api/agents/pilot`
-- `openapi.yaml` was synchronized on final `main` only; no Agent behavior was reverted to repair the drift.
-- Stale PR #959 was closed because its Agent diff was no longer formatting-only and would have reverted account-aware WhatsApp/provenance behavior.
-- Stale PR #942 was closed unmerged. It was 140 commits behind current `main`, its complete diff was only two standalone defense-validation files, and it was not wired into the live route/customer response. Current Transaction Guard V3 is the authoritative live path for further evidence-first validation work.
-- The OpenAPI drift test message now explicitly requires regeneration from the exact current target head before merge.
+PR #962 added and hardened the customer-facing State Recheck path:
+
+- Added `POST /api/customer/web3/transaction-state-recheck` for Professional customers.
+- Kept Transaction Preflight metered while State Recheck uses Professional entitlement-only access.
+- Exposes recheck only for ALLOW preflights with a complete state witness and a state-bound v2/v3 enforcement permit.
+- Recheck requires the exact transaction/network/witness bound by the permit and rereads only the bounded witnessed account set.
+- Customer requests reuse `KoscheiAuth`; auth initialization is awaited once so a valid Neon session can restore a missing or expired local JWT.
+- Recheck permit/witness material remains transient in page memory; raw recheck transaction text is cleared after use.
+- `pagehide` and persisted `pageshow` invalidate the recheck UI so browser back-forward cache cannot restore a dead actionable control.
+- Added shared PostgreSQL-backed abuse controls: 30 requests/minute per client IP and 12 requests/minute per verified customer subject before upstream RPC / Evidence Court work.
+- Added a dedicated required OpenAPI State Recheck request contract for `permit_token`, `transaction`, and `state_witness`; `network` defaults to `solana-mainnet`.
+- OpenAPI documents actual fail-closed 409 expired-permit and 503 unavailable/incomplete-evidence responses.
+- Fixed the pre-existing pricing-policy verifier drift without reintroducing KOSCH/token-holdings copy to the public pricing page.
+- All ten inline review findings raised during #962 were fixed and resolved before merge.
 
 ## VERIFIED
 
-- PR #960 head `c605228cdf37a3d9c9d1eec1e88cbaf3608d8331` passed its permanent PR-head gates before merge.
-- Actual merge commit `99a7b1e85febf4a852ef9c795da84dc9807c67df` exposed one repository invariant failure expressed by two checks: committed OpenAPI was stale relative to the final registered boot-chain routes.
-- The failing API test was `TestCommittedOpenAPIMatchesRegisteredAPIRoutes`; migrations and the other observed API/security checks were not the root blocker.
-- Final OpenAPI synchronization commit: `06c2a15f23112229f8175cfc8640996b524ebf11`.
-- That synchronization commit changes only `koschei/api/openapi.yaml` and adds exactly the four missing Agent route contracts; existing 151 path objects were not modified.
-- On code-affecting head `e2a2995cf10c477db94dda16c35da4c3c3151b20`, all **7 workflows triggered by the changed path completed successfully**:
-  - API Required CI
-  - OpenAPI Contract
-  - Security CI
-  - Supply Chain Security
-  - CodeQL
-  - Public Product Smoke
-  - Public API Transport Smoke
-- API Required CI completed migrations, tests, vet and build successfully, and its secret/vulnerability/static-security job also succeeded.
-- OpenAPI Contract succeeded on the same exact code head.
+Focused verification for the final bounded State Recheck fixes passed:
+
+- `node scripts/verify-customer-state-recheck-v1.js`
+- `node scripts/verify-customer-transaction-preflight-v1.js`
+- `node scripts/verify-customer-transaction-preflight-ui-v1.js`
+- `go test ./internal/http ./internal/handlers ./internal/openapi -count=1`
+- `go run ./cmd/openapi-gen -check`
+- `git diff --check`
+
+Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` then passed all 16 permanent PR workflows triggered for that head, including:
+
+- API Required CI
+- Release Gates Verification
+- Operator Exit Corpus Acceptance
+- Security CI
+- CodeQL
+- Supply Chain Security
+- OpenAPI Contract
+- Pricing Policy V2 Acceptance
+- SaaS Billing KOSCH Decoupling V1
+- Public Product Smoke
+- Enterprise API Keys V1 Acceptance
+- Watchlist Evidence-State V2 Acceptance
+- Customer Investigation UX V2 Acceptance
+- Canonical Investigation History V1 Acceptance
+- Owner Growth Console Acceptance
+- Auth Freeze Guard
+
+The Operator Exit gate completed both exact synthetic merge-candidate verification and target-base freshness successfully before merge.
+
+After merge, actual `main` product head `e2a0fff1f2730c3862f9679659e82ed6aa586a59` triggered **9** push workflows; all 9 completed successfully. API Required CI on the actual merged head completed migrations, JavaScript/language contracts, tests, vet, build, secret scan, reachable vulnerability scan, and high-confidence static security scan successfully.
 
 ## BROKEN / MISSING
 
-- `main` is currently **not branch-protected**. Parallel direct pushes can move the merge base after a PR's synthetic merge candidate has passed CI.
-- No Transaction Preflight product blocker is currently known from the verified head.
+- No known blocker remains for the merged Professional State Recheck slice.
+- `main` remains unprotected, so repository correctness still depends on current-head merge discipline rather than GitHub branch protection.
+- Historical branches are numerous and currently unclassified. Deleting or reviving them blindly could either discard unique work or reintroduce obsolete architecture.
+- The merged recheck reduces the time-of-check/time-of-signing window but cannot prove that chain state will remain unchanged after the final observation and before network execution.
 
 ## WORK-IN-PROGRESS POLICY
 
 1. Keep **one active product PR** at a time.
-2. A CI failure does **not** justify a new branch or PR by itself.
-3. If CI is broken by unrelated `main` drift, classify the failure first and repair the smallest safe invariant on the current work line.
-4. Open a new branch only for a real scope split, required security isolation, or an unrecoverably polluted branch.
-5. New ideas go to backlog; they do not interrupt the active product change.
-6. Do not merge stale cleanup or product branches whose final diff no longer matches the current product architecture or stated scope.
-7. Before merge, validate against the current target head; after merge, verify the actual merged `main` head.
-8. A stale feature PR that is far behind `main` must not be kept alive merely to preserve old work; first prove that its capability is still missing from the current live path.
+2. When no product PR is active, perform repo-state / hygiene inspection before selecting another feature.
+3. A CI failure does **not** justify a new branch or PR by itself; classify the failure first.
+4. New ideas go to backlog and do not interrupt the current production slice.
+5. A stale branch or old PR is not a product requirement. Compare it to current `main` first and preserve only capability that is still genuinely missing.
+6. Do not merge stale cleanup or feature branches whose final diff no longer matches current architecture or product scope.
+7. Validate the exact synthetic merge candidate against the current target head and re-check the actual merged `main` head.
+8. Temporary repair workflows/scripts must be removed before final merge.
+9. Chat history is context only; this repository checkpoint plus current GitHub state is authoritative.
 
 ## NEXT
 
-1. Do **not** open another product branch yet.
-2. Enforce or configure protected-main / current-head merge discipline so parallel work cannot invalidate Web3 PR evidence after CI.
-3. After the merge discipline is fixed, inspect the current live Transaction Guard V3 and select exactly one next customer-useful Web3 slice from current-main evidence, not from a stale PR or old chat idea.
+1. **Do not open a new product PR yet.**
+2. Perform repository hygiene on the historical branch set: classify each candidate as already-merged, obsolete/superseded, or containing unique unmerged capability.
+3. Delete/close only branches proven safe to remove; do not use branch age or name alone as evidence.
+4. After branch hygiene, inspect current `main` and choose exactly one smallest customer-useful Web3 production gap from live code/evidence.
+5. Keep Transaction Preflight / State Recheck and ARVIS evidence-first behavior as the current product line; do not fork a parallel decision engine from stale work.
+
+## DO NOT START
+
+- No unrelated product feature while repository hygiene is unresolved.
+- No Sentinel or Koschei Lang implementation in this repository.
+- No revival of stale defense-validation, ARVIS, agent, or scanner branches without a current-main diff proving the capability is still missing.
+- No fake scores, fake chain data, placeholder enterprise capabilities, or disconnected demo surfaces.
 
 ## RISKS
 
-- The principal process risk is an unprotected `main`, not Transaction Preflight behavior.
-- A green PR is insufficient evidence when `main` can move between synthetic merge validation and the real merge.
-- Repeated temporary branches/workflows for generated-contract drift create repository noise; route registration and generated OpenAPI should travel atomically with the change that introduces the route.
-- Parallel decision contracts are a product/security risk: evidence-first validation must evolve through the current live Transaction Guard path, not through disconnected legacy builders.
+- **Repository bloat / stale branches:** many historical branches can create false signals about what is active or missing.
+- **Unprotected main:** parallel writes can still move the target outside GitHub branch-protection enforcement.
+- **Rate policy tuning:** the current State Recheck abuse boundary is 30/min per IP and 12/min per verified customer; production traffic may justify tuning, but changes must remain evidence-driven and must not remove the bounded-cost property.
+- **Fresh-state limitation:** State Recheck proves only the bounded state observed during that recheck, not future state after the observation.
