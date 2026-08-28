@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"koschei/api/internal/handlers"
 	"koschei/api/internal/services"
 )
 
@@ -77,6 +78,36 @@ func sensitiveRateLimit(db *sql.DB, next http.Handler) http.Handler {
 	})
 }
 
+func customerStateRecheckRateLimit(db *sql.DB, next http.HandlerFunc) http.HandlerFunc {
+	const route = "/api/customer/web3/transaction-state-recheck"
+	rule := sensitiveLimitRule{Limit: 12, Window: time.Minute}
+	return func(w http.ResponseWriter, r *http.Request) {
+		subject := handlers.AuthenticatedSubject(r)
+		if subject == "" {
+			writeSecurityJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		keyHash := sensitiveBucketKeyHash("customer:"+subject, route)
+		ctx, cancel := context.WithTimeout(r.Context(), sharedSensitiveLimitTimeout)
+		decision, err := consumeSharedSensitiveLimit(ctx, db, keyHash, route, rule)
+		cancel()
+		if err != nil {
+			setSensitiveRateLimitHeaders(w, sensitiveLimitDecision{Limit: rule.Limit, Remaining: 0, ResetAfterSeconds: 1})
+			w.Header().Set("Retry-After", "1")
+			writeSecurityJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "rate_limit_unavailable", "message": "State Recheck request protection is temporarily unavailable. Please try again."})
+			return
+		}
+		setSensitiveRateLimitHeaders(w, decision)
+		if !decision.Allowed {
+			w.Header().Set("Retry-After", strconv.FormatInt(maxSensitiveResetSeconds(decision.ResetAfterSeconds), 10))
+			writeSecurityJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limit_exceeded", "message": "State Recheck request limit reached. Run a fresh preflight if the permit expires."})
+			return
+		}
+		maybeCleanupSharedSensitiveLimits(db)
+		next(w, r)
+	}
+}
+
 func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {
 	path = strings.TrimSpace(path)
 	switch path {
@@ -86,6 +117,8 @@ func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {
 		return sensitiveLimitRule{Limit: 10, Window: 10 * time.Minute}, true
 	case "/api/auth/wallet/challenge", "/api/auth/wallet/verify":
 		return sensitiveLimitRule{Limit: 10, Window: 5 * time.Minute}, true
+	case "/api/customer/web3/transaction-state-recheck":
+		return sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
 	case "/api/arvis/preflight":
 		return sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
 	case "/api/token/scan", "/api/public/transaction-simulate":

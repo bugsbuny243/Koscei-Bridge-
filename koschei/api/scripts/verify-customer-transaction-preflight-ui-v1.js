@@ -7,6 +7,11 @@ new Function(overlay);
 
 const required = [
   '/api/customer/web3/transaction-preflight',
+  '/api/customer/web3/transaction-state-recheck',
+  "script.src='/js/koschei-auth.js?v=33'",
+  'auth.apiCall(path,options)',
+  'customerAPI(endpoint',
+  'customerAPI(recheckEndpoint',
   "credentials:'same-origin'",
   "event.stopImmediatePropagation()",
   "form.addEventListener('submit'",
@@ -20,6 +25,8 @@ const required = [
   'threat_history_complete',
   'WITHHOLD — EVIDENCE INCOMPLETE',
   'Numeric risk scores are not the authority',
+  "const safe=response.ok&&data?.ok===true&&data?.safe_to_proceed===true;",
+  'if(pendingRecheck===snapshot)clearPendingRecheck();',
   "transaction.value=''"
 ];
 for (const marker of required) {
@@ -35,8 +42,11 @@ for (const forbidden of [
   if (overlay.includes(forbidden)) throw new Error(`customer preflight UI violates boundary: ${forbidden}`);
 }
 if (!overlay.includes("},true);")) throw new Error('transaction submit interception must run in capture phase');
-if (!scan.includes('/js/customer-transaction-preflight-v1.js?v=1')) {
-  throw new Error('scan page does not mount the Professional transaction preflight overlay');
+if (!scan.includes('/js/customer-transaction-preflight-v1.js?v=2')) {
+  throw new Error('scan page does not mount the current Professional transaction preflight/recheck overlay');
+}
+if (scan.includes('/js/customer-transaction-preflight-v1.js?v=1')) {
+  throw new Error('scan page still references the stale v1 transaction preflight asset URL');
 }
 if (!scan.includes('Transaction Preflight') || !scan.includes('Professional+ before signing')) {
   throw new Error('scan page does not label the Professional transaction capability truthfully');

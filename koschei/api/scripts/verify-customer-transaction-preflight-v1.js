@@ -6,10 +6,11 @@ const inventory=fs.readFileSync(path.join(root,"internal/http/route_inventory.go
 const generator=fs.readFileSync(path.join(root,"internal/openapi/generator.go"),"utf8");
 const accessTest=fs.readFileSync(path.join(root,"internal/http/server_access_test.go"),"utf8");
 const route='mux.HandleFunc("/api/customer/web3/transaction-preflight", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardV2Configured)))))';
-if(!server.includes(route))throw new Error("customer transaction preflight must reuse configured Guard V2 behind Professional planTier");
+if(!server.includes(route))throw new Error("customer transaction preflight must reuse configured Guard V2 behind Professional metered planTier");
 if(!inventory.includes('POST /api/customer/web3/transaction-preflight'))throw new Error("customer transaction preflight missing from production route inventory");
-if(!generator.includes('case path == "/api/customer/web3/transaction-preflight":'))throw new Error("OpenAPI auth classifier missing customer preflight");
-if(!accessTest.includes('Professional covers transaction preflight and advanced radar surfaces'))throw new Error("product tier contract not updated for customer preflight");
+if(!generator.includes('case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":'))throw new Error("OpenAPI auth classifier missing Professional customer preflight/recheck");
+if(!accessTest.includes('is entitlement-only so the same signing decision is not charged twice'))throw new Error("product tier contract does not separate metered preflight from entitlement-only state recheck");
+if(!accessTest.includes('wantAccess := []string{"professional"}'))throw new Error("state recheck entitlement-only Professional tier expectation missing");
 if(/apiKeyEnterprise[^\n]*transaction-preflight/.test(server))throw new Error("customer transaction preflight must not require developer API key");
 if(server.includes('planTier("starter", method("POST", h.TransactionGuardV2Configured))'))throw new Error("customer transaction preflight must not be Starter-gated");
 console.log("customer transaction preflight v1 contract ok");

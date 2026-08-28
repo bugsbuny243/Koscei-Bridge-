@@ -57,6 +57,138 @@
         "description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
         "type": "object"
       },
+      "TransactionStateRecheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "network": {
+            "default": "solana-mainnet",
+            "enum": [
+              "solana-mainnet"
+            ],
+            "type": "string"
+          },
+          "permit_token": {
+            "description": "Signed state-bound Transaction Guard permit returned by the immediately preceding eligible preflight.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state_witness": {
+            "$ref": "#/components/schemas/TransactionStateWitness"
+          },
+          "transaction": {
+            "description": "The exact same serialized transaction bound by the permit.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "permit_token",
+          "transaction",
+          "state_witness"
+        ],
+        "type": "object"
+      },
+      "TransactionStateWitness": {
+        "additionalProperties": false,
+        "properties": {
+          "account_count": {
+            "maximum": 32,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "account_root_sha256": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionStateWitnessAccount"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
+          },
+          "binding_hash": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "complete": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pre_state_slot": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "simulation_slot": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "slot_spread": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "complete"
+            ],
+            "type": "string"
+          },
+          "transaction_fingerprint": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "version": {
+            "enum": [
+              "koschei-transaction-state-witness-v1"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "complete",
+          "transaction_fingerprint",
+          "pre_state_slot",
+          "simulation_slot",
+          "account_count",
+          "account_root_sha256",
+          "binding_hash",
+          "accounts"
+        ],
+        "type": "object"
+      },
+      "TransactionStateWitnessAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "state_hash": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "present",
+          "state_hash"
+        ],
+        "type": "object"
+      },
       "Verdict": {
         "description": "WITHHOLD is an intended non-error outcome when required evidence cannot be produced.",
         "enum": [
@@ -4990,6 +5122,127 @@
           }
         ],
         "summary": "POST /api/customer/web3/transaction-preflight",
+        "tags": [
+          "premium_radar_and_reports"
+        ],
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-route-source": "route_inventory.go"
+      }
+    },
+    "/api/customer/web3/transaction-state-recheck": {
+      "post": {
+        "description": "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision.",
+        "operationId": "post__api_customer_web3_transaction_state_recheck",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionStateRecheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identity credential missing or invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated identity lacks the required access tier."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "State-bound permit expired; run a fresh Transaction Guard simulation before signing."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate."
+          }
+        },
+        "security": [
+          {
+            "sessionBearer": []
+          }
+        ],
+        "summary": "POST /api/customer/web3/transaction-state-recheck",
         "tags": [
           "premium_radar_and_reports"
         ],

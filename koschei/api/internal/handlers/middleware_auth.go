@@ -34,3 +34,16 @@ func userFromContext(ctx context.Context) (neonJWTClaims, bool) {
 	claims, ok := v.(neonJWTClaims)
 	return claims, ok
 }
+
+// AuthenticatedSubject returns the already-verified customer subject installed by RequireAuth.
+// It intentionally exposes only the stable subject needed by downstream shared security middleware.
+func AuthenticatedSubject(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	claims, ok := userFromContext(r.Context())
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(claims.Sub)
+}

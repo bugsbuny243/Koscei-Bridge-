@@ -1,6 +1,6 @@
 # ARVIS Transaction State Recheck
 
-Status: live authenticated developer API with bounded Solana account-state re-read, independent-provider quorum and signed permit policy.
+Status: live authenticated State Recheck engine with bounded Solana account-state re-read, independent-provider quorum and signed permit policy. The engine is exposed through the Enterprise developer API and, with the customer product route in this change, through Professional Transaction Preflight immediately before signing.
 
 ## Purpose
 
@@ -8,15 +8,25 @@ A State Witness binds a Guard decision to one observed account-state root. Curre
 
 State Recheck verifies the permit and issued witness, re-reads only the signed bounded account set, and compares current state before a wallet relies on the prior Guard decision. It reduces the transaction-simulation TOCTOU window but does not claim that off-chain observation can freeze Solana state.
 
+## Customer API
+
+```text
+POST /api/customer/web3/transaction-state-recheck
+```
+
+The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement without consuming a second SaaS output; the preceding Transaction Preflight remains the metered product decision. Recheck replay is bounded by shared PostgreSQL-backed per-IP and verified-customer rate limits so a non-billable continuation cannot become unbounded upstream RPC work. It is available only as a continuation of an eligible Transaction Preflight result: the client keeps the issued permit and complete State Witness only in page memory, asks the customer to paste the exact same serialized transaction again immediately before signing, and clears the transient material after the recheck or page exit.
+
+The browser request uses the normal customer JWT path. No developer API key, signing authority or transaction broadcast authority is required or accepted by this flow.
+
 ## Developer API
 
 ```text
 POST /api/v1/shield/state-recheck
 ```
 
-The route uses the existing enterprise API-key plus live KOSCH-holder gate and Solana runtime feature gate. It is rate-limited but does not consume a second scan quota unit for the same Guard decision.
+The developer route uses the existing Enterprise API-key plus active Enterprise SaaS entitlement gate and the Solana runtime feature gate. Developer API requests use the existing API-key usage/rate accounting and do not charge the customer entitlement output ledger a second time for the same developer request.
 
-The request carries the exact serialized transaction, the signed state-bound permit, the issued State Witness, and optional network (default `solana-mainnet`). Permit and witness trust checks happen before any RPC access.
+Both routes carry the exact serialized transaction, the signed state-bound permit, the issued State Witness, and optional network (default `solana-mainnet`). Permit and witness trust checks happen before any RPC access.
 
 ## Response safety contract
 
@@ -27,12 +37,14 @@ A successful HTTP request and a safe signing decision are deliberately separate 
 - `safe_to_proceed=false` means the prior Guard permit must not be relied on for signing without the action required by the returned decision;
 - any `ok=false` response must also be treated as unsafe, regardless of whether a `safe_to_proceed` field is present.
 
+An expired state-bound permit returns HTTP `409` and requires a fresh Transaction Guard simulation. Failure to collect or validate the complete current witnessed account-state evidence returns HTTP `503` and must also be treated as fail-closed. Other invalid permit or policy failures remain non-proceed outcomes even when they use a different HTTP error status.
+
 `safe_to_proceed=true` is derived only from the final decision after Evidence Court processing. It requires the current and issued roots to match, a valid non-stale slot relationship, `state_unchanged`, `permit_state_consistent`, and no resimulation requirement. A primary `state_unchanged` result that is later downgraded by Court to `withhold` therefore cannot produce `safe_to_proceed=true`.
 
 Clients should use a fail-closed rule:
 
 ```text
-sign only if ok == true AND safe_to_proceed == true
+sign only if HTTP response is successful AND ok == true AND safe_to_proceed == true
 ```
 
 The field does not mean Koschei signs or executes the transaction, and state can still change after the observation.
