@@ -17,6 +17,7 @@ func registerTradePIAgentEscalationRoutes(mux *http.ServeMux) {
 	tradePIAgentService.StartEscalationWorker()
 	tradePIAgentService.StartOperatorNotificationWorker()
 	mux.HandleFunc("/api/agents/admin/escalations", method("GET", tradePIAgentAdminEscalations))
+	mux.HandleFunc("/api/agents/admin/escalations/metrics", method("GET", tradePIAgentAdminEscalationMetrics))
 	mux.HandleFunc("/api/agents/admin/escalations/update", method("POST", tradePIAgentAdminUpdateEscalation))
 }
 
@@ -31,6 +32,18 @@ func tradePIAgentAdminEscalations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeTradePIAgentJSON(w, map[string]any{"items": items})
+}
+
+func tradePIAgentAdminEscalationMetrics(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	metrics, err := tradePIAgentService.AdminEscalationMetrics(r.Context(), tradePIAgentAdminTenant(r))
+	if err != nil {
+		http.Error(w, "escalation metrics unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeTradePIAgentJSON(w, metrics)
 }
 
 func tradePIAgentAdminUpdateEscalation(w http.ResponseWriter, r *http.Request) {
