@@ -29,7 +29,7 @@ PR #962 added and hardened the customer-facing State Recheck path:
 - Added shared PostgreSQL-backed abuse controls: 30 requests/minute per client IP and 12 requests/minute per verified customer subject before upstream RPC / Evidence Court work.
 - Added a dedicated required OpenAPI State Recheck request contract for `permit_token`, `transaction`, and `state_witness`; `network` defaults to `solana-mainnet`.
 - OpenAPI documents actual fail-closed 409 expired-permit and 503 unavailable/incomplete-evidence responses.
-- Fixed the pre-existing pricing-policy verifier drift without reintroducing KOSCH/token-holdings copy to the public pricing page.
+- Fixed the pre-existing pricing-policy verifier drift.
 - All ten inline review findings raised during #962 were fixed and resolved before merge.
 
 ## VERIFIED
@@ -43,24 +43,7 @@ Focused verification for the final bounded State Recheck fixes passed:
 - `go run ./cmd/openapi-gen -check`
 - `git diff --check`
 
-Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` then passed all 16 permanent PR workflows triggered for that head, including:
-
-- API Required CI
-- Release Gates Verification
-- Operator Exit Corpus Acceptance
-- Security CI
-- CodeQL
-- Supply Chain Security
-- OpenAPI Contract
-- Pricing Policy V2 Acceptance
-- SaaS Billing KOSCH Decoupling V1
-- Public Product Smoke
-- Enterprise API Keys V1 Acceptance
-- Watchlist Evidence-State V2 Acceptance
-- Customer Investigation UX V2 Acceptance
-- Canonical Investigation History V1 Acceptance
-- Owner Growth Console Acceptance
-- Auth Freeze Guard
+Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` then passed all permanent PR workflows triggered for that head, including API Required CI, Release Gates Verification, Operator Exit Corpus Acceptance, Security CI, CodeQL, Supply Chain Security, OpenAPI Contract, Pricing Policy V2 Acceptance, Public Product Smoke, Enterprise API Keys V1 Acceptance, Watchlist Evidence-State V2 Acceptance, Customer Investigation UX V2 Acceptance, Canonical Investigation History V1 Acceptance, Owner Growth Console Acceptance, and Auth Freeze Guard.
 
 The Operator Exit gate completed both exact synthetic merge-candidate verification and target-base freshness successfully before merge.
 
