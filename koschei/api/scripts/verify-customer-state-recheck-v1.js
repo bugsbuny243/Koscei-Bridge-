@@ -1,0 +1,16 @@
+const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const server=fs.readFileSync(path.join(root,'internal/http/server.go'),'utf8');
+const inventory=fs.readFileSync(path.join(root,'internal/http/route_inventory.go'),'utf8');
+const generator=fs.readFileSync(path.join(root,'internal/openapi/generator.go'),'utf8');
+const ui=fs.readFileSync(path.join(root,'public/js/customer-transaction-preflight-v1.js'),'utf8');
+const route='mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardStateRecheck)))))';
+if(!server.includes(route))throw new Error('customer state recheck must reuse existing handler behind Professional planTier');
+if(!inventory.includes('POST /api/customer/web3/transaction-state-recheck'))throw new Error('customer state recheck missing from route inventory');
+if(!generator.includes('path == "/api/customer/web3/transaction-state-recheck"'))throw new Error('OpenAPI auth classifier missing customer state recheck');
+for(const required of ["const recheckEndpoint='/api/customer/web3/transaction-state-recheck'",'permit_token:snapshot.permitToken','state_witness:snapshot.stateWitness',"credentials:'same-origin'",'data?.safe_to_proceed===true','clearPendingRecheck();',"window.addEventListener('pagehide',clearPendingRecheck)"])if(!ui.includes(required))throw new Error('customer state recheck UI contract missing: '+required);
+if(ui.includes('localStorage')||ui.includes('sessionStorage'))throw new Error('customer preflight/recheck must not persist transaction or permit material in browser storage');
+if(!ui.includes("transaction.value='';"))throw new Error('successful preflight must still clear raw transaction textarea');
+if(!ui.includes("if(editor)editor.value='';"))throw new Error('state recheck must clear repasted raw transaction after request');
+console.log('customer state recheck v1 contract ok');
