@@ -15,6 +15,7 @@ type agentEscalationActionRequest struct {
 
 func registerTradePIAgentEscalationRoutes(mux *http.ServeMux) {
 	tradePIAgentService.StartEscalationWorker()
+	tradePIAgentService.StartOperatorNotificationWorker()
 	mux.HandleFunc("/api/agents/admin/escalations", method("GET", tradePIAgentAdminEscalations))
 	mux.HandleFunc("/api/agents/admin/escalations/update", method("POST", tradePIAgentAdminUpdateEscalation))
 }
