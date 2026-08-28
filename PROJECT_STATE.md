@@ -8,10 +8,13 @@ This file is the repository checkpoint for continuing Koschei Web3 work across c
 - Open pull requests: **none** at this checkpoint.
 - Latest verified product merge: PR **#962**, `feat(customer): add Professional state witness recheck`.
 - Verified product merge commit: `e2a0fff1f2730c3862f9679659e82ed6aa586a59`.
+- Last code-affecting verified `main` head: `34d0a8823b17a91c033a0495d3de6235ab69b949` (`fix(ci): complete retired access cleanup`).
 - Professional Transaction Preflight is the metered pre-sign decision.
 - Professional State Recheck is the immediate entitlement-only continuation and does **not** consume a second SaaS output for the same signing decision.
 - State Recheck reuses the existing fail-closed `TransactionGuardStateRecheck` engine and never signs or broadcasts a transaction.
 - A customer receives a positive continuation only when the recheck HTTP response succeeds and reports both `ok: true` and `safe_to_proceed: true`; every other result requires withholding the prior preflight decision.
+- Retired legacy asset-based authorization has been removed from the active boot chain; paid product access remains SaaS-entitlement based.
+- Canonical OpenAPI currently represents **154 registered API paths**.
 - `main` is still not branch-protected.
 - The repository still contains many historical unprotected branches. They are not evidence of active work and must not be revived without comparing them against current `main`.
 
@@ -32,6 +35,15 @@ PR #962 added and hardened the customer-facing State Recheck path:
 - Fixed the pre-existing pricing-policy verifier drift.
 - All ten inline review findings raised during #962 were fixed and resolved before merge.
 
+The subsequent repository cleanup completed the retired legacy asset-access removal without opening a new product PR:
+
+- Removed the two remaining retired compatibility route registrations from the active server boot chain.
+- Removed the compatibility tombstone handler that existed only for those routes.
+- Removed obsolete production-evidence fixture tests whose underlying retired snapshot had already been deleted.
+- Preserved the current generic verdict-synchronization and customer-analysis tests from the mixed historical test file.
+- Regenerated the OpenAPI contract from the exact target head, reducing the registered route contract to 154 paths.
+- Reused an existing helper branch only as a verified execution carrier; no new product branch or PR was created for the CI repair.
+
 ## VERIFIED
 
 Focused verification for the final bounded State Recheck fixes passed:
@@ -47,13 +59,23 @@ Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` then passed all permane
 
 The Operator Exit gate completed both exact synthetic merge-candidate verification and target-base freshness successfully before merge.
 
-After merge, actual `main` product head `e2a0fff1f2730c3862f9679659e82ed6aa586a59` triggered **9** push workflows; all 9 completed successfully. API Required CI on the actual merged head completed migrations, JavaScript/language contracts, tests, vet, build, secret scan, reachable vulnerability scan, and high-confidence static security scan successfully.
+After merge, actual `main` product head `e2a0fff1f2730c3862f9679659e82ed6aa586a59` triggered 9 push workflows; all 9 completed successfully.
+
+For retired legacy access cleanup, the exact-head candidate based on `26324611894c3ad1e18ee73745880da816a5e62e` passed:
+
+- `go test ./internal/handlers ./internal/http ./internal/openapi -count=1`
+- `go run ./cmd/openapi-gen -check` with **154 registered API paths**
+- `git diff --check`
+- full `go test ./...`
+
+The verified candidate became `main` commit `34d0a8823b17a91c033a0495d3de6235ab69b949`. The actual merged `main` head then completed **8/8 push workflows successfully** with **0 failures**. API Required CI completed secret scanning, reachable vulnerability scanning, static security analysis, PostgreSQL migration/retention checks, public JavaScript and language contracts, Go tests, vet, and production build successfully.
 
 ## BROKEN / MISSING
 
+- No known CI blocker remains on the last code-affecting verified head `34d0a8823b17a91c033a0495d3de6235ab69b949`.
 - No known blocker remains for the merged Professional State Recheck slice.
-- `main` remains unprotected, so repository correctness still depends on current-head merge discipline rather than GitHub branch protection.
-- Historical branches are numerous and currently unclassified. Deleting or reviving them blindly could either discard unique work or reintroduce obsolete architecture.
+- `main` remains unprotected, so repository correctness still depends on current-head discipline rather than GitHub branch protection.
+- Historical branches remain numerous and are not fully classified. Deleting or reviving them blindly could either discard unique work or reintroduce obsolete architecture.
 - The merged recheck reduces the time-of-check/time-of-signing window but cannot prove that chain state will remain unchanged after the final observation and before network execution.
 
 ## WORK-IN-PROGRESS POLICY
@@ -71,9 +93,9 @@ After merge, actual `main` product head `e2a0fff1f2730c3862f9679659e82ed6aa586a5
 ## NEXT
 
 1. **Do not open a new product PR yet.**
-2. Perform repository hygiene on the historical branch set: classify each candidate as already-merged, obsolete/superseded, or containing unique unmerged capability.
-3. Delete/close only branches proven safe to remove; do not use branch age or name alone as evidence.
-4. After branch hygiene, inspect current `main` and choose exactly one smallest customer-useful Web3 production gap from live code/evidence.
+2. Resume repository hygiene on the historical branch set from the current `main`: classify candidates as already-contained, obsolete/superseded, or containing unique unmerged capability.
+3. Delete only branches proven safe to remove; do not use branch age or name alone as evidence.
+4. After branch hygiene reaches a stable checkpoint, inspect current `main` and choose exactly one smallest customer-useful Web3 production gap from live code/evidence.
 5. Keep Transaction Preflight / State Recheck and ARVIS evidence-first behavior as the current product line; do not fork a parallel decision engine from stale work.
 
 ## DO NOT START
