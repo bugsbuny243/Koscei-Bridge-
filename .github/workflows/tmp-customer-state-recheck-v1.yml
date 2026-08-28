@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           cd koschei/api
-          gofmt -w internal/http/server.go internal/http/route_inventory.go internal/openapi/generator.go
+          gofmt -w internal/http/server.go internal/http/route_inventory.go internal/http/server_access_test.go internal/openapi/generator.go
           go run ./cmd/openapi-gen
           node scripts/verify-customer-state-recheck-v1.js
           node scripts/verify-customer-transaction-preflight-v1.js
@@ -34,6 +34,6 @@ jobs:
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add koschei/api/internal/http/server.go koschei/api/internal/http/route_inventory.go koschei/api/internal/openapi/generator.go koschei/api/openapi.yaml koschei/api/public/js/customer-transaction-preflight-v1.js koschei/api/scripts/verify-customer-state-recheck-v1.js koschei/api/scripts/verify-customer-transaction-preflight-v1.js
+          git add koschei/api/internal/http/server.go koschei/api/internal/http/route_inventory.go koschei/api/internal/http/server_access_test.go koschei/api/internal/openapi/generator.go koschei/api/openapi.yaml koschei/api/public/js/customer-transaction-preflight-v1.js koschei/api/scripts/verify-customer-state-recheck-v1.js koschei/api/scripts/verify-customer-transaction-preflight-v1.js
           git commit -m 'feat(customer): add state witness recheck flow'
           git push origin HEAD:feat/customer-state-recheck-v1
