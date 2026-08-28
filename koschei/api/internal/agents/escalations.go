@@ -41,27 +41,26 @@ func (s *Service) StartEscalationWorker() {
 }
 
 func (s *Service) detectMissedLeads(ctx context.Context) {
-	// Qualified leads score >=60 that have remained unassigned for 10 minutes
-	// become operator-attention events. A tenant/channel/external_id dedupe key
-	// ensures the same missed lead cannot create alert spam.
 	_, _ = s.db.ExecContext(ctx, `
 INSERT INTO tradepi_agent_escalations (
     tenant_id, channel, external_id, kind, reason, status, dedupe_key, created_at
 )
 SELECT
-    tenant_id,
-    channel,
-    external_id,
+    l.tenant_id,
+    l.channel,
+    l.external_id,
     'missed_hot_lead',
-    'Qualified lead has remained unassigned for at least 10 minutes',
+    'Qualified lead remained unassigned beyond tenant assignment SLA',
     'open',
-    'missed-hot-lead:' || channel || ':' || external_id,
+    'missed-hot-lead:' || l.channel || ':' || l.external_id,
     NOW()
-FROM tradepi_agent_leads
-WHERE stage='qualified'
-  AND score>=60
-  AND COALESCE(owner_id,'')=''
-  AND updated_at <= NOW() - INTERVAL '10 minutes'
+FROM tradepi_agent_leads l
+LEFT JOIN tradepi_agent_tenants t ON t.tenant_id=l.tenant_id
+WHERE l.stage='qualified'
+  AND l.score>=60
+  AND COALESCE(l.owner_id,'')=''
+  AND COALESCE(t.status,'active')='active'
+  AND l.updated_at <= NOW() - make_interval(mins => COALESCE(t.assignment_sla_minutes,10))
 ON CONFLICT (tenant_id, dedupe_key) DO NOTHING`)
 }
 
