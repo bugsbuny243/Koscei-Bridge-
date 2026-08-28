@@ -1,0 +1,45 @@
+name: Temp Gofmt Preflight Agent Surface
+on:
+  push:
+    branches: [feat/customer-transaction-preflight-ui-v1-final]
+    paths: [.github/workflows/tmp-gofmt-preflight-agent-surface.yml]
+permissions:
+  contents: write
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/customer-transaction-preflight-ui-v1-final
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Canonical gofmt only
+        run: |
+          set -euo pipefail
+          cd koschei/api
+          files=(
+            internal/agents/admin_followups.go
+            internal/agents/channel_delivery.go
+            internal/agents/escalation_metrics.go
+            internal/agents/operator_notifications.go
+            internal/agents/tenant_settings.go
+            internal/http/agent_channel_routes.go
+            internal/http/agent_extended_routes.go
+            internal/http/agent_tenant_routes.go
+          )
+          gofmt -w "${files[@]}"
+          git diff --check
+          changed=$(git diff --name-only | sort)
+          expected=$(printf '%s\n' "${files[@]}" | sed 's#^#koschei/api/#' | sort)
+          test "$changed" = "$expected"
+          go test ./internal/agents ./internal/http -count=1
+          cd ../..
+      - name: Commit formatting
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add koschei/api/internal/agents/admin_followups.go koschei/api/internal/agents/channel_delivery.go koschei/api/internal/agents/escalation_metrics.go koschei/api/internal/agents/operator_notifications.go koschei/api/internal/agents/tenant_settings.go koschei/api/internal/http/agent_channel_routes.go koschei/api/internal/http/agent_extended_routes.go koschei/api/internal/http/agent_tenant_routes.go
+          git commit -m 'fix(agents): gofmt current agent surfaces'
+          git push origin HEAD:feat/customer-transaction-preflight-ui-v1-final
