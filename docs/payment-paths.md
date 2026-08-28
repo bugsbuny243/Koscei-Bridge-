@@ -2,7 +2,7 @@
 
 ## Active payment path: Paddle
 
-Paddle is the active SaaS payment provider for the canonical paid plans: **Starter**, **Professional**, and **Enterprise**. KOSCH holdings are not a billing entitlement.
+Paddle is the active SaaS payment provider for the canonical paid plans: **Starter**, **Professional**, and **Enterprise**.
 
 ### Canonical Paddle production catalog
 
