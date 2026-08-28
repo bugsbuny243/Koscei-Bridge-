@@ -12,10 +12,19 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	// namespace and does not alter Koschei Web3 security behavior.
 	registerTradePIAgentRoutes(mux)
 	registerTradePIAgentExtendedRoutes(mux)
+	registerTradePIAgentFollowupRoutes(mux)
+	registerTradePIAgentEscalationRoutes(mux)
+	registerTradePIAgentTenantRoutes(mux)
+	registerTradePIAgentChannelRoutes(mux)
+	registerTradePIAgentPilotRoutes(mux)
 	registerStaticFileAlias(mux, "/agents", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/", filepath.Join(staticDir, "agents.html"))
+	registerStaticFileAlias(mux, "/agents/pilot", filepath.Join(staticDir, "agents-pilot.html"))
+	registerStaticFileAlias(mux, "/agents/pilot/", filepath.Join(staticDir, "agents-pilot.html"))
 	registerStaticFileAlias(mux, "/agents/admin", filepath.Join(staticDir, "agents-admin.html"))
 	registerStaticFileAlias(mux, "/agents/admin/", filepath.Join(staticDir, "agents-admin.html"))
+	registerStaticFileAlias(mux, "/agents/install", filepath.Join(staticDir, "agents-install.html"))
+	registerStaticFileAlias(mux, "/agents/install/", filepath.Join(staticDir, "agents-install.html"))
 
 	// There is one customer-facing investigation surface. Legacy scanner URLs
 	// preserve their intent through a mode query, but no longer render separate

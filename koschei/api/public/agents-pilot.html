@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TradePI AI Sales Agent — Founding Pilot</title><meta name="description" content="Turn website conversations into qualified sales opportunities with a tenant-isolated AI sales agent and operator console.">
+<style>:root{color-scheme:dark;--bg:#07090c;--panel:#10151e;--line:#263040;--text:#f4f7fb;--muted:#a6b0bf;--accent:#b9ff66}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 5%,#192716 0,transparent 30%),var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:56px 22px 90px}.eyebrow{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.17em;text-transform:uppercase}h1{font-size:clamp(2.4rem,7vw,5rem);line-height:.98;max-width:880px;margin:10px 0 18px}.lead{font-size:1.12rem;line-height:1.7;color:var(--muted);max-width:760px}.price{display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin:28px 0}.price strong{font-size:2.6rem}.price span{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:28px 0}.card{background:linear-gradient(180deg,#151b25,#0e1219);border:1px solid var(--line);border-radius:18px;padding:20px}.card b{display:block;margin-bottom:8px}.card p{color:var(--muted);line-height:1.55;margin:0}.form{margin-top:38px;background:#0d1118;border:1px solid var(--line);border-radius:22px;padding:24px}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}input,select,textarea,button{font:inherit;border-radius:11px}input,select,textarea{width:100%;background:#080b10;border:1px solid #303949;color:white;padding:13px 14px}textarea{min-height:110px;resize:vertical}.field label{display:block;color:#8f9aac;font-size:12px;margin-bottom:6px}button{border:0;background:var(--accent);color:#10150c;padding:14px 20px;font-weight:850;cursor:pointer}.full{grid-column:1/-1}.muted{color:var(--muted);font-size:13px}.ok{color:#9ef17c}.err{color:#ff9f9f}.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}a{color:inherit}</style>
+</head>
+<body><main>
+<div class="eyebrow">TradePI AI Sales Agent · Founding Pilot</div>
+<h1>Stop losing sales leads inside website conversations.</h1>
+<p class="lead">TradePI qualifies inbound conversations, scores buying intent, captures human handoff and appointment requests, and gives your team an operations console with missed-lead SLA alerts. Business facts such as price and availability stay unknown unless they come from verified data you provide.</p>
+<div class="price"><strong>$249/month</strong><span>+ $299 one-time setup · first 5 businesses · cancel anytime</span></div>
+<section class="grid">
+<div class="card"><b>Website sales agent</b><p>One tenant-isolated web widget installed on your approved domain.</p></div>
+<div class="card"><b>Qualified lead queue</b><p>Intent scoring plus model/service, budget, location and next-step signals.</p></div>
+<div class="card"><b>Operator SLA</b><p>Hot leads that sit unassigned become visible attention alerts instead of disappearing in chat history.</p></div>
+<div class="card"><b>Verified business context</b><p>Catalog and knowledge entries are operator-controlled. The agent is instructed not to invent stock, price or appointment confirmation.</p></div>
+<div class="card"><b>Human handoff + appointments</b><p>Customer requests are captured without falsely claiming that a salesperson answered or a time was confirmed.</p></div>
+<div class="card"><b>Revenue attribution</b><p>Verified sales can be attached to leads with an evidence reference so the dashboard measures actual attributed revenue.</p></div>
+</section>
+<p class="muted">WhatsApp and Telegram connections can be added when the customer provides the required channel credentials. Third-party messaging/platform fees are not included in the pilot price.</p>
+<section class="form" id="apply"><h2>Apply for a founding pilot</h2><p class="muted">We use these details only to evaluate and contact you about the TradePI AI Sales Agent pilot.</p>
+<div class="fields">
+<div class="field"><label>Business name</label><input id="business" maxlength="160" required></div>
+<div class="field"><label>Your name</label><input id="name" maxlength="160" required></div>
+<div class="field"><label>Work email</label><input id="email" type="email" maxlength="254" required></div>
+<div class="field"><label>Phone / WhatsApp (optional)</label><input id="phone" maxlength="80"></div>
+<div class="field"><label>Website</label><input id="website" type="url" placeholder="https://example.com" required></div>
+<div class="field"><label>Business type</label><select id="vertical"><option value="automotive">Automotive</option><option value="real-estate">Real estate</option><option value="clinic">Clinic / beauty</option><option value="general">Other sales business</option></select></div>
+<div class="field"><label>Approx. inbound leads / month</label><select id="leads"><option value="under-50">Under 50</option><option value="50-200">50–200</option><option value="200-1000">200–1,000</option><option value="1000-plus">1,000+</option><option value="unknown">Not sure</option></select></div>
+<div class="field full"><label>What do you want the agent to improve?</label><textarea id="message" maxlength="4000" placeholder="Example: qualify BMW inquiries and get hot leads to a salesperson faster."></textarea></div>
+<div class="hp" aria-hidden="true"><label>Company<input id="company" tabindex="-1" autocomplete="off"></label></div>
+<div class="full"><button id="submit">Apply for pilot</button> <span id="status" class="muted"></span></div>
+</div></section>
+<p class="muted"><a href="/agents">← Back to TradePI AI Sales Agent</a></p>
+</main>
+<script>
+const $=id=>document.getElementById(id);$('submit').addEventListener('click',async()=>{const status=$('status');const body={business_name:$('business').value.trim(),contact_name:$('name').value.trim(),email:$('email').value.trim(),phone:$('phone').value.trim(),website:$('website').value.trim(),vertical:$('vertical').value,monthly_lead_band:$('leads').value,message:$('message').value.trim(),company:$('company').value.trim()};if(!body.business_name||!body.contact_name||!body.email||!body.website){status.textContent='Please complete the required fields.';status.className='err';return}$('submit').disabled=true;status.textContent='Sending…';status.className='muted';try{const r=await fetch('/api/agents/pilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error();status.textContent='Application received. We will review it for the founding pilot.';status.className='ok';$('submit').textContent='Application received'}catch{status.textContent='Could not submit the application. Please try again.';status.className='err';$('submit').disabled=false}});
+</script></body></html>

@@ -14,10 +14,17 @@ import (
 
 var graphVersionPattern = regexp.MustCompile(`^v[0-9]+(?:\.[0-9]+)?$`)
 
-func WhatsAppOutboundEnabled() bool {
+func whatsappCredentialsEnabled() bool {
 	return strings.TrimSpace(os.Getenv("WHATSAPP_ACCESS_TOKEN")) != "" &&
-		strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID")) != "" &&
 		graphVersionPattern.MatchString(strings.TrimSpace(os.Getenv("WHATSAPP_GRAPH_VERSION")))
+}
+
+func WhatsAppOutboundEnabled() bool {
+	return whatsappCredentialsEnabled() && strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID")) != ""
+}
+
+func WhatsAppAccountOutboundEnabled(phoneID string) bool {
+	return whatsappCredentialsEnabled() && strings.TrimSpace(phoneID) != ""
 }
 
 func SendWhatsAppText(ctx context.Context, to, text string) error {
@@ -25,7 +32,6 @@ func SendWhatsAppText(ctx context.Context, to, text string) error {
 		return fmt.Errorf("whatsapp outbound not configured")
 	}
 	token := strings.TrimSpace(os.Getenv("WHATSAPP_ACCESS_TOKEN"))
-	phoneID := strings.TrimSpace(os.Getenv("WHATSAPP_PHONE_NUMBER_ID"))
 	version := strings.TrimSpace(os.Getenv("WHATSAPP_GRAPH_VERSION"))
 	payload, err := json.Marshal(map[string]any{
 		"messaging_product": "whatsapp",
