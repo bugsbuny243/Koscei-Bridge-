@@ -73,6 +73,8 @@ func (s *Service) PersistenceReady(ctx context.Context) bool {
 		"tradepi_agent_catalog_items",
 		"tradepi_agent_knowledge_entries",
 		"tradepi_agent_followups",
+		"tradepi_agent_escalations",
+		"tradepi_agent_operator_notifications",
 	} {
 		var ok bool
 		if err := s.db.QueryRowContext(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, table).Scan(&ok); err != nil || !ok {
