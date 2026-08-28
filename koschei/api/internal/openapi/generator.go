@@ -275,16 +275,23 @@ func operation(route Route, method string) map[string]any {
 	if group == "" {
 		group = routeTag(route.Path)
 	}
+	description := "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict."
+	operationResponses := responses(route.AuthTier)
+	if route.Path == "/api/customer/web3/transaction-state-recheck" && method == "post" {
+		description = "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision."
+		operationResponses["409"] = response("State-bound permit expired; run a fresh Transaction Guard simulation before signing.", "#/components/schemas/EvidenceResponse")
+		operationResponses["503"] = response("Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate.", "#/components/schemas/EvidenceResponse")
+	}
 	operation := map[string]any{
 		"operationId":              operationID(method, route.Path),
 		"summary":                  strings.ToUpper(method) + " " + route.Path,
-		"description":              "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+		"description":              description,
 		"tags":                     []string{group},
 		"x-koschei-auth-tier":      route.AuthTier,
 		"x-koschei-inventory-auth": route.InventoryAuth,
 		"x-koschei-route-source":   route.InventorySource,
 		"parameters":               pathParameters(route.Path),
-		"responses":                responses(route.AuthTier),
+		"responses":                operationResponses,
 		"security":                 security(route.AuthTier),
 	}
 	if method == "post" || method == "put" || method == "patch" {
