@@ -37,6 +37,11 @@ replace_once(
     'if(!generator.includes(\'case path == "/api/customer/web3/transaction-preflight":\'))throw new Error("OpenAPI auth classifier missing customer preflight");',
     'if(!generator.includes(\'case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":\'))throw new Error("OpenAPI auth classifier missing Professional customer preflight/recheck");',
 )
+replace_once(
+    preflight_verifier,
+    "if(!accessTest.includes('Professional covers transaction preflight and advanced radar surfaces'))throw new Error(\"product tier contract not updated for customer preflight\");",
+    "if(!accessTest.includes('Professional covers transaction preflight, state witness recheck, and advanced radar surfaces'))throw new Error(\"product tier contract not updated for customer preflight/recheck\");",
+)
 
 access_test = "koschei/api/internal/http/server_access_test.go"
 replace_once(
