@@ -31,6 +31,13 @@ replace_once(
     'case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":',
 )
 
+preflight_verifier = "koschei/api/scripts/verify-customer-transaction-preflight-v1.js"
+replace_once(
+    preflight_verifier,
+    'if(!generator.includes(\'case path == "/api/customer/web3/transaction-preflight":\'))throw new Error("OpenAPI auth classifier missing customer preflight");',
+    'if(!generator.includes(\'case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":\'))throw new Error("OpenAPI auth classifier missing Professional customer preflight/recheck");',
+)
+
 js = "koschei/api/public/js/customer-transaction-preflight-v1.js"
 replace_once(
     js,
