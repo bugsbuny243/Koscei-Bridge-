@@ -21,7 +21,7 @@ func TestCommittedOpenAPIMatchesRegisteredAPIRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(generated) != string(committed) {
-		t.Fatalf("openapi.yaml drifted from registered boot-chain routes; run (cd %s && go run ./cmd/openapi-gen)", apiRoot)
+		t.Fatalf("openapi.yaml drifted from registered boot-chain routes; regenerate from the exact current target head before merge; run (cd %s && go run ./cmd/openapi-gen)", apiRoot)
 	}
 
 	var document map[string]any
