@@ -95,6 +95,9 @@ func (s *Service) AdminCreateChannelAccount(ctx context.Context, tenantID, chann
 	if err != nil {
 		return ChannelAccount{}, err
 	}
+	if channel == "web" && providerAccountID == "" {
+		providerAccountID = key
+	}
 	var item ChannelAccount
 	err = s.db.QueryRowContext(ctx, `
 INSERT INTO tradepi_agent_channel_accounts (
