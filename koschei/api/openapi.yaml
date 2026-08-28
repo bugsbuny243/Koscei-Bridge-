@@ -5000,7 +5000,7 @@
     },
     "/api/customer/web3/transaction-state-recheck": {
       "post": {
-        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "description": "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision.",
         "operationId": "post__api_customer_web3_transaction_state_recheck",
         "parameters": [],
         "requestBody": {
@@ -5064,6 +5064,16 @@
             },
             "description": "Method not allowed."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "State-bound permit expired; run a fresh Transaction Guard simulation before signing."
+          },
           "429": {
             "content": {
               "application/json": {
@@ -5083,6 +5093,16 @@
               }
             },
             "description": "Internal failure; no unsupported verdict is emitted."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate."
           }
         },
         "security": [
