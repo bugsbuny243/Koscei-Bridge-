@@ -42,7 +42,7 @@
 
   var translations={
     'Panel':'Dashboard','Güvenlik Radarı':'Security Radar','İşlem Güvenliği':'Transaction Security','İşlem Kalkanı':'Transaction Shield','İzleme Listesi':'Watchlist','Webhooklar':'Webhooks','Entegrasyon':'Integrate','Paketler':'Plans',
-    'Mimari':'Architecture','Geliştiriciler':'Developers','Entegrasyon Pilotu':'Integration Pilot','KOSCH Erişimi':'KOSCH Access','Hesap':'Account','Raporlar':'Reports','Zincir Sağlığı':'Chain Health','Güvenli Kontrol':'Safe Check',
+    'Mimari':'Architecture','Geliştiriciler':'Developers','Entegrasyon Pilotu':'Integration Pilot','Hesap':'Account','Raporlar':'Reports','Zincir Sağlığı':'Chain Health','Güvenli Kontrol':'Safe Check',
     'ARVIS Güvenlik Radarı':'ARVIS Security Radar','Eksiksiz kanıt istihbaratı':'Complete evidence intelligence','Özet değil. Tam güvenlik dosyası.':'Not a summary. The complete security file.',
     'Keşif':'Discovery','Dağılım':'Distribution','Yapı':'Structure','Kanıt':'Evidence','Pump ve creator bağlantısı':'Pump and creator relation','Yapısal taban':'Structural floor',
     'Uyarı / Yüksek Risk':'Warning / High Risk','İzleme':'Monitor','Eksiksiz ARVIS istihbarat dosyası':'Complete ARVIS intelligence file',
@@ -58,9 +58,7 @@
     'ARVIS birleşik radarı':'ARVIS unified radar','Tek radar. Önce kanıt.':'One radar. Evidence first.','Canlı Radar':'Live Radar','Go güvenlik servisleri':'Go security services','Çalışan motorlar':'Runtime engines','Kontrol ediliyor…':'Checking…',
     'Çıktı kuralı':'Output rule','İmzalı ve kanıtlı':'Signed + evidence','ARVIS’i çalıştır':'Run ARVIS','Aktif Erişim':'Active Access','Kalan Çıktı':'Remaining Outputs','Temel Durum':'Core Status','İşlem hattı':'Pipeline','Akış':'Stream',
     'Çalışan kanıt kolları':'Runtime evidence arms','Görünen kartlar':'Visible cards','İşlenen':'Processed','Kanıt yok':'No evidence','Başarısız':'Failed','Son olay':'Last event','Erişim bilgisi okunuyor.':'Reading access status.',
-    'Başarısız kanıt toplama işlemi ücrete tabi değildir.':'Failed evidence collection does not consume capacity.','Hesap erişimi ve ARVIS durumu yükleniyor…':'Loading account access and ARVIS status…','KOSCH Erişimini Aç':'Open KOSCH Access',
-    'Canlı Radarı Aç':'Open Live Radar','Araçları İncele':'Explore Tools','Aktif erişim yok':'No active access','Gelişmiş taramalar için KOSCH erişimini doğrulayın.':'Verify KOSCH access to unlock advanced investigations.','Erişim doğrulandı.':'Access verified.',
-    'ARVIS’i çalıştırmak için KOSCH erişimini açın':'Open KOSCH access to run ARVIS','Canlı üretim radarı görüntülenebilir; müşteri taramaları, raporlar, izleme listeleri ve alarmlar için KOSCH erişimi gerekir.':'The live production radar remains visible; customer scans, reports, watchlists, and alerts require KOSCH access.',
+    'Başarısız kanıt toplama işlemi ücrete tabi değildir.':'Failed evidence collection does not consume capacity.','Hesap erişimi ve ARVIS durumu yükleniyor…':'Loading account access and ARVIS status…','Canlı Radarı Aç':'Open Live Radar','Araçları İncele':'Explore Tools','Aktif erişim yok':'No active access','Erişim doğrulandı.':'Access verified.',
     'Kalan çıktı yok':'No remaining capacity','Erişim aktif ancak yeni müşteri taraması için kapasite gerekir.':'Access is active, but another customer investigation requires available capacity.','Bir hedef girin. Karar yalnız kanıt doğrulandıktan sonra görünür.':'Enter a target. A verdict appears only after evidence verification.',
     'Kilitli':'Locked','Canlı':'Live','Güncelliğini yitirmiş':'Stale','Bekleniyor':'Waiting','doğrulanmış':'verified','doğrulanmış kanıt':'verified evidence','ARVIS motoru':'ARVIS engine','Doğrulanmış gözlem':'Verified observation',
     'Gerçek veri kullanılamıyor. Çıktı hakkı düşülmedi.':'Real data is unavailable. No capacity was consumed.','İmzalı ARVIS kararı':'Signed ARVIS verdict','Doğrulanmış karar':'Verified verdict','Rapor Kasası':'Report Vault',
@@ -103,7 +101,7 @@
   }
 
   ready(function(){
-    var links=[['/live','Live SOC'],['/cases','Cases'],['/scan','Token Scan'],['/transaction-shield','Transaction Shield'],['/safe-check','Safe Check'],['/scan?mode=deep','Deep Scan'],['/dashboard','Workspace'],['/kosch','KOSCH']];
+    var links=[['/live','Live SOC'],['/cases','Cases'],['/scan','Token Scan'],['/transaction-shield','Transaction Shield'],['/safe-check','Safe Check'],['/scan?mode=deep','Deep Scan'],['/dashboard','Workspace'],['/pricing','Plans']];
     var current=(location.pathname||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';
     var existing=document.querySelector('.top .nav, header.top nav.nav, nav.top .nav');
     var nav=existing||document.createElement('nav');
@@ -114,7 +112,7 @@
     if(!existing){var top=document.querySelector('header.top,.top');if(top){nav.className+=' detached';top.parentNode.insertBefore(nav,top.nextSibling);}}
     if(current==='/dashboard'&&!document.querySelector('.koschei-safety-strip')){var strip=document.createElement('section');strip.className='koschei-safety-strip';strip.innerHTML='<div><b>Ask Koschei before buying or signing.</b><span>ARVIS investigation and transaction evidence stay inside the Koschei Web3 security workflow.</span></div><span><a href="/scan">ARVIS Investigation</a> <a href="/transaction-shield">Transaction Shield</a></span>';var stripAnchor=document.querySelector('.koschei-global-nav')||document.querySelector('header.top,.top');if(stripAnchor&&stripAnchor.parentNode){stripAnchor.parentNode.insertBefore(strip,stripAnchor.nextSibling);}}
     var bottom=document.querySelector('nav.bottom');if(bottom)bottom.remove();
-    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei Web3 · ARVIS Intelligence</span><span><a href="/live">Live SOC</a> · <a href="/cases">Cases</a> · <a href="/scan">ARVIS Investigation</a> · <a href="/transaction-shield">Transaction Shield</a> · <a href="/safe-check">Safe Check</a> · <a href="/kosch">KOSCH</a></span>';document.body.appendChild(footer);}
+    if(!document.querySelector('.koschei-footer')){var footer=document.createElement('footer');footer.className='koschei-footer';footer.innerHTML='<span>Koschei Web3 · ARVIS Intelligence</span><span><a href="/live">Live SOC</a> · <a href="/cases">Cases</a> · <a href="/scan">ARVIS Investigation</a> · <a href="/transaction-shield">Transaction Shield</a> · <a href="/safe-check">Safe Check</a> · <a href="/pricing">Plans</a></span>';document.body.appendChild(footer);}
     if(current==='/safe-check')document.title='Safe Check — Koschei Web3 / ARVIS';
     if(current==='/security-radar')document.title='ARVIS Security Radar — Koschei Web3';
     translate(document.body);
