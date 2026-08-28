@@ -1,4 +1,4 @@
-name: One-shot merged branch classifier
+name: One-shot fully merged branch cleanup
 
 on:
   push:
@@ -6,10 +6,11 @@ on:
       - fix/retire-kosch-commercial-legacy-v1
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: read
 
 jobs:
-  classify:
+  cleanup:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout helper carrier
@@ -17,8 +18,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Classify branches against current main snapshot
+      - name: Delete only branches fully contained in main
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           base="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
@@ -27,10 +30,17 @@ jobs:
 
           git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
 
-          : > /tmp/merged-safe.txt
-          : > /tmp/not-contained.txt
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            'https://api.github.com/repos/bugsbuny243/Koschei-Web3-Hub/pulls?state=open&per_page=100' \
+            | jq -r '.[] | select(.head.repo.full_name == "bugsbuny243/Koschei-Web3-Hub") | .head.ref' \
+            | sort -u > /tmp/open-pr-heads.txt
+
+          : > /tmp/delete-candidates.txt
           total=0
           excluded=0
+          open_pr_excluded=0
 
           while IFS=' ' read -r ref sha; do
             branch="${ref#refs/remotes/origin/}"
@@ -41,35 +51,57 @@ jobs:
                 ;;
             esac
             total=$((total+1))
+            if grep -Fxq "$branch" /tmp/open-pr-heads.txt; then
+              open_pr_excluded=$((open_pr_excluded+1))
+              continue
+            fi
             if git merge-base --is-ancestor "$sha" "$base"; then
-              printf '%s\t%s\n' "$branch" "$sha" >> /tmp/merged-safe.txt
-            else
-              printf '%s\t%s\n' "$branch" "$sha" >> /tmp/not-contained.txt
+              printf '%s\t%s\n' "$branch" "$sha" >> /tmp/delete-candidates.txt
             fi
           done < <(git for-each-ref --format='%(refname) %(objectname)' refs/remotes/origin/)
 
-          sort -o /tmp/merged-safe.txt /tmp/merged-safe.txt
-          sort -o /tmp/not-contained.txt /tmp/not-contained.txt
-          merged_count="$(wc -l < /tmp/merged-safe.txt | tr -d ' ')"
-          not_contained_count="$(wc -l < /tmp/not-contained.txt | tr -d ' ')"
+          sort -o /tmp/delete-candidates.txt /tmp/delete-candidates.txt
+          candidates="$(wc -l < /tmp/delete-candidates.txt | tr -d ' ')"
+          echo "TOTAL_CLASSIFIED=$total"
+          echo "EXCLUDED_LONG_LIVED_OR_HELPER=$excluded"
+          echo "EXCLUDED_OPEN_PR_HEADS=$open_pr_excluded"
+          echo "DELETE_CANDIDATES=$candidates"
 
           end="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          echo "MAIN_AT_END=$end"
           if [ "$end" != "$base" ]; then
             git fetch --depth=1 origin "$end"
-            if git merge-base --is-ancestor "$base" "$end"; then
-              echo "MAIN_MOVEMENT=fast_forward_safe_for_containment"
-            else
-              echo "MAIN_MOVEMENT=non_fast_forward_review_required"
-            fi
+            git merge-base --is-ancestor "$base" "$end" || { echo "main moved non-fast-forward; refusing cleanup"; exit 42; }
+            echo "MAIN_MOVEMENT=fast_forward_safe_for_containment"
           else
             echo "MAIN_MOVEMENT=stable"
           fi
 
-          echo "TOTAL_CLASSIFIED=$total"
-          echo "EXCLUDED_LONG_LIVED_OR_HELPER=$excluded"
-          echo "FULLY_CONTAINED_SAFE=$merged_count"
-          echo "NOT_CONTAINED_REQUIRES_REVIEW=$not_contained_count"
-          echo '--- FULLY CONTAINED SAFE BRANCHES ---'
-          cat /tmp/merged-safe.txt
-          echo '--- END FULLY CONTAINED SAFE BRANCHES ---'
+          deleted=0
+          moved=0
+          failed=0
+          while IFS=$'\t' read -r branch sha; do
+            [ -n "$branch" ] || continue
+            current="$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')"
+            if [ -z "$current" ]; then
+              continue
+            fi
+            if [ "$current" != "$sha" ]; then
+              echo "SKIP_MOVED $branch expected=$sha actual=$current"
+              moved=$((moved+1))
+              continue
+            fi
+            if git push --force-with-lease="refs/heads/$branch:$sha" origin ":refs/heads/$branch"; then
+              echo "DELETED $branch $sha"
+              deleted=$((deleted+1))
+            else
+              echo "FAILED_DELETE $branch $sha"
+              failed=$((failed+1))
+            fi
+          done < /tmp/delete-candidates.txt
+
+          after="$(git ls-remote --heads origin | wc -l | tr -d ' ')"
+          echo "DELETED_COUNT=$deleted"
+          echo "SKIPPED_MOVED_COUNT=$moved"
+          echo "FAILED_DELETE_COUNT=$failed"
+          echo "REMOTE_BRANCH_COUNT_AFTER=$after"
+          test "$failed" -eq 0
