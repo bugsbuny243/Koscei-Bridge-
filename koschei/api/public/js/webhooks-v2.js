@@ -36,7 +36,7 @@
     const raw=await response.text();
     if(raw){try{data=JSON.parse(raw);}catch{data={error:'invalid_json_response'};}}
     if(!response.ok){
-      const access=[401,402,403].includes(response.status)?'Enterprise KOSCH eligibility and a verified customer session are required. ':'';
+      const access=[401,402,403].includes(response.status)?'An active Enterprise SaaS subscription and a verified customer session are required. ':'';
       throw new Error(access+text(data?.message||data?.error,`Request failed with HTTP ${response.status}`));
     }
     return data;
