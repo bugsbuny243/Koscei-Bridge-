@@ -42,14 +42,14 @@ func tradePIAgentAdminTenantSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		settings := agents.TenantSettings{
-			TenantID: firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-			DisplayName: req.DisplayName,
-			Vertical: req.Vertical,
-			Timezone: req.Timezone,
-			Language: req.Language,
+			TenantID:             firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
+			DisplayName:          req.DisplayName,
+			Vertical:             req.Vertical,
+			Timezone:             req.Timezone,
+			Language:             req.Language,
 			AssignmentSLAMinutes: req.AssignmentSLAMinutes,
 			FollowupDelayMinutes: req.FollowupDelayMinutes,
-			Status: req.Status,
+			Status:               req.Status,
 		}
 		if err := tradePIAgentService.AdminUpsertTenantSettings(r.Context(), settings); err != nil {
 			http.Error(w, "tenant settings rejected", http.StatusConflict)

@@ -7,12 +7,12 @@ import (
 )
 
 type AdminEscalationMetrics struct {
-	Open                 int64   `json:"open"`
-	Acknowledged         int64   `json:"acknowledged"`
-	ResolvedLast24Hours  int64   `json:"resolved_last_24_hours"`
-	OldestOpenSeconds    int64   `json:"oldest_open_seconds"`
+	Open                  int64   `json:"open"`
+	Acknowledged          int64   `json:"acknowledged"`
+	ResolvedLast24Hours   int64   `json:"resolved_last_24_hours"`
+	OldestOpenSeconds     int64   `json:"oldest_open_seconds"`
 	AvgAcknowledgeSeconds float64 `json:"avg_acknowledge_seconds"`
-	NotificationMode     string  `json:"notification_mode"`
+	NotificationMode      string  `json:"notification_mode"`
 }
 
 func (s *Service) AdminEscalationMetrics(ctx context.Context, tenantID string) (AdminEscalationMetrics, error) {
