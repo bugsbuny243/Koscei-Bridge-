@@ -6,6 +6,7 @@ window.__koscheiCustomerTransactionPreflightV1=true;
 const endpoint='/api/customer/web3/transaction-preflight';
 const recheckEndpoint='/api/customer/web3/transaction-state-recheck';
 let pendingRecheck=null;
+let authLoaderPromise=null;
 const form=document.getElementById('scanForm');
 const submit=document.getElementById('submit');
 const transaction=document.getElementById('transaction');
@@ -33,6 +34,34 @@ function syncCopy(){
 
 document.querySelectorAll('[data-scan-mode]').forEach(button=>button.addEventListener('click',()=>queueMicrotask(syncCopy)));
 queueMicrotask(syncCopy);
+
+async function ensureCustomerAuth(){
+  if(window.KoscheiAuth?.apiCall)return window.KoscheiAuth;
+  if(!authLoaderPromise){
+    authLoaderPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='/js/koschei-auth.js?v=33';
+      script.async=true;
+      script.onload=()=>{
+        if(window.KoscheiAuth?.apiCall){resolve(window.KoscheiAuth);return;}
+        authLoaderPromise=null;
+        reject(new Error('Customer authentication helper unavailable.'));
+      };
+      script.onerror=()=>{
+        authLoaderPromise=null;
+        reject(new Error('Customer authentication helper unavailable.'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return authLoaderPromise;
+}
+async function customerAPI(path,options){
+  const auth=await ensureCustomerAuth();
+  const response=await auth.apiCall(path,options);
+  if(!response)throw new Error('Customer authentication request unavailable.');
+  return response;
+}
 
 function hideUtilities(){
   if(share)share.hidden=true;
@@ -71,20 +100,20 @@ async function runStateRecheck(){
   if(button){button.disabled=true;button.textContent='Rechecking witnessed state…';}
   if(output)output.innerHTML='<p class="historySummary">Collecting fresh bounded account-state evidence. No safety claim is made until the server returns a verified decision.</p>';
   try{
-    const response=await fetch(recheckEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({permit_token:snapshot.permitToken,transaction:serialized,network:snapshot.network,state_witness:snapshot.stateWitness})});
+    const response=await customerAPI(recheckEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({permit_token:snapshot.permitToken,transaction:serialized,network:snapshot.network,state_witness:snapshot.stateWitness})});
     const data=await response.json().catch(()=>({}));
     const decision=data?.decision||{};
     const safe=response.ok&&data?.ok===true&&data?.safe_to_proceed===true;
     if(output){
       const title=safe?'STATE UNCHANGED — SERVER SAYS SAFE TO PROCEED':'DO NOT RELY ON PRIOR PREFLIGHT';
-      const detail=decision?.reason||data?.message||data?.code||`HTTP ${response.status}`;
+      const detail=decision?.reason||data?.message||data?.error||data?.code||`HTTP ${response.status}`;
       output.innerHTML=`<div class="public-signal ${safe?'verified':'arm_pending'}"><span><b>${esc(title)}</b><small>${esc(String(decision?.status||data?.code||'state recheck incomplete').toUpperCase())}</small></span><em>${safe?'PROCEED':'WITHHOLD'}</em></div><p class="historySummary" style="margin-top:10px">${esc(detail)}</p>`;
     }
   }catch(error){
     if(output)output.innerHTML=`<div class="public-signal arm_pending"><span><b>STATE RECHECK UNAVAILABLE</b><small>${esc(error?.message||'Fresh state evidence could not be collected.')}</small></span><em>WITHHOLD</em></div>`;
   }finally{
     if(editor)editor.value='';
-    clearPendingRecheck();
+    if(pendingRecheck===snapshot)clearPendingRecheck();
     if(button){button.disabled=true;button.textContent='State recheck consumed';}
   }
 }
@@ -151,7 +180,7 @@ form.addEventListener('submit',async event=>{
   submit.textContent='Validating before signing…';
   working();
   try{
-    const response=await fetch(endpoint,{
+    const response=await customerAPI(endpoint,{
       method:'POST',
       credentials:'same-origin',
       headers:{'Content-Type':'application/json'},
