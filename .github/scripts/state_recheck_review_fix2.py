@@ -1,0 +1,332 @@
+from pathlib import Path
+
+
+def replace_once(path, old, new):
+    p = Path(path)
+    text = p.read_text()
+    if old not in text:
+        raise SystemExit(f"expected marker missing in {path}: {old[:160]!r}")
+    if text.count(old) != 1:
+        raise SystemExit(f"expected exactly one marker in {path}, found {text.count(old)}")
+    p.write_text(text.replace(old, new, 1))
+
+
+auth = 'koschei/api/internal/handlers/middleware_auth.go'
+replace_once(auth,
+'''func userFromContext(ctx context.Context) (neonJWTClaims, bool) {
+\tv := ctx.Value(authContextKey)
+\tclaims, ok := v.(neonJWTClaims)
+\treturn claims, ok
+}
+''',
+'''func userFromContext(ctx context.Context) (neonJWTClaims, bool) {
+\tv := ctx.Value(authContextKey)
+\tclaims, ok := v.(neonJWTClaims)
+\treturn claims, ok
+}
+
+// AuthenticatedSubject returns the already-verified customer subject installed by RequireAuth.
+// It intentionally exposes only the stable subject needed by downstream shared security middleware.
+func AuthenticatedSubject(r *http.Request) string {
+\tif r == nil {
+\t\treturn ""
+\t}
+\tclaims, ok := userFromContext(r.Context())
+\tif !ok {
+\t\treturn ""
+\t}
+\treturn strings.TrimSpace(claims.Sub)
+}
+''')
+
+rate = 'koschei/api/internal/http/sensitive_rate_limit.go'
+replace_once(rate,
+'''\t"time"
+
+\t"koschei/api/internal/services"
+)''',
+'''\t"time"
+
+\t"koschei/api/internal/handlers"
+\t"koschei/api/internal/services"
+)''')
+replace_once(rate,
+'''func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {''',
+'''func customerStateRecheckRateLimit(db *sql.DB, next http.HandlerFunc) http.HandlerFunc {
+\tconst route = "/api/customer/web3/transaction-state-recheck"
+\trule := sensitiveLimitRule{Limit: 12, Window: time.Minute}
+\treturn func(w http.ResponseWriter, r *http.Request) {
+\t\tsubject := handlers.AuthenticatedSubject(r)
+\t\tif subject == "" {
+\t\t\twriteSecurityJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+\t\t\treturn
+\t\t}
+\t\tkeyHash := sensitiveBucketKeyHash("customer:"+subject, route)
+\t\tctx, cancel := context.WithTimeout(r.Context(), sharedSensitiveLimitTimeout)
+\t\tdecision, err := consumeSharedSensitiveLimit(ctx, db, keyHash, route, rule)
+\t\tcancel()
+\t\tif err != nil {
+\t\t\tsetSensitiveRateLimitHeaders(w, sensitiveLimitDecision{Limit: rule.Limit, Remaining: 0, ResetAfterSeconds: 1})
+\t\t\tw.Header().Set("Retry-After", "1")
+\t\t\twriteSecurityJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "rate_limit_unavailable", "message": "State Recheck request protection is temporarily unavailable. Please try again."})
+\t\t\treturn
+\t\t}
+\t\tsetSensitiveRateLimitHeaders(w, decision)
+\t\tif !decision.Allowed {
+\t\t\tw.Header().Set("Retry-After", strconv.FormatInt(maxSensitiveResetSeconds(decision.ResetAfterSeconds), 10))
+\t\t\twriteSecurityJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limit_exceeded", "message": "State Recheck request limit reached. Run a fresh preflight if the permit expires."})
+\t\t\treturn
+\t\t}
+\t\tmaybeCleanupSharedSensitiveLimits(db)
+\t\tnext(w, r)
+\t}
+}
+
+func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {''')
+replace_once(rate,
+'''\tcase "/api/arvis/preflight":
+\t\treturn sensitiveLimitRule{Limit: 30, Window: time.Minute}, true''',
+'''\tcase "/api/customer/web3/transaction-state-recheck":
+\t\treturn sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
+\tcase "/api/arvis/preflight":
+\t\treturn sensitiveLimitRule{Limit: 30, Window: time.Minute}, true''')
+
+server = 'koschei/api/internal/http/server.go'
+replace_once(server,
+'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", method("POST", h.TransactionGuardStateRecheck)))))',
+'mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", customerStateRecheckRateLimit(h.DB, method("POST", h.TransactionGuardStateRecheck))))))')
+
+rate_test = 'koschei/api/internal/http/sensitive_rate_limit_test.go'
+replace_once(rate_test,
+'''func TestConsumeSharedSensitiveLimitIsAtomicAcrossPools(t *testing.T) {''',
+'''func TestSensitiveRuleCoversCustomerStateRecheck(t *testing.T) {
+\trule, ok := sensitiveRuleForPath("/api/customer/web3/transaction-state-recheck")
+\tif !ok || rule.Limit != 30 || rule.Window != time.Minute {
+\t\tt.Fatalf("customer state recheck IP rate limit = %+v ok=%v", rule, ok)
+\t}
+}
+
+func TestCustomerStateRecheckRateLimitFailsClosedWithoutAuthenticatedSubject(t *testing.T) {
+\tcalled := false
+\thandler := customerStateRecheckRateLimit(nil, func(w http.ResponseWriter, r *http.Request) {
+\t\tcalled = true
+\t\tw.WriteHeader(http.StatusNoContent)
+\t})
+\trecorder := httptest.NewRecorder()
+\thandler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "https://tradepigloball.co/api/customer/web3/transaction-state-recheck", nil))
+\tif recorder.Code != http.StatusUnauthorized || called {
+\t\tt.Fatalf("unauthenticated customer recheck rate limiter status=%d called=%v", recorder.Code, called)
+\t}
+}
+
+func TestConsumeSharedSensitiveLimitIsAtomicAcrossPools(t *testing.T) {''')
+
+ui = 'koschei/api/public/js/customer-transaction-preflight-v1.js'
+replace_once(ui, 'let pendingRecheck=null;\nlet authLoaderPromise=null;', 'let pendingRecheck=null;\nlet authLoaderPromise=null;\nlet authInitPromise=null;')
+replace_once(ui,
+'''async function customerAPI(path,options){
+  const auth=await ensureCustomerAuth();
+  const response=await auth.apiCall(path,options);
+  if(!response)throw new Error('Customer authentication request unavailable.');
+  return response;
+}''',
+'''async function initializedCustomerAuth(){
+  const auth=await ensureCustomerAuth();
+  if(!authInitPromise){
+    authInitPromise=(async()=>{
+      if(typeof auth.init==='function')await auth.init();
+      return auth;
+    })().catch(error=>{authInitPromise=null;throw error;});
+  }
+  return authInitPromise;
+}
+async function customerAPI(path,options){
+  const auth=await initializedCustomerAuth();
+  const response=await auth.apiCall(path,options);
+  if(!response)throw new Error('Customer authentication request unavailable.');
+  return response;
+}''')
+replace_once(ui,
+'''function clearPendingRecheck(){
+  pendingRecheck=null;
+}
+function prepareStateRecheck(data){''',
+'''function clearPendingRecheck(){
+  pendingRecheck=null;
+}
+function invalidateStateRecheckUI(){
+  clearPendingRecheck();
+  const editor=document.getElementById('stateRecheckTransaction');
+  if(editor)editor.value='';
+  const button=document.getElementById('stateRecheckRun');
+  if(button){button.disabled=true;button.textContent='Run a fresh preflight';}
+  result.querySelector('[data-customer-state-recheck]')?.remove();
+}
+function prepareStateRecheck(data){''')
+replace_once(ui,
+"window.addEventListener('pagehide',clearPendingRecheck);\n})();",
+"window.addEventListener('pagehide',invalidateStateRecheckUI);\nwindow.addEventListener('pageshow',event=>{if(event.persisted)invalidateStateRecheckUI();});\n})();")
+
+generator = 'koschei/api/internal/openapi/generator.go'
+replace_once(generator,
+'''\tdescription := "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict."
+\toperationResponses := responses(route.AuthTier)
+\tif route.Path == "/api/customer/web3/transaction-state-recheck" && method == "post" {
+\t\tdescription = "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision."
+\t\toperationResponses["409"] = response("State-bound permit expired; run a fresh Transaction Guard simulation before signing.", "#/components/schemas/EvidenceResponse")
+\t\toperationResponses["503"] = response("Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate.", "#/components/schemas/EvidenceResponse")
+\t}''',
+'''\tdescription := "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict."
+\toperationResponses := responses(route.AuthTier)
+\trequestSchemaRef := "#/components/schemas/GenericRequest"
+\trequestBodyRequired := false
+\tif route.Path == "/api/customer/web3/transaction-state-recheck" && method == "post" {
+\t\tdescription = "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision."
+\t\toperationResponses["409"] = response("State-bound permit expired; run a fresh Transaction Guard simulation before signing.", "#/components/schemas/EvidenceResponse")
+\t\toperationResponses["503"] = response("Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate.", "#/components/schemas/EvidenceResponse")
+\t\trequestSchemaRef = "#/components/schemas/TransactionStateRecheckRequest"
+\t\trequestBodyRequired = true
+\t}''')
+replace_once(generator,
+'''\tif method == "post" || method == "put" || method == "patch" {
+\t\toperation["requestBody"] = map[string]any{
+\t\t\t"required": false,
+\t\t\t"content":  map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/GenericRequest"}}},
+\t\t}
+\t}''',
+'''\tif method == "post" || method == "put" || method == "patch" {
+\t\toperation["requestBody"] = map[string]any{
+\t\t\t"required": requestBodyRequired,
+\t\t\t"content":  map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": requestSchemaRef}}},
+\t\t}
+\t}''')
+replace_once(generator,
+'''\t\t"GenericRequest": map[string]any{
+\t\t\t"type": "object", "additionalProperties": true,
+\t\t\t"description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
+\t\t},
+\t\t"EvidenceResponse": map[string]any{''',
+'''\t\t"GenericRequest": map[string]any{
+\t\t\t"type": "object", "additionalProperties": true,
+\t\t\t"description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
+\t\t},
+\t\t"TransactionStateRecheckRequest": map[string]any{
+\t\t\t"type": "object",
+\t\t\t"required": []string{"permit_token", "transaction", "state_witness"},
+\t\t\t"properties": map[string]any{
+\t\t\t\t"permit_token": map[string]any{"type": "string", "minLength": 1, "description": "Signed state-bound Transaction Guard permit returned by the immediately preceding eligible preflight."},
+\t\t\t\t"transaction": map[string]any{"type": "string", "minLength": 1, "description": "The exact same serialized transaction bound by the permit."},
+\t\t\t\t"network": map[string]any{"type": "string", "enum": []string{"solana-mainnet"}, "default": "solana-mainnet"},
+\t\t\t\t"state_witness": map[string]any{"$ref": "#/components/schemas/TransactionStateWitness"},
+\t\t\t},
+\t\t\t"additionalProperties": false,
+\t\t},
+\t\t"TransactionStateWitness": map[string]any{
+\t\t\t"type": "object",
+\t\t\t"required": []string{"version", "status", "complete", "transaction_fingerprint", "pre_state_slot", "simulation_slot", "account_count", "account_root_sha256", "binding_hash", "accounts"},
+\t\t\t"properties": map[string]any{
+\t\t\t\t"version": map[string]any{"type": "string", "enum": []string{"koschei-transaction-state-witness-v1"}},
+\t\t\t\t"status": map[string]any{"type": "string", "enum": []string{"complete"}},
+\t\t\t\t"complete": map[string]any{"type": "boolean", "enum": []any{true}},
+\t\t\t\t"transaction_fingerprint": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+\t\t\t\t"pre_state_slot": map[string]any{"type": "integer", "minimum": 1},
+\t\t\t\t"simulation_slot": map[string]any{"type": "integer", "minimum": 1},
+\t\t\t\t"slot_spread": map[string]any{"type": "integer", "minimum": 0},
+\t\t\t\t"account_count": map[string]any{"type": "integer", "minimum": 1, "maximum": 32},
+\t\t\t\t"account_root_sha256": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+\t\t\t\t"binding_hash": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+\t\t\t\t"accounts": map[string]any{"type": "array", "minItems": 1, "maxItems": 32, "items": map[string]any{"$ref": "#/components/schemas/TransactionStateWitnessAccount"}},
+\t\t\t\t"limitations": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+\t\t\t},
+\t\t\t"additionalProperties": false,
+\t\t},
+\t\t"TransactionStateWitnessAccount": map[string]any{
+\t\t\t"type": "object",
+\t\t\t"required": []string{"address", "present", "state_hash"},
+\t\t\t"properties": map[string]any{
+\t\t\t\t"address": map[string]any{"type": "string", "minLength": 1},
+\t\t\t\t"present": map[string]any{"type": "boolean"},
+\t\t\t\t"state_hash": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+\t\t\t},
+\t\t\t"additionalProperties": false,
+\t\t},
+\t\t"EvidenceResponse": map[string]any{''')
+
+generator_test = 'koschei/api/internal/openapi/generator_test.go'
+replace_once(generator_test,
+'''\tdescription, _ := post["description"].(string)
+\tfor _, marker := range []string{"safe_to_proceed=true", "409", "503"} {
+\t\tif !strings.Contains(description, marker) {
+\t\t\tt.Fatalf("state recheck OpenAPI description missing %q: %s", marker, description)
+\t\t}
+\t}
+}''',
+'''\tdescription, _ := post["description"].(string)
+\tfor _, marker := range []string{"safe_to_proceed=true", "409", "503"} {
+\t\tif !strings.Contains(description, marker) {
+\t\t\tt.Fatalf("state recheck OpenAPI description missing %q: %s", marker, description)
+\t\t}
+\t}
+\trequestBody := object(post["requestBody"])
+\tif required, _ := requestBody["required"].(bool); !required {
+\t\tt.Fatal("state recheck request body must be required")
+\t}
+\tcontent := object(requestBody["content"])
+\tapplicationJSON := object(content["application/json"])
+\trequestSchema := object(applicationJSON["schema"])
+\tif requestSchema["$ref"] != "#/components/schemas/TransactionStateRecheckRequest" {
+\t\tt.Fatalf("state recheck request schema ref=%v", requestSchema["$ref"])
+\t}
+\tcomponents := object(document["components"])
+\tschemas := object(components["schemas"])
+\trecheckSchema := object(schemas["TransactionStateRecheckRequest"])
+\trequiredFields, _ := recheckSchema["required"].([]any)
+\tfor _, field := range []string{"permit_token", "transaction", "state_witness"} {
+\t\tfound := false
+\t\tfor _, value := range requiredFields {
+\t\t\tif value == field {
+\t\t\t\tfound = true
+\t\t\t\tbreak
+\t\t\t}
+\t\t}
+\t\tif !found {
+\t\t\tt.Fatalf("state recheck request schema missing required field %q", field)
+\t\t}
+\t}
+\tif _, ok := schemas["TransactionStateWitness"]; !ok {
+\t\tt.Fatal("state recheck OpenAPI missing TransactionStateWitness schema")
+\t}
+\tif _, ok := schemas["TransactionStateWitnessAccount"]; !ok {
+\t\tt.Fatal("state recheck OpenAPI missing TransactionStateWitnessAccount schema")
+\t}
+}''')
+
+verify = 'koschei/api/scripts/verify-customer-state-recheck-v1.js'
+Path(verify).write_text("""const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const server=fs.readFileSync(path.join(root,'internal/http/server.go'),'utf8');
+const inventory=fs.readFileSync(path.join(root,'internal/http/route_inventory.go'),'utf8');
+const generator=fs.readFileSync(path.join(root,'internal/openapi/generator.go'),'utf8');
+const rateLimit=fs.readFileSync(path.join(root,'internal/http/sensitive_rate_limit.go'),'utf8');
+const authMiddleware=fs.readFileSync(path.join(root,'internal/handlers/middleware_auth.go'),'utf8');
+const ui=fs.readFileSync(path.join(root,'public/js/customer-transaction-preflight-v1.js'),'utf8');
+const route='mux.HandleFunc(\"/api/customer/web3/transaction-state-recheck\", solana(requiresDB(h, planTierAccess(\"professional\", customerStateRecheckRateLimit(h.DB, method(\"POST\", h.TransactionGuardStateRecheck))))))';
+if(!server.includes(route))throw new Error('customer state recheck must reuse existing handler behind Professional entitlement-only access plus shared customer rate limiting');
+if(server.includes('planTier(\"professional\", method(\"POST\", h.TransactionGuardStateRecheck))'))throw new Error('customer state recheck must not consume a second SaaS output');
+if(!inventory.includes('POST /api/customer/web3/transaction-state-recheck'))throw new Error('customer state recheck missing from route inventory');
+if(!generator.includes('path == \"/api/customer/web3/transaction-state-recheck\"'))throw new Error('OpenAPI auth classifier missing customer state recheck');
+if(!generator.includes('TransactionStateRecheckRequest'))throw new Error('OpenAPI must use a dedicated State Recheck request schema');
+if(!rateLimit.includes('case \"/api/customer/web3/transaction-state-recheck\"')||!rateLimit.includes('func customerStateRecheckRateLimit'))throw new Error('customer state recheck must have shared per-IP and per-customer rate limiting');
+if(!authMiddleware.includes('func AuthenticatedSubject(r *http.Request) string'))throw new Error('customer state recheck rate limiting must use the verified auth subject');
+for(const required of [\"const recheckEndpoint='/api/customer/web3/transaction-state-recheck'\",\"script.src='/js/koschei-auth.js?v=33'\",'let authInitPromise=null;','await auth.init();','auth.apiCall(path,options)','permit_token:snapshot.permitToken','state_witness:snapshot.stateWitness',\"credentials:'same-origin'\",\"const action=String(data?.action||'').toLowerCase();\",\"const permitVersion=String(permit?.version||'');\",\"const stateBoundPermit=permitVersion==='koschei-transaction-guard-permit-v2'||permitVersion==='koschei-transaction-guard-permit-v3';\",\"if(action==='allow'&&stateBoundPermit&&data?.enforcement_permit_issued===true\",\"const safe=response.ok&&data?.ok===true&&data?.safe_to_proceed===true;\",'function working(){\\n  clearPendingRecheck();','if(pendingRecheck===snapshot)clearPendingRecheck();','function invalidateStateRecheckUI(){',\"window.addEventListener('pagehide',invalidateStateRecheckUI)\",\"window.addEventListener('pageshow',event=>{if(event.persisted)invalidateStateRecheckUI();})\"])if(!ui.includes(required))throw new Error('customer state recheck UI contract missing: '+required);
+if(ui.includes('localStorage')||ui.includes('sessionStorage'))throw new Error('customer preflight/recheck must not persist transaction or permit material in browser storage');
+if(!ui.includes(\"transaction.value='';\"))throw new Error('successful preflight must still clear raw transaction textarea');
+if(!ui.includes(\"if(editor)editor.value='';\"))throw new Error('state recheck must clear repasted raw transaction after request or page invalidation');
+console.log('customer state recheck v1 contract ok');
+""")
+
+docs = 'docs/transaction-state-recheck.md'
+replace_once(docs,
+'The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement without consuming a second SaaS output; the preceding Transaction Preflight remains the metered product decision.',
+'The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement without consuming a second SaaS output; the preceding Transaction Preflight remains the metered product decision. Recheck replay is bounded by shared PostgreSQL-backed per-IP and verified-customer rate limits so a non-billable continuation cannot become unbounded upstream RPC work.')
