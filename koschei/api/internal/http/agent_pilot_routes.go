@@ -43,15 +43,15 @@ func tradePIAgentPilotApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lead := agents.PilotLead{
-		BusinessName: req.BusinessName,
-		ContactName: req.ContactName,
-		Email: req.Email,
-		Phone: req.Phone,
-		Website: req.Website,
-		Vertical: req.Vertical,
+		BusinessName:    req.BusinessName,
+		ContactName:     req.ContactName,
+		Email:           req.Email,
+		Phone:           req.Phone,
+		Website:         req.Website,
+		Vertical:        req.Vertical,
 		MonthlyLeadBand: req.MonthlyLeadBand,
-		Message: req.Message,
-		Source: "agents-page",
+		Message:         req.Message,
+		Source:          "agents-page",
 	}
 	if err := tradePIAgentService.SubmitPilotLead(r.Context(), lead); err != nil {
 		http.Error(w, "application rejected", http.StatusBadRequest)
