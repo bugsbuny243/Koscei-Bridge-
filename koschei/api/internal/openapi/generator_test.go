@@ -79,6 +79,33 @@ func TestOpenAPIDocumentsWithholdAsValidEvidenceOutcome(t *testing.T) {
 	}
 }
 
+func TestStateRecheckDocumentsFailClosedHTTPStatuses(t *testing.T) {
+	_, _, documentPath := testPaths(t)
+	committed, err := os.ReadFile(documentPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(committed, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := object(document["paths"])
+	pathItem := object(paths["/api/customer/web3/transaction-state-recheck"])
+	post := object(pathItem["post"])
+	responses := object(post["responses"])
+	for _, status := range []string{"409", "503"} {
+		if _, ok := responses[status]; !ok {
+			t.Fatalf("state recheck OpenAPI response %s is missing", status)
+		}
+	}
+	description, _ := post["description"].(string)
+	for _, marker := range []string{"safe_to_proceed=true", "409", "503"} {
+		if !strings.Contains(description, marker) {
+			t.Fatalf("state recheck OpenAPI description missing %q: %s", marker, description)
+		}
+	}
+}
+
 func TestRouteInventoryExclusionsMatchDocumentAndSyntheticStaleRouteIsRejected(t *testing.T) {
 	_, sourceDir, documentPath := testPaths(t)
 	routes, err := RegisteredAPIRoutes(sourceDir)
