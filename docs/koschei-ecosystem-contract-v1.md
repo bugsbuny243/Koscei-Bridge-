@@ -2,7 +2,7 @@
 
 Status: canonical architecture contract  
 Integration state: `incubation_only`  
-Scope: Koschei Web3 Hub, Koschei language, Koschei Sentinel and the official KOSCH Solana asset
+Scope: Koschei Web3 Hub, Koschei language and Koschei Sentinel
 
 ## 1. One ecosystem, independent products
 
@@ -10,24 +10,15 @@ The projects share an ecosystem identity and long-term direction, but they are n
 
 | Component | Current responsibility | Current integration state | Must never own |
 | --- | --- | --- | --- |
-| Koschei Web3 Hub / ARVIS | Solana evidence collection, durable security memory, deterministic rules and signed verdicts | production-independent | Compiler semantics, model promotion authority or token price support |
-| Koschei language | Independent capability-secure language research, compiler/runtime development and interoperability tests | incubation-only | ARVIS production verdicts, Web3 runtime dependencies or token-controlled compiler behavior |
+| Koschei Web3 Hub / ARVIS | Solana evidence collection, durable security memory, deterministic rules and signed verdicts | production-independent | Compiler semantics or model promotion authority |
+| Koschei language | Independent capability-secure language research, compiler/runtime development and interoperability tests | incubation-only | ARVIS production verdicts or Web3 runtime dependencies |
 | Koschei Sentinel | Offline Solana-security dataset, training, evaluation and model-lineage research | incubation-only | Final verdict authority, evidence fabrication, Web3 runtime execution or automatic production deployment |
-| KOSCH asset | Verifiable ecosystem identity and separately documented access/community coordination | identity/utility only | Buying a safer verdict, changing compiler behavior, changing model promotion or promising financial return |
 
 Repositories:
 
 - Web3 Hub: `https://github.com/bugsbuny243/Koschei-Web3-Hub`
 - Language: `https://github.com/bugsbuny243/koschei-lang`
 - Sentinel: `https://github.com/bugsbuny243/koschei-sentinel`
-
-Official KOSCH mint:
-
-```text
-HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump
-```
-
-The mint identifies the ecosystem asset. It is not evidence that a user, token, wallet, model, compiler build or transaction is safe.
 
 ## 2. Incubation firewall
 
@@ -218,18 +209,7 @@ No Web3 production component may be implemented in Koschei until all relevant ga
 
 A future integration begins with a small replaceable component, never a production rewrite.
 
-## 11. KOSCH utility contract
-
-Permitted uses may include documented access, capacity, contribution recognition, community programs or bounties. Forbidden coupling remains absolute:
-
-- holdings cannot lower a risk grade or bypass a withheld verdict;
-- holdings cannot alter evidence, bundle hashes or signatures;
-- holdings cannot disable compiler checks or capability rules;
-- holdings cannot promote or deploy a Sentinel candidate;
-- holdings cannot authorize a premature Web3 integration;
-- holdings cannot guarantee profit, price support, yield or investment safety.
-
-## 12. Current implementation sequence
+## 11. Current implementation sequence
 
 ### Active Web3 work
 
@@ -252,7 +232,7 @@ Permitted uses may include documented access, capacity, contribution recognition
 3. Use Web3 only as an offline stress-test source.
 4. Do not replace or couple production Web3 code.
 
-## 13. Acceptance rule
+## 12. Acceptance rule
 
 The ecosystem may share identity while runtime integration remains disabled.
 
@@ -260,7 +240,6 @@ The ecosystem may share identity while runtime integration remains disabled.
 Web3 Hub remains production-independent
 Sentinel matures offline without customer authority
 Koschei language matures independently without production dependency
-KOSCH coordinates utility without changing technical truth
 ```
 
 A future integration is a separate reviewed project, not an automatic consequence of belonging to the same ecosystem.
