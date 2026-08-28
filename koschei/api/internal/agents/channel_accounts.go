@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -91,6 +92,9 @@ func (s *Service) AdminCreateChannelAccount(ctx context.Context, tenantID, chann
 	if channel != "web" && providerAccountID == "" {
 		return ChannelAccount{}, ErrInvalidAdminTransition
 	}
+	if channel == "web" && !validWidgetOrigin(allowedOrigin) {
+		return ChannelAccount{}, ErrInvalidAdminTransition
+	}
 	key, err := newPublicAccountKey()
 	if err != nil {
 		return ChannelAccount{}, err
@@ -135,6 +139,17 @@ WHERE id=$1 AND tenant_id=$2`, id, strings.TrimSpace(tenantID), status)
 		return ErrAdminRecordNotFound
 	}
 	return nil
+}
+
+func validWidgetOrigin(value string) bool {
+	if value == "" || value == "*" {
+		return false
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+		return false
+	}
+	return parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == "" && parsed.User == nil
 }
 
 func newPublicAccountKey() (string, error) {

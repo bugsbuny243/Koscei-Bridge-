@@ -288,9 +288,9 @@ func tradePIAgentDemo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "text is required", http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(req.TenantID) == "" {
-		req.TenantID = "demo-automotive"
-	}
+	// This endpoint is an intentionally isolated public sandbox. Customer tenants
+	// are resolved only through channel-account routing, never from request JSON.
+	req.TenantID = "demo-automotive"
 	if strings.TrimSpace(req.UserID) == "" {
 		req.UserID = "demo-user"
 	}
