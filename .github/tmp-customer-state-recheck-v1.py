@@ -38,6 +38,18 @@ replace_once(
     'if(!generator.includes(\'case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":\'))throw new Error("OpenAPI auth classifier missing Professional customer preflight/recheck");',
 )
 
+access_test = "koschei/api/internal/http/server_access_test.go"
+replace_once(
+    access_test,
+    'Professional covers transaction preflight and advanced radar surfaces. Job',
+    'Professional covers transaction preflight, state witness recheck, and advanced radar surfaces. Job',
+)
+replace_once(
+    access_test,
+    'want := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}',
+    'want := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}',
+)
+
 js = "koschei/api/public/js/customer-transaction-preflight-v1.js"
 replace_once(
     js,
