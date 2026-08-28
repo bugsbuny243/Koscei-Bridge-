@@ -7,20 +7,20 @@ import (
 )
 
 type AdminFollowup struct {
-	ID         int64      `json:"id"`
-	TenantID   string     `json:"tenant_id"`
-	Channel    string     `json:"channel"`
-	ExternalID string     `json:"external_id"`
-	DisplayName string    `json:"display_name"`
-	Kind       string     `json:"kind"`
-	Body       string     `json:"body"`
-	Status     string     `json:"status"`
-	DueAt      time.Time  `json:"due_at"`
-	Attempts   int        `json:"attempts"`
-	LastError  string     `json:"last_error"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-	SentAt     *time.Time `json:"sent_at,omitempty"`
+	ID          int64      `json:"id"`
+	TenantID    string     `json:"tenant_id"`
+	Channel     string     `json:"channel"`
+	ExternalID  string     `json:"external_id"`
+	DisplayName string     `json:"display_name"`
+	Kind        string     `json:"kind"`
+	Body        string     `json:"body"`
+	Status      string     `json:"status"`
+	DueAt       time.Time  `json:"due_at"`
+	Attempts    int        `json:"attempts"`
+	LastError   string     `json:"last_error"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	SentAt      *time.Time `json:"sent_at,omitempty"`
 }
 
 func (s *Service) AdminFollowups(ctx context.Context, tenantID, status string, limit int) ([]AdminFollowup, error) {

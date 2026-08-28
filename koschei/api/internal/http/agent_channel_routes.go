@@ -94,10 +94,10 @@ func tradePIAgentPublicChat(w http.ResponseWriter, r *http.Request) {
 	result := tradePIAgentService.Handle(r.Context(), msg)
 	tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
 	writeTradePIAgentJSON(w, map[string]any{
-		"reply": result.Reply,
-		"stage": result.Lead.Stage,
-		"score": result.Lead.Score,
-		"handoff_requested": result.Handoff != nil,
+		"reply":                 result.Reply,
+		"stage":                 result.Lead.Stage,
+		"score":                 result.Lead.Score,
+		"handoff_requested":     result.Handoff != nil,
 		"appointment_requested": result.Appointment != nil,
 	})
 }

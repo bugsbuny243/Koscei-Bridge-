@@ -8,15 +8,15 @@ import (
 )
 
 type TenantSettings struct {
-	TenantID              string    `json:"tenant_id"`
-	DisplayName           string    `json:"display_name"`
-	Vertical              string    `json:"vertical"`
-	Timezone              string    `json:"timezone"`
-	Language              string    `json:"language"`
-	AssignmentSLAMinutes  int       `json:"assignment_sla_minutes"`
-	FollowupDelayMinutes  int       `json:"followup_delay_minutes"`
-	Status                string    `json:"status"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	TenantID             string    `json:"tenant_id"`
+	DisplayName          string    `json:"display_name"`
+	Vertical             string    `json:"vertical"`
+	Timezone             string    `json:"timezone"`
+	Language             string    `json:"language"`
+	AssignmentSLAMinutes int       `json:"assignment_sla_minutes"`
+	FollowupDelayMinutes int       `json:"followup_delay_minutes"`
+	Status               string    `json:"status"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 func (s *Service) AdminTenantSettings(ctx context.Context, tenantID string) (TenantSettings, error) {
@@ -42,13 +42,13 @@ WHERE tenant_id=$1`, tenantID).Scan(
 	)
 	if err == sql.ErrNoRows {
 		return TenantSettings{
-			TenantID: tenantID,
-			Vertical: "general",
-			Timezone: "UTC",
-			Language: "tr",
+			TenantID:             tenantID,
+			Vertical:             "general",
+			Timezone:             "UTC",
+			Language:             "tr",
 			AssignmentSLAMinutes: 10,
 			FollowupDelayMinutes: 120,
-			Status: "active",
+			Status:               "active",
 		}, nil
 	}
 	if err != nil {

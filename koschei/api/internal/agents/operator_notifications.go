@@ -13,16 +13,16 @@ import (
 )
 
 type operatorNotificationItem struct {
-	ID           int64
-	TenantID     string
-	EscalationID int64
-	Attempts     int
-	LeadChannel  string
-	ExternalID   string
-	DisplayName  string
-	Score        int
-	Reason       string
-	EscalationAt time.Time
+	ID               int64
+	TenantID         string
+	EscalationID     int64
+	Attempts         int
+	LeadChannel      string
+	ExternalID       string
+	DisplayName      string
+	Score            int
+	Reason           string
+	EscalationAt     time.Time
 	EscalationStatus string
 }
 
@@ -147,16 +147,16 @@ func deliverOperatorWebhook(ctx context.Context, item operatorNotificationItem) 
 		return fmt.Errorf("operator webhook not configured")
 	}
 	payload, err := json.Marshal(map[string]any{
-		"event_type": "sales.missed_hot_lead",
-		"tenant_id": item.TenantID,
+		"event_type":    "sales.missed_hot_lead",
+		"tenant_id":     item.TenantID,
 		"escalation_id": item.EscalationID,
 		"lead": map[string]any{
-			"channel": item.LeadChannel,
-			"external_id": item.ExternalID,
+			"channel":      item.LeadChannel,
+			"external_id":  item.ExternalID,
 			"display_name": item.DisplayName,
-			"score": item.Score,
+			"score":        item.Score,
 		},
-		"reason": item.Reason,
+		"reason":       item.Reason,
 		"escalated_at": item.EscalationAt.UTC().Format(time.RFC3339),
 	})
 	if err != nil {

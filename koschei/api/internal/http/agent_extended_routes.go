@@ -216,7 +216,7 @@ func tradePIAgentAdminCatalogUpsert(w http.ResponseWriter, r *http.Request) {
 	}
 	item := agents.CatalogItem{
 		TenantID: firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-		SKU: req.SKU, Kind: req.Kind, Name: req.Name, Description: req.Description,
+		SKU:      req.SKU, Kind: req.Kind, Name: req.Name, Description: req.Description,
 		PriceMinor: req.PriceMinor, Currency: req.Currency, Availability: req.Availability, Metadata: req.Metadata,
 	}
 	if err := tradePIAgentService.AdminUpsertCatalog(r.Context(), item); err != nil {
@@ -257,7 +257,7 @@ func tradePIAgentAdminKnowledgeUpsert(w http.ResponseWriter, r *http.Request) {
 	}
 	item := agents.KnowledgeEntry{
 		TenantID: firstNonEmpty(req.TenantID, os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive"),
-		Key: req.Key, Title: req.Title, Body: req.Body, SourceURL: req.SourceURL,
+		Key:      req.Key, Title: req.Title, Body: req.Body, SourceURL: req.SourceURL,
 	}
 	if err := tradePIAgentService.AdminUpsertKnowledge(r.Context(), item); err != nil {
 		http.Error(w, "knowledge update rejected", http.StatusConflict)
