@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 
 	"koschei/api/internal/agents"
 )
@@ -19,8 +20,20 @@ type agentTenantSettingsRequest struct {
 	Status               string `json:"status"`
 }
 
+type agentTenantOnboardingRequest struct {
+	DisplayName          string `json:"display_name"`
+	Vertical             string `json:"vertical"`
+	Timezone             string `json:"timezone"`
+	Language             string `json:"language"`
+	AllowedOrigin        string `json:"allowed_origin"`
+	Label                string `json:"label"`
+	AssignmentSLAMinutes int    `json:"assignment_sla_minutes"`
+	FollowupDelayMinutes int    `json:"followup_delay_minutes"`
+}
+
 func registerTradePIAgentTenantRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/agents/admin/tenant", tradePIAgentAdminTenantSettings)
+	mux.HandleFunc("/api/agents/admin/onboard", method("POST", tradePIAgentAdminOnboardTenant))
 }
 
 func tradePIAgentAdminTenantSettings(w http.ResponseWriter, r *http.Request) {
@@ -59,4 +72,35 @@ func tradePIAgentAdminTenantSettings(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func tradePIAgentAdminOnboardTenant(w http.ResponseWriter, r *http.Request) {
+	if !tradePIAgentAdminAuthorized(w, r) {
+		return
+	}
+	var req agentTenantOnboardingRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 128<<10)).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.DisplayName) == "" || strings.TrimSpace(req.AllowedOrigin) == "" {
+		http.Error(w, "display_name and allowed_origin are required", http.StatusBadRequest)
+		return
+	}
+	result, err := tradePIAgentService.AdminOnboardWebTenant(
+		r.Context(),
+		req.DisplayName,
+		req.Vertical,
+		req.Timezone,
+		req.Language,
+		req.AllowedOrigin,
+		req.Label,
+		req.AssignmentSLAMinutes,
+		req.FollowupDelayMinutes,
+	)
+	if err != nil {
+		http.Error(w, "tenant onboarding rejected", http.StatusConflict)
+		return
+	}
+	writeTradePIAgentJSON(w, result)
 }
