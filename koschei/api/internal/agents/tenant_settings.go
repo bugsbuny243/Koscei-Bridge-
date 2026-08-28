@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"time"
 )
@@ -22,12 +23,13 @@ func (s *Service) AdminTenantSettings(ctx context.Context, tenantID string) (Ten
 	if s.db == nil {
 		return TenantSettings{}, ErrPersistenceUnavailable
 	}
+	tenantID = strings.TrimSpace(tenantID)
 	var out TenantSettings
 	err := s.db.QueryRowContext(ctx, `
 SELECT tenant_id, display_name, vertical, timezone, language,
        assignment_sla_minutes, followup_delay_minutes, status, updated_at
 FROM tradepi_agent_tenants
-WHERE tenant_id=$1`, strings.TrimSpace(tenantID)).Scan(
+WHERE tenant_id=$1`, tenantID).Scan(
 		&out.TenantID,
 		&out.DisplayName,
 		&out.Vertical,
@@ -38,6 +40,17 @@ WHERE tenant_id=$1`, strings.TrimSpace(tenantID)).Scan(
 		&out.Status,
 		&out.UpdatedAt,
 	)
+	if err == sql.ErrNoRows {
+		return TenantSettings{
+			TenantID: tenantID,
+			Vertical: "general",
+			Timezone: "UTC",
+			Language: "tr",
+			AssignmentSLAMinutes: 10,
+			FollowupDelayMinutes: 120,
+			Status: "active",
+		}, nil
+	}
 	if err != nil {
 		return TenantSettings{}, err
 	}
