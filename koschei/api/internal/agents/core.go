@@ -16,26 +16,28 @@ const (
 )
 
 type Message struct {
-	TenantID      string
-	Channel       Channel
-	ChannelChatID string
-	ChannelUserID string
-	DisplayName   string
-	Text          string
-	ReceivedAt    time.Time
+	TenantID         string
+	Channel          Channel
+	ChannelAccountID int64
+	ChannelChatID    string
+	ChannelUserID    string
+	DisplayName      string
+	Text             string
+	ReceivedAt       time.Time
 }
 
 type Lead struct {
-	TenantID      string    `json:"tenant_id"`
-	ExternalID    string    `json:"external_id"`
-	DisplayName   string    `json:"display_name"`
-	Stage         string    `json:"stage"`
-	Score         int       `json:"score"`
-	BudgetKnown   bool      `json:"budget_known"`
-	ModelKnown    bool      `json:"model_known"`
-	LocationKnown bool      `json:"location_known"`
-	TradeInKnown  bool      `json:"trade_in_known"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	TenantID         string    `json:"tenant_id"`
+	ExternalID       string    `json:"external_id"`
+	ChannelAccountID int64     `json:"channel_account_id,omitempty"`
+	DisplayName      string    `json:"display_name"`
+	Stage            string    `json:"stage"`
+	Score            int       `json:"score"`
+	BudgetKnown      bool      `json:"budget_known"`
+	ModelKnown       bool      `json:"model_known"`
+	LocationKnown    bool      `json:"location_known"`
+	TradeInKnown     bool      `json:"trade_in_known"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type Vehicle struct {
@@ -103,6 +105,9 @@ func qualify(msg Message, lead Lead) Lead {
 		lead.ExternalID = msg.ChannelUserID
 		lead.DisplayName = msg.DisplayName
 		lead.Stage = "new"
+	}
+	if msg.ChannelAccountID > 0 {
+		lead.ChannelAccountID = msg.ChannelAccountID
 	}
 	if strings.TrimSpace(msg.Text) != "" && lead.Stage == "new" {
 		lead.Stage = "engaged"
