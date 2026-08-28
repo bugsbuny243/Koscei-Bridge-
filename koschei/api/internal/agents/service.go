@@ -127,8 +127,8 @@ func (s *Service) RecordOutbound(ctx context.Context, msg Message, body string) 
 		return
 	}
 	_, _ = s.db.ExecContext(ctx, `
-INSERT INTO tradepi_agent_messages (tenant_id, channel, channel_chat_id, channel_user_id, direction, body, created_at)
-VALUES ($1,$2,$3,$4,'outbound',$5,NOW())`, msg.TenantID, string(msg.Channel), msg.ChannelChatID, msg.ChannelUserID, body)
+INSERT INTO tradepi_agent_messages (tenant_id, channel, channel_account_id, channel_chat_id, channel_user_id, direction, body, created_at)
+VALUES ($1,$2,NULLIF($3,0),$4,$5,'outbound',$6,NOW())`, msg.TenantID, string(msg.Channel), msg.ChannelAccountID, msg.ChannelChatID, msg.ChannelUserID, body)
 }
 
 func (s *Service) loadHistory(ctx context.Context, msg Message, limit int) []ConversationTurn {
@@ -164,11 +164,11 @@ func (s *Service) loadLead(ctx context.Context, msg Message) (Lead, bool) {
 	}
 	var lead Lead
 	err := s.db.QueryRowContext(ctx, `
-SELECT tenant_id, external_id, display_name, stage, score,
+SELECT tenant_id, external_id, COALESCE(channel_account_id,0), display_name, stage, score,
        budget_known, model_known, location_known, trade_in_known, updated_at
 FROM tradepi_agent_leads
 WHERE tenant_id=$1 AND channel=$2 AND external_id=$3`, msg.TenantID, string(msg.Channel), msg.ChannelUserID).Scan(
-		&lead.TenantID, &lead.ExternalID, &lead.DisplayName, &lead.Stage, &lead.Score,
+		&lead.TenantID, &lead.ExternalID, &lead.ChannelAccountID, &lead.DisplayName, &lead.Stage, &lead.Score,
 		&lead.BudgetKnown, &lead.ModelKnown, &lead.LocationKnown, &lead.TradeInKnown, &lead.UpdatedAt,
 	)
 	return lead, err == nil
@@ -177,10 +177,11 @@ WHERE tenant_id=$1 AND channel=$2 AND external_id=$3`, msg.TenantID, string(msg.
 func (s *Service) saveLead(ctx context.Context, msg Message, lead Lead) error {
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO tradepi_agent_leads (
- tenant_id, channel, external_id, display_name, stage, score,
+ tenant_id, channel, external_id, channel_account_id, display_name, stage, score,
  budget_known, model_known, location_known, trade_in_known, updated_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+) VALUES ($1,$2,$3,NULLIF($4,0),$5,$6,$7,$8,$9,$10,$11,$12)
 ON CONFLICT (tenant_id, channel, external_id) DO UPDATE SET
+ channel_account_id=COALESCE(EXCLUDED.channel_account_id,tradepi_agent_leads.channel_account_id),
  display_name=EXCLUDED.display_name,
  stage=EXCLUDED.stage,
  score=EXCLUDED.score,
@@ -189,7 +190,7 @@ ON CONFLICT (tenant_id, channel, external_id) DO UPDATE SET
  location_known=EXCLUDED.location_known,
  trade_in_known=EXCLUDED.trade_in_known,
  updated_at=EXCLUDED.updated_at`,
-		lead.TenantID, string(msg.Channel), lead.ExternalID, lead.DisplayName, lead.Stage, lead.Score,
+		lead.TenantID, string(msg.Channel), lead.ExternalID, lead.ChannelAccountID, lead.DisplayName, lead.Stage, lead.Score,
 		lead.BudgetKnown, lead.ModelKnown, lead.LocationKnown, lead.TradeInKnown, lead.UpdatedAt,
 	)
 	return err
@@ -197,8 +198,8 @@ ON CONFLICT (tenant_id, channel, external_id) DO UPDATE SET
 
 func (s *Service) saveInbound(ctx context.Context, msg Message) error {
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO tradepi_agent_messages (tenant_id, channel, channel_chat_id, channel_user_id, direction, body, created_at)
-VALUES ($1,$2,$3,$4,'inbound',$5,$6)`, msg.TenantID, string(msg.Channel), msg.ChannelChatID, msg.ChannelUserID, msg.Text, msg.ReceivedAt)
+INSERT INTO tradepi_agent_messages (tenant_id, channel, channel_account_id, channel_chat_id, channel_user_id, direction, body, created_at)
+VALUES ($1,$2,NULLIF($3,0),$4,$5,'inbound',$6,$7)`, msg.TenantID, string(msg.Channel), msg.ChannelAccountID, msg.ChannelChatID, msg.ChannelUserID, msg.Text, msg.ReceivedAt)
 	return err
 }
 
