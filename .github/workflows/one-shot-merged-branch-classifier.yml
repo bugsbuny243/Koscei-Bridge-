@@ -1,0 +1,62 @@
+name: One-shot merged branch classifier
+
+on:
+  push:
+    branches:
+      - fix/retire-kosch-commercial-legacy-v1
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout helper carrier
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Classify branches against exact main
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="1649e1956abc132abc9817b3c3c3dd4792beaa93"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$remote_main" = "$expected" || { echo "main moved: expected=$expected actual=$remote_main"; exit 42; }
+
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+          : > /tmp/merged-safe.txt
+          : > /tmp/not-contained.txt
+          total=0
+          excluded=0
+
+          while IFS=' ' read -r ref sha; do
+            branch="${ref#refs/remotes/origin/}"
+            case "$branch" in
+              HEAD|main|master|develop|development|staging|production|prod|release|gh-pages|fix/retire-kosch-commercial-legacy-v1)
+                excluded=$((excluded+1))
+                continue
+                ;;
+            esac
+            total=$((total+1))
+            if git merge-base --is-ancestor "$sha" "$expected"; then
+              printf '%s\t%s\n' "$branch" "$sha" >> /tmp/merged-safe.txt
+            else
+              printf '%s\t%s\n' "$branch" "$sha" >> /tmp/not-contained.txt
+            fi
+          done < <(git for-each-ref --format='%(refname) %(objectname)' refs/remotes/origin/)
+
+          sort -o /tmp/merged-safe.txt /tmp/merged-safe.txt
+          sort -o /tmp/not-contained.txt /tmp/not-contained.txt
+          merged_count="$(wc -l < /tmp/merged-safe.txt | tr -d ' ')"
+          not_contained_count="$(wc -l < /tmp/not-contained.txt | tr -d ' ')"
+
+          echo "TOTAL_CLASSIFIED=$total"
+          echo "EXCLUDED_LONG_LIVED_OR_HELPER=$excluded"
+          echo "FULLY_CONTAINED_SAFE=$merged_count"
+          echo "NOT_CONTAINED_REQUIRES_REVIEW=$not_contained_count"
+          echo '--- FULLY CONTAINED SAFE BRANCHES ---'
+          cat /tmp/merged-safe.txt
+          echo '--- END FULLY CONTAINED SAFE BRANCHES ---'
