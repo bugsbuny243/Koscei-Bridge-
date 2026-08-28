@@ -83,12 +83,13 @@ func tradePIAgentPublicChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := agents.Message{
-		TenantID:      account.TenantID,
-		Channel:       agents.ChannelWeb,
-		ChannelUserID: req.UserID,
-		DisplayName:   req.DisplayName,
-		Text:          req.Text,
-		ReceivedAt:    time.Now().UTC(),
+		TenantID:         account.TenantID,
+		Channel:          agents.ChannelWeb,
+		ChannelAccountID: account.ID,
+		ChannelUserID:    req.UserID,
+		DisplayName:      req.DisplayName,
+		Text:             req.Text,
+		ReceivedAt:       time.Now().UTC(),
 	}
 	result := tradePIAgentService.Handle(r.Context(), msg)
 	tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)

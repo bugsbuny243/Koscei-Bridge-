@@ -10,12 +10,13 @@ import (
 )
 
 type followupItem struct {
-	ID         int64
-	TenantID   string
-	Channel    string
-	ExternalID string
-	Body       string
-	Attempts   int
+	ID               int64
+	TenantID         string
+	Channel          string
+	ExternalID       string
+	ChannelAccountID int64
+	Body             string
+	Attempts         int
 }
 
 var followupWorkerOnce sync.Once
@@ -69,11 +70,20 @@ WHERE tenant_id=$1 AND channel='whatsapp' AND channel_user_id=$2 AND direction='
 	var err error
 	switch item.Channel {
 	case string(ChannelWhatsApp):
-		if !WhatsAppOutboundEnabled() {
-			returnFollowupToPending(s.db, ctx, item, "whatsapp outbound not configured")
+		if item.ChannelAccountID <= 0 {
+			_, _ = s.db.ExecContext(ctx, `UPDATE tradepi_agent_followups SET status='failed', last_error='whatsapp channel account provenance missing', updated_at=NOW() WHERE id=$1 AND status='processing'`, item.ID)
 			return
 		}
-		err = SendWhatsAppText(ctx, item.ExternalID, item.Body)
+		account, accountErr := s.ChannelAccountByID(ctx, item.TenantID, item.ChannelAccountID)
+		if accountErr != nil || account.Channel != string(ChannelWhatsApp) {
+			_, _ = s.db.ExecContext(ctx, `UPDATE tradepi_agent_followups SET status='failed', last_error='originating whatsapp account unavailable', updated_at=NOW() WHERE id=$1 AND status='processing'`, item.ID)
+			return
+		}
+		if !WhatsAppAccountOutboundEnabled(account.ProviderAccountID) {
+			returnFollowupToPending(s.db, ctx, item, "whatsapp outbound credentials not configured")
+			return
+		}
+		err = SendWhatsAppTextFrom(ctx, account.ProviderAccountID, item.ExternalID, item.Body)
 	case string(ChannelTelegram):
 		err = SendTelegramText(ctx, item.ExternalID, item.Body)
 	default:
@@ -85,7 +95,9 @@ WHERE tenant_id=$1 AND channel='whatsapp' AND channel_user_id=$2 AND direction='
 		return
 	}
 	_, _ = s.db.ExecContext(ctx, `UPDATE tradepi_agent_followups SET status='sent', sent_at=NOW(), updated_at=NOW(), last_error='' WHERE id=$1 AND status='processing'`, item.ID)
-	_, _ = s.db.ExecContext(ctx, `INSERT INTO tradepi_agent_messages (tenant_id,channel,channel_user_id,direction,body,created_at) VALUES ($1,$2,$3,'outbound',$4,NOW())`, item.TenantID, item.Channel, item.ExternalID, item.Body)
+	_, _ = s.db.ExecContext(ctx, `
+INSERT INTO tradepi_agent_messages (tenant_id,channel,channel_account_id,channel_user_id,direction,body,created_at)
+VALUES ($1,$2,NULLIF($3,0),$4,'outbound',$5,NOW())`, item.TenantID, item.Channel, item.ChannelAccountID, item.ExternalID, item.Body)
 }
 
 func (s *Service) claimFollowup(ctx context.Context) (followupItem, bool) {
@@ -100,7 +112,9 @@ WHERE id=(
     FOR UPDATE SKIP LOCKED
     LIMIT 1
 )
-RETURNING id, tenant_id, channel, external_id, body, attempts`).Scan(&item.ID, &item.TenantID, &item.Channel, &item.ExternalID, &item.Body, &item.Attempts)
+RETURNING id, tenant_id, channel, external_id, COALESCE(channel_account_id,0), body, attempts`).Scan(
+		&item.ID, &item.TenantID, &item.Channel, &item.ExternalID, &item.ChannelAccountID, &item.Body, &item.Attempts,
+	)
 	return item, err == nil
 }
 

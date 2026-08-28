@@ -80,6 +80,9 @@ func tradePIWhatsAppReceive(w http.ResponseWriter, r *http.Request) {
 		Entry []struct {
 			Changes []struct {
 				Value struct {
+					Metadata struct {
+						PhoneNumberID string `json:"phone_number_id"`
+					} `json:"metadata"`
 					Contacts []struct {
 						WAID    string `json:"wa_id"`
 						Profile struct {
@@ -103,10 +106,18 @@ func tradePIWhatsAppReceive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	tenantID := firstNonEmpty(os.Getenv("TRADEPI_DEFAULT_TENANT"), "demo-automotive")
-	processed, sent := 0, 0
+	processed, sent, unrouted := 0, 0, 0
 	for _, entry := range payload.Entry {
 		for _, change := range entry.Changes {
+			if len(change.Value.Messages) == 0 {
+				continue
+			}
+			phoneID := strings.TrimSpace(change.Value.Metadata.PhoneNumberID)
+			account, accountErr := tradePIAgentService.ResolveChannelAccount(r.Context(), agents.ChannelWhatsApp, "", phoneID)
+			if accountErr != nil {
+				unrouted += len(change.Value.Messages)
+				continue
+			}
 			nameByWAID := map[string]string{}
 			for _, c := range change.Value.Contacts {
 				nameByWAID[c.WAID] = strings.TrimSpace(c.Profile.Name)
@@ -115,7 +126,7 @@ func tradePIWhatsAppReceive(w http.ResponseWriter, r *http.Request) {
 				if incoming.Type != "text" || strings.TrimSpace(incoming.Text.Body) == "" || strings.TrimSpace(incoming.From) == "" {
 					continue
 				}
-				fresh, err := tradePIAgentService.RegisterProviderEvent(r.Context(), tenantID, agents.ChannelWhatsApp, incoming.ID)
+				fresh, err := tradePIAgentService.RegisterProviderEvent(r.Context(), account.TenantID, agents.ChannelWhatsApp, incoming.ID)
 				if err != nil || !fresh {
 					continue
 				}
@@ -124,18 +135,19 @@ func tradePIWhatsAppReceive(w http.ResponseWriter, r *http.Request) {
 					receivedAt = unixValue
 				}
 				msg := agents.Message{
-					TenantID:      tenantID,
-					Channel:       agents.ChannelWhatsApp,
-					ChannelChatID: incoming.From,
-					ChannelUserID: incoming.From,
-					DisplayName:   nameByWAID[incoming.From],
-					Text:          incoming.Text.Body,
-					ReceivedAt:    receivedAt,
+					TenantID:         account.TenantID,
+					Channel:          agents.ChannelWhatsApp,
+					ChannelAccountID: account.ID,
+					ChannelChatID:    incoming.From,
+					ChannelUserID:    incoming.From,
+					DisplayName:      nameByWAID[incoming.From],
+					Text:             incoming.Text.Body,
+					ReceivedAt:       receivedAt,
 				}
 				result := tradePIAgentService.Handle(r.Context(), msg)
 				processed++
-				if agents.WhatsAppOutboundEnabled() {
-					if err := agents.SendWhatsAppText(r.Context(), incoming.From, result.Reply); err == nil {
+				if agents.WhatsAppAccountOutboundEnabled(account.ProviderAccountID) {
+					if err := agents.SendWhatsAppTextFrom(r.Context(), account.ProviderAccountID, incoming.From, result.Reply); err == nil {
 						sent++
 						tradePIAgentService.RecordOutbound(r.Context(), msg, result.Reply)
 					}
@@ -143,7 +155,7 @@ func tradePIWhatsAppReceive(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeTradePIAgentJSON(w, map[string]any{"ok": true, "processed": processed, "sent": sent})
+	writeTradePIAgentJSON(w, map[string]any{"ok": true, "processed": processed, "sent": sent, "unrouted": unrouted})
 }
 
 func validWhatsAppSignature(body []byte, signature, secret string) bool {

@@ -52,6 +52,24 @@ WHERE channel=$1 AND provider_account_id=$2 AND status='active'`, string(channel
 	return item, nil
 }
 
+func (s *Service) ChannelAccountByID(ctx context.Context, tenantID string, id int64) (ChannelAccount, error) {
+	if s.db == nil {
+		return ChannelAccount{}, ErrPersistenceUnavailable
+	}
+	var item ChannelAccount
+	err := s.db.QueryRowContext(ctx, `
+SELECT id, tenant_id, channel, account_key, provider_account_id, allowed_origin, label, status, updated_at
+FROM tradepi_agent_channel_accounts
+WHERE id=$1 AND tenant_id=$2 AND status='active'`, id, strings.TrimSpace(tenantID)).Scan(
+		&item.ID, &item.TenantID, &item.Channel, &item.AccountKey, &item.ProviderAccountID,
+		&item.AllowedOrigin, &item.Label, &item.Status, &item.UpdatedAt,
+	)
+	if err != nil {
+		return ChannelAccount{}, ErrAdminRecordNotFound
+	}
+	return item, nil
+}
+
 func (s *Service) AdminChannelAccounts(ctx context.Context, tenantID string, limit int) ([]ChannelAccount, error) {
 	if s.db == nil {
 		return nil, ErrPersistenceUnavailable
