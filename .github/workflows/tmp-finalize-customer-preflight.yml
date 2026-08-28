@@ -1,0 +1,40 @@
+name: Temp Finalize Customer Preflight
+on:
+  push:
+    branches: [feat/customer-transaction-preflight-ui-v1-final]
+    paths: [.github/workflows/tmp-finalize-customer-preflight.yml]
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/customer-transaction-preflight-ui-v1-final
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+      - name: Apply product commits, sync OpenAPI, verify
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin 81a9743031a00f250e22dcd5e1b0e6537ba94fed eb065ae67d2117d7352508a9a4599ad119f84a35 6dd37cf7abbbc08d3a8cbc3a7ee12c6ebb7fef40
+          git cherry-pick 81a9743031a00f250e22dcd5e1b0e6537ba94fed
+          git cherry-pick eb065ae67d2117d7352508a9a4599ad119f84a35
+          git cherry-pick 6dd37cf7abbbc08d3a8cbc3a7ee12c6ebb7fef40
+          cd koschei/api
+          go run ./cmd/openapi-gen
+          node scripts/verify-customer-transaction-preflight-ui-v1.js
+          node scripts/verify-customer-investigation-ui.js
+          go test ./internal/openapi ./internal/http ./internal/handlers -count=1
+          cd ../..
+          git diff --check
+          git add koschei/api/openapi.yaml
+          if ! git diff --cached --quiet; then git commit -m 'chore(openapi): sync current registered routes'; fi
+          changed=$(git diff --name-only 4220d62793e5bf6925927850355de67713dd4ebc..HEAD | grep -v '^.github/workflows/tmp-finalize-customer-preflight.yml$' | sort)
+          allowed=$(printf '%s\n' 'koschei/api/openapi.yaml' 'koschei/api/public/js/customer-command-center-v1.js' 'koschei/api/public/js/customer-transaction-preflight-v1.js' 'koschei/api/public/scan.html' 'koschei/api/scripts/verify-customer-transaction-preflight-ui-v1.js' | sort)
+          test "$changed" = "$allowed"
+          git push origin HEAD:feat/customer-transaction-preflight-ui-v1-final
