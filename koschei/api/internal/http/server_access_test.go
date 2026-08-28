@@ -12,25 +12,35 @@ import (
 func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 	mux := http.NewServeMux()
 	h := &handlers.Handler{}
-	tiers := []string{}
-	gate := func(tier string, next http.HandlerFunc) http.HandlerFunc {
-		tiers = append(tiers, tier)
+	meteredTiers := []string{}
+	accessTiers := []string{}
+	meteredGate := func(tier string, next http.HandlerFunc) http.HandlerFunc {
+		meteredTiers = append(meteredTiers, tier)
 		return next
 	}
-	registerProductRoutes(mux, h, gate)
+	accessGate := func(tier string, next http.HandlerFunc) http.HandlerFunc {
+		accessTiers = append(accessTiers, tier)
+		return next
+	}
+	registerProductRoutes(mux, h, meteredGate, accessGate)
 
 	// SaaS plan names are the route authorization contract: Starter includes the
-	// paid investigation routes and canonical durable-job create routes, while
-	// Professional covers transaction preflight, state witness recheck, and advanced radar surfaces. Job
+	// paid investigation routes and canonical durable-job create routes. Professional
+	// preflight and advanced radar outputs are metered; the immediate state recheck
+	// is entitlement-only so the same signing decision is not charged twice. Job
 	// reads remain authenticated but are not counted here because they do not
 	// consume a new premium output.
-	want := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}
-	if !reflect.DeepEqual(tiers, want) {
-		t.Fatalf("route tiers=%v want=%v", tiers, want)
+	wantMetered := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}
+	if !reflect.DeepEqual(meteredTiers, wantMetered) {
+		t.Fatalf("metered route tiers=%v want=%v", meteredTiers, wantMetered)
+	}
+	wantAccess := []string{"professional"}
+	if !reflect.DeepEqual(accessTiers, wantAccess) {
+		t.Fatalf("entitlement-only route tiers=%v want=%v", accessTiers, wantAccess)
 	}
 
 	// A GET reaches the free route's method guard directly. A SaaS entitlement
-	// gate would have been registered through gate above and changed the tier list.
+	// gate would have been registered through the SaaS gates above and changed the tier lists.
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/token/scan", nil))
 	if rr.Code != http.StatusMethodNotAllowed {

@@ -75,7 +75,9 @@ function prepareStateRecheck(data){
   const permit=data?.enforcement_permit;
   const witness=data?.state_witness;
   const action=String(data?.action||'').toLowerCase();
-  if(action==='allow'&&data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){
+  const permitVersion=String(permit?.version||'');
+  const stateBoundPermit=permitVersion==='koschei-transaction-guard-permit-v2'||permitVersion==='koschei-transaction-guard-permit-v3';
+  if(action==='allow'&&stateBoundPermit&&data?.enforcement_permit_issued===true&&permit?.token&&data?.state_witness_complete===true&&witness?.complete===true){
     pendingRecheck={permitToken:String(permit.token),network:String(data?.network||'solana-mainnet'),stateWitness:witness,expiresAt:String(permit?.claims?.expires_at||'')};
   }
 }

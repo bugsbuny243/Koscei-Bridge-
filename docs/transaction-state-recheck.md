@@ -14,7 +14,7 @@ State Recheck verifies the permit and issued witness, re-reads only the signed b
 POST /api/customer/web3/transaction-state-recheck
 ```
 
-The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement and the customer product output meter. It is available only as a continuation of an eligible Transaction Preflight result: the client keeps the issued permit and complete State Witness only in page memory, asks the customer to paste the exact same serialized transaction again immediately before signing, and clears the transient material after the recheck or page exit.
+The customer route reuses the existing `TransactionGuardStateRecheck` handler behind authenticated Professional-or-higher SaaS entitlement without consuming a second SaaS output; the preceding Transaction Preflight remains the metered product decision. It is available only as a continuation of an eligible Transaction Preflight result: the client keeps the issued permit and complete State Witness only in page memory, asks the customer to paste the exact same serialized transaction again immediately before signing, and clears the transient material after the recheck or page exit.
 
 The browser request uses the normal customer JWT path. No developer API key, signing authority or transaction broadcast authority is required or accepted by this flow.
 
