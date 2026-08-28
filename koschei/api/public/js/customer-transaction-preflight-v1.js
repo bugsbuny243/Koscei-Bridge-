@@ -7,6 +7,7 @@ const endpoint='/api/customer/web3/transaction-preflight';
 const recheckEndpoint='/api/customer/web3/transaction-state-recheck';
 let pendingRecheck=null;
 let authLoaderPromise=null;
+let authInitPromise=null;
 const form=document.getElementById('scanForm');
 const submit=document.getElementById('submit');
 const transaction=document.getElementById('transaction');
@@ -56,8 +57,18 @@ async function ensureCustomerAuth(){
   }
   return authLoaderPromise;
 }
-async function customerAPI(path,options){
+async function initializedCustomerAuth(){
   const auth=await ensureCustomerAuth();
+  if(!authInitPromise){
+    authInitPromise=(async()=>{
+      if(typeof auth.init==='function')await auth.init();
+      return auth;
+    })().catch(error=>{authInitPromise=null;throw error;});
+  }
+  return authInitPromise;
+}
+async function customerAPI(path,options){
+  const auth=await initializedCustomerAuth();
   const response=await auth.apiCall(path,options);
   if(!response)throw new Error('Customer authentication request unavailable.');
   return response;
@@ -69,6 +80,14 @@ function hideUtilities(){
 }
 function clearPendingRecheck(){
   pendingRecheck=null;
+}
+function invalidateStateRecheckUI(){
+  clearPendingRecheck();
+  const editor=document.getElementById('stateRecheckTransaction');
+  if(editor)editor.value='';
+  const button=document.getElementById('stateRecheckRun');
+  if(button){button.disabled=true;button.textContent='Run a fresh preflight';}
+  result.querySelector('[data-customer-state-recheck]')?.remove();
 }
 function prepareStateRecheck(data){
   clearPendingRecheck();
@@ -200,5 +219,6 @@ form.addEventListener('submit',async event=>{
     syncCopy();
   }
 },true);
-window.addEventListener('pagehide',clearPendingRecheck);
+window.addEventListener('pagehide',invalidateStateRecheckUI);
+window.addEventListener('pageshow',event=>{if(event.persisted)invalidateStateRecheckUI();});
 })();

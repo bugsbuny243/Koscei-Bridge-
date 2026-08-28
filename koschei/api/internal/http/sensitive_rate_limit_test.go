@@ -57,6 +57,26 @@ func TestSensitiveRuleCoversTransactionGuard(t *testing.T) {
 	}
 }
 
+func TestSensitiveRuleCoversCustomerStateRecheck(t *testing.T) {
+	rule, ok := sensitiveRuleForPath("/api/customer/web3/transaction-state-recheck")
+	if !ok || rule.Limit != 30 || rule.Window != time.Minute {
+		t.Fatalf("customer state recheck IP rate limit = %+v ok=%v", rule, ok)
+	}
+}
+
+func TestCustomerStateRecheckRateLimitFailsClosedWithoutAuthenticatedSubject(t *testing.T) {
+	called := false
+	handler := customerStateRecheckRateLimit(nil, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "https://tradepigloball.co/api/customer/web3/transaction-state-recheck", nil))
+	if recorder.Code != http.StatusUnauthorized || called {
+		t.Fatalf("unauthenticated customer recheck rate limiter status=%d called=%v", recorder.Code, called)
+	}
+}
+
 func TestConsumeSharedSensitiveLimitIsAtomicAcrossPools(t *testing.T) {
 	dbOne := sharedRateLimitTestDB(t)
 	defer dbOne.Close()

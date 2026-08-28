@@ -277,10 +277,14 @@ func operation(route Route, method string) map[string]any {
 	}
 	description := "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict."
 	operationResponses := responses(route.AuthTier)
+	requestSchemaRef := "#/components/schemas/GenericRequest"
+	requestBodyRequired := false
 	if route.Path == "/api/customer/web3/transaction-state-recheck" && method == "post" {
 		description = "Verifies a signed state-bound Transaction Guard permit and re-reads only the bounded witnessed Solana account set immediately before signing. Proceed only when the HTTP response succeeds and the body reports ok=true and safe_to_proceed=true. Expired permits return 409 and unavailable or incomplete current-state evidence returns 503; both require withholding the prior preflight decision."
 		operationResponses["409"] = response("State-bound permit expired; run a fresh Transaction Guard simulation before signing.", "#/components/schemas/EvidenceResponse")
 		operationResponses["503"] = response("Current witnessed account-state evidence or the required recheck policy is unavailable or incomplete; withhold the prior preflight decision and resimulate.", "#/components/schemas/EvidenceResponse")
+		requestSchemaRef = "#/components/schemas/TransactionStateRecheckRequest"
+		requestBodyRequired = true
 	}
 	operation := map[string]any{
 		"operationId":              operationID(method, route.Path),
@@ -296,8 +300,8 @@ func operation(route Route, method string) map[string]any {
 	}
 	if method == "post" || method == "put" || method == "patch" {
 		operation["requestBody"] = map[string]any{
-			"required": false,
-			"content":  map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/GenericRequest"}}},
+			"required": requestBodyRequired,
+			"content":  map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": requestSchemaRef}}},
 		}
 	}
 	return operation
@@ -362,6 +366,46 @@ func schemas() map[string]any {
 		"GenericRequest": map[string]any{
 			"type": "object", "additionalProperties": true,
 			"description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
+		},
+		"TransactionStateRecheckRequest": map[string]any{
+			"type":     "object",
+			"required": []string{"permit_token", "transaction", "state_witness"},
+			"properties": map[string]any{
+				"permit_token":  map[string]any{"type": "string", "minLength": 1, "description": "Signed state-bound Transaction Guard permit returned by the immediately preceding eligible preflight."},
+				"transaction":   map[string]any{"type": "string", "minLength": 1, "description": "The exact same serialized transaction bound by the permit."},
+				"network":       map[string]any{"type": "string", "enum": []string{"solana-mainnet"}, "default": "solana-mainnet"},
+				"state_witness": map[string]any{"$ref": "#/components/schemas/TransactionStateWitness"},
+			},
+			"additionalProperties": false,
+		},
+		"TransactionStateWitness": map[string]any{
+			"type":     "object",
+			"required": []string{"version", "status", "complete", "transaction_fingerprint", "pre_state_slot", "simulation_slot", "account_count", "account_root_sha256", "binding_hash", "accounts"},
+			"properties": map[string]any{
+				"version":                 map[string]any{"type": "string", "enum": []string{"koschei-transaction-state-witness-v1"}},
+				"status":                  map[string]any{"type": "string", "enum": []string{"complete"}},
+				"complete":                map[string]any{"type": "boolean", "enum": []any{true}},
+				"transaction_fingerprint": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+				"pre_state_slot":          map[string]any{"type": "integer", "minimum": 1},
+				"simulation_slot":         map[string]any{"type": "integer", "minimum": 1},
+				"slot_spread":             map[string]any{"type": "integer", "minimum": 0},
+				"account_count":           map[string]any{"type": "integer", "minimum": 1, "maximum": 32},
+				"account_root_sha256":     map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+				"binding_hash":            map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+				"accounts":                map[string]any{"type": "array", "minItems": 1, "maxItems": 32, "items": map[string]any{"$ref": "#/components/schemas/TransactionStateWitnessAccount"}},
+				"limitations":             map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			},
+			"additionalProperties": false,
+		},
+		"TransactionStateWitnessAccount": map[string]any{
+			"type":     "object",
+			"required": []string{"address", "present", "state_hash"},
+			"properties": map[string]any{
+				"address":    map[string]any{"type": "string", "minLength": 1},
+				"present":    map[string]any{"type": "boolean"},
+				"state_hash": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+			},
+			"additionalProperties": false,
 		},
 		"EvidenceResponse": map[string]any{
 			"type":     "object",

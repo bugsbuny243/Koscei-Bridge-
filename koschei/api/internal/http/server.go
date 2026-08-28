@@ -187,7 +187,7 @@ func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier, pl
 	mux.HandleFunc("/api/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
 	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, planTier("starter", method("GET", h.SecurityRadarDetailV3)))))
 	mux.HandleFunc("/api/customer/web3/transaction-preflight", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardV2Configured)))))
-	mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", method("POST", h.TransactionGuardStateRecheck)))))
+	mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", customerStateRecheckRateLimit(h.DB, method("POST", h.TransactionGuardStateRecheck))))))
 	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarFeed)))))
 	mux.HandleFunc("/api/v1/radar/creator-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerCreatorIntelligence)))))
 	mux.HandleFunc("/api/v1/radar/actor-intelligence", solana(requiresDB(h, planTier("professional", method("GET", h.OwnerActorSecurityIntelligence)))))

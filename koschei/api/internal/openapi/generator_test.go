@@ -104,6 +104,38 @@ func TestStateRecheckDocumentsFailClosedHTTPStatuses(t *testing.T) {
 			t.Fatalf("state recheck OpenAPI description missing %q: %s", marker, description)
 		}
 	}
+	requestBody := object(post["requestBody"])
+	if required, _ := requestBody["required"].(bool); !required {
+		t.Fatal("state recheck request body must be required")
+	}
+	content := object(requestBody["content"])
+	applicationJSON := object(content["application/json"])
+	requestSchema := object(applicationJSON["schema"])
+	if requestSchema["$ref"] != "#/components/schemas/TransactionStateRecheckRequest" {
+		t.Fatalf("state recheck request schema ref=%v", requestSchema["$ref"])
+	}
+	components := object(document["components"])
+	schemas := object(components["schemas"])
+	recheckSchema := object(schemas["TransactionStateRecheckRequest"])
+	requiredFields, _ := recheckSchema["required"].([]any)
+	for _, field := range []string{"permit_token", "transaction", "state_witness"} {
+		found := false
+		for _, value := range requiredFields {
+			if value == field {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("state recheck request schema missing required field %q", field)
+		}
+	}
+	if _, ok := schemas["TransactionStateWitness"]; !ok {
+		t.Fatal("state recheck OpenAPI missing TransactionStateWitness schema")
+	}
+	if _, ok := schemas["TransactionStateWitnessAccount"]; !ok {
+		t.Fatal("state recheck OpenAPI missing TransactionStateWitnessAccount schema")
+	}
 }
 
 func TestRouteInventoryExclusionsMatchDocumentAndSyntheticStaleRouteIsRejected(t *testing.T) {

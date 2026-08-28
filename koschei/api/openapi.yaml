@@ -57,6 +57,138 @@
         "description": "Operation-specific JSON input. Unknown or missing required evidence inputs fail closed.",
         "type": "object"
       },
+      "TransactionStateRecheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "network": {
+            "default": "solana-mainnet",
+            "enum": [
+              "solana-mainnet"
+            ],
+            "type": "string"
+          },
+          "permit_token": {
+            "description": "Signed state-bound Transaction Guard permit returned by the immediately preceding eligible preflight.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "state_witness": {
+            "$ref": "#/components/schemas/TransactionStateWitness"
+          },
+          "transaction": {
+            "description": "The exact same serialized transaction bound by the permit.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "permit_token",
+          "transaction",
+          "state_witness"
+        ],
+        "type": "object"
+      },
+      "TransactionStateWitness": {
+        "additionalProperties": false,
+        "properties": {
+          "account_count": {
+            "maximum": 32,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "account_root_sha256": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionStateWitnessAccount"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
+          },
+          "binding_hash": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "complete": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pre_state_slot": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "simulation_slot": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "slot_spread": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "complete"
+            ],
+            "type": "string"
+          },
+          "transaction_fingerprint": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "version": {
+            "enum": [
+              "koschei-transaction-state-witness-v1"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "complete",
+          "transaction_fingerprint",
+          "pre_state_slot",
+          "simulation_slot",
+          "account_count",
+          "account_root_sha256",
+          "binding_hash",
+          "accounts"
+        ],
+        "type": "object"
+      },
+      "TransactionStateWitnessAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "state_hash": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "present",
+          "state_hash"
+        ],
+        "type": "object"
+      },
       "Verdict": {
         "description": "WITHHOLD is an intended non-error outcome when required evidence cannot be produced.",
         "enum": [
@@ -5007,11 +5139,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GenericRequest"
+                "$ref": "#/components/schemas/TransactionStateRecheckRequest"
               }
             }
           },
-          "required": false
+          "required": true
         },
         "responses": {
           "200": {
