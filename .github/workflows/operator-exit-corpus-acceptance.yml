@@ -31,8 +31,18 @@ jobs:
         working-directory: koschei/api
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert PR merge-candidate checkout
+        if: github.event_name == 'pull_request'
+        env:
+          EXPECTED_MERGE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_MERGE_SHA" ]; then
+            echo "Expected pull-request merge candidate $EXPECTED_MERGE_SHA, checked out $actual" >&2
+            exit 1
+          fi
+          echo "Validating pull-request merge candidate $actual"
       - uses: actions/setup-go@v5
         with:
           go-version: 1.26.7
@@ -53,7 +63,7 @@ jobs:
           set -o pipefail
           go test -v ./internal/services -run 'TestActorExitEventCorpusPostgres17|TestActorExitEventFrom|TestCrossTokenExitEvent' -count=1
           go test -v ./internal/handlers -run 'TestFundingCorpusWarmup|TestTrackRowResolvesFromExitEventRecurrenceFixture' -count=1
-      - name: Task 0 exact final-head verification
+      - name: Exact merge-candidate verification
         run: |
           set -o pipefail
           echo '$ gofmt -l .'
@@ -64,3 +74,21 @@ jobs:
           go test ./...
           echo '$ go test -race ./internal/handlers ./internal/services'
           go test -race ./internal/handlers ./internal/services
+      - name: Assert target base stayed current
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          current="$(git ls-remote origin "refs/heads/${BASE_REF}" | awk '{print $1}')"
+          if [ -z "$current" ]; then
+            echo "Could not resolve current target branch ${BASE_REF}" >&2
+            exit 1
+          fi
+          if [ "$current" != "$EVENT_BASE_SHA" ]; then
+            echo "Target branch ${BASE_REF} moved during validation: event=$EVENT_BASE_SHA current=$current" >&2
+            echo 'Re-run the PR checks against the new target head before merge.' >&2
+            exit 1
+          fi
+          echo "Target branch ${BASE_REF} stayed at $current during validation."
