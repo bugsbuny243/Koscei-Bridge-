@@ -19,7 +19,6 @@ func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered
 	mux.HandleFunc("/api/auth/wallet/verify", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.VerifyWalletChallenge))))
 	mux.HandleFunc("/api/auth/wallet/status", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.WalletLinkStatus))))
 	mux.HandleFunc("/api/auth/wallet/unlink", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.UnlinkWallet))))
-	mux.HandleFunc("/api/auth/token-access", handlers.RequireAuth(method(http.MethodGet, h.RetiredTokenAccessStatus)))
 	mux.HandleFunc("/api/auth/premium-access", requiresDB(h, handlers.RequireAuth(method(http.MethodGet, h.PremiumAccessStatus))))
 
 	// Watchlist alerts enqueue webhook deliveries through a PostgreSQL AFTER
