@@ -16,6 +16,7 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	registerTradePIAgentEscalationRoutes(mux)
 	registerTradePIAgentTenantRoutes(mux)
 	registerTradePIAgentChannelRoutes(mux)
+	registerTradePIAgentPilotRoutes(mux)
 	registerStaticFileAlias(mux, "/agents", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/", filepath.Join(staticDir, "agents.html"))
 	registerStaticFileAlias(mux, "/agents/admin", filepath.Join(staticDir, "agents-admin.html"))
