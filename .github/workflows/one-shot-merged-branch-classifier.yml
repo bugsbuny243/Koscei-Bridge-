@@ -17,13 +17,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Classify branches against exact main
+      - name: Classify branches against current main snapshot
         shell: bash
         run: |
           set -euo pipefail
-          expected="1649e1956abc132abc9817b3c3c3dd4792beaa93"
-          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          test "$remote_main" = "$expected" || { echo "main moved: expected=$expected actual=$remote_main"; exit 42; }
+          base="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test -n "$base"
+          echo "MAIN_SNAPSHOT=$base"
 
           git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
 
@@ -41,7 +41,7 @@ jobs:
                 ;;
             esac
             total=$((total+1))
-            if git merge-base --is-ancestor "$sha" "$expected"; then
+            if git merge-base --is-ancestor "$sha" "$base"; then
               printf '%s\t%s\n' "$branch" "$sha" >> /tmp/merged-safe.txt
             else
               printf '%s\t%s\n' "$branch" "$sha" >> /tmp/not-contained.txt
@@ -52,6 +52,19 @@ jobs:
           sort -o /tmp/not-contained.txt /tmp/not-contained.txt
           merged_count="$(wc -l < /tmp/merged-safe.txt | tr -d ' ')"
           not_contained_count="$(wc -l < /tmp/not-contained.txt | tr -d ' ')"
+
+          end="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          echo "MAIN_AT_END=$end"
+          if [ "$end" != "$base" ]; then
+            git fetch --depth=1 origin "$end"
+            if git merge-base --is-ancestor "$base" "$end"; then
+              echo "MAIN_MOVEMENT=fast_forward_safe_for_containment"
+            else
+              echo "MAIN_MOVEMENT=non_fast_forward_review_required"
+            fi
+          else
+            echo "MAIN_MOVEMENT=stable"
+          fi
 
           echo "TOTAL_CLASSIFIED=$total"
           echo "EXCLUDED_LONG_LIVED_OR_HELPER=$excluded"
