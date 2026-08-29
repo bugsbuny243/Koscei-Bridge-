@@ -12,10 +12,6 @@
       "034_security_radar_seen_signatures_nullable_target.sql",
       "034_wallet_ownership.sql"
     ],
-    "035": [
-      "035_arvis_stream_processing.sql",
-      "035_token_access_snapshots.sql"
-    ],
     "040": [
       "040_arvis_exhausted_job_state.sql",
       "040_customer_feedback.sql"
@@ -31,10 +27,6 @@
     "043": [
       "043_billing_cleanup.sql",
       "043_radar_queue_capacity_and_pump_source.sql"
-    ],
-    "060": [
-      "060_api_key_tier_caps.sql",
-      "060_kosch_daily_quota_ledger_index.sql"
     ],
     "078": [
       "078_defense_harness_execution_gate.sql",
