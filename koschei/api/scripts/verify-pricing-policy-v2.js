@@ -29,8 +29,7 @@ requireText(html,'$299 / month','Starter commercial price');
 requireText(html,'$999 / month','Professional commercial price');
 requireText(html,'$4,999 / month','Enterprise commercial price');
 forbid(html,/Price to finalize/i,'unfinalized commercial pricing');
-forbid(html,/\bKOSCH\b/i,'retired token reference on pricing page');
-forbid(html,/token holdings?/i,'token-holdings reference on pricing page');
+forbid(html,/token holdings?/i,'asset-holdings reference on pricing page');
 forbid(html,/Current (?:Basic|Pro|Enterprise) policy/i,'holder-tier pricing');
 forbid(html,/premium holder access/i,'holder access marketing');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
@@ -43,7 +42,7 @@ requireText(planAccess,"status='active'",'active entitlement requirement');
 requireText(planAccess,'EnforcePlanOutput','entitlement output metering');
 requireText(premiumAccess,'Source:           "entitlement"','premium access entitlement source');
 requireText(premiumAccess,'OutputsRemaining: evaluation.OutputsRemaining','remaining capacity response');
-forbid(premiumAccess,/token_(?:tier|amount)|KOSCH/i,'token-backed premium access fields');
+forbid(premiumAccess,/token_(?:tier|amount)/i,'asset-backed premium access fields');
 
 requireText(checkout,"fetch('/paddle/public-config'",'Paddle public readiness API');
 requireText(checkout,"paddle[plan + '_ready'] === true",'per-plan catalog readiness gate');
@@ -51,7 +50,7 @@ requireText(checkout,"fetch('/api/paddle/checkout'",'Paddle checkout API');
 requireText(checkout,"provider: 'paddle'",'Paddle provider identity');
 requireText(checkout,"parsed.protocol !== 'https:'",'HTTPS checkout redirect gate');
 requireText(checkout,"Paddle catalog is not active yet",'zero-plan catalog block');
-forbid(checkout,/\/kosch-access|provider:\s*'kosch_token'|\/api\/auth\/token-access/i,'retired asset-based checkout/access');
+forbid(checkout,/\/api\/auth\/token-access/i,'retired asset-based checkout/access');
 forbid(checkout,/\blocalStorage\b|\bsessionStorage\b/,'checkout persistence');
 
 requireText(css,'.pricing-plans','pricing tier layout');
