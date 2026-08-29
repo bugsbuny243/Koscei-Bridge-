@@ -2,11 +2,12 @@
 
 This repository's primary product domain is **Koschei Web3**, and the Koschei Web3 security core must remain isolated and intact.
 
-A single deployed TradePI service may also host explicitly isolated TradePI product modules under their own namespaces (for example `/agents`, `/api/agents/*`, and dedicated internal packages) when this avoids unnecessary duplicate infrastructure. These modules must not be presented as Koschei Web3 capabilities and must not import or copy ARVIS, Sentinel, or Koschei Lang internals.
+A single deployed TradePI service may also host explicitly isolated TradePI product modules under their own namespaces (for example `/agents`, `/api/agents/*`, and dedicated internal packages) when this avoids unnecessary duplicate infrastructure. These modules must not be presented as Koschei Web3 capabilities and must not import or copy ARVIS or Koschei Lang internals.
 
 - ARVIS is a core intelligence and evidence engine inside Koschei Web3.
 - Matrix belongs to Koschei Lang, not Koschei Web3.
-- Koschei Sentinel and Koschei Lang are external systems from this repository's point of view; integrations must use explicit contracts instead of copying their internals here.
+- Koschei Sentinel is cancelled and is not an active integration target for this repository.
+- Koschei Lang is a separate, early-stage project and is not ready for Web3 runtime integration; no production dependency on it may be introduced here.
 - Koschei Web3 is a Web3 Security Validation & Risk Intelligence Platform. It must not collapse into a generic wallet, token, honeypot, rug, contract scanner, or generic business-automation product.
 - Non-Web3 TradePI modules must stay in isolated route/package namespaces and must not alter Koschei Web3 evidence, security, entitlement, or customer-decision contracts.
 - Chain-specific evidence collection belongs behind adapters. Core intelligence, evidence policy, attack-path reasoning, and customer decision contracts must remain chain-independent.
