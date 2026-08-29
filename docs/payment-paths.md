@@ -1,8 +1,8 @@
-# Koschei payment paths
+# Koschei payment path
 
-## Active payment path: Paddle
+## Supported payment path: Paddle
 
-Paddle is the active SaaS payment provider for the canonical paid plans: **Starter**, **Professional**, and **Enterprise**.
+Paddle is the sole supported SaaS payment provider for the canonical paid plans: **Starter**, **Professional**, and **Enterprise**.
 
 ### Canonical Paddle production catalog
 
@@ -74,11 +74,4 @@ Paddle account/domain approval is provider-side state and cannot be repaired by 
 7. A valid completed transaction activates or updates the customer's entitlement.
 8. Customer premium access is read from active, non-expired `entitlements`; no active entitlement means no premium analysis.
 
-## Legacy payment path: Shopier / payment_requests
-
-`payment_requests` is retained for legacy Shopier/manual review flows and owner panel visibility. It is not the canonical SaaS checkout path.
-
-1. Legacy payment requests may still exist where explicitly enabled.
-2. Owner approval can activate an entitlement through the existing manual review path.
-3. Historical records are retained rather than destructively migrated.
-4. New Starter / Professional / Enterprise sales should use Paddle and `orders` + `entitlements`.
+Historical records from retired billing experiments may remain in an existing database for audit purposes, but they are not accepted as customer payment, do not create new product access, and are not part of the supported checkout contract.
