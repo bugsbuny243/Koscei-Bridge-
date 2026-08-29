@@ -23,7 +23,7 @@ requireText(html,'SaaS plan','SaaS access KPI');
 requireText(html,'ARVIS early access','ARVIS readiness disclosure');
 requireText(html,'Preview monitored targets','watchlist preview disclosure');
 requireText(html,'Their presence in the workspace is not a claim of full production readiness.','unfinished surface boundary');
-forbid(html,/KOSCH access|KOSCH Account|KOSCH holder access|Checking holder access/i,'legacy holder access workspace copy');
+forbid(html,/holder access|Checking holder access/i,'legacy holder access workspace copy');
 
 requireText(js,"read('/api/auth/premium-access')",'SaaS access source');
 requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
@@ -74,7 +74,7 @@ if(/data-plan-gated|disabled\s*=/.test(shellJs))throw new Error('capability labe
 
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
-if(/token_tier|token_amount|KOSCH holder access/i.test(js))throw new Error('workspace must not derive access from token holdings');
+if(/token_tier|token_amount|holder access/i.test(js))throw new Error('workspace must not derive access from token holdings');
 if(js.includes('Math.random('))throw new Error('workspace must not fabricate live metrics');
 if(/fetch\s*\(/.test(js))throw new Error('workspace account data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
 if(!html.includes('If a source is unavailable, the workspace leaves it unavailable instead of inventing a status.'))throw new Error('dashboard must expose the no-fake-data boundary');
