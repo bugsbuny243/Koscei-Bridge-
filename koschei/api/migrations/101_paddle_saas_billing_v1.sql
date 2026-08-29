@@ -1,4 +1,4 @@
--- Wave 34: normal SaaS billing. KOSCH/token holdings are not an authority.
+-- Wave 34: canonical subscription SaaS billing.
 -- Webhook payloads are intentionally not retained; only a digest and provider
 -- identifiers required for idempotency/audit are stored.
 
