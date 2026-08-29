@@ -276,16 +276,6 @@ func (h *Handler) OwnerRemoveUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": "removed"})
 }
 
-func (h *Handler) OwnerPaymentRequests(w http.ResponseWriter, r *http.Request) {
-	h.OwnerPaymentRequestsList(w, r)
-}
-func (h *Handler) OwnerApprovePayment(w http.ResponseWriter, r *http.Request) {
-	h.OwnerApprovePaymentRequest(w, r)
-}
-func (h *Handler) OwnerRejectPayment(w http.ResponseWriter, r *http.Request) {
-	h.OwnerRejectPaymentRequest(w, r)
-}
-
 func (h *Handler) OwnerCommand(w http.ResponseWriter, r *http.Request) {
 	if !h.ownerAuth(w, r) {
 		return
@@ -1180,7 +1170,7 @@ func ensureOwnerSchema(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	return ensurePaymentSchema(ctx, db)
+	return nil
 }
 
 func ownerIdentityWhere(email, sub, wallet string) (string, []any) {
