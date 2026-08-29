@@ -39,9 +39,6 @@ func (h *Handler) customerPackageStatus(ctx context.Context, authSubject, email 
 	if h.DB == nil {
 		return customerPackageStatus{HasActivePackage: false, PlanID: nil, Status: "none", ExpiresAt: nil, Warning: "package_database_unavailable"}, nil
 	}
-	if err := ensurePaymentSchema(ctx, h.DB); err != nil {
-		return customerPackageStatus{HasActivePackage: false, PlanID: nil, Status: "none", ExpiresAt: nil, Warning: "package_database_unavailable"}, nil
-	}
 	authSubject = strings.TrimSpace(authSubject)
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
