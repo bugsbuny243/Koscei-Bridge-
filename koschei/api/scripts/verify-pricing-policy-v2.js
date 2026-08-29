@@ -7,7 +7,6 @@ const checkout=fs.readFileSync(path.join(root,'public','js','paddle-checkout.js'
 const css=fs.readFileSync(path.join(root,'public','css','pricing-policy-v2.css'),'utf8');
 const planAccess=fs.readFileSync(path.join(root,'internal','handlers','plan_access.go'),'utf8');
 const premiumAccess=fs.readFileSync(path.join(root,'internal','handlers','premium_access_status.go'),'utf8');
-const retired=fs.readFileSync(path.join(root,'internal','handlers','kosch_retirement.go'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
@@ -30,7 +29,7 @@ requireText(html,'$299 / month','Starter commercial price');
 requireText(html,'$999 / month','Professional commercial price');
 requireText(html,'$4,999 / month','Enterprise commercial price');
 forbid(html,/Price to finalize/i,'unfinalized commercial pricing');
-forbid(html,/\bKOSCH\b/i,'KOSCH reference on pricing page');
+forbid(html,/\bKOSCH\b/i,'retired token reference on pricing page');
 forbid(html,/token holdings?/i,'token-holdings reference on pricing page');
 forbid(html,/Current (?:Basic|Pro|Enterprise) policy/i,'holder-tier pricing');
 forbid(html,/premium holder access/i,'holder access marketing');
@@ -46,16 +45,13 @@ requireText(premiumAccess,'Source:           "entitlement"','premium access enti
 requireText(premiumAccess,'OutputsRemaining: evaluation.OutputsRemaining','remaining capacity response');
 forbid(premiumAccess,/token_(?:tier|amount)|KOSCH/i,'token-backed premium access fields');
 
-requireText(retired,'http.StatusGone','legacy token-access tombstone');
-requireText(retired,'KOSCH holdings no longer grant product access','explicit retirement message');
-
 requireText(checkout,"fetch('/paddle/public-config'",'Paddle public readiness API');
 requireText(checkout,"paddle[plan + '_ready'] === true",'per-plan catalog readiness gate');
 requireText(checkout,"fetch('/api/paddle/checkout'",'Paddle checkout API');
 requireText(checkout,"provider: 'paddle'",'Paddle provider identity');
 requireText(checkout,"parsed.protocol !== 'https:'",'HTTPS checkout redirect gate');
 requireText(checkout,"Paddle catalog is not active yet",'zero-plan catalog block');
-forbid(checkout,/\/kosch-access|provider:\s*'kosch_token'/,'legacy KOSCH checkout');
+forbid(checkout,/\/kosch-access|provider:\s*'kosch_token'|\/api\/auth\/token-access/i,'retired asset-based checkout/access');
 forbid(checkout,/\blocalStorage\b|\bsessionStorage\b/,'checkout persistence');
 
 requireText(css,'.pricing-plans','pricing tier layout');
