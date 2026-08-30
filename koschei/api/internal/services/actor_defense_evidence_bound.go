@@ -25,7 +25,7 @@ func bindActorDefenseRuleEvidence(track ActorDefenseTrack, evidence []ActorDefen
 		hit.EvidenceKeys = actorRuleUniqueStrings(hit.EvidenceKeys)
 		hit.Signatures = actorRuleUniqueStrings(hit.Signatures)
 		if len(hit.EvidenceKeys) == 0 {
-			keys, signatures := actorDefenseEvidenceForRule(hit.RuleID, evidence)
+			keys, signatures := actorDefenseEvidenceForRule(hit.RuleID, hit.Count, evidence)
 			hit.EvidenceKeys = keys
 			hit.Signatures = signatures
 		}
@@ -105,14 +105,16 @@ func evidenceBoundActorHitParts(prefix string, hits []ActorDefenseRuleHit) []str
 	return parts
 }
 
-func actorDefenseEvidenceForRule(ruleID string, evidence []ActorDefenseEvidenceRecord) ([]string, []string) {
+func actorDefenseEvidenceForRule(ruleID string, requiredCount int, evidence []ActorDefenseEvidenceRecord) ([]string, []string) {
+	normalizedRuleID := strings.TrimSpace(ruleID)
+	if normalizedRuleID == ActorRuleCompoundHolderReuse {
+		return actorDefenseDominantHolderEvidence(requiredCount, evidence)
+	}
+
 	allowed := map[string]bool{}
-	switch strings.TrimSpace(ruleID) {
+	switch normalizedRuleID {
 	case ActorRuleCompoundCreatorReuse:
 		allowed["created_token"] = true
-	case ActorRuleCompoundHolderReuse:
-		allowed["dominant_holder_reuse"] = true
-		allowed["dominant_holder_recurrence"] = true
 	case ActorRuleCompoundRelatedActorReuse:
 		allowed["cross_token_related_actor"] = true
 		allowed["cross_token_creator_holder_transfer"] = true
@@ -138,6 +140,43 @@ func actorDefenseEvidenceForRule(ruleID string, evidence []ActorDefenseEvidenceR
 		if signature := strings.TrimSpace(item.Signature); signature != "" {
 			signatures = append(signatures, signature)
 		}
+	}
+	return actorRuleUniqueStrings(keys), actorRuleUniqueStrings(signatures)
+}
+
+// actorDefenseDominantHolderEvidence binds ARD-C002 to the canonical persisted
+// relation used by the dossier loader. The track count is a distinct-mint count,
+// so the evidence slice must independently prove at least that many distinct
+// mints with canonical evidence keys before holder reuse may change a grade.
+func actorDefenseDominantHolderEvidence(requiredCount int, evidence []ActorDefenseEvidenceRecord) ([]string, []string) {
+	if requiredCount < 2 {
+		requiredCount = 2
+	}
+
+	mints := map[string]bool{}
+	keys := []string{}
+	signatures := []string{}
+	for _, item := range evidence {
+		if strings.ToLower(strings.TrimSpace(item.Relation)) != "dominant_holder_of" {
+			continue
+		}
+		status := normalizeActorEvidenceStatus(item.VerificationStatus)
+		if status != "verified" && status != "observed" {
+			continue
+		}
+		mint := strings.TrimSpace(item.TokenMint)
+		key := strings.TrimSpace(item.EvidenceKey)
+		if mint == "" || key == "" {
+			continue
+		}
+		mints[mint] = true
+		keys = append(keys, key)
+		if signature := strings.TrimSpace(item.Signature); signature != "" {
+			signatures = append(signatures, signature)
+		}
+	}
+	if len(mints) < requiredCount {
+		return nil, nil
 	}
 	return actorRuleUniqueStrings(keys), actorRuleUniqueStrings(signatures)
 }
