@@ -26,6 +26,12 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	registerStaticFileAlias(mux, "/agents/install", filepath.Join(staticDir, "agents-install.html"))
 	registerStaticFileAlias(mux, "/agents/install/", filepath.Join(staticDir, "agents-install.html"))
 
+	// Koschei Lang lives as a product page inside the existing TradePiGloball
+	// deployment. This avoids a second Railway project/service/domain.
+	for _, route := range []string{"/lang", "/lang/", "/lang.html"} {
+		registerStaticFileAlias(mux, route, filepath.Join(staticDir, "lang.html"))
+	}
+
 	// There is one customer-facing investigation surface. Legacy scanner URLs
 	// preserve their intent through a mode query, but no longer render separate
 	// products with overlapping forms and verdict language.
