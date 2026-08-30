@@ -9,6 +9,8 @@ This file is the repository checkpoint for continuing Koschei Web3 work across c
 - Verified product merge commit: `e2a0fff1f2730c3862f9679659e82ed6aa586a59`.
 - Latest verified maintenance merge: PR **#963**, `fix(ci): remove retired payment runtime references`.
 - Last code-affecting verified `main` head before this documentation checkpoint: `90d318ae4242d38383f96ffa33db86e734246c60`.
+- The documentation checkpoint immediately preceding this hygiene pass merged as `df00c4f29e261fa838e9fccc0f3c32cc238cdcb0`.
+- Repository hygiene has now removed **11 proven-safe historical branch refs** after `df00c4f29e261fa838e9fccc0f3c32cc238cdcb0`; no product code was changed by those deletions.
 - Professional Transaction Preflight remains the metered pre-sign decision.
 - Professional State Recheck remains the immediate entitlement-only continuation and does **not** consume a second SaaS output for the same signing decision.
 - State Recheck reuses the existing fail-closed `TransactionGuardStateRecheck` engine and never signs or broadcasts a transaction.
@@ -17,7 +19,7 @@ This file is the repository checkpoint for continuing Koschei Web3 work across c
 - The entitlement schema is migration-owned; retired request-time payment schema bootstrap is not restored.
 - Canonical OpenAPI represents **154 registered API paths**.
 - `main` remains unprotected.
-- Historical unprotected branches remain numerous and must not be revived or deleted without comparison against current `main`.
+- Historical unprotected branches remain numerous and must not be revived or deleted without comparison against current `main` and/or exact PR lineage evidence.
 
 ## CHANGED
 
@@ -49,6 +51,30 @@ A later direct-main cleanup left dangling references to already-retired payment 
 - Verified that `entitlements` is migration-owned (`001_entitlements_customer_id_nullable.sql` plus later Paddle billing migrations); no retired request-time bootstrap was restored.
 - Repaired a pre-existing final-newline/gofmt drift in `internal/openapi/generator.go` introduced by the preceding direct-main KOSCH classifier cleanup. The OpenAPI generator content was otherwise unchanged by that formatting repair.
 
+### Repository hygiene continuation — 2026-08-30
+
+No product code was modified. Eleven historical refs were removed only after fail-closed lineage checks proved them safe to delete:
+
+- `fix/retired-payment-runtime-references`
+- `docs/project-state-20260829-retired-payment-repair`
+- `fix/customer-saas-surface-truth-v1`
+- `fix/dossier-saas-entitlement-v1`
+- `fix/dossier-registry-autopublish`
+- `fix/customer-capability-labels-v3`
+- `fix/history-saas-entitlement-v1`
+- `fix/customer-investigation-ui-rpc-resilience`
+- `fix/customer-radar-502`
+- `fix/arvis-social-render-v2`
+- `fix/auth-cors-retention-20260710`
+
+The cleanup deliberately preserved branches that still contain unique/unresolved work or lack sufficient supersession proof. In particular, the following remain classified as **unresolved / do not delete yet**:
+
+- `fix/actor-acceptance-coverage-semantics`
+- `fix/actor-transaction-evidence-idempotency`
+- `fix/actor-verdict-evidence-integrity`
+- `fix/customer-capability-labels-v2`
+- `fix/helius-token-metadata-free-first-v1` (PR #912 is closed unmerged; no supersession proof has yet been established)
+
 ## VERIFIED
 
 ### PR #962
@@ -77,12 +103,24 @@ The final PR verification included PostgreSQL migration and retention checks, im
 
 PR #963 merged as `90d318ae4242d38383f96ffa33db86e734246c60`. The actual merged `main` head then triggered **7 push workflows; all 7 completed successfully with 0 failures**. API Required CI on the merged head completed migrations, retention checks, immutable dossier validation, public JS/language contracts, Go tests, vet, build, secret scanning, vulnerability scanning, and static security scanning successfully.
 
+### Repository hygiene continuation
+
+Three temporary, helper-only cleanup workflows ran from exact refs and self-deleted after success; none was merged into `main`:
+
+- run `33284921118`: verified the two target branches were ancestors/fully contained before deleting `fix/retired-payment-runtime-references` and `docs/project-state-20260829-retired-payment-repair`.
+- run `33285040682`: completed successfully after checking exact remote SHAs plus merged-PR or explicit supersession state; deleted `fix/customer-saas-surface-truth-v1`, `fix/dossier-saas-entitlement-v1`, `fix/dossier-registry-autopublish`, and the closed-unmerged-but-explicitly-replaced `fix/customer-capability-labels-v3`.
+- run `33285211818`: completed successfully after checking exact remote SHAs and exact merged PR heads; deleted `fix/history-saas-entitlement-v1` (PR #898), `fix/customer-investigation-ui-rpc-resilience` (PR #621), `fix/customer-radar-502` (PR #620), `fix/arvis-social-render-v2` (PR #747), and `fix/auth-cors-retention-20260710` (PR #540).
+
+Post-run branch searches confirmed the deleted refs and temporary helper refs are absent. `main` remained at `df00c4f29e261fa838e9fccc0f3c32cc238cdcb0` throughout the hygiene executions.
+
 ## BROKEN / MISSING
 
 - No known CI blocker remains on verified maintenance head `90d318ae4242d38383f96ffa33db86e734246c60`.
 - No known blocker remains for the merged Professional State Recheck slice.
 - `main` remains unprotected, so correctness still depends on exact-head discipline rather than GitHub branch-protection enforcement.
 - Historical branches are not fully classified. Deleting or reviving them blindly could discard unique work or reintroduce obsolete architecture.
+- Several actor/evidence branches still carry unique diffs relative to current `main`; their capabilities must be compared against current engines before any deletion or revival decision.
+- PR #912 / `fix/helius-token-metadata-free-first-v1` is closed unmerged and remains unresolved until a current-main comparison or explicit supersession record proves what happened to that capability.
 - State Recheck reduces the time-of-check/time-of-signing window but cannot prove chain state will remain unchanged after the final observation and before network execution.
 
 ## WORK-IN-PROGRESS POLICY
@@ -100,9 +138,9 @@ PR #963 merged as `90d318ae4242d38383f96ffa33db86e734246c60`. The actual merged 
 ## NEXT
 
 1. **Do not open a new product feature PR yet.**
-2. Resume repository hygiene from the current verified `main`.
-3. Classify historical branch candidates as already-contained, obsolete/superseded, or containing unique unmerged capability.
-4. Delete only refs proven safe to remove; branch age or name alone is not evidence.
+2. Continue repository hygiene from current `main`, using exact branch SHA + merged/superseded PR evidence or current-main containment as the deletion boundary.
+3. Resolve the remaining ambiguous/unique branches rather than deleting them by age or name, starting with the preserved actor/evidence branches and PR #912.
+4. Delete only refs proven safe to remove; preserve genuinely unique capability as backlog/integration evidence instead of reviving stale architecture wholesale.
 5. After branch hygiene reaches a stable checkpoint, inspect live `main` and choose exactly one smallest customer-useful Web3 production gap from current code/evidence.
 6. Keep Transaction Preflight / State Recheck and ARVIS evidence-first behavior as the current decision line; do not fork a parallel decision engine from stale work.
 
@@ -118,6 +156,8 @@ PR #963 merged as `90d318ae4242d38383f96ffa33db86e734246c60`. The actual merged 
 
 - **Repository bloat / stale branches:** historical refs can create false signals about what is active or missing.
 - **Unprotected main:** parallel writes can move the target outside branch-protection enforcement.
+- **Over-cleanup risk:** squash-merged and superseded branches may appear diverged even when their capability is already integrated; exact PR lineage is required before deletion.
+- **Unique-work risk:** some actor/evidence branches still contain real unmerged diffs, so bulk deletion remains unsafe.
 - **Retired-runtime regression risk:** future cleanup must search for callers and schema dependencies before deleting implementation files; compile success alone is not enough.
 - **Rate policy tuning:** State Recheck is currently bounded by 30/min per IP and 12/min per verified customer; changes must remain evidence-driven and bounded-cost.
 - **Fresh-state limitation:** State Recheck proves only the bounded state observed during that recheck, not future state after observation.
