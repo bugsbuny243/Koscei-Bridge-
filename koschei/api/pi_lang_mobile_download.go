@@ -22,8 +22,10 @@ const piLangDownloadTicketLifetime = 2 * time.Minute
 
 // piLangMobileDownloadSurface fixes a Pi Browser / Android WebView limitation:
 // fetching a ZIP into a JavaScript Blob does not reliably hand the file to the
-// Android Download Manager. Licensed users instead receive a short-lived,
-// single-use server ticket and navigate directly to an attachment response.
+// Android Download Manager. Licensed users instead receive a short-lived
+// download lease and navigate directly to an attachment response. The lease is
+// intentionally reusable only until expiry because Chromium/Android may probe
+// or retry the same URL before the actual download begins.
 func piLangMobileDownloadSurface(next http.Handler, staticDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !isPiLangHost(r.Host) {
@@ -156,7 +158,7 @@ VALUES ($1,$2,$3)
 }
 
 func consumePiLangDownloadTicket(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -179,17 +181,16 @@ func consumePiLangDownloadTicket(w http.ResponseWriter, r *http.Request, conn *s
 	var userUID string
 	err := conn.QueryRowContext(r.Context(), `
 UPDATE pi_lang_download_tickets AS t
-SET used_at = NOW()
+SET used_at = COALESCE(t.used_at, NOW())
 FROM pi_lang_entitlements AS e
 WHERE t.ticket_hash = $1
-  AND t.used_at IS NULL
   AND t.expires_at > NOW()
   AND e.user_uid = t.user_uid
   AND e.status = 'active'
 RETURNING t.user_uid
 `, ticketHash).Scan(&userUID)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "download ticket expired or already used", http.StatusUnauthorized)
+		http.Error(w, "download ticket expired", http.StatusUnauthorized)
 		return
 	}
 	if err != nil || userUID == "" {
@@ -207,19 +208,29 @@ func streamPiLangPackageAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	packageURL := origin + "/" + url.PathEscape(piLangPackageFilename)
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, packageURL, nil)
+	method := http.MethodGet
+	if r.Method == http.MethodHead {
+		method = http.MethodHead
+	}
+	req, err := http.NewRequestWithContext(r.Context(), method, packageURL, nil)
 	if err != nil {
 		http.Error(w, "download origin unavailable", http.StatusBadGateway)
 		return
 	}
 	req.Header.Set("Accept", "application/zip, application/octet-stream;q=0.9")
+	if value := strings.TrimSpace(r.Header.Get("Range")); value != "" {
+		req.Header.Set("Range", value)
+	}
+	if value := strings.TrimSpace(r.Header.Get("If-Range")); value != "" {
+		req.Header.Set("If-Range", value)
+	}
 	resp, err := piLangPackageHTTPClient.Do(req)
 	if err != nil {
 		http.Error(w, "download origin unavailable", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		http.Error(w, "download package unavailable", http.StatusBadGateway)
 		return
 	}
@@ -232,8 +243,20 @@ func streamPiLangPackageAttachment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, piLangPackageFilename))
 	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if value := strings.TrimSpace(resp.Header.Get("Accept-Ranges")); value != "" {
+		w.Header().Set("Accept-Ranges", value)
+	}
+	if value := strings.TrimSpace(resp.Header.Get("Content-Range")); value != "" {
+		w.Header().Set("Content-Range", value)
+	}
 	if resp.ContentLength >= 0 {
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", resp.ContentLength))
+	}
+	if resp.StatusCode == http.StatusPartialContent {
+		w.WriteHeader(http.StatusPartialContent)
+	}
+	if r.Method == http.MethodHead {
+		return
 	}
 	reader := io.Reader(resp.Body)
 	if resp.ContentLength < 0 {
