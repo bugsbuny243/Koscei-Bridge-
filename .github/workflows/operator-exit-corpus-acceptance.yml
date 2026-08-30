@@ -78,16 +78,20 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+          candidate_base="$(git rev-parse HEAD^1)"
           current="$(git ls-remote origin "refs/heads/${BASE_REF}" | awk '{print $1}')"
+          if [ -z "$candidate_base" ]; then
+            echo 'Could not resolve the merge candidate base parent' >&2
+            exit 1
+          fi
           if [ -z "$current" ]; then
             echo "Could not resolve current target branch ${BASE_REF}" >&2
             exit 1
           fi
-          if [ "$current" != "$EVENT_BASE_SHA" ]; then
-            echo "Target branch ${BASE_REF} moved during validation: event=$EVENT_BASE_SHA current=$current" >&2
+          if [ "$current" != "$candidate_base" ]; then
+            echo "Target branch ${BASE_REF} moved during validation: candidate_base=$candidate_base current=$current" >&2
             echo 'Re-run the PR checks against the new target head before merge.' >&2
             exit 1
           fi
