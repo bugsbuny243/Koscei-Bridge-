@@ -132,7 +132,7 @@ func main() {
 	staticDir := resolveStaticDir(os.Getenv("STATIC_DIR"))
 	log.Printf("static public path: %s", staticDir)
 	baseHandler := englishPublicHTML(apihttp.NewServer(conn, dbInitError, os.Getenv("ADMIN_PASSWORD"), firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"), staticDir, apihttp.WithReadDB(readConn), apihttp.WithCache(appCache), apihttp.WithSolanaRPC(solanaRPC), apihttp.WithJobStore(jobStore), apihttp.WithJobQueue(jobQueue)))
-	handler := piLangHostSurface(baseHandler, staticDir)
+	handler := piLangMobileDownloadSurface(piLangHostSurface(baseHandler, staticDir), staticDir)
 	server := newHTTPServer(port, handler)
 
 	serverErrors := make(chan error, 1)
