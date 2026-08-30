@@ -65,6 +65,22 @@ func piLangHostSurface(next http.Handler, staticDir string) http.Handler {
 			w.Header().Set("Cache-Control", "no-store")
 			http.ServeFile(w, r, filepath.Join(staticDir, "lang.html"))
 			return
+		case "/privacy", "/privacy.html":
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-store")
+			http.ServeFile(w, r, filepath.Join(staticDir, "lang-privacy.html"))
+			return
+		case "/terms", "/terms.html":
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-store")
+			http.ServeFile(w, r, filepath.Join(staticDir, "lang-terms.html"))
+			return
 		case "/validation-key.txt":
 			servePiLangValidationKey(w, r)
 			return
