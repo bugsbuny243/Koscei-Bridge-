@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>Koschei Lang | Secure Local Development</title>
+  <meta name="description" content="Koschei Lang is a capability-secure programming language for local software with explicit authority over disk, network, environment and processes." />
+  <style>
+    :root{color-scheme:dark;--bg:#090b10;--panel:#11151d;--line:#242b38;--text:#f5f7fb;--muted:#aab2c0;--accent:#a56cff;--accent2:#7b4cff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#171024 0,#090b10 42%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+    .wrap{max-width:980px;margin:0 auto;padding:28px 20px 64px}.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:72px}.brand{font-weight:800;letter-spacing:.02em}.pill{border:1px solid #54368a;background:#1d1430;padding:7px 11px;border-radius:999px;font-size:12px;color:#d9c7ff}
+    .hero{max-width:800px}.eyebrow{color:#c6a9ff;font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase}.hero h1{font-size:clamp(44px,8vw,82px);line-height:.96;margin:16px 0 22px;letter-spacing:-.05em}.hero p{max-width:720px;color:var(--muted);font-size:clamp(18px,2.5vw,24px);line-height:1.55;margin:0 0 28px}.cta{display:inline-flex;align-items:center;gap:10px;padding:14px 18px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;text-decoration:none;font-weight:800;border:0}.sub{margin-top:12px;color:#7f8999;font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:64px}.card{background:rgba(17,21,29,.82);border:1px solid var(--line);border-radius:16px;padding:22px;min-height:170px}.card h2{font-size:17px;margin:0 0 10px}.card p{color:var(--muted);font-size:14px;line-height:1.55;margin:0}.code{margin-top:18px;padding:13px;border-radius:10px;background:#090c12;border:1px solid #202735;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#d4def0;overflow:auto}.foot{margin-top:64px;padding-top:20px;border-top:1px solid var(--line);color:#727c8c;font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    @media(max-width:760px){.nav{margin-bottom:50px}.grid{grid-template-columns:1fr}.hero h1{font-size:54px}.card{min-height:auto}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="nav"><div class="brand">KOSCHEI LANG</div><div class="pill">Pi Testnet Preview</div></nav>
+    <section class="hero">
+      <div class="eyebrow">Capability-secure programming</div>
+      <h1>Code gets only the authority you give it.</h1>
+      <p>Build and run local software while keeping disk, network, environment and process access explicit. Koschei Lang is designed to make ambient authority visible instead of silently inherited.</p>
+      <a class="cta" href="#preview">Developer Preview</a>
+      <div class="sub">One-time Pi purchase model planned for the commercial release. No recurring subscription requirement.</div>
+    </section>
+
+    <section id="preview" class="grid" aria-label="Koschei Lang capabilities">
+      <article class="card"><h2>Explicit capabilities</h2><p>Dependencies do not automatically inherit machine authority. Required access must be declared and granted.</p><div class="code">ks caps project.ks</div></article>
+      <article class="card"><h2>Fail before execution</h2><p>Security policy violations are designed to stop at the language/tooling boundary rather than becoming invisible runtime behavior.</p><div class="code">KS2401 — capability unavailable</div></article>
+      <article class="card"><h2>Local-first</h2><p>The toolchain is being packaged for local distribution, including Pi Desktop / SoloHost, without exposing the private compiler source tree.</p><div class="code">ks check · ks run · ks build</div></article>
+    </section>
+
+    <footer class="foot"><span>TradePiGloball · Koschei Lang</span><span>Developer Preview · Testnet</span></footer>
+  </main>
+</body>
+</html>
