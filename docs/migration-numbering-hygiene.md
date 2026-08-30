@@ -1,6 +1,7 @@
 # Migration numbering hygiene
 
 Date: 2026-08-02
+Updated: 2026-08-30
 
 This document records the applied migration history exactly as it exists. The
 migration runner keys `schema_migrations` by the complete filename, so every file
@@ -66,12 +67,20 @@ cross-file ordering dependency was found.
 
 The exact accepted missing prefixes are:
 
-`026`, `027`, `032`, `048`, `049`, `050`, `051`, `052`, `061`, `082`, `085`.
+`026`, `027`, `032`, `048`, `049`, `050`, `051`, `052`, `061`, `082`, `085`, `102`.
+
+The `102` gap entered repository history on 2026-08-27 when
+`103_tradepi_agent_persistence.sql` was committed while the immediately preceding
+repository tree already ended at `101_paddle_saas_billing_v1.sql`. There is no
+`102_*.sql` in that pre-103 tree. Because migration identity is the complete
+filename and `103` and later migrations may already be applied, repairing this
+history by renaming or backfilling `102` would violate the migration-history
+contract. The gap is therefore recorded as accepted history rather than reused.
 
 The briefing specifically identified the `085` gap. It is real and accepted, but
 it must remain empty: the next migration must use the next unused sequential
 prefix after the current maximum, not backfill `085`. The same rule applies to
-all older gaps above.
+all older accepted gaps, including `102`.
 
 ## Verification
 
