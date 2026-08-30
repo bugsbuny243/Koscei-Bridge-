@@ -21,13 +21,21 @@ import (
 )
 
 const (
-	piLangProductionHost = "koschei-web3-hub-production.up.railway.app"
-	piPlatformBaseURL    = "https://api.minepi.com/v2"
-	piLangProductID      = "koschei-lang-license-v1"
-	piLangTestAmount     = 0.01
+	piLangProductionHost   = "koschei-web3-hub-production.up.railway.app"
+	piPlatformBaseURL      = "https://api.minepi.com/v2"
+	piLangProductID        = "koschei-lang-license-v1"
+	piLangTestAmount       = 0.01
+	piLangPackageFilename  = "koschei-lang-0.10.0-testnet-linux-x86_64.zip"
+	piLangPackageMaxBytes  = int64(512 << 20)
 )
 
 var piPlatformHTTPClient = &http.Client{Timeout: 20 * time.Second}
+var piLangPackageHTTPClient = &http.Client{
+	Timeout: 2 * time.Minute,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 var (
 	piLangDBOnce sync.Once
@@ -241,8 +249,8 @@ func servePiLangEntitlement(w http.ResponseWriter, r *http.Request, conn *sql.DB
 		_, _ = fmt.Fprintf(w, `{"licensed":false,"uid":%q,"username":%q}`, user.UID, user.Username)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `{"licensed":true,"uid":%q,"username":%q,"network":%q,"amount":%.7f,"created_at":%q,"download_ready":%t}`,
-		ent.UserUID, ent.Username, ent.Network, ent.Amount, ent.CreatedAt.UTC().Format(time.RFC3339), validPiLangDownloadURL() != "")
+	_, _ = fmt.Fprintf(w, `{"licensed":true,"uid":%q,"username":%q,"network":%q,"amount":%.7f,"created_at":%q,"download_ready":%t,"download_filename":%q}`,
+		ent.UserUID, ent.Username, ent.Network, ent.Amount, ent.CreatedAt.UTC().Format(time.RFC3339), validPiLangPackageOrigin() != "", piLangPackageFilename)
 }
 
 func servePiLangDownload(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
@@ -264,13 +272,48 @@ func servePiLangDownload(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
 		http.Error(w, "Koschei Lang license required", http.StatusPaymentRequired)
 		return
 	}
-	downloadURL := validPiLangDownloadURL()
-	if downloadURL == "" {
+
+	origin := validPiLangPackageOrigin()
+	if origin == "" {
 		http.Error(w, "licensed download package is not published yet", http.StatusServiceUnavailable)
 		return
 	}
-	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, downloadURL, http.StatusFound)
+	packageURL := origin + "/" + url.PathEscape(piLangPackageFilename)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, packageURL, nil)
+	if err != nil {
+		http.Error(w, "download origin unavailable", http.StatusBadGateway)
+		return
+	}
+	req.Header.Set("Accept", "application/zip, application/octet-stream;q=0.9")
+	resp, err := piLangPackageHTTPClient.Do(req)
+	if err != nil {
+		http.Error(w, "download origin unavailable", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "download package unavailable", http.StatusBadGateway)
+		return
+	}
+	if resp.ContentLength > piLangPackageMaxBytes {
+		http.Error(w, "download package exceeds safety limit", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, piLangPackageFilename))
+	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if resp.ContentLength >= 0 {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", resp.ContentLength))
+	}
+	reader := io.Reader(resp.Body)
+	if resp.ContentLength < 0 {
+		reader = io.LimitReader(resp.Body, piLangPackageMaxBytes+1)
+	}
+	if _, err := io.Copy(w, reader); err != nil {
+		return
+	}
 }
 
 func handlePiLangPaymentAction(w http.ResponseWriter, r *http.Request, conn *sql.DB, action string) {
@@ -501,16 +544,23 @@ func piLangPaymentAmount() float64 {
 	return amount
 }
 
-func validPiLangDownloadURL() string {
-	raw := strings.TrimSpace(os.Getenv("PI_LANG_DOWNLOAD_URL"))
+func validPiLangPackageOrigin() string {
+	raw := strings.TrimSpace(os.Getenv("PI_LANG_PACKAGE_ORIGIN"))
 	if raw == "" {
 		return ""
 	}
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "https" || u.Host == "" {
+	if err != nil || u.Scheme != "http" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return ""
 	}
-	return u.String()
+	host := strings.ToLower(strings.TrimSpace(u.Hostname()))
+	if !strings.HasSuffix(host, ".railway.internal") {
+		return ""
+	}
+	if u.Path != "" && u.Path != "/" {
+		return ""
+	}
+	return strings.TrimRight(u.String(), "/")
 }
 
 func callPiPlatform(apiKey, method, path string, payload []byte) (int, []byte, error) {
