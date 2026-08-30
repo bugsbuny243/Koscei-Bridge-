@@ -5,84 +5,91 @@ This file is the repository checkpoint for continuing Koschei Web3 work across c
 ## CURRENT STATE
 
 - Active product PR: **none**.
-- Open pull requests: **none** at this checkpoint.
 - Latest verified product merge: PR **#962**, `feat(customer): add Professional state witness recheck`.
 - Verified product merge commit: `e2a0fff1f2730c3862f9679659e82ed6aa586a59`.
-- Last code-affecting verified `main` head: `34d0a8823b17a91c033a0495d3de6235ab69b949` (`fix(ci): complete retired access cleanup`).
-- Professional Transaction Preflight is the metered pre-sign decision.
-- Professional State Recheck is the immediate entitlement-only continuation and does **not** consume a second SaaS output for the same signing decision.
+- Latest verified maintenance merge: PR **#963**, `fix(ci): remove retired payment runtime references`.
+- Last code-affecting verified `main` head before this documentation checkpoint: `90d318ae4242d38383f96ffa33db86e734246c60`.
+- Professional Transaction Preflight remains the metered pre-sign decision.
+- Professional State Recheck remains the immediate entitlement-only continuation and does **not** consume a second SaaS output for the same signing decision.
 - State Recheck reuses the existing fail-closed `TransactionGuardStateRecheck` engine and never signs or broadcasts a transaction.
-- A customer receives a positive continuation only when the recheck HTTP response succeeds and reports both `ok: true` and `safe_to_proceed: true`; every other result requires withholding the prior preflight decision.
-- Retired legacy asset-based authorization has been removed from the active boot chain; paid product access remains SaaS-entitlement based.
-- Canonical OpenAPI currently represents **154 registered API paths**.
-- `main` is still not branch-protected.
-- The repository still contains many historical unprotected branches. They are not evidence of active work and must not be revived without comparing them against current `main`.
+- A positive continuation requires a successful HTTP response with both `ok: true` and `safe_to_proceed: true`; every other result requires withholding the prior preflight decision.
+- Retired legacy asset/KOSCH authorization remains outside the active commercial boot chain. Paid product access is SaaS-entitlement based, with Paddle as the current billing path.
+- The entitlement schema is migration-owned; retired request-time payment schema bootstrap is not restored.
+- Canonical OpenAPI represents **154 registered API paths**.
+- `main` remains unprotected.
+- Historical unprotected branches remain numerous and must not be revived or deleted without comparison against current `main`.
 
 ## CHANGED
 
-PR #962 added and hardened the customer-facing State Recheck path:
+### Professional State Recheck — PR #962
 
 - Added `POST /api/customer/web3/transaction-state-recheck` for Professional customers.
 - Kept Transaction Preflight metered while State Recheck uses Professional entitlement-only access.
-- Exposes recheck only for ALLOW preflights with a complete state witness and a state-bound v2/v3 enforcement permit.
+- Recheck is exposed only for ALLOW preflights with a complete state witness and a state-bound v2/v3 enforcement permit.
 - Recheck requires the exact transaction/network/witness bound by the permit and rereads only the bounded witnessed account set.
-- Customer requests reuse `KoscheiAuth`; auth initialization is awaited once so a valid Neon session can restore a missing or expired local JWT.
-- Recheck permit/witness material remains transient in page memory; raw recheck transaction text is cleared after use.
-- `pagehide` and persisted `pageshow` invalidate the recheck UI so browser back-forward cache cannot restore a dead actionable control.
-- Added shared PostgreSQL-backed abuse controls: 30 requests/minute per client IP and 12 requests/minute per verified customer subject before upstream RPC / Evidence Court work.
-- Added a dedicated required OpenAPI State Recheck request contract for `permit_token`, `transaction`, and `state_witness`; `network` defaults to `solana-mainnet`.
-- OpenAPI documents actual fail-closed 409 expired-permit and 503 unavailable/incomplete-evidence responses.
-- Fixed the pre-existing pricing-policy verifier drift.
-- All ten inline review findings raised during #962 were fixed and resolved before merge.
+- Customer requests reuse `KoscheiAuth`; permit/witness material remains transient in page memory.
+- Added PostgreSQL-backed abuse controls and the required OpenAPI request contract.
+- OpenAPI documents the actual fail-closed 409 expired-permit and 503 unavailable/incomplete-evidence behavior.
 
-The subsequent repository cleanup completed the retired legacy asset-access removal without opening a new product PR:
+### Retired legacy access cleanup
 
-- Removed the two remaining retired compatibility route registrations from the active server boot chain.
-- Removed the compatibility tombstone handler that existed only for those routes.
+- Removed retired compatibility routes and their compatibility tombstone handler from the active server boot chain.
 - Removed obsolete production-evidence fixture tests whose underlying retired snapshot had already been deleted.
-- Preserved the current generic verdict-synchronization and customer-analysis tests from the mixed historical test file.
-- Regenerated the OpenAPI contract from the exact target head, reducing the registered route contract to 154 paths.
-- Reused an existing helper branch only as a verified execution carrier; no new product branch or PR was created for the CI repair.
+- Preserved generic verdict-synchronization and customer-analysis tests.
+- Regenerated the OpenAPI contract to 154 registered paths.
+
+### Retired payment runtime repair — PR #963
+
+A later direct-main cleanup left dangling references to already-retired payment runtime code. PR #963 repaired that regression without reviving the old authorization/payment path:
+
+- Removed dead owner wrappers that still referenced `OwnerPaymentRequestsList`, `OwnerApprovePaymentRequest`, and `OwnerRejectPaymentRequest`.
+- Removed the retired `ensurePaymentSchema` dependency from `ensureOwnerSchema`.
+- Removed the same retired schema dependency from customer package status.
+- Kept package status on the existing `entitlements` data model and preserved unavailable/fail-closed behavior when the database query cannot be served.
+- Verified that `entitlements` is migration-owned (`001_entitlements_customer_id_nullable.sql` plus later Paddle billing migrations); no retired request-time bootstrap was restored.
+- Repaired a pre-existing final-newline/gofmt drift in `internal/openapi/generator.go` introduced by the preceding direct-main KOSCH classifier cleanup. The OpenAPI generator content was otherwise unchanged by that formatting repair.
 
 ## VERIFIED
 
-Focused verification for the final bounded State Recheck fixes passed:
+### PR #962
 
-- `node scripts/verify-customer-state-recheck-v1.js`
-- `node scripts/verify-customer-transaction-preflight-v1.js`
-- `node scripts/verify-customer-transaction-preflight-ui-v1.js`
-- `go test ./internal/http ./internal/handlers ./internal/openapi -count=1`
-- `go run ./cmd/openapi-gen -check`
-- `git diff --check`
+Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` passed all permanent PR workflows triggered for that head. After merge, actual product head `e2a0fff1f2730c3862f9679659e82ed6aa586a59` completed 9/9 push workflows successfully.
 
-Final PR head `6a10f08f6469bf17760bf79eca105e1361429b07` then passed all permanent PR workflows triggered for that head, including API Required CI, Release Gates Verification, Operator Exit Corpus Acceptance, Security CI, CodeQL, Supply Chain Security, OpenAPI Contract, Pricing Policy V2 Acceptance, Public Product Smoke, Enterprise API Keys V1 Acceptance, Watchlist Evidence-State V2 Acceptance, Customer Investigation UX V2 Acceptance, Canonical Investigation History V1 Acceptance, Owner Growth Console Acceptance, and Auth Freeze Guard.
+### Retired access cleanup
 
-The Operator Exit gate completed both exact synthetic merge-candidate verification and target-base freshness successfully before merge.
+The exact-head cleanup candidate passed focused handler/http/openapi tests, OpenAPI generation check with 154 registered paths, `git diff --check`, and full `go test ./...`. Verified main head `34d0a8823b17a91c033a0495d3de6235ab69b949` then completed 8/8 push workflows successfully.
 
-After merge, actual `main` product head `e2a0fff1f2730c3862f9679659e82ed6aa586a59` triggered 9 push workflows; all 9 completed successfully.
+### PR #963
 
-For retired legacy access cleanup, the exact-head candidate based on `26324611894c3ad1e18ee73745880da816a5e62e` passed:
+Final PR head `2035036be76d7854c3a286db455014cf1269e62b` passed **9/9 PR workflows**:
 
-- `go test ./internal/handlers ./internal/http ./internal/openapi -count=1`
-- `go run ./cmd/openapi-gen -check` with **154 registered API paths**
-- `git diff --check`
-- full `go test ./...`
+- API Required CI
+- Release Gates Verification
+- Operator Exit Corpus Acceptance
+- Security CI
+- CodeQL
+- Supply Chain Security
+- OpenAPI Contract
+- Public Product Smoke
+- Auth Freeze Guard
 
-The verified candidate became `main` commit `34d0a8823b17a91c033a0495d3de6235ab69b949`. The actual merged `main` head then completed **8/8 push workflows successfully** with **0 failures**. API Required CI completed secret scanning, reachable vulnerability scanning, static security analysis, PostgreSQL migration/retention checks, public JavaScript and language contracts, Go tests, vet, and production build successfully.
+The final PR verification included PostgreSQL migration and retention checks, immutable dossier storage verification, public JavaScript/language/investigation contract checks, full Go tests, vet, build, secret scanning, reachable vulnerability scanning, static security scanning, exact merge-candidate verification, and target-base freshness.
+
+PR #963 merged as `90d318ae4242d38383f96ffa33db86e734246c60`. The actual merged `main` head then triggered **7 push workflows; all 7 completed successfully with 0 failures**. API Required CI on the merged head completed migrations, retention checks, immutable dossier validation, public JS/language contracts, Go tests, vet, build, secret scanning, vulnerability scanning, and static security scanning successfully.
 
 ## BROKEN / MISSING
 
-- No known CI blocker remains on the last code-affecting verified head `34d0a8823b17a91c033a0495d3de6235ab69b949`.
+- No known CI blocker remains on verified maintenance head `90d318ae4242d38383f96ffa33db86e734246c60`.
 - No known blocker remains for the merged Professional State Recheck slice.
-- `main` remains unprotected, so repository correctness still depends on current-head discipline rather than GitHub branch protection.
-- Historical branches remain numerous and are not fully classified. Deleting or reviving them blindly could either discard unique work or reintroduce obsolete architecture.
-- The merged recheck reduces the time-of-check/time-of-signing window but cannot prove that chain state will remain unchanged after the final observation and before network execution.
+- `main` remains unprotected, so correctness still depends on exact-head discipline rather than GitHub branch-protection enforcement.
+- Historical branches are not fully classified. Deleting or reviving them blindly could discard unique work or reintroduce obsolete architecture.
+- State Recheck reduces the time-of-check/time-of-signing window but cannot prove chain state will remain unchanged after the final observation and before network execution.
 
 ## WORK-IN-PROGRESS POLICY
 
 1. Keep **one active product PR** at a time.
 2. When no product PR is active, perform repo-state / hygiene inspection before selecting another feature.
-3. A CI failure does **not** justify a new branch or PR by itself; classify the failure first.
+3. A CI failure does **not** justify a new feature branch or product PR by itself; classify the failure first.
 4. New ideas go to backlog and do not interrupt the current production slice.
 5. A stale branch or old PR is not a product requirement. Compare it to current `main` first and preserve only capability that is still genuinely missing.
 6. Do not merge stale cleanup or feature branches whose final diff no longer matches current architecture or product scope.
@@ -92,22 +99,25 @@ The verified candidate became `main` commit `34d0a8823b17a91c033a0495d3de6235ab6
 
 ## NEXT
 
-1. **Do not open a new product PR yet.**
-2. Resume repository hygiene on the historical branch set from the current `main`: classify candidates as already-contained, obsolete/superseded, or containing unique unmerged capability.
-3. Delete only branches proven safe to remove; do not use branch age or name alone as evidence.
-4. After branch hygiene reaches a stable checkpoint, inspect current `main` and choose exactly one smallest customer-useful Web3 production gap from live code/evidence.
-5. Keep Transaction Preflight / State Recheck and ARVIS evidence-first behavior as the current product line; do not fork a parallel decision engine from stale work.
+1. **Do not open a new product feature PR yet.**
+2. Resume repository hygiene from the current verified `main`.
+3. Classify historical branch candidates as already-contained, obsolete/superseded, or containing unique unmerged capability.
+4. Delete only refs proven safe to remove; branch age or name alone is not evidence.
+5. After branch hygiene reaches a stable checkpoint, inspect live `main` and choose exactly one smallest customer-useful Web3 production gap from current code/evidence.
+6. Keep Transaction Preflight / State Recheck and ARVIS evidence-first behavior as the current decision line; do not fork a parallel decision engine from stale work.
 
 ## DO NOT START
 
 - No unrelated product feature while repository hygiene is unresolved.
-- No Sentinel or Koschei Lang implementation in this repository.
+- No Koschei Lang or Sentinel implementation inside this repository; define external integration contracts when needed.
+- No revival of retired KOSCH/asset-based authorization or retired manual payment runtime.
 - No revival of stale defense-validation, ARVIS, agent, or scanner branches without a current-main diff proving the capability is still missing.
 - No fake scores, fake chain data, placeholder enterprise capabilities, or disconnected demo surfaces.
 
 ## RISKS
 
-- **Repository bloat / stale branches:** many historical branches can create false signals about what is active or missing.
-- **Unprotected main:** parallel writes can still move the target outside GitHub branch-protection enforcement.
-- **Rate policy tuning:** the current State Recheck abuse boundary is 30/min per IP and 12/min per verified customer; production traffic may justify tuning, but changes must remain evidence-driven and must not remove the bounded-cost property.
-- **Fresh-state limitation:** State Recheck proves only the bounded state observed during that recheck, not future state after the observation.
+- **Repository bloat / stale branches:** historical refs can create false signals about what is active or missing.
+- **Unprotected main:** parallel writes can move the target outside branch-protection enforcement.
+- **Retired-runtime regression risk:** future cleanup must search for callers and schema dependencies before deleting implementation files; compile success alone is not enough.
+- **Rate policy tuning:** State Recheck is currently bounded by 30/min per IP and 12/min per verified customer; changes must remain evidence-driven and bounded-cost.
+- **Fresh-state limitation:** State Recheck proves only the bounded state observed during that recheck, not future state after observation.
