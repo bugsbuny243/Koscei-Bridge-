@@ -80,7 +80,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          candidate_base="$(git rev-parse HEAD^1)"
+          candidate_base="$(git cat-file -p HEAD | awk '$1 == "parent" { print $2; exit }')"
           current="$(git ls-remote origin "refs/heads/${BASE_REF}" | awk '{print $1}')"
           if [ -z "$candidate_base" ]; then
             echo 'Could not resolve the merge candidate base parent' >&2
