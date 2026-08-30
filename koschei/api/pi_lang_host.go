@@ -2,26 +2,37 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	internaldb "koschei/api/internal/db"
 )
 
 const (
 	piLangProductionHost = "koschei-web3-hub-production.up.railway.app"
-	piPlatformBaseURL     = "https://api.minepi.com/v2"
-	piLangProductID       = "koschei-lang-test-v1"
-	piLangPaymentAmount   = 0.01
+	piPlatformBaseURL    = "https://api.minepi.com/v2"
+	piLangProductID      = "koschei-lang-license-v1"
+	piLangTestAmount     = 0.01
 )
 
 var piPlatformHTTPClient = &http.Client{Timeout: 20 * time.Second}
+
+var (
+	piLangDBOnce sync.Once
+	piLangDBConn *sql.DB
+)
 
 type piLangPaymentRequest struct {
 	PaymentID string `json:"paymentId"`
@@ -30,6 +41,7 @@ type piLangPaymentRequest struct {
 
 type piLangPaymentRecord struct {
 	Identifier string                 `json:"identifier"`
+	UserUID    string                 `json:"user_uid"`
 	Amount     float64                `json:"amount"`
 	Direction  string                 `json:"direction"`
 	Network    string                 `json:"network"`
@@ -45,11 +57,27 @@ type piLangPaymentRecord struct {
 	} `json:"transaction"`
 }
 
+type piLangUser struct {
+	UID      string `json:"uid"`
+	Username string `json:"username,omitempty"`
+}
+
+type piLangEntitlement struct {
+	UserUID   string
+	Username  string
+	PaymentID string
+	TxID      string
+	Network   string
+	Amount    float64
+	CreatedAt time.Time
+}
+
 // piLangHostSurface gives Koschei Lang its own root-domain surface on the
 // Railway service domain without changing tradepigloball.co or its existing
 // Pi validation file. Pi requires an app URL with no path component, so the
 // same Go service dispatches by Host instead of creating another service.
 func piLangHostSurface(next http.Handler, staticDir string) http.Handler {
+	conn := piLangDatabase()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !isPiLangHost(r.Host) {
 			next.ServeHTTP(w, r)
@@ -85,21 +113,65 @@ func piLangHostSurface(next http.Handler, staticDir string) http.Handler {
 			servePiLangValidationKey(w, r)
 			return
 		case "/api/pi/ready":
-			servePiLangPaymentReadiness(w, r)
+			servePiLangPaymentReadiness(w, r, conn)
+			return
+		case "/api/pi/entitlement":
+			servePiLangEntitlement(w, r, conn)
+			return
+		case "/api/pi/download":
+			servePiLangDownload(w, r, conn)
 			return
 		case "/api/pi/payment/approve":
-			handlePiLangPaymentAction(w, r, "approve")
+			handlePiLangPaymentAction(w, r, conn, "approve")
 			return
 		case "/api/pi/payment/complete":
-			handlePiLangPaymentAction(w, r, "complete")
+			handlePiLangPaymentAction(w, r, conn, "complete")
 			return
 		case "/api/pi/payment/cancel":
-			handlePiLangPaymentAction(w, r, "cancel")
+			handlePiLangPaymentAction(w, r, conn, "cancel")
 			return
 		default:
 			next.ServeHTTP(w, r)
 		}
 	})
+}
+
+func piLangDatabase() *sql.DB {
+	piLangDBOnce.Do(func() {
+		databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+		if databaseURL == "" {
+			return
+		}
+		conn, err := internaldb.Connect(databaseURL)
+		if err != nil {
+			return
+		}
+		piLangDBConn = conn
+	})
+	return piLangDBConn
+}
+
+func ensurePiLangSchema(ctx context.Context, conn *sql.DB) error {
+	if conn == nil {
+		return errors.New("database unavailable")
+	}
+	_, err := conn.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS pi_lang_entitlements (
+  id BIGSERIAL PRIMARY KEY,
+  user_uid TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL DEFAULT '',
+  product_id TEXT NOT NULL,
+  payment_id TEXT NOT NULL UNIQUE,
+  txid TEXT NOT NULL UNIQUE,
+  network TEXT NOT NULL,
+  amount NUMERIC(20,7) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pi_lang_entitlements_status ON pi_lang_entitlements(status);
+`)
+	return err
 }
 
 func servePiLangValidationKey(w http.ResponseWriter, r *http.Request) {
@@ -122,33 +194,98 @@ func servePiLangValidationKey(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(key + "\n"))
 }
 
-func servePiLangPaymentReadiness(w http.ResponseWriter, r *http.Request) {
+func servePiLangPaymentReadiness(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	if strings.TrimSpace(os.Getenv("PI_LANG_API_KEY")) == "" {
+	if strings.TrimSpace(os.Getenv("PI_LANG_API_KEY")) == "" || conn == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		if r.Method == http.MethodGet {
 			_, _ = w.Write([]byte(`{"ready":false,"reason":"payment-backend-not-configured"}`))
 		}
 		return
 	}
+	if err := ensurePiLangSchema(r.Context(), conn); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`{"ready":false,"reason":"entitlement-store-unavailable"}`))
+		}
+		return
+	}
 	if r.Method == http.MethodGet {
-		_, _ = fmt.Fprintf(w, `{"ready":true,"network":"testnet","amount":%.2f}`, piLangPaymentAmount)
+		_, _ = fmt.Fprintf(w, `{"ready":true,"network":"testnet","amount":%.2f,"product":%q}`, piLangPaymentAmount(), piLangProductID)
 	}
 }
 
-func handlePiLangPaymentAction(w http.ResponseWriter, r *http.Request, action string) {
+func servePiLangEntitlement(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := verifyPiLangUser(r)
+	if err != nil {
+		http.Error(w, "Pi authentication required", http.StatusUnauthorized)
+		return
+	}
+	ent, found, err := loadPiLangEntitlement(r.Context(), conn, user.UID)
+	if err != nil {
+		http.Error(w, "entitlement store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if !found {
+		_, _ = fmt.Fprintf(w, `{"licensed":false,"uid":%q,"username":%q}`, user.UID, user.Username)
+		return
+	}
+	_, _ = fmt.Fprintf(w, `{"licensed":true,"uid":%q,"username":%q,"network":%q,"amount":%.7f,"created_at":%q,"download_ready":%t}`,
+		ent.UserUID, ent.Username, ent.Network, ent.Amount, ent.CreatedAt.UTC().Format(time.RFC3339), validPiLangDownloadURL() != "")
+}
+
+func servePiLangDownload(w http.ResponseWriter, r *http.Request, conn *sql.DB) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := verifyPiLangUser(r)
+	if err != nil {
+		http.Error(w, "Pi authentication required", http.StatusUnauthorized)
+		return
+	}
+	_, found, err := loadPiLangEntitlement(r.Context(), conn, user.UID)
+	if err != nil {
+		http.Error(w, "entitlement store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if !found {
+		http.Error(w, "Koschei Lang license required", http.StatusPaymentRequired)
+		return
+	}
+	downloadURL := validPiLangDownloadURL()
+	if downloadURL == "" {
+		http.Error(w, "licensed download package is not published yet", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, downloadURL, http.StatusFound)
+}
+
+func handlePiLangPaymentAction(w http.ResponseWriter, r *http.Request, conn *sql.DB, action string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	apiKey := strings.TrimSpace(os.Getenv("PI_LANG_API_KEY"))
-	if apiKey == "" {
+	if apiKey == "" || conn == nil {
 		http.Error(w, "Pi payment backend is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	user, err := verifyPiLangUser(r)
+	if err != nil {
+		http.Error(w, "Pi authentication required", http.StatusUnauthorized)
 		return
 	}
 
@@ -170,13 +307,27 @@ func handlePiLangPaymentAction(w http.ResponseWriter, r *http.Request, action st
 		return
 	}
 
+	if ent, found, err := loadPiLangEntitlement(r.Context(), conn, user.UID); err != nil {
+		http.Error(w, "entitlement store unavailable", http.StatusServiceUnavailable)
+		return
+	} else if found {
+		if action == "complete" && ent.PaymentID == input.PaymentID {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = w.Write([]byte(`{"licensed":true,"idempotent":true}`))
+			return
+		}
+		http.Error(w, "Koschei Lang is already licensed for this Pi account", http.StatusConflict)
+		return
+	}
+
 	payment, err := fetchPiLangPayment(apiKey, input.PaymentID)
 	if err != nil {
 		http.Error(w, "unable to verify Pi payment", http.StatusBadGateway)
 		return
 	}
-	if err := validatePiLangPayment(payment, input.PaymentID); err != nil {
-		http.Error(w, "payment does not match Koschei Lang test purchase", http.StatusForbidden)
+	if err := validatePiLangPayment(payment, input.PaymentID, user.UID); err != nil {
+		http.Error(w, "payment does not match Koschei Lang purchase", http.StatusForbidden)
 		return
 	}
 
@@ -189,10 +340,115 @@ func handlePiLangPaymentAction(w http.ResponseWriter, r *http.Request, action st
 		http.Error(w, "Pi Platform request failed", http.StatusBadGateway)
 		return
 	}
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write(responseBody)
+		return
+	}
+
+	if action == "complete" {
+		if err := grantPiLangEntitlement(r.Context(), conn, user, payment, input.TxID); err != nil {
+			http.Error(w, "payment completed but license activation failed", http.StatusServiceUnavailable)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(responseBody)
+}
+
+func verifyPiLangUser(r *http.Request) (piLangUser, error) {
+	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	if token == "" || len(token) > 4096 {
+		return piLangUser{}, errors.New("missing bearer token")
+	}
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, piPlatformBaseURL+"/me", nil)
+	if err != nil {
+		return piLangUser{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+	resp, err := piPlatformHTTPClient.Do(req)
+	if err != nil {
+		return piLangUser{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return piLangUser{}, fmt.Errorf("Pi /me returned %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return piLangUser{}, err
+	}
+	var user piLangUser
+	if err := json.Unmarshal(body, &user); err != nil {
+		return piLangUser{}, err
+	}
+	user.UID = strings.TrimSpace(user.UID)
+	user.Username = strings.TrimSpace(user.Username)
+	if !safePiIdentifier(user.UID) {
+		return piLangUser{}, errors.New("invalid Pi uid")
+	}
+	return user, nil
+}
+
+func grantPiLangEntitlement(ctx context.Context, conn *sql.DB, user piLangUser, payment piLangPaymentRecord, txid string) error {
+	if err := ensurePiLangSchema(ctx, conn); err != nil {
+		return err
+	}
+	_, err := conn.ExecContext(ctx, `
+INSERT INTO pi_lang_entitlements (user_uid, username, product_id, payment_id, txid, network, amount, status, updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,'active',NOW())
+ON CONFLICT (user_uid) DO UPDATE SET
+  username = EXCLUDED.username,
+  product_id = EXCLUDED.product_id,
+  payment_id = CASE WHEN pi_lang_entitlements.payment_id = EXCLUDED.payment_id THEN pi_lang_entitlements.payment_id ELSE pi_lang_entitlements.payment_id END,
+  txid = CASE WHEN pi_lang_entitlements.payment_id = EXCLUDED.payment_id THEN EXCLUDED.txid ELSE pi_lang_entitlements.txid END,
+  network = EXCLUDED.network,
+  amount = EXCLUDED.amount,
+  status = 'active',
+  updated_at = NOW()
+`, user.UID, user.Username, piLangProductID, payment.Identifier, txid, payment.Network, payment.Amount)
+	if err != nil {
+		return err
+	}
+
+	// Reject replay: a payment or blockchain transaction may belong to only one
+	// entitlement. Unique constraints enforce this even under concurrent calls.
+	var ownerUID string
+	if err := conn.QueryRowContext(ctx, `SELECT user_uid FROM pi_lang_entitlements WHERE payment_id=$1 AND txid=$2`, payment.Identifier, txid).Scan(&ownerUID); err != nil {
+		return err
+	}
+	if ownerUID != user.UID {
+		return errors.New("payment already belongs to another entitlement")
+	}
+	return nil
+}
+
+func loadPiLangEntitlement(ctx context.Context, conn *sql.DB, uid string) (piLangEntitlement, bool, error) {
+	if conn == nil {
+		return piLangEntitlement{}, false, errors.New("database unavailable")
+	}
+	if err := ensurePiLangSchema(ctx, conn); err != nil {
+		return piLangEntitlement{}, false, err
+	}
+	var ent piLangEntitlement
+	var status string
+	err := conn.QueryRowContext(ctx, `
+SELECT user_uid, username, payment_id, txid, network, amount::float8, status, created_at
+FROM pi_lang_entitlements
+WHERE user_uid=$1
+`, uid).Scan(&ent.UserUID, &ent.Username, &ent.PaymentID, &ent.TxID, &ent.Network, &ent.Amount, &status, &ent.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return piLangEntitlement{}, false, nil
+	}
+	if err != nil {
+		return piLangEntitlement{}, false, err
+	}
+	return ent, status == "active", nil
 }
 
 func fetchPiLangPayment(apiKey, paymentID string) (piLangPaymentRecord, error) {
@@ -210,14 +466,17 @@ func fetchPiLangPayment(apiKey, paymentID string) (piLangPaymentRecord, error) {
 	return payment, nil
 }
 
-func validatePiLangPayment(payment piLangPaymentRecord, expectedID string) error {
+func validatePiLangPayment(payment piLangPaymentRecord, expectedID, expectedUID string) error {
 	if payment.Identifier != expectedID {
 		return errors.New("payment identifier mismatch")
+	}
+	if payment.UserUID != expectedUID {
+		return errors.New("payment user mismatch")
 	}
 	if strings.ToLower(strings.TrimSpace(payment.Direction)) != "user_to_app" {
 		return errors.New("unexpected payment direction")
 	}
-	if math.Abs(payment.Amount-piLangPaymentAmount) > 0.000001 {
+	if math.Abs(payment.Amount-piLangPaymentAmount()) > 0.000001 {
 		return errors.New("unexpected payment amount")
 	}
 	product, _ := payment.Metadata["product"].(string)
@@ -228,6 +487,30 @@ func validatePiLangPayment(payment piLangPaymentRecord, expectedID string) error
 		return errors.New("payment is cancelled")
 	}
 	return nil
+}
+
+func piLangPaymentAmount() float64 {
+	value := strings.TrimSpace(os.Getenv("PI_LANG_PRICE"))
+	if value == "" {
+		return piLangTestAmount
+	}
+	var amount float64
+	if _, err := fmt.Sscanf(value, "%f", &amount); err != nil || amount <= 0 || amount > 1000000 {
+		return piLangTestAmount
+	}
+	return amount
+}
+
+func validPiLangDownloadURL() string {
+	raw := strings.TrimSpace(os.Getenv("PI_LANG_DOWNLOAD_URL"))
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return ""
+	}
+	return u.String()
 }
 
 func callPiPlatform(apiKey, method, path string, payload []byte) (int, []byte, error) {
