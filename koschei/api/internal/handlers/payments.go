@@ -27,8 +27,8 @@ type entitlementActivationResult struct {
 }
 
 type entitlementRevocationResult struct {
-	Revoked   bool
-	Email     string
+	Revoked     bool
+	Email       string
 	ProfilePlan string
 }
 
