@@ -60,12 +60,12 @@ func (h *Handler) SecurityRadarExposureReport(w http.ResponseWriter, r *http.Req
 		token2022Section, analysisSummary, requestedMode,
 	)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
-		"report": report,
-		"final_verdict": assembly.UnifiedVerdict,
-		"decision": canonicalDecision,
+		"ok":               true,
+		"report":           report,
+		"final_verdict":    assembly.UnifiedVerdict,
+		"decision":         canonicalDecision,
 		"analysis_summary": analysisSummary,
-		"arms": arms,
+		"arms":             arms,
 	})
 }
 
@@ -97,26 +97,26 @@ func buildSecurityRadarExposureReport(target, network string, final services.Uni
 		"liquidity":             exposureSectionFromArm(arms, services.ModuleLiquidityMovement, exposureLiquiditySignalKeys()),
 	}
 	return map[string]any{
-		"schema_version": "koschei-exposure-report-v2",
-		"generated_at":   time.Now().UTC().Format(time.RFC3339),
-		"target":         target,
-		"network":        network,
-		"requested_mode": requestedMode,
-		"execution_mode": exposureReportExecutionMode,
-		"verdict":        final,
-		"decision":       canonicalDecision,
+		"schema_version":   "koschei-exposure-report-v2",
+		"generated_at":     time.Now().UTC().Format(time.RFC3339),
+		"target":           target,
+		"network":          network,
+		"requested_mode":   requestedMode,
+		"execution_mode":   exposureReportExecutionMode,
+		"verdict":          final,
+		"decision":         canonicalDecision,
 		"analysis_summary": analysisSummary,
 		"summary": map[string]any{
-			"verified_arm_count":         verified,
-			"unavailable_arm_count":      unavailable,
-			"token_2022_extension_count": exposureIntFromMap(token2022Section, "extension_count"),
-			"token_2022_status":          token2022Section["status"],
-			"grade":                      final.Grade,
-			"verdict":                    final.Verdict,
-			"ruleset_version":            final.RulesetVersion,
-			"signed":                     final.Signed,
-			"action":                     canonicalDecision.Action,
-			"withhold_reason":            canonicalDecision.WithholdReason,
+			"verified_arm_count":           verified,
+			"unavailable_arm_count":        unavailable,
+			"token_2022_extension_count":   exposureIntFromMap(token2022Section, "extension_count"),
+			"token_2022_status":            token2022Section["status"],
+			"grade":                        final.Grade,
+			"verdict":                      final.Verdict,
+			"ruleset_version":              final.RulesetVersion,
+			"signed":                       final.Signed,
+			"action":                       canonicalDecision.Action,
+			"withhold_reason":              canonicalDecision.WithholdReason,
 			"numeric_final_score_disabled": true,
 		},
 		"risk_taxonomy":     exposureRiskTaxonomy(arms, token2022Section),
@@ -176,13 +176,13 @@ func exposureClusterAssessment(arms []services.SecurityRadarVerdict) map[string]
 		status = "relationship_inputs_partial"
 	}
 	return map[string]any{
-		"status": status,
+		"status":                        status,
 		"confirmed_same_wallet_cluster": confirmed,
-		"safe_public_language": "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
-		"required_evidence": []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
-		"funding_cluster": exposureCompactArm(funding),
-		"creator_link": exposureCompactArm(creator),
-		"graph_context": exposureCompactArm(graph),
+		"safe_public_language":          "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
+		"required_evidence":             []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
+		"funding_cluster":               exposureCompactArm(funding),
+		"creator_link":                  exposureCompactArm(creator),
+		"graph_context":                 exposureCompactArm(graph),
 	}
 }
 
@@ -244,13 +244,13 @@ func exposureShareableSummary(target string, final services.UnifiedRadarVerdict,
 
 func exposureEvidencePolicy() map[string]any {
 	return map[string]any{
-		"no_evidence_no_claim": true,
-		"missing_evidence_is_not_safe": true,
-		"numeric_final_score_disabled": true,
-		"unsigned_result_is_not_approval": true,
+		"no_evidence_no_claim":               true,
+		"missing_evidence_is_not_safe":       true,
+		"numeric_final_score_disabled":       true,
+		"unsigned_result_is_not_approval":    true,
 		"same_wallet_cluster_claim_requires": []string{"owner mapping", "funding relation", "creator relation or parsed coordinated transaction evidence"},
-		"safe_terms": []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
-		"blocked_terms_without_proof": []string{"scam", "rug", "fraud", "same owner controls all wallets"},
+		"safe_terms":                         []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
+		"blocked_terms_without_proof":        []string{"scam", "rug", "fraud", "same owner controls all wallets"},
 	}
 }
 
