@@ -57,33 +57,59 @@ func creatorLinkEvidenceArm(req SecurityRadarRequest, creator string, launch Lau
 	if creator == "" {
 		return evidencePendingArm("Creator Link Analysis", ModuleCreatorLinkAnalysis, req, generatedAt, "Creator/deployer wallet was not present in the source or parsed launch context.", "creator_relation_unresolved")
 	}
+	canonicalVerified := creatorRelationCanonicalVerified(launch)
+	evidenceStatus := "observed"
+	if canonicalVerified {
+		evidenceStatus = "verified"
+	}
 	signals := map[string]any{
 		"module_id":                         ModuleCreatorLinkAnalysis,
-		"real_onchain_evidence":             true,
-		"evidence_status":                   "observed",
+		"real_onchain_evidence":             canonicalVerified,
+		"real_offchain_evidence":            !canonicalVerified,
+		"verified_evidence":                 canonicalVerified,
+		"evidence_status":                   evidenceStatus,
 		"execution_status":                  ArvisExecutionCompleted,
 		"collector_attempted":               true,
 		"applicable":                        true,
 		"finding_observed":                  true,
 		"creator_wallet":                    creator,
 		"observed_role":                     "creator_deployer",
+		"creator_relation_observed":         true,
+		"creator_relation_verified":         canonicalVerified,
 		"creator_linked_launch_actor_count": launch.CreatorLinkedCount,
 		"launch_data_source":                launch.DataSource,
+		"launch_slot":                       launch.LaunchSlot,
+		"launch_time":                       launch.LaunchTime,
+		"launch_time_source":                launch.LaunchTimeSource,
 		"identity_or_wrongdoing_claim":      false,
 		"numeric_score_disabled":            true,
 		"grade_effect":                      "none_at_arm_layer",
 	}
 	evidence := []string{
-		fmt.Sprintf("Creator/deployer wallet observed for mint %s: %s.", req.Target, creator),
-		"This relation is an on-chain/source observation and is not a real-world identity or wrongdoing claim.",
+		fmt.Sprintf("Creator/deployer wallet attribution observed for mint %s: %s.", req.Target, creator),
+		"This relation is a wallet-level technical observation and is not a real-world identity or wrongdoing claim.",
+	}
+	if canonicalVerified {
+		evidence = append(evidence, fmt.Sprintf("Canonical Solana create-transaction anchor verified the creator relation at slot %d (%s).", launch.LaunchSlot, launch.LaunchTimeSource))
+	} else {
+		evidence = append(evidence, "Canonical create-transaction verification is not attached to this creator relation; the attribution remains OBSERVED and must not be represented as VERIFIED on-chain evidence.")
 	}
 	if launch.CreatorLinkedCount > 0 {
 		evidence = append(evidence, fmt.Sprintf("Launch analysis observed %d recipient/holder profile(s) with creator-linked funding evidence.", launch.CreatorLinkedCount))
 	}
 	arm := evidenceArm("Creator Link Analysis", ModuleCreatorLinkAnalysis, req, 0, signals, evidence, generatedAt)
-	arm.Verdict = "Creator/deployer relation observed; cross-token reuse is owned by Repeat Actor Scan and final interpretation belongs to the unified rules engine."
-	arm.Recommendation = "Inspect persistent created-token history and direct creator-to-holder transaction evidence."
+	if canonicalVerified {
+		arm.Verdict = "Creator/deployer relation is VERIFIED by the canonical create-transaction anchor; cross-token reuse is owned by Repeat Actor Scan and final interpretation belongs to the unified rules engine."
+	} else {
+		arm.Verdict = "Creator/deployer attribution is OBSERVED but not canonically verified on-chain; cross-token reuse is owned by Repeat Actor Scan and final interpretation belongs to the unified rules engine."
+	}
+	arm.Recommendation = "Inspect the canonical create transaction, persistent created-token history and direct creator-to-holder transaction evidence."
 	return arm
+}
+
+func creatorRelationCanonicalVerified(launch LaunchForensicsAnalysis) bool {
+	source := strings.ToLower(strings.TrimSpace(launch.LaunchTimeSource))
+	return launch.LaunchSlot > 0 && strings.HasPrefix(source, "verified_canonical_create_")
 }
 
 func liquidityMovementEvidenceArm(req SecurityRadarRequest, market TokenMarketSnapshot, generatedAt string) SecurityRadarVerdict {
