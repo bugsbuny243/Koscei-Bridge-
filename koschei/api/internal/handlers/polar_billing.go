@@ -42,13 +42,17 @@ type polarWebhookEnvelope struct {
 }
 
 type polarSubscription struct {
-	ID               string         `json:"id"`
-	Status           string         `json:"status"`
-	CustomerID       string         `json:"customer_id"`
-	ProductID        string         `json:"product_id"`
-	CheckoutID       string         `json:"checkout_id"`
-	CurrentPeriodEnd string         `json:"current_period_end"`
-	Metadata         map[string]any `json:"metadata"`
+	ID               string             `json:"id"`
+	Status           string             `json:"status"`
+	CustomerID       string             `json:"customer_id"`
+	ProductID        string             `json:"product_id"`
+	CheckoutID       string             `json:"checkout_id"`
+	CurrentPeriodEnd string             `json:"current_period_end"`
+	Metadata         map[string]any     `json:"metadata"`
+	BillingReason    string             `json:"billing_reason"`
+	Paid             bool               `json:"paid"`
+	SubscriptionID   string             `json:"subscription_id"`
+	Subscription     *polarSubscription `json:"subscription"`
 }
 
 type polarCheckoutCreate struct {
@@ -208,7 +212,7 @@ func (h *Handler) PolarWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	occurredAt := polarOccurredAt(envelope.Timestamp, signedAt)
-	subscription := envelope.Data
+	subscription := polarSubscriptionForEnvelope(envelope)
 	subscription.ID = strings.TrimSpace(subscription.ID)
 	subscription.ProductID = strings.TrimSpace(subscription.ProductID)
 	plan := cfg.PlanForProduct(subscription.ProductID)
@@ -250,8 +254,8 @@ func (h *Handler) PolarWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch envelope.Type {
-	case "subscription.active", "subscription.revoked":
+	requiresSubscriptionBinding := envelope.Type == "subscription.active" || envelope.Type == "subscription.revoked" || polarIsPaidSubscriptionCycle(envelope)
+	if requiresSubscriptionBinding {
 		if subscription.ID == "" || plan == "" || metadataPlan != plan || authSubject == "" || email == "" {
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "subscription_binding_missing"})
 			return
@@ -307,6 +311,27 @@ func (h *Handler) PolarWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		response["entitlement_activated"] = activation.Activated
 		response["plan"] = plan
+	case "order.paid":
+		if !polarIsPaidSubscriptionCycle(envelope) {
+			response["entitlement_changed"] = false
+			break
+		}
+		if !strings.EqualFold(strings.TrimSpace(subscription.Status), "active") {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "renewal_subscription_not_active"})
+			return
+		}
+		refreshed, err := refreshPackageEntitlementPeriodTx(r.Context(), tx, "polar", subscription.ID, plan, polarNullableTime(subscription.CurrentPeriodEnd))
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "renewal_entitlement_missing"})
+			return
+		}
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "entitlement_renewal_failed"})
+			return
+		}
+		response["entitlement_refreshed"] = true
+		response["plan"] = refreshed.PackageID
+		response["outputs_remaining"] = refreshed.OutputsRemaining
 	case "subscription.revoked":
 		revocation, err := revokePackageEntitlementDetailedTx(r.Context(), tx, "polar", subscription.ID)
 		if err != nil {
@@ -382,6 +407,31 @@ func verifyPolarWebhookSignature(id, timestampHeader, signatureHeader string, ra
 		}
 	}
 	return "", time.Time{}, errors.New("polar webhook signature mismatch")
+}
+
+func polarIsPaidSubscriptionCycle(envelope polarWebhookEnvelope) bool {
+	return envelope.Type == "order.paid" && envelope.Data.Paid && strings.EqualFold(strings.TrimSpace(envelope.Data.BillingReason), "subscription_cycle")
+}
+
+func polarSubscriptionForEnvelope(envelope polarWebhookEnvelope) polarSubscription {
+	if envelope.Type != "order.paid" {
+		return envelope.Data
+	}
+	order := envelope.Data
+	if order.Subscription == nil {
+		return polarSubscription{ID: strings.TrimSpace(order.SubscriptionID), ProductID: strings.TrimSpace(order.ProductID), Metadata: order.Metadata}
+	}
+	subscription := *order.Subscription
+	if strings.TrimSpace(subscription.ID) == "" {
+		subscription.ID = strings.TrimSpace(order.SubscriptionID)
+	}
+	if strings.TrimSpace(subscription.ProductID) == "" {
+		subscription.ProductID = strings.TrimSpace(order.ProductID)
+	}
+	if len(subscription.Metadata) == 0 {
+		subscription.Metadata = order.Metadata
+	}
+	return subscription
 }
 
 func polarMetadataString(values map[string]any, key string) string {

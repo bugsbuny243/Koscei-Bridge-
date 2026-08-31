@@ -21,8 +21,9 @@ Any provider identifier outside the explicit allowlist is rejected. Retired Padd
 5. The backend verifies the raw webhook body and signed delivery headers before parsing or trusting event data.
 6. For `subscription.active`, the backend verifies the product-to-plan mapping and the authenticated-subject/email metadata binding, records an idempotent evidence digest, and activates the server-side entitlement.
 7. `subscription.canceled` and `subscription.past_due` are recorded but do not immediately revoke Koschei access; Polar can keep paid-period/grace-period access alive in those states.
-8. For `subscription.revoked`, only the entitlement carrying the exact `polar` provider plus subscription ID evidence is revoked. Other manual/provider grants are not touched, and the customer profile is recomputed from any remaining active entitlement.
-9. Duplicate events are idempotent, and an older `subscription.active` event cannot re-enable access after a newer/equal recorded revocation.
+8. A verified `order.paid` with `billing_reason=subscription_cycle` and an active, correctly bound subscription refreshes that exact Polar entitlement period and restores the plan output capacity. Pending `order.created`, unpaid orders, purchases and proration orders do not refresh quota.
+9. For `subscription.revoked`, only the entitlement carrying the exact `polar` provider plus subscription ID evidence is revoked. Other manual/provider grants are not touched, and the customer profile is recomputed from any remaining active entitlement.
+10. Duplicate events are idempotent, and an older `subscription.active` event cannot re-enable access after a newer/equal recorded revocation.
 
 The frontend never controls plan authority, output capacity, entitlement status, webhook verification or provider-to-plan mapping.
 
@@ -38,6 +39,8 @@ The deployment supplies these values as secrets/configuration, not source code:
 - `POLAR_ENVIRONMENT` (`production` or `sandbox`)
 - optional HTTPS-only `POLAR_SUCCESS_URL`
 - optional HTTPS-only `POLAR_RETURN_URL`
+
+Required Polar webhook events: `subscription.active`, `subscription.revoked`, and `order.paid`. Other signed subscription events may be retained as audit evidence but do not independently grant paid access.
 
 No Polar public-config endpoint exists. A missing token, webhook secret, product mapping, unsupported environment, invalid redirect URL, unknown provider or mismatched customer/product evidence fails closed.
 

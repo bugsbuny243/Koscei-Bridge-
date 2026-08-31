@@ -195,6 +195,33 @@ func activatePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, email
 	return entitlementActivationResult{Activated: true, PackageID: packageID, OutputsTotal: outputs, OutputsRemaining: outputs}, nil
 }
 
+func refreshPackageEntitlementPeriodTx(ctx context.Context, tx *sql.Tx, paymentProvider, externalPaymentID, packageID string, expiresAt any) (entitlementActivationResult, error) {
+	if tx == nil {
+		return entitlementActivationResult{}, errors.New("db transaction nil")
+	}
+	provider := normalizePaymentProvider(paymentProvider)
+	externalPaymentID = strings.TrimSpace(externalPaymentID)
+	packageID = normalizePackageID(packageID)
+	outputs, ok := packageOutputCount(packageID)
+	if provider == "" || externalPaymentID == "" || !ok || outputs <= 0 {
+		return entitlementActivationResult{}, errors.New("invalid entitlement renewal input")
+	}
+
+	var email string
+	err := tx.QueryRowContext(ctx, `
+		UPDATE entitlements
+		SET outputs_total=$4, outputs_remaining=$4, starts_at=now(), expires_at=$5, updated_at=now()
+		WHERE payment_provider=$1 AND external_payment_id=$2 AND plan_id=$3 AND status='active'
+		RETURNING lower(COALESCE(email,''))`, provider, externalPaymentID, packageID, outputs, expiresAt).Scan(&email)
+	if err != nil {
+		return entitlementActivationResult{}, err
+	}
+	if strings.TrimSpace(email) == "" {
+		return entitlementActivationResult{}, errors.New("renewed entitlement missing email")
+	}
+	return entitlementActivationResult{Activated: false, PackageID: packageID, OutputsTotal: outputs, OutputsRemaining: outputs}, nil
+}
+
 // revokePackageEntitlementDetailedTx revokes only the entitlement carrying the
 // exact provider/external-payment evidence. It then derives the profile plan
 // from any other still-active entitlement instead of blindly downgrading the

@@ -117,3 +117,37 @@ func TestCreatePolarCheckoutRejectsInsecureHostedURL(t *testing.T) {
 		t.Fatal("insecure checkout URL accepted")
 	}
 }
+
+func TestPolarPaidSubscriptionCycleNormalization(t *testing.T) {
+	envelope := polarWebhookEnvelope{
+		Type: "order.paid",
+		Data: polarSubscription{
+			Paid:           true,
+			BillingReason:  "subscription_cycle",
+			SubscriptionID: "sub_123",
+			ProductID:      "prod_starter",
+			Subscription: &polarSubscription{
+				Status:           "active",
+				CurrentPeriodEnd: "2026-10-01T00:00:00Z",
+				Metadata: map[string]any{
+					"koschei_auth_subject": "auth-123",
+					"koschei_email":        "user@example.com",
+					"koschei_plan":         "starter",
+				},
+			},
+		},
+	}
+	if !polarIsPaidSubscriptionCycle(envelope) {
+		t.Fatal("paid subscription cycle not recognized")
+	}
+	subscription := polarSubscriptionForEnvelope(envelope)
+	if subscription.ID != "sub_123" || subscription.ProductID != "prod_starter" || subscription.Status != "active" {
+		t.Fatalf("unexpected normalized renewal subscription: %#v", subscription)
+	}
+	if polarIsPaidSubscriptionCycle(polarWebhookEnvelope{Type: "order.paid", Data: polarSubscription{Paid: false, BillingReason: "subscription_cycle"}}) {
+		t.Fatal("unpaid order accepted as renewal")
+	}
+	if polarIsPaidSubscriptionCycle(polarWebhookEnvelope{Type: "order.paid", Data: polarSubscription{Paid: true, BillingReason: "subscription_update"}}) {
+		t.Fatal("proration order accepted as renewal")
+	}
+}
