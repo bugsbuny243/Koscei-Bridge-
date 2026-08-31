@@ -1,77 +1,36 @@
 # Koschei payment path
 
-## Supported payment path: Paddle
+## Supported billing boundary
 
-Paddle is the sole supported SaaS payment provider for the canonical paid plans: **Starter**, **Professional**, and **Enterprise**.
+Koschei Web3 keeps billing and product authorization separate. **Starter**, **Professional**, and **Enterprise** access is granted only through an active server-side entitlement.
 
-### Canonical Paddle production catalog
+The repository does not expose a browser-controlled price or a client-side entitlement activation path. Payment-provider data is treated as external evidence for an entitlement decision, not as authority supplied by the frontend.
 
-Create exactly these three recurring subscription products/prices in Paddle before enabling checkout:
+## Supported provider records
 
-| Koschei plan | Paddle product name | Billing cadence | USD price | Required server price ID |
-| --- | --- | --- | ---: | --- |
-| `starter` | Koschei Starter | Monthly recurring | $299 | `PADDLE_STARTER_PRICE_ID` |
-| `professional` | Koschei Professional | Monthly recurring | $999 | `PADDLE_PROFESSIONAL_PRICE_ID` |
-| `enterprise` | Koschei Enterprise | Monthly recurring | $4,999 | `PADDLE_ENTERPRISE_PRICE_ID` |
+Current entitlement activation accepts the existing `shopier`, `shopier_manual`, and `owner_manual` provider records. Provider-specific secrets remain server-side and must never be embedded in the frontend bundle or committed to the repository.
 
-Optional product IDs may also be configured as `PADDLE_STARTER_PRODUCT_ID`, `PADDLE_PROFESSIONAL_PRODUCT_ID`, and `PADDLE_ENTERPRISE_PRODUCT_ID`, but the checkout path is authorized by the server-side **price IDs**.
+## Authorization flow
 
-The public pricing page is an ARVIS early-access surface. The current production focus is wallet-address investigation. Higher-tier radar/developer routes can remain entitlement-gated while they complete production validation; the catalog must not describe unfinished modules as already-complete production features.
+1. A customer has an authenticated Koschei account.
+2. A supported server-side billing or owner workflow records the payment/approval evidence.
+3. The backend validates the canonical plan identifier and provider record.
+4. The backend activates or updates the customer's entitlement.
+5. Premium access is derived only from an active, non-expired entitlement.
+6. If billing evidence or entitlement state is unavailable, paid access remains unavailable.
 
-### Required production configuration
+The frontend never controls plan authority, output capacity, entitlement status, or provider verification.
 
-Set these server-side values in the deployment environment:
+## Canonical paid plans
 
-```text
-PADDLE_ENV=production
-PADDLE_API_KEY=
-PADDLE_CLIENT_TOKEN=
-PADDLE_WEBHOOK_SECRET=
-PADDLE_STARTER_PRICE_ID=
-PADDLE_PROFESSIONAL_PRICE_ID=
-PADDLE_ENTERPRISE_PRICE_ID=
-PADDLE_STARTER_PRODUCT_ID=
-PADDLE_PROFESSIONAL_PRODUCT_ID=
-PADDLE_ENTERPRISE_PRODUCT_ID=
-PUBLIC_APP_URL=https://tradepigloball.co
-PADDLE_CHECKOUT_URL=https://tradepigloball.co/paddle-checkout
-```
+| Plan | Canonical ID | Current output capacity |
+| --- | --- | ---: |
+| Starter | `starter` | 25 |
+| Professional | `professional` | 100 |
+| Enterprise | `enterprise` | 300 |
 
-The Paddle notification destination is:
+These capacities describe the current entitlement implementation. Product pages must not describe unfinished security modules as production-ready merely because a plan exists.
 
-```text
-https://tradepigloball.co/api/paddle/webhook
-```
+## Historical records
 
-The billing service currently processes `transaction.completed`. The webhook secret must match that notification destination.
-
-### Readiness gate
-
-`GET /paddle/public-config` is the browser-safe readiness source. Checkout must remain fail-closed until it reports all three canonical plans ready.
-
-Expected production conditions:
-
-- `paddle.checkout_ready = true`
-- `paddle.automation_ready = true`
-- `paddle.all_plans_ready = true`
-- `paddle.configured_plan_count = 3`
-- `paddle.starter_ready = true`
-- `paddle.professional_ready = true`
-- `paddle.enterprise_ready = true`
-
-If Paddle has no active subscription prices or the deployment has no matching price IDs, the pricing page deliberately blocks purchase actions instead of pretending checkout is live.
-
-Paddle account/domain approval is provider-side state and cannot be repaired by repository code. The public site must keep Terms, Privacy, and Refund Policy reachable while Paddle reviews the domain/account.
-
-### Transaction flow
-
-1. An authenticated customer selects Starter, Professional, or Enterprise.
-2. The browser first reads `/paddle/public-config`; an unready plan remains blocked.
-3. The customer calls `POST /api/paddle/checkout` or `POST /api/v1/paddle/checkout` with only the selected canonical plan.
-4. The backend maps the plan to the configured Paddle price ID and creates the Paddle transaction. The frontend never sends or controls the price.
-5. Paddle sends a signed webhook to `/api/paddle/webhook`.
-6. The backend verifies `PADDLE_WEBHOOK_SECRET`, binds the transaction to the authenticated Koschei account and expected price ID, and records the provider event idempotently.
-7. A valid completed transaction activates or updates the customer's entitlement.
-8. Customer premium access is read from active, non-expired `entitlements`; no active entitlement means no premium analysis.
-
-Historical records from retired billing experiments may remain in an existing database for audit purposes, but they are not accepted as customer payment, do not create new product access, and are not part of the supported checkout contract.
+Existing databases may contain records from retired billing experiments. Historical records may remain for audit and migration integrity, but retired providers are not accepted for new entitlement activation and are not part of the supported runtime contract.
