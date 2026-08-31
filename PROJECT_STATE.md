@@ -4,127 +4,100 @@ This file is the authoritative repository checkpoint for continuing Koschei Web3
 
 ## CURRENT STATE
 
-- Current verified `main` head: **`3118cd4835a43b23c26e00e44afd580e5254071a`**, merged by PR **#977**, `feat: add Polar SaaS billing edge`.
-- PR #975 retired the active Paddle browser/runtime/API/CSP surface while preserving applied migration history and provider-neutral audit fields.
-- PR #976 aligned Actor Reference production acceptance with the deployed `ARVIS Public Live Radar` marker.
-- PR #977 added production Polar hosted checkout and verified webhook-driven SaaS entitlement handling.
-- Railway production service `koschei-web3-hub` deploys from `main`; deployment after Polar credential configuration completed successfully on 2026-08-31.
-- Polar production configuration is present in Railway for access token, webhook secret, environment, trusted redirect URLs, and Starter / Professional / Enterprise Product IDs. Secret values are environment-only and are not stored in the repository.
-- Paid access remains controlled only by active server-side SaaS entitlements. A successful checkout redirect is never authorization.
-- Professional Transaction Preflight remains the metered pre-sign customer decision surface.
-- Professional State Recheck remains the entitlement-only continuation for the exact same transaction/network/state witness and never signs or broadcasts.
+- Current `main` head before this branch: **`3edcbc46e2cf80516df100bb91f3e08a09980cb4`**, merged by PR **#978**, `docs: checkpoint Polar production billing state`.
+- Koschei Web3 is currently a **Solana-first evidence-backed security and risk-intelligence product**. The production Transaction Guard explicitly supports `solana-mainnet` only.
+- The production pre-sign decision vocabulary already used by Transaction Guard is **`allow / warn / block / withhold`**.
+- Unified Radar still publishes a separate letter-grade contract (`A`-`F` or `-`).
+- EVM Execution Containment is an isolated Enterprise validation subsystem with legacy decisions **`RELEASE / CONTAIN / UNAVAILABLE`**. It is not the Web3 product's canonical decision authority and must not become the product spine.
+- `internal/executionproof` and related Safe/Anvil/Solidity work are retained but **frozen as a secondary isolated capability** until Solana decision/evidence gaps are closed.
+- ARVIS remains the active core and should evolve along **Address -> Entity -> Transaction -> Behavior -> Attack Path -> Evidence** without replacing working Solana collectors.
+- Four ARVIS evidence arms are defined but currently hard-coded unavailable in `AnalyzeArvisRadarsContext`: `liquidity_movement`, `creator_link_analysis`, `launch_distribution`, and `repeat_actor_scan`.
+- Polar is the active SaaS checkout edge. Paddle runtime is retired. Paid access remains controlled only by server-side entitlements.
+- Production hosted checkout has been observed successfully: `POST /api/polar/checkout` returned HTTP 200 and redirected to the real Polar hosted checkout. A real paid webhook/entitlement activation has not yet been executed.
 - Koschei Sentinel is cancelled. Koschei Lang is separate and deferred; neither is an active Web3 implementation dependency.
 - `main` remains unprotected, so exact-head, exact merge-candidate and target-freshness verification remain mandatory before merge.
 
 ## CHANGED
 
-### PR #977 — Polar SaaS billing edge
+### Active branch — Solana-centered decision contract
 
-Polar is now the active SaaS checkout edge for Web3 packages:
+This branch begins the decision-contract convergence without changing existing public legacy fields yet:
 
-- authenticated server-side `POST /api/polar/checkout` creates hosted checkout sessions;
-- browser sends only the canonical plan ID; price, Polar Product ID and credentials remain server-side;
-- Polar access token is environment-only and scoped to checkout creation;
-- `POST /api/polar/webhook` verifies the raw webhook body before event data is trusted;
-- webhook replay window and event identity are validated;
-- duplicate provider events are idempotent through the provider-neutral billing event ledger;
-- raw payment payloads are not stored; a digest plus normalized event evidence is persisted;
-- `subscription.active` may activate the exact Polar subscription entitlement only after product/plan/customer binding checks pass;
-- `subscription.revoked` revokes only the exact Polar provider/subscription entitlement and preserves independent manual/provider grants;
-- a newer/equal recorded revocation suppresses stale activation events;
-- `subscription.canceled` and `subscription.past_due` do not immediately revoke access by themselves;
-- quota renewal occurs only from a verified paid `order.paid` event with `billing_reason=subscription_cycle` and an active correctly-bound subscription;
-- pending orders, unpaid orders, ordinary purchases and proration/update orders do not refresh quota;
-- pricing CTAs for Starter / Professional / Enterprise call the authenticated Koschei checkout route instead of embedding provider product IDs or secrets in the browser;
-- migration `119_polar_billing_v1.sql` adds provider-neutral billing event evidence/idempotency support.
+- adds `internal/decision` with the canonical action vocabulary `allow / warn / block / withhold`;
+- maps Transaction Guard actions without semantic translation;
+- maps Unified Radar grades into the canonical action vocabulary (`A/B -> allow`, `C -> warn`, `D/E/F -> block`, `- -> withhold`);
+- maps isolated EVM containment results only through an adapter (`RELEASE -> allow`, `CONTAIN -> block`, `UNAVAILABLE -> withhold`);
+- preserves source and legacy values so compatibility does not erase provenance;
+- requires a `withhold_reason` whenever the canonical action is withheld.
 
-### PR #975 — Paddle retirement
+This package is a convergence foundation. Existing APIs are not yet rewritten around it in this branch.
 
-- removed Paddle checkout HTML/JS/CSS and static aliases;
-- removed Paddle API routes, handlers, config code and Paddle-specific CSP exceptions;
-- removed Paddle from current owner/OpenAPI/pricing/runtime contracts;
-- added regression coverage so retired Paddle endpoints/CSP exceptions cannot silently return;
-- preserved applied Paddle-named migration history and historical database rows for migration/audit integrity;
-- unknown/retired provider identifiers fail closed instead of normalizing to trusted manual activation.
+### Polar production billing
 
-### PR #976 — production Actor Reference readiness
-
-- fixed stale production acceptance assertions that still expected `ARVIS Public SOC`;
-- acceptance now checks the deployed `ARVIS Public Live Radar` marker;
-- no actor-intelligence runtime semantics changed.
-
-### Evidence and preflight anchors retained
-
-- PR #968: dominant-holder reuse is bound to canonical `dominant_holder_of` evidence and distinct token-mint coverage.
-- PR #966: immutable transaction evidence normalization prevents replay/rescan inflation from manufacturing recurrence.
-- PR #962: Professional State Recheck binds the same serialized transaction, network and state witness and fails closed on expired/unavailable/incomplete evidence.
-- PR #960: Professional customer Transaction Preflight renders evidence semantics instead of numeric risk authority and never signs or broadcasts.
+- PR #975 retired Paddle browser/runtime/API/CSP surfaces while preserving applied migration history.
+- PR #976 repaired the stale Actor Reference production readiness marker.
+- PR #977 added authenticated Polar hosted checkout, verified raw-body webhook handling, provider-event idempotency, subscription activation/revocation and paid-cycle quota renewal.
+- PR #978 recorded the successful production configuration/deployment and checkout smoke.
 
 ## VERIFIED
 
-### PR #977 exact final head
+### Repository verification against previously proposed architecture claims
 
-Final Polar head **`8f5cbd51eb6df53c5a2faf5ccef5e028dfd07987`** passed all observed permanent PR gates before merge, including:
+The following identifiers are **not present in current main** and must not be treated as implemented capabilities:
 
-- API Required CI;
-- PostgreSQL migration chain on PostgreSQL 17;
-- full Go tests;
-- `go vet` and build;
-- release race tests;
-- exact merge-candidate verification and target-base freshness;
-- OpenAPI Contract;
-- Pricing SaaS Acceptance;
-- Public Product Smoke;
-- Auth Freeze Guard;
-- Security CI / Gitleaks / reachable vulnerability / static security scans;
-- CodeQL;
-- Supply Chain Security;
-- Canonical Investigation History;
-- Funding Cluster / Trajectory / Outcome memory acceptance;
-- Persistent Actor Memory;
-- Operator Exit Corpus Acceptance.
+- `execution_proof_digest`
+- `analysis_context_hash`
+- `gate_stage`
+- `remediation`
+- `PROCEED`
+- `REVIEW`
 
-PR #977 was merged with merge commit **`3118cd4835a43b23c26e00e44afd580e5254071a`**.
+Current real decision surfaces are:
 
-### Production
+1. Solana Transaction Guard: `allow / warn / block / withhold`.
+2. Unified Radar: letter grades `A`-`F` or `-` plus verdict/evidence contract.
+3. EVM Execution Containment: `RELEASE / CONTAIN / UNAVAILABLE`.
 
-After the real Polar production variables were configured in Railway:
+The Transaction Guard code explicitly defaults to and enforces `solana-mainnet`; unsupported networks fail closed.
 
-- production redeployed successfully from main commit `3118cd4835a43b23c26e00e44afd580e5254071a`;
-- database connection succeeded;
-- migration startup reported all 117 migrations already applied/skipped (`0/117` newly required on the credential-only redeploy), confirming schema state remained current;
-- API started listening on `:8080`;
-- canonical plans synced and normal Web3 workers started;
-- no repository or frontend secret was introduced.
+### ARVIS disconnected arms
 
-The Polar account currently has production products for Starter, Professional and Enterprise and a production webhook endpoint at `https://tradepigloball.co/api/polar/webhook` configured in Raw format for:
+`AnalyzeArvisRadarsContext` currently constructs these four arms using `unavailableArm(...)` even though supporting evidence collectors/relations exist elsewhere in the repository:
 
-- `order.paid`;
-- `subscription.active`;
-- `subscription.revoked`.
+- `liquidity_movement`
+- `creator_link_analysis`
+- `launch_distribution`
+- `repeat_actor_scan`
+
+They must be connected to canonical evidence rather than filled with synthetic scores or inferred certainty.
+
+### Billing
+
+- Polar checkout route is live and returned HTTP 200 in production.
+- Browser -> Koschei backend -> Polar hosted checkout was observed end-to-end without granting entitlement from the redirect.
+- Polar secrets remain environment-only.
 
 ## BROKEN / MISSING
 
-- No known code/CI/deploy blocker remains for the Polar billing edge.
-- A real end-to-end purchase has **not yet been executed**. Before calling billing commercially proven, perform one controlled real/sandbox-equivalent checkout path and verify: checkout creation -> Polar payment -> signed webhook -> provider event ledger -> entitlement activation -> customer premium access. Do not fake this verification.
-- Renewal and revoke behavior are covered by code/tests but should later be observed against real Polar events in production before relying on them as operational evidence.
-- Railway still contains historical `PI_LANG_*` variable names from an older scope mistake. They are not an active Web3 dependency and should be removed from the Web3 service only after confirming no current Web3 code path references them. Do not modify the separate Lang service.
-- Historical `KOSCHEI_TOKEN_*` configuration still exists for public/auditable token-launch metadata/readiness. Token-backed commercial authorization remains retired and ignored; do not revive it as a paid-access mechanism.
-- Product presentation still over-emphasizes legacy scanner/Solana positioning in some surfaces; issue #851 remains relevant.
-- Execution Proof still needs one production-grade Safe-aware EVM vertical slice binding exact payload + pinned state + invariants to a deterministic operator decision.
-- Security Evidence Bus #855 is not yet the universal provenance/digest/source-state/confidence/reasoning-path contract for all serious findings.
-- Solana expansion should remain bounded to evidence-quality work such as Geyser event envelope + gap/dedupe + Token-2022 semantics rather than broad scanner growth.
+- The product still has three decision vocabularies. Canonical product semantics must converge around the Solana pre-sign vocabulary `allow / warn / block / withhold`, while legacy surface fields remain available during migration.
+- The four ARVIS arms above are still disconnected from the main mint analysis path.
+- A Solana adversarial fixture suite is missing for claims Koschei itself should try to break. Priority cases: fake LP-lock claims, ATA/freeze surprises, Token-2022 transfer-hook injection, authority mutation, incorrect mint/account resolution and incomplete state evidence.
+- The customer UI still exposes internal ARVIS/rule jargon in places; deterministic reason codes and evidence need a customer explanation layer without changing the underlying evidence truth.
+- `internal/agents` contains CRM/business-agent concerns that should be isolated from the security-intelligence runtime after the active product slice is complete.
+- `internal/executionproof` is heavily EVM/Safe/Anvil-oriented and has no Solana evidence role. Do not delete it, but do not use it as the product architecture spine.
+- Intent binding is not a greenfield layer: Transaction Guard v3 already has signed UI intent, decoded instruction evidence, state witness and enforcement-permit foundations. The next Solana step is to complete exact approved-instruction-set vs candidate-instruction-set binding using these existing primitives.
+- A real paid Polar transaction has not yet verified signed webhook -> provider event ledger -> entitlement -> premium access in production.
 
 ## NEXT
 
-1. Perform one controlled production checkout smoke path without granting authority from the browser or success redirect. Verify server-created Polar checkout and signed webhook delivery.
-2. Confirm the resulting `billing_provider_events` evidence and exact Polar entitlement activation in the database/customer access surface.
-3. Observe one renewal and revoke event when practical; keep paid renewal dependent on verified `order.paid` subscription-cycle evidence.
-4. Remove obsolete `PI_LANG_*` variables from the Web3 Railway service only after repo/runtime reference verification; never touch the separate Lang service from this workspace.
-5. Return product focus to **Execution Proof -> Transaction Defense -> Evidence -> operator decision**.
-6. Inspect issues/lineage #849 / #857 / #859 and finish one Safe-aware isolated EVM execution slice: exact calldata/payload, pinned state, owner/threshold/module semantics, asset-outflow invariants and deterministic `RELEASE / CONTAIN / UNAVAILABLE` output.
-7. Continue #855 Security Evidence Bus: provenance, digest, source state (`observed` / `verified` / `unavailable`), confidence/limitations and reasoning path. Missing evidence must never become SAFE.
-8. Address #851 product presentation after the execution slice so legacy wallet/token scanner utilities remain secondary.
+1. Finish and verify the canonical decision contract on this branch. Do not change existing API semantics until mappings are test-locked.
+2. On the next production slice, expose the canonical action + `withhold_reason` alongside legacy fields on Transaction Guard and Unified Radar responses; map EVM containment only as a compatibility adapter.
+3. Connect the four existing ARVIS mint-path arms to canonical evidence, one bounded evidence source at a time: liquidity movement, creator link, launch distribution, repeat actor scan. Missing evidence must stay `withhold/unavailable`, never SAFE.
+4. Add adversarial Solana fixtures for fake LP lock, freeze/ATA surprises, Token-2022 transfer hooks, authority changes, wrong mint resolution and incomplete state witness.
+5. Complete Transaction Guard intent binding around the exact approved Solana instruction set versus the candidate instruction set; reuse state witness and enforcement permit instead of inventing an EVM-style replacement layer.
+6. Isolate CRM/business-agent code from `internal/agents` without touching security runtime behavior.
+7. Keep EVM executionproof frozen as a secondary Enterprise capability until the Solana decision/evidence path is coherent and production-proven.
+8. Verify one controlled real Polar payment/webhook/entitlement cycle when commercially practical.
 
 ## WORK-IN-PROGRESS POLICY
 
@@ -132,7 +105,7 @@ The Polar account currently has production products for Starter, Professional an
 2. A CI failure does not justify a new feature branch; classify and repair it on the active branch when in scope.
 3. New ideas go to backlog and do not interrupt the active production slice.
 4. Do not revive stale branches or old PRs without a current-main semantic comparison proving capability is still missing.
-5. Validate the exact synthetic merge candidate against the current target head and verify the actual merged main head afterward.
+5. Validate the exact synthetic merge candidate against the current target head and verify actual merged `main` afterward.
 6. Temporary repair workflows/scripts must be removed before final merge.
 7. Never rewrite an already-applied migration for cosmetic cleanup; use forward migrations and preserve filename identity.
 8. Secrets remain environment-only and must never be committed, exposed to browser bundles or logged.
@@ -142,19 +115,20 @@ The Polar account currently has production products for Starter, Professional an
 
 - No generic scanner/risk-score expansion as the primary product direction.
 - No fake scores, fake chain data, fake payment evidence, placeholder enterprise capabilities or disconnected demo surfaces.
+- No invented architecture identifiers or undocumented fields presented as if they already exist.
+- No EVM-first product rewrite and no promotion of Safe/Anvil executionproof to the Web3 product spine.
 - No revival of Paddle or KOSCH/token-backed commercial authorization.
 - No Koschei Sentinel implementation/integration target.
 - No Koschei Lang implementation inside this repository.
-- No broad multi-chain abstraction before one production-grade Execution Proof vertical slice proves the common evidence/decision model.
+- No broad multi-chain abstraction before the Solana evidence/decision contract is production-coherent.
 
 ## RISKS
 
+- **Decision drift:** three vocabularies can produce contradictory operator language unless canonical mapping is explicit and source-preserving.
+- **Evidence gap:** disconnected ARVIS arms can create the impression of architecture breadth while remaining unavailable in the actual mint path.
+- **EVM gravity:** a large, well-tested EVM subsystem can pull roadmap attention away from the production Solana product despite having limited customer-path reach.
+- **Evidence-quality risk:** missing or incomplete evidence must never silently improve a decision.
+- **Intent-binding risk:** simulation without exact approved-vs-candidate instruction binding can create false confidence before signing.
+- **Product-positioning risk:** internal rule IDs and collector jargon can obscure the operator question: what should I do, why, what can happen, and can I verify it?
+- **Billing proof risk:** successful checkout creation is not the same as a completed paid entitlement cycle.
 - **Unprotected main:** target can move without branch protection; exact candidate freshness remains mandatory.
-- **Billing proof risk:** successful deployment/configuration is not the same as a real completed purchase; commercial readiness requires controlled end-to-end evidence.
-- **Provider-confusion risk:** Polar events are provider evidence, not authorization authority. Only server-side entitlement logic may grant access.
-- **Secret hygiene risk:** Polar access token and webhook secret must remain Railway/environment-only.
-- **Migration-history risk:** retired-provider migration history must not be deleted or renumbered.
-- **Evidence-quality risk:** a finding without provenance/canonical evidence can become misleading if treated as positive safety evidence.
-- **Product-positioning risk:** scanner-heavy UI/copy can obscure the differentiation: validating defenses before execution and proving the operator decision.
-- **Execution-proof risk:** simulation without exact payload/state binding or invariant evidence can create a false sense of safety.
-- **Cross-chain scope risk:** expanding chains before the common evidence/decision contract is proven would couple chain-specific code to core intelligence.
