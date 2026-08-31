@@ -368,7 +368,7 @@ jobs:
 
       - name: Upload immutable reference artifacts
         if: always() && steps.actor_acceptance.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: koschei-actor-reference-case-${{ github.run_attempt }}
           path: |
@@ -398,7 +398,7 @@ jobs:
 
       - name: Upload actor acceptance diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: koschei-actor-reference-diagnostics-${{ github.run_attempt }}
           path: |

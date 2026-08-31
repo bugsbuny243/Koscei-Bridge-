@@ -80,7 +80,7 @@ jobs:
           go test -v ./internal/services -run '^TestPersistentFundingClusterMemoryPostgres17$' -count=1 2>&1 | tee "${RUNNER_TEMP}/funding-cluster-memory-postgres17.txt"
       - name: Upload acceptance log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: funding-cluster-memory-postgres17
           path: ${{ runner.temp }}/funding-cluster-memory-postgres17.txt

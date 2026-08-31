@@ -91,7 +91,7 @@ jobs:
           go test -v ./internal/services -run '^TestRetentionArchiveDeletePostgres17$' -count=1 2>&1 | tee "${RUNNER_TEMP}/retention-archive-postgres17.txt"
       - name: Upload retention archive PostgreSQL log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: retention-archive-postgres17
           path: ${{ runner.temp }}/retention-archive-postgres17.txt
@@ -105,7 +105,7 @@ jobs:
           go test -v ./internal/services -run '^TestRetentionArchiveExportPostgres17$' -count=1 2>&1 | tee "${RUNNER_TEMP}/retention-export-postgres17.txt"
       - name: Upload retention archive export PostgreSQL log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: retention-export-postgres17
           path: ${{ runner.temp }}/retention-export-postgres17.txt
@@ -164,7 +164,7 @@ jobs:
           SQL
       - name: Upload migration validation log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: migration-validation-required
           path: ${{ runner.temp }}/migration-validation.txt
@@ -209,7 +209,7 @@ jobs:
           go test ./... 2>&1 | tee "${RUNNER_TEMP}/go-test-required.txt"
       - name: Upload Go test log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: go-test-required
           path: ${{ runner.temp }}/go-test-required.txt
@@ -261,7 +261,7 @@ jobs:
           "${RUNNER_TEMP}/security-bin/gosec" -exclude=G703,G704 -severity high -confidence high -fmt=text ./... 2>&1 | tee "${RUNNER_TEMP}/gosec.txt"
       - name: Upload security scanner logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-security-scans
           path: |

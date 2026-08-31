@@ -55,7 +55,7 @@ jobs:
         run: go test ./internal/handlers -run '^$' -count=1
       - name: Upload acceptance log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: behavioral-trajectory-signature
           path: ${{ runner.temp }}/beh006.txt
