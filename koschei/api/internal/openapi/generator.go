@@ -193,10 +193,6 @@ func authTier(path, filename string) string {
 	switch {
 	case strings.HasPrefix(path, "/api/owner/"):
 		return "owner_session"
-	case path == "/api/paddle/webhook":
-		return "paddle_webhook_signature"
-	case path == "/api/paddle/checkout" || path == "/api/v1/paddle/checkout":
-		return "customer_session"
 	case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/"):
 		return "api_key_plus_enterprise_entitlement"
 	case strings.HasPrefix(path, "/api/webhooks"):
@@ -263,7 +259,6 @@ func buildDocument(routes []Route, inventory []InventoryRoute) Document {
 				"sessionBearer":   map[string]any{"type": "http", "scheme": "bearer", "bearerFormat": "session"},
 				"ownerSession":    map[string]any{"type": "apiKey", "in": "cookie", "name": "koschei_owner_session"},
 				"developerAPIKey": map[string]any{"type": "apiKey", "in": "header", "name": "X-API-Key"},
-				"paddleSignature": map[string]any{"type": "apiKey", "in": "header", "name": "Paddle-Signature"},
 			},
 			"schemas": schemas(),
 		},
@@ -332,8 +327,6 @@ func responses(auth string) map[string]any {
 	}
 	if auth != "public" {
 		items["401"] = response("Identity credential missing or invalid.", "#/components/schemas/ErrorResponse")
-	}
-	if auth != "public" && auth != "paddle_webhook_signature" {
 		items["403"] = response("Authenticated identity lacks the required access tier.", "#/components/schemas/ErrorResponse")
 	}
 	return items
@@ -352,8 +345,6 @@ func security(auth string) []any {
 		return []any{map[string]any{"ownerSession": []string{}}}
 	case "api_key_plus_enterprise_entitlement":
 		return []any{map[string]any{"developerAPIKey": []string{}}}
-	case "paddle_webhook_signature":
-		return []any{map[string]any{"paddleSignature": []string{}}}
 	case "customer_session", "customer_session_plus_starter_entitlement", "customer_session_plus_professional_entitlement", "customer_session_plus_enterprise_entitlement", "dossier_access_contract":
 		return []any{map[string]any{"sessionBearer": []string{}}}
 	default:
