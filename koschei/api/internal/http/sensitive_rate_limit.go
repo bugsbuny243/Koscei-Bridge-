@@ -129,10 +129,8 @@ func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {
 		return sensitiveLimitRule{Limit: 30, Window: time.Minute}, true
 	case "/api/v1/risk/badge", "/api/v1/security/risk-badge":
 		return sensitiveLimitRule{Limit: 20, Window: time.Minute}, true
-	case "/api/paddle/webhook", "/api/v1/paddle/webhook", "/api/shopier/webhook":
+	case "/api/shopier/webhook":
 		return sensitiveLimitRule{Limit: 120, Window: time.Minute}, true
-	case "/api/paddle/checkout":
-		return sensitiveLimitRule{Limit: 20, Window: 5 * time.Minute}, true
 	default:
 		return sensitiveLimitRule{}, false
 	}

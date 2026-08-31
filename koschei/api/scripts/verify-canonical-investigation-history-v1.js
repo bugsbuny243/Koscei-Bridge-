@@ -54,12 +54,12 @@ if(inventory.includes('/api/v1/investigations/history'))throw new Error('invento
 
 requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','Vault SaaS access copy');
 requireText(reportsHTML,'History access requires an active Starter SaaS entitlement or higher.','Vault entitlement boundary');
-requireText(reportsHTML,'reading history does not consume a premium output','Vault read-only quota copy');
-requireText(reportsHTML,'KOSCH holdings do not authorize this surface.','Vault token separation copy');
+requireText(reportsHTML,'Reading history does not consume a premium output','Vault read-only quota copy');
+requireText(reportsHTML,'Commercial access is determined only by the active SaaS entitlement.','Vault SaaS authority copy');
 requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');
 requireText(reportsHTML,'/scan?mode=deep','Vault canonical investigation route');
-forbid(reportsHTML,/BASIC\+ KOSCH|Basic KOSCH tier/i,'legacy holder-gated history copy');
+forbid(reportsHTML,/\bKOSCH\b|token holdings|BASIC\+ KOSCH|Basic KOSCH tier/i,'legacy token-holder authorization copy');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'Vault history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'Vault schema gate');

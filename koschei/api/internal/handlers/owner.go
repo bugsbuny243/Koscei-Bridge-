@@ -374,7 +374,6 @@ func (h *Handler) OwnerHealth(w http.ResponseWriter, r *http.Request) {
 	services := map[string]any{
 		"database": map[string]string{"status": dbStatus},
 		"openai":   map[string]string{"status": configuredStatus("OPENAI_API_KEY")},
-		"paddle":   map[string]string{"status": configuredStatus("PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "PADDLE_ENV")},
 		"alchemy":  map[string]string{"status": configuredStatusAny("ALCHEMY_API_KEY", "SOLANA_RPC_URL")},
 		"github":   map[string]string{"status": configuredStatus("GITHUB_TOKEN", "GITHUB_OWNER", "GITHUB_REPO")},
 		"neon":     map[string]string{"status": configuredStatus("DATABASE_URL")},
@@ -396,8 +395,6 @@ func (h *Handler) routeOwnerBrainCommand(ctx context.Context, message string) (s
 	case strings.Contains(cmd, "bekleyen ödeme") || strings.Contains(cmd, "bekleyen odeme"):
 		result := h.ownerPendingPayments(ctx)
 		return "pending_payments", result, "Bekleyen ödemeler listelendi.", true
-	case strings.Contains(cmd, "paddle") && strings.Contains(cmd, "durum"):
-		return "paddle_status", envConfiguredResult([]string{"PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "PADDLE_ENV"}, false), "Paddle yapılandırma durumu hazır.", true
 	case strings.Contains(cmd, "openai") && strings.Contains(cmd, "durum"):
 		return "openai_status", envConfiguredResult([]string{"OPENAI_API_KEY"}, false), "OpenAI yapılandırma durumu hazır.", true
 	case strings.Contains(cmd, "alchemy") && strings.Contains(cmd, "durum"):
@@ -713,8 +710,6 @@ func (h *Handler) executeOwnerBrainCommand(ctx context.Context, command string, 
 		return h.ownerRevenue(ctx, "today")
 	case strings.Contains(lc, "aylık gelir") || strings.Contains(lc, "aylik gelir"):
 		return h.ownerRevenue(ctx, "month")
-	case strings.Contains(lc, "paddle") && strings.Contains(lc, "webhook"):
-		return h.ownerPaddleSummary(ctx)
 	case strings.Contains(lc, "openai") && strings.Contains(lc, "maliyet"):
 		return h.ownerOpenAISummary(ctx)
 	case strings.Contains(lc, "alchemy"):
@@ -836,16 +831,6 @@ func (h *Handler) ownerRevenue(ctx context.Context, period string) (string, stri
 		return "error", "Gelir okunamadı: " + err.Error(), nil
 	}
 	return "completed", fmt.Sprintf("%s gelir: %.2f TRY / %d ödeme", period, total, count), map[string]any{"period": period, "payments": count, "revenue_try": total}
-}
-
-func (h *Handler) ownerPaddleSummary(ctx context.Context) (string, string, map[string]any) {
-	var pending int64
-	var total float64
-	_ = h.DB.QueryRowContext(ctx, `SELECT count(*) FROM payment_requests WHERE payment_provider='paddle' AND status='pending'`).Scan(&pending)
-	_ = h.DB.QueryRowContext(ctx, `SELECT COALESCE(sum(amount_try),0)::float FROM payment_requests WHERE payment_provider='paddle' AND status='approved'`).Scan(&total)
-	configured := strings.TrimSpace(os.Getenv("PADDLE_API_KEY")) != ""
-	webhook := strings.TrimSpace(os.Getenv("PADDLE_WEBHOOK_SECRET")) != ""
-	return "completed", "Paddle durumu üretildi.", map[string]any{"api_configured": configured, "webhook_secret_configured": webhook, "pending_payments": pending, "total_revenue_try": total, "entitlements": "database-backed"}
 }
 
 func (h *Handler) ownerOpenAISummary(ctx context.Context) (string, string, map[string]any) {
@@ -1006,7 +991,6 @@ func (h *Handler) ownerServiceStatuses(ctx context.Context) []map[string]any {
 		{"name": "GITHUB", "status": ownerGitHubHealth(ctx)},
 		{"name": "NEON", "status": ownerEnvHealth("NEON_API_KEY")},
 		{"name": "DATABASE", "status": ownerDBHealth(ctx, h.DB)},
-		{"name": "PADDLE", "status": ownerEnvHealth("PADDLE_API_KEY")},
 		{"name": "ALCHEMY", "status": ownerEnvHealth("ALCHEMY_API_KEY")},
 		{"name": "RENDER", "status": ownerEnvHealth("RENDER_DEPLOY_HOOK_URL")},
 	}
