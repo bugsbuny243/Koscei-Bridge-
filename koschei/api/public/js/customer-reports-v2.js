@@ -83,11 +83,18 @@ function render(){
   }
 }
 
+function historyAccessError(statusCode){
+  if(statusCode===401)return'Sign in to view your investigation history.';
+  if(statusCode===402||statusCode===403)return'Investigation history requires an active Starter plan or higher.';
+  if(statusCode===429)return'Investigation history is temporarily rate limited. Try again shortly.';
+  return'Investigation history is unavailable right now. No history state was inferred.';
+}
+
 async function api(){
   const response=await KoscheiAuth.apiCall('/api/v1/radar/jobs/',{method:'GET'});
   const raw=await response.text();let data={};
   if(raw){try{data=JSON.parse(raw);}catch{throw new Error('Investigation history returned invalid JSON.');}}
-  if(!response.ok){const access=[401,402,403].includes(response.status)?'An active Starter SaaS subscription or higher and a verified customer session are required. ':'';throw new Error(access+text(data?.message||data?.error||`History request failed with HTTP ${response.status}`));}
+  if(!response.ok)throw new Error(historyAccessError(response.status));
   return data;
 }
 
