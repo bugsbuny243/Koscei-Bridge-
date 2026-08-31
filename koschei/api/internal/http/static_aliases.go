@@ -39,12 +39,6 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 		registerScanModeRedirect(mux, route, "deep")
 	}
 
-	// Paddle transaction checkout URLs are built from this canonical default
-	// payment link and append the _ptxn transaction query parameter.
-	for _, route := range []string{"/paddle-checkout", "/paddle-checkout/", "/paddle-checkout.html"} {
-		registerStaticFileAlias(mux, route, filepath.Join(staticDir, "paddle-checkout.html"))
-	}
-
 	dashboardRoutes := []string{
 		"/airdrop-checker",
 		"/cross-chain-risk",
