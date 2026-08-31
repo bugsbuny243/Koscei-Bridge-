@@ -4,6 +4,8 @@ import "testing"
 
 func TestNormalizePaymentProviderAcceptsSupportedProviders(t *testing.T) {
 	tests := map[string]string{
+		"polar":          "polar",
+		" POLAR ":        "polar",
 		"shopier":        "shopier",
 		" SHOPIER ":      "shopier",
 		"shopier_manual": "shopier_manual",
