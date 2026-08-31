@@ -9,7 +9,6 @@ import (
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paddleCheckout := isPaddleCheckoutRequest(r)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -18,54 +17,13 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		w.Header().Set("X-Permitted-Cross-Domain-Policies", "none")
 		w.Header().Set("Content-Security-Policy", koscheiBaseCSP())
-		if paddleCheckout {
-			// The checkout page is intentionally the only public surface allowed to
-			// load Paddle.js and Paddle's payment frame. Do not disable the browser
-			// payment feature here; wallet methods may rely on it inside Paddle.
-			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-			w.Header().Set("Content-Security-Policy", paddleCheckoutCSP())
-			w.Header().Set("Cache-Control", "no-store")
-		}
 		if strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
-		}
-		if paddleCheckout {
-			next.ServeHTTP(w, r)
-			return
 		}
 		secured := newCSPHTMLResponseWriter(w, r)
 		next.ServeHTTP(secured, r)
 		secured.finish()
 	})
-}
-
-func isPaddleCheckoutRequest(r *http.Request) bool {
-	if r == nil || r.URL == nil {
-		return false
-	}
-	path := strings.TrimSuffix(r.URL.Path, "/")
-	return path == "/paddle-checkout" || path == "/paddle-checkout.html"
-}
-
-func paddleCheckoutCSP() string {
-	return strings.Join([]string{
-		"default-src 'self'",
-		"base-uri 'self'",
-		"frame-ancestors 'none'",
-		"object-src 'none'",
-		"img-src 'self' data: https://paddle.com https://*.paddle.com",
-		"font-src 'self' data:",
-		"style-src 'self'",
-		"script-src 'self' https://cdn.paddle.com",
-		"script-src-attr 'none'",
-		"connect-src 'self' https://paddle.com https://*.paddle.com",
-		"frame-src https://paddle.com https://*.paddle.com",
-		"worker-src 'self' blob:",
-		"media-src 'self' blob:",
-		"manifest-src 'self'",
-		"form-action 'self' https://paddle.com https://*.paddle.com",
-		"upgrade-insecure-requests",
-	}, "; ")
 }
 
 func allowedCORSOrigin(origin string, allowed map[string]struct{}) string {
