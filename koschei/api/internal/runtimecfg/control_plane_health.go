@@ -78,7 +78,7 @@ func ControlPlaneHealthWith(get Getter) ControlPlaneHealth {
 		boolControl(get, "FEATURE_RISK_SCANNER", true),
 		boolControl(get, "FEATURE_SOLANA", true),
 		boolControl(get, "KOSCHEI_MODEL_ROUTER_ENABLED", true),
-		boolControl(get, "KOSCHEI_PUBLIC_BADGE_ENABLED", true),
+		boolControl(get, "KOSCHEI_PUBLIC_BADGE_ENABLED", false),
 		csvControl(get, "KOSCHEI_SECURITY_MODULES"),
 		enumControl(get, "KOSCHEI_SECURITY_PROVIDER", DefaultSecuritySource, "auto", "alchemy", "helius", "quicknode", "rpc", "solscan"),
 		enumControl(get, "KOSCHEI_VERDICT_MODE", DefaultSecurityMode, "evidence_first", "strict", "observe", "evidence_only"),
