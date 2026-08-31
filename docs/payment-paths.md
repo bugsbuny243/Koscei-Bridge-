@@ -10,6 +10,8 @@ The repository does not expose a browser-controlled price or a client-side entit
 
 Current entitlement activation accepts the existing `shopier`, `shopier_manual`, and `owner_manual` provider records. Provider-specific secrets remain server-side and must never be embedded in the frontend bundle or committed to the repository.
 
+Any provider identifier outside that explicit allowlist is rejected. It must never be silently normalized to an owner/manual path, because payment evidence is not authorization authority.
+
 ## Authorization flow
 
 1. A customer has an authenticated Koschei account.
