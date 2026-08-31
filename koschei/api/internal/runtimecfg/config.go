@@ -37,7 +37,7 @@ type Config struct {
 }
 
 type GuardConfig struct {
-	KeyID                          string `json:"-"`
+	KeyID                          string
 	PrivateKeyConfigured           bool
 	PermitTTL                      time.Duration
 	RequirePermit                  bool
