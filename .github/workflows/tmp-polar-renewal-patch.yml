@@ -42,3 +42,5 @@ jobs:
           git add docs/payment-paths.md koschei/api/internal/handlers/payments.go koschei/api/internal/handlers/polar_billing.go koschei/api/internal/handlers/polar_billing_test.go
           git commit -m "fix(billing): refresh quota only after paid Polar renewal"
           git push origin HEAD:feat/polar-billing-v1
+
+# temporary verifier; removed after successful renewal patch
