@@ -27,8 +27,6 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 			"Public SOC discovery exposes only explicitly published immutable dossiers; a stored dossier is private by default.",
 			"A customer session identifies the account; paid product authorization is derived only from an active SaaS entitlement.",
 			"Starter unlocks paid investigation routes; Professional unlocks advanced radar and watchlists; Enterprise unlocks API keys and webhook management.",
-			"Developer API keys remain identity credentials and require an active Enterprise entitlement for developer routes.",
-			"Paddle checkout is customer-authenticated; entitlement activation occurs only after a verified Paddle webhook binds the completed transaction to the configured plan price.",
 			"Evidence-backed verdicts must not be signed without verified evidence.",
 			"Recipient fate investigation is mint-specific ATA-only and never queries recipient-wide signature history.",
 			"Canonical investigation jobs accept token mint, wallet or token-account targets and continue after the HTTP request ends.",
@@ -57,9 +55,6 @@ func productionRouteInventory() []routeInventoryGroup {
 			"/api/account/api-keys", "/api/account/api-keys/",
 			"POST /api/auth/wallet/challenge", "POST /api/auth/wallet/verify", "GET /api/auth/wallet/status",
 			"POST /api/auth/wallet/unlink", "GET /api/auth/premium-access",
-		}},
-		{Name: "billing", Auth: "customer_session_or_verified_provider_webhook", Routes: []string{
-			"POST /api/paddle/checkout", "POST /api/v1/paddle/checkout", "POST /api/paddle/webhook",
 		}},
 		{Name: "owner", Auth: "owner_session", Routes: []string{
 			"POST /api/owner/login", "POST /api/owner/logout", "GET /api/owner/command-center", "GET /api/owner/operations",
