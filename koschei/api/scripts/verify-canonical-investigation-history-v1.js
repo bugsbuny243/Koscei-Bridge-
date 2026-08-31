@@ -59,7 +59,7 @@ requireText(reportsHTML,'Commercial access is determined only by the active SaaS
 requireText(reportsHTML,'signed=true','Vault strict signed copy');
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','Vault history controller');
 requireText(reportsHTML,'/scan?mode=deep','Vault canonical investigation route');
-forbid(reportsHTML,/KOSCH|token holdings|BASIC\+ KOSCH|Basic KOSCH tier/i,'legacy token-holder authorization copy');
+forbid(reportsHTML,/\bKOSCH\b|token holdings|BASIC\+ KOSCH|Basic KOSCH tier/i,'legacy token-holder authorization copy');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'Vault history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'Vault schema gate');
