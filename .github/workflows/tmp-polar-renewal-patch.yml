@@ -1,0 +1,208 @@
+name: Temporary Polar Renewal Patch
+
+on:
+  push:
+    branches:
+      - feat/polar-billing-v1
+    paths:
+      - .github/workflows/tmp-polar-renewal-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/polar-billing-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Patch Polar paid renewal handling
+        shell: python
+        run: |
+          from pathlib import Path
+
+          payments = Path('koschei/api/internal/handlers/payments.go')
+          p = payments.read_text()
+          anchor = '// revokePackageEntitlementDetailedTx revokes only the entitlement carrying the\n'
+          if 'func refreshPackageEntitlementPeriodTx' not in p:
+              insert = r'''func refreshPackageEntitlementPeriodTx(ctx context.Context, tx *sql.Tx, paymentProvider, externalPaymentID, packageID string, expiresAt any) (entitlementActivationResult, error) {
+	if tx == nil {
+		return entitlementActivationResult{}, errors.New("db transaction nil")
+	}
+	provider := normalizePaymentProvider(paymentProvider)
+	externalPaymentID = strings.TrimSpace(externalPaymentID)
+	packageID = normalizePackageID(packageID)
+	outputs, ok := packageOutputCount(packageID)
+	if provider == "" || externalPaymentID == "" || !ok || outputs <= 0 {
+		return entitlementActivationResult{}, errors.New("invalid entitlement renewal input")
+	}
+
+	var email string
+	err := tx.QueryRowContext(ctx, `
+		UPDATE entitlements
+		SET outputs_total=$4, outputs_remaining=$4, starts_at=now(), expires_at=$5, updated_at=now()
+		WHERE payment_provider=$1 AND external_payment_id=$2 AND plan_id=$3 AND status='active'
+		RETURNING lower(COALESCE(email,''))`, provider, externalPaymentID, packageID, outputs, expiresAt).Scan(&email)
+	if err != nil {
+		return entitlementActivationResult{}, err
+	}
+	if strings.TrimSpace(email) == "" {
+		return entitlementActivationResult{}, errors.New("renewed entitlement missing email")
+	}
+	return entitlementActivationResult{Activated: false, PackageID: packageID, OutputsTotal: outputs, OutputsRemaining: outputs}, nil
+}
+
+'''
+              if anchor not in p:
+                  raise SystemExit('payments renewal insertion anchor missing')
+              p = p.replace(anchor, insert + anchor, 1)
+              payments.write_text(p)
+
+          polar = Path('koschei/api/internal/handlers/polar_billing.go')
+          s = polar.read_text()
+          old_struct = '''type polarSubscription struct {\n\tID               string         `json:"id"`\n\tStatus           string         `json:"status"`\n\tCustomerID       string         `json:"customer_id"`\n\tProductID        string         `json:"product_id"`\n\tCheckoutID       string         `json:"checkout_id"`\n\tCurrentPeriodEnd string         `json:"current_period_end"`\n\tMetadata         map[string]any `json:"metadata"`\n}\n'''
+          new_struct = '''type polarSubscription struct {\n\tID               string             `json:"id"`\n\tStatus           string             `json:"status"`\n\tCustomerID       string             `json:"customer_id"`\n\tProductID        string             `json:"product_id"`\n\tCheckoutID       string             `json:"checkout_id"`\n\tCurrentPeriodEnd string             `json:"current_period_end"`\n\tMetadata         map[string]any     `json:"metadata"`\n\tBillingReason    string             `json:"billing_reason"`\n\tPaid             bool               `json:"paid"`\n\tSubscriptionID   string             `json:"subscription_id"`\n\tSubscription     *polarSubscription `json:"subscription"`\n}\n'''
+          if 'BillingReason' not in s:
+              if old_struct not in s:
+                  raise SystemExit('polar struct anchor missing')
+              s = s.replace(old_struct, new_struct, 1)
+
+          old_normalize = '''\toccurredAt := polarOccurredAt(envelope.Timestamp, signedAt)\n\tsubscription := envelope.Data\n\tsubscription.ID = strings.TrimSpace(subscription.ID)\n'''
+          new_normalize = '''\toccurredAt := polarOccurredAt(envelope.Timestamp, signedAt)\n\tsubscription := polarSubscriptionForEnvelope(envelope)\n\tsubscription.ID = strings.TrimSpace(subscription.ID)\n'''
+          if 'subscription := polarSubscriptionForEnvelope(envelope)' not in s:
+              if old_normalize not in s:
+                  raise SystemExit('polar normalization anchor missing')
+              s = s.replace(old_normalize, new_normalize, 1)
+
+          old_binding = '''\tswitch envelope.Type {\n\tcase "subscription.active", "subscription.revoked":\n\t\tif subscription.ID == "" || plan == "" || metadataPlan != plan || authSubject == "" || email == "" {\n'''
+          new_binding = '''\trequiresSubscriptionBinding := envelope.Type == "subscription.active" || envelope.Type == "subscription.revoked" || polarIsPaidSubscriptionCycle(envelope)\n\tif requiresSubscriptionBinding {\n\t\tif subscription.ID == "" || plan == "" || metadataPlan != plan || authSubject == "" || email == "" {\n'''
+          if 'requiresSubscriptionBinding :=' not in s:
+              if old_binding not in s:
+                  raise SystemExit('polar binding anchor missing')
+              s = s.replace(old_binding, new_binding, 1)
+              old_tail = '''\t\t\twriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "customer_binding_unavailable"})\n\t\t\treturn\n\t\t}\n\t}\n\n\tresponse := map[string]any'''
+              new_tail = '''\t\t\twriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "customer_binding_unavailable"})\n\t\t\treturn\n\t\t}\n\t}\n\n\tresponse := map[string]any'''
+              if old_tail not in s:
+                  raise SystemExit('polar binding tail missing')
+              s = s.replace(old_tail, new_tail, 1)
+
+          action_anchor = '''\tcase "subscription.revoked":\n\t\trevocation, err := revokePackageEntitlementDetailedTx(r.Context(), tx, "polar", subscription.ID)\n'''
+          renewal_case = '''\tcase "order.paid":\n\t\tif !polarIsPaidSubscriptionCycle(envelope) {\n\t\t\tresponse["entitlement_changed"] = false\n\t\t\tbreak\n\t\t}\n\t\tif !strings.EqualFold(strings.TrimSpace(subscription.Status), "active") {\n\t\t\twriteJSON(w, http.StatusConflict, map[string]string{"error": "renewal_subscription_not_active"})\n\t\t\treturn\n\t\t}\n\t\trefreshed, err := refreshPackageEntitlementPeriodTx(r.Context(), tx, "polar", subscription.ID, plan, polarNullableTime(subscription.CurrentPeriodEnd))\n\t\tif errors.Is(err, sql.ErrNoRows) {\n\t\t\twriteJSON(w, http.StatusConflict, map[string]string{"error": "renewal_entitlement_missing"})\n\t\t\treturn\n\t\t}\n\t\tif err != nil {\n\t\t\twriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "entitlement_renewal_failed"})\n\t\t\treturn\n\t\t}\n\t\tresponse["entitlement_refreshed"] = true\n\t\tresponse["plan"] = refreshed.PackageID\n\t\tresponse["outputs_remaining"] = refreshed.OutputsRemaining\n'''
+          if 'case "order.paid":' not in s:
+              if action_anchor not in s:
+                  raise SystemExit('polar action anchor missing')
+              s = s.replace(action_anchor, renewal_case + action_anchor, 1)
+
+          helper_anchor = 'func polarMetadataString(values map[string]any, key string) string {'
+          if 'func polarSubscriptionForEnvelope' not in s:
+              helpers = r'''func polarIsPaidSubscriptionCycle(envelope polarWebhookEnvelope) bool {
+	return envelope.Type == "order.paid" && envelope.Data.Paid && strings.EqualFold(strings.TrimSpace(envelope.Data.BillingReason), "subscription_cycle")
+}
+
+func polarSubscriptionForEnvelope(envelope polarWebhookEnvelope) polarSubscription {
+	if envelope.Type != "order.paid" {
+		return envelope.Data
+	}
+	order := envelope.Data
+	if order.Subscription == nil {
+		return polarSubscription{ID: strings.TrimSpace(order.SubscriptionID), ProductID: strings.TrimSpace(order.ProductID), Metadata: order.Metadata}
+	}
+	subscription := *order.Subscription
+	if strings.TrimSpace(subscription.ID) == "" {
+		subscription.ID = strings.TrimSpace(order.SubscriptionID)
+	}
+	if strings.TrimSpace(subscription.ProductID) == "" {
+		subscription.ProductID = strings.TrimSpace(order.ProductID)
+	}
+	if len(subscription.Metadata) == 0 {
+		subscription.Metadata = order.Metadata
+	}
+	return subscription
+}
+
+'''
+              if helper_anchor not in s:
+                  raise SystemExit('polar helper anchor missing')
+              s = s.replace(helper_anchor, helpers + helper_anchor, 1)
+          polar.write_text(s)
+
+          tests = Path('koschei/api/internal/handlers/polar_billing_test.go')
+          t = tests.read_text()
+          if 'TestPolarPaidSubscriptionCycleNormalization' not in t:
+              t += r'''
+
+func TestPolarPaidSubscriptionCycleNormalization(t *testing.T) {
+	envelope := polarWebhookEnvelope{
+		Type: "order.paid",
+		Data: polarSubscription{
+			Paid:           true,
+			BillingReason:  "subscription_cycle",
+			SubscriptionID: "sub_123",
+			ProductID:      "prod_starter",
+			Subscription: &polarSubscription{
+				Status:           "active",
+				CurrentPeriodEnd: "2026-10-01T00:00:00Z",
+				Metadata: map[string]any{
+					"koschei_auth_subject": "auth-123",
+					"koschei_email":        "user@example.com",
+					"koschei_plan":         "starter",
+				},
+			},
+		},
+	}
+	if !polarIsPaidSubscriptionCycle(envelope) {
+		t.Fatal("paid subscription cycle not recognized")
+	}
+	subscription := polarSubscriptionForEnvelope(envelope)
+	if subscription.ID != "sub_123" || subscription.ProductID != "prod_starter" || subscription.Status != "active" {
+		t.Fatalf("unexpected normalized renewal subscription: %#v", subscription)
+	}
+	if polarIsPaidSubscriptionCycle(polarWebhookEnvelope{Type: "order.paid", Data: polarSubscription{Paid: false, BillingReason: "subscription_cycle"}}) {
+		t.Fatal("unpaid order accepted as renewal")
+	}
+	if polarIsPaidSubscriptionCycle(polarWebhookEnvelope{Type: "order.paid", Data: polarSubscription{Paid: true, BillingReason: "subscription_update"}}) {
+		t.Fatal("proration order accepted as renewal")
+	}
+}
+'''
+              tests.write_text(t)
+
+          docs = Path('docs/payment-paths.md')
+          d = docs.read_text()
+          old = '7. `subscription.canceled` and `subscription.past_due` are recorded but do not immediately revoke Koschei access; Polar can keep paid-period/grace-period access alive in those states.\n8. For `subscription.revoked`, only the entitlement carrying the exact `polar` provider plus subscription ID evidence is revoked.'
+          new = '7. `subscription.canceled` and `subscription.past_due` are recorded but do not immediately revoke Koschei access; Polar can keep paid-period/grace-period access alive in those states.\n8. A verified `order.paid` with `billing_reason=subscription_cycle` and an active, correctly bound subscription refreshes that exact Polar entitlement period and restores the plan output capacity. Pending `order.created`, unpaid orders, purchases and proration orders do not refresh quota.\n9. For `subscription.revoked`, only the entitlement carrying the exact `polar` provider plus subscription ID evidence is revoked.'
+          if old in d:
+              d = d.replace(old, new, 1).replace('\n9. Duplicate events are idempotent,', '\n10. Duplicate events are idempotent,', 1)
+          if 'Required Polar webhook events:' not in d:
+              marker = 'No Polar public-config endpoint exists.'
+              addition = '\n\nRequired Polar webhook events: `subscription.active`, `subscription.revoked`, and `order.paid`. Other signed subscription events may be retained as audit evidence but do not independently grant paid access.\n'
+              d = d.replace(marker, addition + '\n' + marker, 1)
+          docs.write_text(d)
+
+      - name: Format and verify
+        run: |
+          gofmt -w koschei/api/internal/handlers/payments.go koschei/api/internal/handlers/polar_billing.go koschei/api/internal/handlers/polar_billing_test.go
+          cd koschei/api
+          go test ./internal/handlers ./internal/services ./internal/http
+          node scripts/verify-pricing-policy-v2.js
+          git diff --check
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "koschei-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/payment-paths.md koschei/api/internal/handlers/payments.go koschei/api/internal/handlers/polar_billing.go koschei/api/internal/handlers/polar_billing_test.go
+          git commit -m "fix(billing): refresh quota only after paid Polar renewal"
+          git push origin HEAD:feat/polar-billing-v1
