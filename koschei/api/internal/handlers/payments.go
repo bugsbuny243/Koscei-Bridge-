@@ -57,7 +57,7 @@ func normalizePaymentProvider(provider string) string {
 	case "shopier", "shopier_manual", "owner_manual":
 		return strings.ToLower(strings.TrimSpace(provider))
 	default:
-		return "owner_manual"
+		return ""
 	}
 }
 
@@ -95,7 +95,7 @@ func activatePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, email
 	paymentRequestID = strings.TrimSpace(paymentRequestID)
 	orderID = strings.TrimSpace(orderID)
 	outputs, ok := packageOutputCount(packageID)
-	if email == "" || !ok || outputs <= 0 {
+	if email == "" || provider == "" || !ok || outputs <= 0 {
 		return entitlementActivationResult{}, errors.New("invalid entitlement activation input")
 	}
 
