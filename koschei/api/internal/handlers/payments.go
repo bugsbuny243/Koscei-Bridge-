@@ -54,7 +54,7 @@ func packageName(packageID string) string {
 
 func normalizePaymentProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "paddle", "shopier", "shopier_manual", "owner_manual":
+	case "shopier", "shopier_manual", "owner_manual":
 		return strings.ToLower(strings.TrimSpace(provider))
 	default:
 		return "owner_manual"
