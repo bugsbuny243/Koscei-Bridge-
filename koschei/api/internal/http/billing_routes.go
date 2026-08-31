@@ -6,8 +6,11 @@ import (
 	"koschei/api/internal/handlers"
 )
 
-// registerBillingRoutes intentionally registers no provider-specific billing
-// endpoints. Paid product authority remains server-side entitlement state.
-// A billing provider may be added here only together with its verified,
-// fail-closed server-side collection and webhook contract.
-func registerBillingRoutes(_ *http.ServeMux, _ *handlers.Handler) {}
+// Billing-provider routes are intentionally narrow. Checkout requires a
+// customer session; webhook access is public at the HTTP edge but authorizes
+// no product access until its Polar signature and server-side binding evidence
+// are verified by the handler.
+func registerBillingRoutes(mux *http.ServeMux, h *handlers.Handler) {
+	mux.HandleFunc("/api/polar/checkout", requiresDB(h, handlers.RequireAuth(method(http.MethodPost, h.PolarCheckout))))
+	mux.HandleFunc("/api/polar/webhook", requiresDB(h, method(http.MethodPost, h.PolarWebhook)))
+}

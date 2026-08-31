@@ -11697,6 +11697,160 @@
         "x-koschei-route-source": "route_inventory.go"
       }
     },
+    "/api/polar/checkout": {
+      "post": {
+        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "operationId": "post__api_polar_checkout",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          }
+        },
+        "security": [],
+        "summary": "POST /api/polar/checkout",
+        "tags": [
+          "billing"
+        ],
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "customer_session_or_verified_provider_webhook",
+        "x-koschei-route-source": "route_inventory.go"
+      }
+    },
+    "/api/polar/webhook": {
+      "post": {
+        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "operationId": "post__api_polar_webhook",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          }
+        },
+        "security": [],
+        "summary": "POST /api/polar/webhook",
+        "tags": [
+          "billing"
+        ],
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "customer_session_or_verified_provider_webhook",
+        "x-koschei-route-source": "route_inventory.go"
+      }
+    },
     "/api/public/cases": {
       "get": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
