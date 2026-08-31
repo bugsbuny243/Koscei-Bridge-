@@ -214,11 +214,6 @@
         "name": "koschei_owner_session",
         "type": "apiKey"
       },
-      "paddleSignature": {
-        "in": "header",
-        "name": "Paddle-Signature",
-        "type": "apiKey"
-      },
       "sessionBearer": {
         "bearerFormat": "session",
         "scheme": "bearer",
@@ -11703,6 +11698,71 @@
       }
     },
     "/api/paddle/checkout": {
+      "get": {
+        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "operationId": "get__api_paddle_checkout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          }
+        },
+        "security": [],
+        "summary": "GET /api/paddle/checkout",
+        "tags": [
+          "paddle"
+        ],
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
+      },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
         "operationId": "post__api_paddle_checkout",
@@ -11738,7 +11798,7 @@
             },
             "description": "Invalid request."
           },
-          "401": {
+          "405": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11746,9 +11806,9 @@
                 }
               }
             },
-            "description": "Identity credential missing or invalid."
+            "description": "Method not allowed."
           },
-          "403": {
+          "429": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11756,7 +11816,54 @@
                 }
               }
             },
-            "description": "Authenticated identity lacks the required access tier."
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          }
+        },
+        "security": [],
+        "summary": "POST /api/paddle/checkout",
+        "tags": [
+          "paddle"
+        ],
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
+      }
+    },
+    "/api/paddle/webhook": {
+      "get": {
+        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "operationId": "get__api_paddle_webhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
           },
           "405": {
             "content": {
@@ -11789,21 +11896,15 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [
-          {
-            "sessionBearer": []
-          }
-        ],
-        "summary": "POST /api/paddle/checkout",
+        "security": [],
+        "summary": "GET /api/paddle/webhook",
         "tags": [
-          "billing"
+          "paddle"
         ],
-        "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_or_verified_provider_webhook",
-        "x-koschei-route-source": "route_inventory.go"
-      }
-    },
-    "/api/paddle/webhook": {
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
+      },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
         "operationId": "post__api_paddle_webhook",
@@ -11839,16 +11940,6 @@
             },
             "description": "Invalid request."
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Identity credential missing or invalid."
-          },
           "405": {
             "content": {
               "application/json": {
@@ -11880,18 +11971,14 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [
-          {
-            "paddleSignature": []
-          }
-        ],
+        "security": [],
         "summary": "POST /api/paddle/webhook",
         "tags": [
-          "billing"
+          "paddle"
         ],
-        "x-koschei-auth-tier": "paddle_webhook_signature",
-        "x-koschei-inventory-auth": "customer_session_or_verified_provider_webhook",
-        "x-koschei-route-source": "route_inventory.go"
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
       }
     },
     "/api/public/cases": {
@@ -12932,6 +13019,71 @@
       }
     },
     "/api/v1/paddle/checkout": {
+      "get": {
+        "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
+        "operationId": "get__api_v1_paddle_checkout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                }
+              }
+            },
+            "description": "Evidence-backed result, including valid WITHHOLD outcomes."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate or quota limit reached."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal failure; no unsupported verdict is emitted."
+          }
+        },
+        "security": [],
+        "summary": "GET /api/v1/paddle/checkout",
+        "tags": [
+          "v1"
+        ],
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
+      },
       "post": {
         "description": "Registered boot-chain operation. Required evidence that cannot be produced yields a successful withheld result rather than an inferred verdict.",
         "operationId": "post__api_v1_paddle_checkout",
@@ -12967,26 +13119,6 @@
             },
             "description": "Invalid request."
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Identity credential missing or invalid."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authenticated identity lacks the required access tier."
-          },
           "405": {
             "content": {
               "application/json": {
@@ -13018,18 +13150,14 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [
-          {
-            "sessionBearer": []
-          }
-        ],
+        "security": [],
         "summary": "POST /api/v1/paddle/checkout",
         "tags": [
-          "billing"
+          "v1"
         ],
-        "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_or_verified_provider_webhook",
-        "x-koschei-route-source": "route_inventory.go"
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "",
+        "x-koschei-route-source": "boot_chain_fallback"
       }
     },
     "/api/v1/radar/actor-intelligence": {
