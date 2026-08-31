@@ -1,0 +1,38 @@
+name: Temporary OpenAPI Regeneration
+
+on:
+  push:
+    branches:
+      - chore/remove-paddle
+    paths:
+      - .github/workflows/tmp-regenerate-openapi.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/remove-paddle
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Regenerate committed OpenAPI contract
+        working-directory: koschei/api
+        run: go run ./cmd/openapi-gen
+      - name: Commit generated contract if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- koschei/api/openapi.yaml; then
+            echo "openapi.yaml already current"
+            exit 0
+          fi
+          git config user.name "koschei-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add koschei/api/openapi.yaml
+          git commit -m "chore(openapi): regenerate registered route contract"
+          git push origin HEAD:chore/remove-paddle
