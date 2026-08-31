@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"koschei/api/internal/decision"
 	"koschei/api/internal/services"
 )
+
+const exposureReportExecutionMode = "exposure_report_stored_only"
 
 func (h *Handler) SecurityRadarExposureReport(w http.ResponseWriter, r *http.Request) {
 	target := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("target"), r.URL.Query().Get("address"), r.URL.Query().Get("mint")))
@@ -19,36 +23,55 @@ func (h *Handler) SecurityRadarExposureReport(w http.ResponseWriter, r *http.Req
 	if network == "" {
 		network = "solana-mainnet"
 	}
-	mode := strings.TrimSpace(r.URL.Query().Get("mode"))
-	if mode == "" {
-		mode = "exposure_report"
+	requestedMode := strings.TrimSpace(r.URL.Query().Get("mode"))
+	if requestedMode == "" {
+		requestedMode = "exposure_report"
 	}
 
-	analysis := services.AnalyzeArvisRadars(services.SecurityRadarRequest{Target: target, Network: network, Mode: mode})
-	bundle := services.EvidenceBackedSecurityRadarBundle(analysis.Bundle)
-	final := services.ArvisFinalFromBundle(bundle)
+	// Exposure is a bounded Professional read surface. Reuse the canonical
+	// investigation core so holder/market/LP evidence cannot drift from the
+	// paid investigation path, while stored_only prevents this read from
+	// starting the broader live actor/funding investigation.
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	assembly := h.buildUnifiedInvestigationReport(ctx, target, network, exposureReportExecutionMode)
+	analysisSummary := attachCustomerAnalysisSummary(&assembly)
+	bundle := services.EvidenceBackedSecurityRadarBundle(assembly.Core.Bundle)
 	arms := services.ArvisArmsFromBundle(bundle)
-	if !services.SecurityRadarHasLiveEvidence(bundle) || !final.Signed {
+	if len(arms) == 0 {
+		arms = assembly.Core.Arms
+	}
+	canonicalDecision := decision.FromUnifiedRadar(assembly.UnifiedVerdict.Grade, assembly.UnifiedVerdict.Verdict)
+	if !services.SecurityRadarHasLiveEvidence(bundle) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"ok": false, "error": "real_data_unavailable", "message": services.SecurityRadarInsufficientEvidenceMessage,
-			"target": target, "network": network, "final_verdict": final,
+			"target": target, "network": network, "final_verdict": assembly.UnifiedVerdict,
+			"decision": canonicalDecision, "arms": arms,
 		})
 		return
 	}
 	if h != nil && h.DB != nil {
-		_ = h.saveSecurityRadarBundle(r.Context(), "", "exposure_report", bundle)
+		_ = h.saveSecurityRadarBundle(ctx, "", "exposure_report", bundle)
 	}
 
-	token2022Section := h.exposureToken2022Section(r.Context(), target, network)
-	report := buildSecurityRadarExposureReport(target, network, final, arms, bundle.Metadata, token2022Section)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "report": report, "final_verdict": final, "arms": arms})
+	token2022Section := h.exposureToken2022Section(ctx, target, network)
+	report := buildSecurityRadarExposureReport(
+		target, network, assembly.UnifiedVerdict, canonicalDecision, arms, bundle.Metadata,
+		token2022Section, analysisSummary, requestedMode,
+	)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true,
+		"report": report,
+		"final_verdict": assembly.UnifiedVerdict,
+		"decision": canonicalDecision,
+		"analysis_summary": analysisSummary,
+		"arms": arms,
+	})
 }
 
-func buildSecurityRadarExposureReport(target, network string, final services.SecurityRadarFinalVerdict, arms []services.SecurityRadarVerdict, metadata map[string]any, token2022Section map[string]any) map[string]any {
+func buildSecurityRadarExposureReport(target, network string, final services.UnifiedRadarVerdict, canonicalDecision decision.Contract, arms []services.SecurityRadarVerdict, metadata map[string]any, token2022Section map[string]any, analysisSummary map[string]any, requestedMode string) map[string]any {
 	verified := 0
 	unavailable := 0
-	maxRisk := 0
-	maxModule := ""
 	evidence := []string{}
 	for _, arm := range arms {
 		if securityRadarArmVerified(arm) {
@@ -59,52 +82,64 @@ func buildSecurityRadarExposureReport(target, network string, final services.Sec
 		} else {
 			unavailable++
 		}
-		if arm.RiskIndex > maxRisk {
-			maxRisk = arm.RiskIndex
-			maxModule = arm.ModuleID
-		}
 	}
 	if token2022Section == nil {
 		token2022Section = map[string]any{"module_id": "token_2022_extensions", "verified": false, "status": "not_collected"}
 	}
-	if tokenRisk, ok := token2022Section["risk_index"].(int); ok && tokenRisk > maxRisk {
-		maxRisk = tokenRisk
-		maxModule = "token_2022_extensions"
-	}
 	sections := map[string]any{
-		"authority":             exposureSectionFromArm(arms, services.ModuleTokenAuthorityScanner, []string{"mint_authority_present", "freeze_authority_present", "account_owner"}),
-		"holder_concentration":  exposureSectionFromArm(arms, services.ModuleHolderConcentration, []string{"largest_holder_percentage", "top_10_holder_percentage", "largest_accounts", "token_supply"}),
-		"intelligence_graph":    exposureSectionFromArm(arms, services.ModuleIntelligenceGraph, []string{"account_owner", "latest_signature", "largest_accounts"}),
+		"authority":             exposureSectionFromArm(arms, services.ModuleTokenAuthorityScanner, []string{"mint_authority_present", "freeze_authority_present", "account_owner", "execution_status", "evidence_status"}),
+		"holder_concentration":  exposureSectionFromArm(arms, services.ModuleHolderConcentration, []string{"largest_holder_percentage", "top_10_holder_percentage", "largest_accounts", "token_supply", "execution_status", "evidence_status"}),
+		"intelligence_graph":    exposureSectionFromArm(arms, services.ModuleIntelligenceGraph, []string{"account_owner", "latest_signature", "largest_accounts", "execution_status", "evidence_status"}),
 		"wallet_cluster":        exposureClusterAssessment(arms),
 		"token_2022_extensions": token2022Section,
-		"sniper_timing":         exposureSectionFromArm(arms, services.ModuleSniperTimingDetector, []string{"recent_signature_count", "signature_window_seconds", "failed_signature_count", "scope_note"}),
-		"program_relation":      exposureSectionFromArm(arms, services.ModuleProgramRelationScan, []string{"account_owner", "program_id", "account_executable"}),
-		"liquidity":             exposureSectionFromArm(arms, services.ModuleLiquidityMovement, []string{"pool", "reserve", "liquidity"}),
+		"sniper_timing":         exposureSectionFromArm(arms, services.ModuleSniperTimingDetector, []string{"recent_signature_count", "signature_window_seconds", "failed_signature_count", "scope_note", "execution_status", "evidence_status"}),
+		"program_relation":      exposureSectionFromArm(arms, services.ModuleProgramRelationScan, []string{"account_owner", "program_id", "account_executable", "execution_status", "evidence_status"}),
+		"liquidity":             exposureSectionFromArm(arms, services.ModuleLiquidityMovement, exposureLiquiditySignalKeys()),
 	}
 	return map[string]any{
-		"schema_version": "koschei-exposure-report-v1",
+		"schema_version": "koschei-exposure-report-v2",
 		"generated_at":   time.Now().UTC().Format(time.RFC3339),
 		"target":         target,
 		"network":        network,
+		"requested_mode": requestedMode,
+		"execution_mode": exposureReportExecutionMode,
 		"verdict":        final,
+		"decision":       canonicalDecision,
+		"analysis_summary": analysisSummary,
 		"summary": map[string]any{
 			"verified_arm_count":         verified,
 			"unavailable_arm_count":      unavailable,
-			"max_risk_index":             maxRisk,
-			"max_risk_module":            maxModule,
 			"token_2022_extension_count": exposureIntFromMap(token2022Section, "extension_count"),
 			"token_2022_status":          token2022Section["status"],
-			"rule_version":               final.RuleVersion,
+			"grade":                      final.Grade,
+			"verdict":                    final.Verdict,
+			"ruleset_version":            final.RulesetVersion,
 			"signed":                     final.Signed,
+			"action":                     canonicalDecision.Action,
+			"withhold_reason":            canonicalDecision.WithholdReason,
+			"numeric_final_score_disabled": true,
 		},
 		"risk_taxonomy":     exposureRiskTaxonomy(arms, token2022Section),
 		"sections":          sections,
 		"evidence":          firstExposureEvidence(evidence, 10),
 		"metadata":          metadata,
-		"shareable_summary": exposureShareableSummary(target, final, arms, token2022Section),
+		"shareable_summary": exposureShareableSummary(target, final, canonicalDecision, arms, token2022Section),
 		"evidence_policy":   exposureEvidencePolicy(),
 		"disclaimer":        "This is evidence-backed on-chain risk analysis, not an accusation or financial advice.",
 		"signature":         final.Signature,
+	}
+}
+
+func exposureLiquiditySignalKeys() []string {
+	return []string{
+		"execution_status", "evidence_status", "lp_control",
+		"pool_address", "pool_program", "pool_type", "control_model", "position_model", "pool_creator", "creator_wallet", "canonical_pool",
+		"lp_mint", "lp_supply", "lp_supply_source", "lp_lock_status",
+		"token_vault", "quote_vault", "read_slot", "token_reserve", "quote_reserve", "effective_quote_reserve", "reserve_liquidity_usd", "reserve_value_source",
+		"burned_share_pct", "creator_lp_share_pct", "dominant_lp_owner", "dominant_lp_token_account", "dominant_lp_share_pct", "dominant_lp_classification", "creator_relation",
+		"locked_lp_amount", "locked_lp_share_pct", "locked_lp_token_accounts", "locked_lp_authority_accounts", "locked_position_count", "locked_position_liquidity_raw", "locked_positions", "locked_until",
+		"movement_status", "liquidity_movement_count", "liquidity_movement_signatures", "liquidity_movement_slots", "liquidity_movement_actors", "liquidity_movement_kinds", "liquidity_movements",
+		"liquidity_movement_transaction_verified", "movement_evidence_status", "reserve_snapshot_verified", "evidence_keys",
 	}
 }
 
@@ -119,9 +154,14 @@ func exposureSectionFromArm(arms []services.SecurityRadarVerdict, moduleID strin
 				signals[key] = value
 			}
 		}
-		return map[string]any{"module_id": arm.ModuleID, "module": arm.Module, "risk_index": arm.RiskIndex, "risk_level": arm.RiskLevel, "verified": securityRadarArmVerified(arm), "signals": signals, "evidence": firstExposureEvidence(arm.Evidence, 5)}
+		return map[string]any{
+			"module_id": arm.ModuleID, "module": arm.Module,
+			"risk_index": arm.RiskIndex, "risk_level": arm.RiskLevel,
+			"verified": securityRadarArmVerified(arm), "signals": signals,
+			"evidence": firstExposureEvidence(arm.Evidence, 8),
+		}
 	}
-	return map[string]any{"module_id": moduleID, "verified": false, "evidence": []string{}}
+	return map[string]any{"module_id": moduleID, "verified": false, "signals": map[string]any{}, "evidence": []string{}}
 }
 
 func exposureClusterAssessment(arms []services.SecurityRadarVerdict) map[string]any {
@@ -136,13 +176,13 @@ func exposureClusterAssessment(arms []services.SecurityRadarVerdict) map[string]
 		status = "relationship_inputs_partial"
 	}
 	return map[string]any{
-		"status":                        status,
+		"status": status,
 		"confirmed_same_wallet_cluster": confirmed,
-		"safe_public_language":          "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
-		"required_evidence":             []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
-		"funding_cluster":               exposureCompactArm(funding),
-		"creator_link":                  exposureCompactArm(creator),
-		"graph_context":                 exposureCompactArm(graph),
+		"safe_public_language": "Possible linked-wallet cluster is reported only when funding, creator-link or parsed transaction evidence is verified. Otherwise ARVIS reports holder concentration without claiming common ownership.",
+		"required_evidence": []string{"parsed funding transactions", "shared funder or creator relation", "same-slot or coordinated timing evidence", "token-account owner mapping"},
+		"funding_cluster": exposureCompactArm(funding),
+		"creator_link": exposureCompactArm(creator),
+		"graph_context": exposureCompactArm(graph),
 	}
 }
 
@@ -154,48 +194,63 @@ func exposureRiskTaxonomy(arms []services.SecurityRadarVerdict, token2022Section
 		if arm.ModuleID == "" {
 			continue
 		}
-		out = append(out, map[string]any{"module_id": arm.ModuleID, "risk_index": arm.RiskIndex, "risk_level": arm.RiskLevel, "verified": securityRadarArmVerified(arm), "label": exposureModuleLabel(arm.ModuleID)})
+		out = append(out, map[string]any{
+			"module_id": arm.ModuleID, "risk_index": arm.RiskIndex, "risk_level": arm.RiskLevel,
+			"verified": securityRadarArmVerified(arm), "label": exposureModuleLabel(arm.ModuleID),
+			"numeric_final_score_authority": false,
+		})
 	}
 	if token2022Section != nil {
-		out = append(out, map[string]any{"module_id": "token_2022_extensions", "risk_index": token2022Section["risk_index"], "risk_level": token2022Section["risk_level"], "verified": token2022Section["verified"], "label": "Token-2022 extensions"})
+		out = append(out, map[string]any{"module_id": "token_2022_extensions", "risk_index": token2022Section["risk_index"], "risk_level": token2022Section["risk_level"], "verified": token2022Section["verified"], "label": "Token-2022 extensions", "numeric_final_score_authority": false})
 	}
 	return out
 }
 
-func exposureShareableSummary(target string, final services.SecurityRadarFinalVerdict, arms []services.SecurityRadarVerdict, token2022Section map[string]any) map[string]any {
+func exposureShareableSummary(target string, final services.UnifiedRadarVerdict, canonicalDecision decision.Contract, arms []services.SecurityRadarVerdict, token2022Section map[string]any) map[string]any {
 	holder := exposureArmByModule(arms, services.ModuleHolderConcentration)
-	authority := exposureArmByModule(arms, services.ModuleTokenAuthorityScanner)
+	liquidity := exposureArmByModule(arms, services.ModuleLiquidityMovement)
 	lines := []string{
 		"Koschei ARVIS Exposure Report",
 		"Target: " + target,
-		fmt.Sprintf("Verdict: %s / %d/100", strings.ToUpper(firstNonEmptyString(final.RiskLevel, "watch")), final.RiskIndex),
+		"Action: " + strings.ToUpper(string(canonicalDecision.Action)),
+		"Grade: " + firstNonEmptyString(final.Grade, "-"),
+	}
+	if canonicalDecision.WithholdReason != "" {
+		lines = append(lines, "Withhold reason: "+canonicalDecision.WithholdReason)
 	}
 	if securityRadarArmVerified(holder) {
 		lines = append(lines, fmt.Sprintf("Top holder: %v%%", holder.Signals["largest_holder_percentage"]))
 		lines = append(lines, fmt.Sprintf("Top 10 holders: %v%%", holder.Signals["top_10_holder_percentage"]))
 	}
-	if securityRadarArmVerified(authority) {
-		lines = append(lines, fmt.Sprintf("Mint authority present: %v", authority.Signals["mint_authority_present"]))
-		lines = append(lines, fmt.Sprintf("Freeze authority present: %v", authority.Signals["freeze_authority_present"]))
+	if securityRadarArmVerified(liquidity) {
+		if pool := strings.TrimSpace(fmt.Sprint(liquidity.Signals["pool_address"])); pool != "" {
+			lines = append(lines, "Liquidity pool: "+pool)
+		}
+		if slot := exposureInt64FromMap(liquidity.Signals, "read_slot"); slot > 0 {
+			lines = append(lines, fmt.Sprintf("Reserve evidence slot: %d", slot))
+		}
+		if count := exposureIntFromMap(liquidity.Signals, "liquidity_movement_count"); count > 0 {
+			lines = append(lines, fmt.Sprintf("Verified liquidity movement rows: %d", count))
+		}
 	}
 	if token2022Section != nil {
 		if status := strings.TrimSpace(fmt.Sprint(token2022Section["status"])); status != "" {
 			lines = append(lines, "Token-2022 status: "+status)
 		}
-		if count := exposureIntFromMap(token2022Section, "extension_count"); count > 0 {
-			lines = append(lines, fmt.Sprintf("Token-2022 extensions: %d", count))
-		}
 	}
-	lines = append(lines, "Not an accusation. Not financial advice. Evidence-first.")
+	lines = append(lines, "No numeric final score. Missing evidence is not a safety signal.")
 	return map[string]any{"title": "Koschei ARVIS Exposure Report", "lines": lines, "hashtags": []string{"#KoscheiARVIS", "#Solana", "#Web3Security", "#OnChainSecurity", "#EvidenceFirst"}}
 }
 
 func exposureEvidencePolicy() map[string]any {
 	return map[string]any{
-		"no_evidence_no_claim":               true,
+		"no_evidence_no_claim": true,
+		"missing_evidence_is_not_safe": true,
+		"numeric_final_score_disabled": true,
+		"unsigned_result_is_not_approval": true,
 		"same_wallet_cluster_claim_requires": []string{"owner mapping", "funding relation", "creator relation or parsed coordinated transaction evidence"},
-		"safe_terms":                         []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
-		"blocked_terms_without_proof":        []string{"scam", "rug", "fraud", "same owner controls all wallets"},
+		"safe_terms": []string{"risk signal", "holder concentration", "exit-liquidity risk", "possible linked-wallet cluster", "Token-2022 extension behavior"},
+		"blocked_terms_without_proof": []string{"scam", "rug", "fraud", "same owner controls all wallets"},
 	}
 }
 
@@ -237,15 +292,7 @@ func exposureModuleLabel(moduleID string) string {
 }
 
 func securityRadarArmVerified(arm services.SecurityRadarVerdict) bool {
-	if !arm.Signed || arm.Signals == nil {
-		return false
-	}
-	for _, key := range []string{"verified_evidence", "real_onchain_evidence", "real_offchain_evidence"} {
-		if value, _ := arm.Signals[key].(bool); value {
-			return true
-		}
-	}
-	return false
+	return services.SecurityRadarVerdictHasVerifiedEvidence(arm)
 }
 
 func exposureIntFromMap(values map[string]any, key string) int {
@@ -266,9 +313,27 @@ func exposureIntFromMap(values map[string]any, key string) int {
 	}
 }
 
+func exposureInt64FromMap(values map[string]any, key string) int64 {
+	if values == nil {
+		return 0
+	}
+	switch value := values[key].(type) {
+	case int64:
+		return value
+	case int:
+		return int64(value)
+	case float64:
+		return int64(value)
+	case float32:
+		return int64(value)
+	default:
+		return 0
+	}
+}
+
 func firstExposureEvidence(values []string, limit int) []string {
 	if limit <= 0 || len(values) <= limit {
-		return values
+		return append([]string{}, values...)
 	}
-	return values[:limit]
+	return append([]string{}, values[:limit]...)
 }
