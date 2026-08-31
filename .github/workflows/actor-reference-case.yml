@@ -104,7 +104,7 @@ jobs:
                && curl --fail --silent --show-error --max-time 15 \
                  "${KOSCHEI_BASE_URL}/live" > live-readiness.html \
                && grep -Fq 'Immutable Case Registry' cases-readiness.html \
-               && grep -Fq 'ARVIS Public SOC' live-readiness.html; then
+               && grep -Fq 'ARVIS Public Live Radar' live-readiness.html; then
               pages_ok=true
             fi
 
@@ -323,7 +323,7 @@ jobs:
           NODE
 
           grep -Fq 'Immutable Case Registry' cases-page.html
-          grep -Fq 'ARVIS Public SOC' live-page.html
+          grep -Fq 'ARVIS Public Live Radar' live-page.html
           grep -Eiq '^cache-control: ' public-cases.headers
           grep -Eiq '^cache-control: ' public-soc-feed.headers
 
