@@ -26,6 +26,12 @@ type entitlementActivationResult struct {
 	OutputsRemaining int
 }
 
+type entitlementRevocationResult struct {
+	Revoked   bool
+	Email     string
+	ProfilePlan string
+}
+
 func normalizePackageID(packageID string) string {
 	switch strings.ToLower(strings.TrimSpace(packageID)) {
 	case "starter":
@@ -54,7 +60,7 @@ func packageName(packageID string) string {
 
 func normalizePaymentProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "shopier", "shopier_manual", "owner_manual":
+	case "polar", "shopier", "shopier_manual", "owner_manual":
 		return strings.ToLower(strings.TrimSpace(provider))
 	default:
 		return ""
@@ -178,4 +184,66 @@ func activatePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, email
 	}
 
 	return entitlementActivationResult{Activated: true, PackageID: packageID, OutputsTotal: outputs, OutputsRemaining: outputs}, nil
+}
+
+// revokePackageEntitlementDetailedTx revokes only the entitlement carrying the
+// exact provider/external-payment evidence. It then derives the profile plan
+// from any other still-active entitlement instead of blindly downgrading the
+// account, preserving independent/manual access grants.
+func revokePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, paymentProvider, externalPaymentID string) (entitlementRevocationResult, error) {
+	if tx == nil {
+		return entitlementRevocationResult{}, errors.New("db transaction nil")
+	}
+	provider := normalizePaymentProvider(paymentProvider)
+	externalPaymentID = strings.TrimSpace(externalPaymentID)
+	if provider == "" || externalPaymentID == "" {
+		return entitlementRevocationResult{}, errors.New("invalid entitlement revocation input")
+	}
+
+	var email string
+	err := tx.QueryRowContext(ctx, `
+		UPDATE entitlements
+		SET status='inactive', expires_at=LEAST(COALESCE(expires_at, now()), now()), updated_at=now()
+		WHERE payment_provider=$1 AND external_payment_id=$2 AND status='active'
+		RETURNING lower(COALESCE(email,''))`, provider, externalPaymentID).Scan(&email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return entitlementRevocationResult{Revoked: false}, nil
+	}
+	if err != nil {
+		return entitlementRevocationResult{}, err
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return entitlementRevocationResult{}, errors.New("revoked entitlement missing email")
+	}
+
+	profilePlan := "free"
+	var remainingPlan string
+	err = tx.QueryRowContext(ctx, `
+		SELECT COALESCE(plan_id,'free')
+		FROM entitlements
+		WHERE lower(email)=lower($1)
+		  AND status='active'
+		  AND (expires_at IS NULL OR expires_at > now())
+		ORDER BY CASE COALESCE(plan_id,'free')
+		           WHEN 'enterprise' THEN 3 WHEN 'studio' THEN 3
+		           WHEN 'professional' THEN 2 WHEN 'builder' THEN 2
+		           WHEN 'starter' THEN 1 ELSE 0 END DESC,
+		         updated_at DESC NULLS LAST, created_at DESC
+		LIMIT 1`, email).Scan(&remainingPlan)
+	if err == nil {
+		if normalized := normalizePackageID(remainingPlan); normalized != "" {
+			profilePlan = normalized
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return entitlementRevocationResult{}, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE app_user_profiles
+		SET plan_id=$2, updated_at=now()
+		WHERE lower(email)=lower($1)`, email, profilePlan); err != nil {
+		return entitlementRevocationResult{}, err
+	}
+	return entitlementRevocationResult{Revoked: true, Email: email, ProfilePlan: profilePlan}, nil
 }
