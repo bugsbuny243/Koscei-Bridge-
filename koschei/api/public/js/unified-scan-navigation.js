@@ -8,6 +8,7 @@ const legacyModes=new Map([
   ['/security-radar','deep'],['/security-radar.html','deep']
 ]);
 const navSelector='nav,.koschei-global-nav,.product-footer,.koschei-footer,.koschei-safety-strip';
+const protectedCustomerNavSelector='.customer-sidebar__nav,.customer-command-palette';
 
 function normalizedPath(anchor){
   try{return new URL(anchor.getAttribute('href')||'',location.origin).pathname.replace(/\/$/,'')||'/'}catch{return''}
@@ -39,6 +40,7 @@ function normalizeLinks(root=document){
 
   const navigationGroups=[...root.querySelectorAll(navSelector)];
   navigationGroups.forEach(group=>{
+    if(group.matches(protectedCustomerNavSelector)||group.closest(protectedCustomerNavSelector))return;
     const scanLinks=[...group.querySelectorAll('a[href]')].filter(anchor=>normalizedPath(anchor)==='/scan');
     if(!scanLinks.length)return;
     const keep=scanLinks[0];
