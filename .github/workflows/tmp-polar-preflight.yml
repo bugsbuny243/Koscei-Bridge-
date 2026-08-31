@@ -1,0 +1,93 @@
+name: Temporary Polar Integration Preflight
+
+on:
+  push:
+    branches:
+      - feat/polar-billing-v1
+    paths:
+      - .github/workflows/tmp-polar-preflight.yml
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/polar-billing-v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+
+      - name: Patch provider-neutral route and env contracts
+        shell: python
+        run: |
+          from pathlib import Path
+
+          inventory = Path("koschei/api/internal/http/route_inventory.go")
+          text = inventory.read_text()
+          if 'POST /api/polar/checkout' not in text:
+              needle = '\t\t{Name: "owner", Auth: "owner_session", Routes: []string{\n'
+              insert = (
+                  '\t\t{Name: "billing", Auth: "customer_session_or_verified_provider_webhook", Routes: []string{\n'
+                  '\t\t\t"POST /api/polar/checkout", "POST /api/polar/webhook",\n'
+                  '\t\t}},\n'
+              )
+              if needle not in text:
+                  raise SystemExit("route inventory insertion anchor missing")
+              text = text.replace(needle, insert + needle, 1)
+              inventory.write_text(text)
+
+          env = Path(".env.example")
+          env_text = env.read_text()
+          marker = "# Polar hosted SaaS billing"
+          if marker not in env_text:
+              env_text += '''\n\n# Polar hosted SaaS billing\n# Keep all values server-side. Checkout redirects never authorize product access;\n# only verified billing webhooks may mutate the entitlement ledger.\nPOLAR_ENVIRONMENT=production\nPOLAR_ACCESS_TOKEN=\nPOLAR_WEBHOOK_SECRET=\nPOLAR_PRODUCT_STARTER_ID=\nPOLAR_PRODUCT_PROFESSIONAL_ID=\nPOLAR_PRODUCT_ENTERPRISE_ID=\n# Optional HTTPS-only hosted checkout navigation targets.\nPOLAR_SUCCESS_URL=https://tradepigloball.co/account?billing=success\nPOLAR_RETURN_URL=https://tradepigloball.co/pricing\n'''
+              env.write_text(env_text)
+
+      - name: Format Go changes
+        run: |
+          gofmt -w \
+            koschei/api/internal/services/polar_config.go \
+            koschei/api/internal/services/polar_config_test.go \
+            koschei/api/internal/handlers/payments.go \
+            koschei/api/internal/handlers/polar_billing.go \
+            koschei/api/internal/handlers/polar_billing_test.go \
+            koschei/api/internal/http/billing_routes.go \
+            koschei/api/internal/http/route_inventory.go
+
+      - name: Run focused Go tests
+        working-directory: koschei/api
+        run: go test ./internal/services ./internal/handlers ./internal/http
+
+      - name: Regenerate committed OpenAPI contract
+        working-directory: koschei/api
+        run: go run ./cmd/openapi-gen
+
+      - name: Validate diff and commit generated contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git status --short
+          if git diff --quiet; then
+            echo "No generated/format changes required."
+            exit 0
+          fi
+          git config user.name "koschei-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add .env.example \
+            koschei/api/internal/services/polar_config.go \
+            koschei/api/internal/services/polar_config_test.go \
+            koschei/api/internal/handlers/payments.go \
+            koschei/api/internal/handlers/polar_billing.go \
+            koschei/api/internal/handlers/polar_billing_test.go \
+            koschei/api/internal/http/billing_routes.go \
+            koschei/api/internal/http/route_inventory.go \
+            koschei/api/openapi.yaml
+          git commit -m "chore(billing): format and generate Polar contracts"
+          git push origin HEAD:feat/polar-billing-v1
