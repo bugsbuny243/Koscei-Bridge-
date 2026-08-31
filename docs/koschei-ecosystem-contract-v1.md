@@ -23,7 +23,7 @@ Production Web3 Hub must not:
 - present Koschei Lang as already integrated into the live product;
 - derive customer access from transferable assets, token holdings, wallet balances, or holder tiers.
 
-Paid product access is controlled by active SaaS entitlements. Paddle is the canonical commercial checkout path for Starter, Professional, and Enterprise subscriptions.
+Paid product access is controlled by active SaaS entitlements. Payment providers are external collection paths only and never become customer authorization or verdict authorities.
 
 ## 3. Provider policy
 
