@@ -4,15 +4,18 @@ This file is the authoritative repository checkpoint for continuing Koschei Web3
 
 ## CURRENT STATE
 
-- Current verified `main` head: **`a84c5406c40f409b9f1717c4581a7fdbc19d9d4d`**, merge of PR **#981**, `fix(arvis): bind exposure to canonical liquidity evidence`.
+- Current verified `main` head: **`6b8d344a6d6aad86c3d0e981731a98af67fe4591`**, merge of PR **#982**, `fix(arvis): preserve creator relation provenance`.
 - Railway deployed that exact main commit successfully. Public API transport `/health` and public product `/scan` statuses are successful.
 - Koschei Web3 is a **Solana-first evidence-backed security and risk-intelligence product**. Transaction Guard uses the canonical operator action vocabulary **`allow / warn / block / withhold`**.
 - New paid checkout remains paused by default. Polar webhook/renewal/revoke and existing entitlement processing remain intact; server-side entitlements are the only paid-access authority.
 - ARVIS remains the active product core and evolves along **Address -> Entity -> Transaction -> Behavior -> Attack Path -> Evidence**.
-- Repo-truth correction retained: raw `AnalyzeArvisRadarsContext` intentionally starts handler-enriched arms such as `liquidity_movement`, `creator_link_analysis`, `launch_distribution` and `repeat_actor_scan` unavailable until callers attach canonical evidence. This service-layer default is not proof that collectors are absent.
-- PR #981 proved this distinction for liquidity: the LP/control collectors already existed; the Professional Exposure route was bypassing them. That route now consumes the canonical unified investigation/LP evidence chain.
-- `creator_link_analysis` is also already attached by the full investigation path through `ApplyCreatorAndLiquidityEvidenceToAnalysis`. The current defect is provenance inflation: a non-empty creator attribution was being emitted as `real_onchain_evidence=true` even when canonical create-transaction verification was not attached.
-- Active branch: **`fix/arvis-creator-provenance`**. It makes creator evidence VERIFIED on-chain only when a canonical create anchor is present with a positive slot; source-only attribution remains OBSERVED.
+- Raw `AnalyzeArvisRadarsContext` intentionally starts handler-enriched arms unavailable until callers attach their evidence. A hard-coded unavailable service-layer placeholder is not proof that its collector is absent.
+- PR #981 connected Professional Exposure to the existing LP/control evidence chain. PR #982 separated source-only creator attribution from canonically VERIFIED creator evidence.
+- `launch_distribution` repo audit is complete: the collector/arm already exists in Launch Forensics and is attached by the canonical customer Check/Detail investigation path and by the selective Pump high-volume worker. No new launch-distribution collector is needed.
+- `repeat_actor_scan` repo audit is partially complete: the full customer investigation path already loads persistent repeat-dominant holder memory and applies it to the arm. The selective Pump high-volume worker does not currently attach that stored actor memory.
+- Broad stream-verdict workers are intentionally paused in production by RPC-saver/background flags. Their dormant code still expects the legacy compatibility final and must not be re-enabled until migrated to the canonical unified verdict contract.
+- Public risk badge route is registered and rate-limited, but its handler still consumes the unsigned compatibility final. It must not be represented as production-ready. Active branch **`fix/public-badge-readiness`** changes its runtime default to disabled/explicit opt-in and removes stale numeric public-badge documentation.
+- Railway production contains a `KOSCHEI_PUBLIC_BADGE_ENABLED` variable name, but the connected OAuth view redacts its value. Do not infer whether the current deployment explicitly enables or disables it.
 - Koschei Sentinel is cancelled. Koschei Lang is separate and deferred; neither is an active Web3 implementation dependency.
 - `main` remains unprotected; exact-head, exact merge-candidate and target-freshness verification are mandatory before merge.
 
@@ -25,27 +28,41 @@ Merged and production-deployed:
 - `/api/v1/radar/exposure` reuses the canonical unified investigation path instead of the raw ARVIS compatibility path;
 - Exposure runs in bounded `exposure_report_stored_only` mode so LP/market evidence is collected without starting broader live actor/funding expansion;
 - the liquidity section projects real pool/program/vault/reserve/read-slot/LP-control/liquidity-movement evidence;
-- stale placeholder signal keys were removed;
 - deterministic Unified Radar verdict plus canonical `allow / warn / block / withhold` decision semantics are used;
 - evidence can be returned without a signed letter grade and remains `withhold` rather than becoming an approval or server failure;
 - shareable Exposure output no longer presents a numeric `/100` final score.
 
-### Active branch — creator-link provenance integrity
+### PR #982 — creator-link provenance integrity
 
-This branch does not add a new creator detector. It tightens the existing creator arm:
+Merged and production-deployed:
 
-- creator attribution no longer becomes `real_onchain_evidence` merely because a creator wallet string exists;
-- `verified_canonical_create_*` launch anchor plus a positive Solana slot is required for `creator_relation_verified=true`, `verified_evidence=true` and `real_onchain_evidence=true`;
-- source-only creator attribution remains a signed OBSERVED evidence arm and is represented as source/off-chain evidence;
-- a canonical label without a positive slot fails closed and cannot upgrade the relation;
-- creator-link evidence continues to make no real-world identity or wrongdoing claim and cannot issue a score or grade;
-- regression tests cover OBSERVED source attribution, VERIFIED canonical creator relation, and missing-slot fail-closed behavior.
+- a creator wallet string alone no longer becomes VERIFIED on-chain evidence;
+- source-only creator attribution stays OBSERVED/source evidence;
+- `verified_canonical_create_*` plus a positive Solana slot is required for `creator_relation_verified=true`, `verified_evidence=true` and `real_onchain_evidence=true`;
+- a canonical-looking label without a positive slot fails closed;
+- creator-link evidence remains wallet-level technical evidence only and makes no real-world identity/wrongdoing claim;
+- regression tests cover OBSERVED source attribution, VERIFIED canonical creator relation and missing-slot fail-closed behavior.
+
+### Active branch — public badge readiness integrity
+
+This branch does not create a new badge verdict engine. It prevents an unready surface from defaulting to live:
+
+- `KOSCHEI_PUBLIC_BADGE_ENABLED` runtime default changes from enabled to disabled;
+- control-plane health reports the same disabled default;
+- `.env.example` documents public badge as explicit opt-in;
+- runtime tests lock disabled-by-default behavior, explicit opt-in support and control-plane reporting;
+- public API documentation no longer advertises sample `grade` / numeric `risk_index` / signed badge output as a current production contract;
+- production route documentation distinguishes boot-chain registration from feature/readiness availability.
 
 ## VERIFIED
 
 ### PR #981
 
-Exact PR head **`006479438ff374d2e30b9759947a3376a837d3fc`** passed all observed permanent workflows before merge:
+Exact PR head **`006479438ff374d2e30b9759947a3376a837d3fc`** passed all permanent workflows before merge, including PostgreSQL migrations/retention, full Go tests, race, vet, build, security scans, exact merge-candidate verification and target freshness. It merged as **`a84c5406c40f409b9f1717c4581a7fdbc19d9d4d`** and deployed successfully.
+
+### PR #982
+
+Exact PR head **`4ccf17a435ef9dc32c3f99fdb66ba426aeb163a3`** passed all eight observed permanent workflows:
 
 - API Required CI;
 - Public Product Smoke;
@@ -58,30 +75,33 @@ Exact PR head **`006479438ff374d2e30b9759947a3376a837d3fc`** passed all observed
 
 Release verification included gofmt, PostgreSQL 17 migration/retention checks, full Go tests, race tests, vet, build, exact merge-candidate verification and target freshness.
 
-PR #981 merged as **`a84c5406c40f409b9f1717c4581a7fdbc19d9d4d`**. Railway deployment, public API transport and public product status all reported success for that merged commit.
+PR #982 merged as **`6b8d344a6d6aad86c3d0e981731a98af67fe4591`**. Railway deployment, public API transport and public product status all reported success for that merged commit.
 
-### Creator-link repo truth
+### Launch/repeat-actor repo truth
 
 Verified by current code inspection:
 
-- `runHolderIntelligenceCore` already resolves creator source context and invokes Launch Forensics before applying the creator-link arm;
-- `verifyCanonicalCreatorRelation` is the authoritative upgrade path and requires the creator to sign the candidate create transaction, the requested mint to be structurally referenced, launch/create semantics to be present, and a positive slot;
-- external discovery providers may suggest creator/signature data but cannot themselves set the canonical relation VERIFIED;
-- Launch Forensics preserves canonical create anchors as `verified_canonical_create_transaction` or `verified_canonical_create_slot` when the anchor is valid;
-- the previous creator arm ignored that distinction and marked any creator string as real on-chain evidence; the active branch repairs this mismatch.
+- `/api/v1/radar/detail` is routed to `SecurityRadarDetailV3`, which calls `buildUnifiedInvestigationReport(..., "manual_detail")`; the older raw-detail handler is not the registered customer route;
+- `ApplyLaunchForensicsToAnalysis` already replaces `launch_distribution`, Pump launch behavior and sniper timing arms with mint-specific ATA/live-ledger evidence;
+- selective Pump high-volume analysis also invokes `AnalyzeLaunchForensics` and `ApplyLaunchForensicsToAnalysis`;
+- `runHolderIntelligenceCore` already captures holder snapshots, queries persistent repeat-dominant memory and applies `repeat_actor_scan` evidence on canonical full investigations;
+- broad stream-verdict worker still calls `ArvisFinalFromBundle`, which intentionally returns an unsigned compatibility final after the Solana-centered decision refactor; production background flags currently keep that broad worker dormant.
 
 ### Active branch verification
 
-Pending CI. Do not merge or call the creator provenance repair production-verified until the exact branch head passes permanent gates.
+Pending CI. Do not merge or call the public-badge readiness changes production-verified until the exact branch head passes permanent gates.
 
 ## BROKEN / MISSING
 
-- The active creator-provenance branch still requires exact-head CI, merge-candidate and target-freshness verification.
-- Creator-link evidence still does not expose the canonical create transaction signature directly from the arm because the current `LaunchForensicsAnalysis` projection carries the canonical slot/source anchor but not that signature. Do not invent a signature. A later evidence-bus/provenance slice may carry the exact transaction reference end-to-end.
-- `launch_distribution` and `repeat_actor_scan` require the same repo-truth audit before any new collector is written; existing handler/store capabilities must be reused where they already exist.
+- Active public-badge readiness branch still requires exact-head CI, exact merge-candidate and target-freshness verification.
+- Production explicitly defines the `KOSCHEI_PUBLIC_BADGE_ENABLED` variable name but its value is redacted by the connected Railway OAuth view. After the code change is merged, set it deliberately to `false` before claiming production badge is disabled.
+- Public badge has no canonical low-cost public decision path yet. Do not re-enable it by simply translating compatibility fields into `allow / warn / block / withhold`.
+- Selective Pump high-volume worker does not attach persistent repeat-actor memory even though the customer investigation path does.
+- Selective Pump report cooldown still looks for a signed `final_verdict_engine` record while modern ARVIS evidence arms no longer manufacture that legacy final. This can cause a qualifying mint to be re-enriched after the shorter attempt cooldown rather than the intended report cooldown.
+- Dormant broad stream-verdict worker still depends on `ArvisFinalFromBundle(...).Signed` and therefore cannot be safely re-enabled until it uses the same canonical actor/behavior decision inputs as the full investigation.
+- Creator-link arm still does not carry the exact canonical create transaction signature end-to-end; current Launch Forensics projection carries the verified slot/source anchor but not that signature. Do not invent one.
 - A Solana adversarial fixture set is still missing for fake LP-lock claims, false creator attribution, ATA/freeze surprises, Token-2022 transfer-hook injection, authority mutation, wrong mint/account resolution and incomplete state evidence.
 - Exact approved-instruction-set vs candidate-instruction-set binding is not complete; Transaction Guard v3 already has signed UI intent, decoding, state witness and enforcement-permit primitives that should be extended rather than replaced.
-- Broad background security-radar RPC workers remain intentionally constrained by the RPC saver in production; manual scans/selective workers remain available.
 - Anonymous `/dashboard` still needs a cleaner login-first boundary without fake sample data.
 - `/feedback` still contains legacy Turkish source copy even though primary customer surfaces are English.
 - `tradepigloball.co` remains a brand-trust liability; no domain migration should be faked before a real Koschei domain is selected and controlled.
@@ -89,12 +109,13 @@ Pending CI. Do not merge or call the creator provenance repair production-verifi
 
 ## NEXT
 
-1. Run the exact creator-provenance branch through permanent CI; repair failures on the same branch.
+1. Run the exact public-badge readiness branch through permanent CI; repair failures on the same branch.
 2. Merge only after exact merge-candidate and target-freshness gates pass, then verify merged `main` and Railway deployment.
-3. Audit `launch_distribution` next: determine whether its collectors/evidence already exist in Launch Forensics and identify the real entry-point or projection gap before writing code.
-4. Audit `repeat_actor_scan` after launch distribution, reusing persistent creator/holder actor-index evidence where it already exists.
-5. Add adversarial Solana fixtures that try to break Koschei's own evidence claims, including false creator attribution and fake LP-lock cases.
-6. Complete exact Solana instruction-intent binding using Transaction Guard v3 + state witness + enforcement permit.
+3. Explicitly set production `KOSCHEI_PUBLIC_BADGE_ENABLED=false` and verify the redeploy before claiming the public badge is disabled.
+4. Fix the selective Pump high-volume path next: reuse persistent repeat-actor memory and repair cooldown semantics without manufacturing a legacy final verdict.
+5. Keep broad stream verdicts disabled until they can consume the same canonical unified actor/behavior decision inputs as manual investigations.
+6. Add adversarial Solana fixtures that try to break Koschei's evidence claims.
+7. Complete exact Solana instruction-intent binding using Transaction Guard v3 + state witness + enforcement permit.
 
 ## WORK-IN-PROGRESS POLICY
 
@@ -111,7 +132,8 @@ Pending CI. Do not merge or call the creator provenance repair production-verifi
 
 - No generic scanner/risk-score expansion as the primary product direction.
 - No fake scores, fake chain data, fake payment evidence, placeholder enterprise capabilities or disconnected demo surfaces.
-- No duplicate LP/liquidity or creator collector when canonical evidence already exists.
+- No duplicate LP/liquidity, creator or launch-distribution collector when canonical evidence already exists.
+- No new final-verdict engine inside background workers just to make legacy tests green.
 - No EVM-first rewrite and no promotion of Safe/Anvil executionproof to the product spine.
 - No new paid checkout while commercial readiness remains paused.
 - No revival of Paddle or KOSCH/token-backed commercial authorization.
@@ -121,11 +143,12 @@ Pending CI. Do not merge or call the creator provenance repair production-verifi
 
 ## RISKS
 
+- **Public-contract risk:** a registered/default-enabled route can look production-ready even when its decision contract cannot produce the canonical signed result.
 - **Creator-provenance risk:** source attribution must never be presented as canonical on-chain verification merely because a creator wallet string exists.
-- **Evidence-routing risk:** working collectors can appear missing when a customer route bypasses their attachment stage; fix the route before inventing duplicate intelligence.
+- **Evidence-routing risk:** working collectors can appear missing when a caller bypasses their attachment stage; inspect route truth before inventing duplicate intelligence.
+- **Background-decision risk:** dormant workers still carrying legacy final assumptions can become unsafe or permanently unavailable if re-enabled without canonical actor/behavior inputs.
+- **RPC-cost risk:** stale Pump report-cooldown semantics can repeat expensive enrichment more frequently than intended.
 - **Liquidity-proof risk:** market depth alone does not prove LP control or add/remove behavior; transaction-backed movement and on-chain pool/vault evidence must remain distinct.
-- **Decision drift risk:** legacy compatibility finals can turn evidence gaps into contradictory customer behavior unless surfaces use deterministic Unified Radar verdict and canonical action semantics.
-- **RPC-budget risk:** advanced read surfaces must reuse bounded/stored evidence modes where live actor expansion is unnecessary.
 - **Evidence-quality risk:** missing or incomplete evidence must never silently improve a decision.
 - **Commercial trust risk:** paid checkout remains paused until the customer evidence pipeline is operationally credible.
 - **Unprotected main:** target can move without branch protection; exact candidate freshness remains mandatory.
