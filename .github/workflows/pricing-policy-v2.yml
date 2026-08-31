@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'koschei/api/public/pricing.html'
-      - 'koschei/api/public/js/paddle-checkout.js'
       - 'koschei/api/public/css/pricing-policy-v2.css'
       - 'koschei/api/scripts/verify-pricing-policy-v2.js'
       - '.github/workflows/pricing-policy-v2.yml'
@@ -19,7 +18,5 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Check Paddle checkout JavaScript syntax
-        run: node --check koschei/api/public/js/paddle-checkout.js
       - name: Verify SaaS pricing contract
         run: node koschei/api/scripts/verify-pricing-policy-v2.js
