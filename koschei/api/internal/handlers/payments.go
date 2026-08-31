@@ -131,17 +131,26 @@ func activatePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, email
 		}
 	}
 
+	// Provider evidence must not overwrite an independent entitlement grant.
+	// A row can be reused only for the same provider when no external payment
+	// identity exists. A new external subscription/payment always gets its own
+	// evidence-bearing entitlement row.
 	var activeID string
-	err := tx.QueryRowContext(ctx, `
-		SELECT id::text
-		FROM entitlements
-		WHERE lower(email)=lower($1)
-		  AND status='active'
-		  AND COALESCE(plan_id, '') <> ''
-		  AND COALESCE(plan_id, '') <> 'free'
-		ORDER BY updated_at DESC NULLS LAST, created_at DESC
-		LIMIT 1
-		FOR UPDATE`, email).Scan(&activeID)
+	err := sql.ErrNoRows
+	if externalPaymentID == "" {
+		err = tx.QueryRowContext(ctx, `
+			SELECT id::text
+			FROM entitlements
+			WHERE lower(email)=lower($1)
+			  AND status='active'
+			  AND COALESCE(plan_id, '') <> ''
+			  AND COALESCE(plan_id, '') <> 'free'
+			  AND payment_provider=$2
+			  AND COALESCE(external_payment_id, '')=''
+			ORDER BY updated_at DESC NULLS LAST, created_at DESC
+			LIMIT 1
+			FOR UPDATE`, email, provider).Scan(&activeID)
+	}
 	if err == nil {
 		_, err = tx.ExecContext(ctx, `
 			UPDATE entitlements
