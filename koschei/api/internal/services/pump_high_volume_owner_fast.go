@@ -27,7 +27,7 @@ func (s *SecurityRadarStore) LatestPumpHighVolumeReportsExact(ctx context.Contex
 		)
 		SELECT e.id,e.target,e.signals,e.created_at,
 		       j.id,j.status,j.completed_at,j.grade,j.verdict,j.ruleset_version,
-		       j.signed,j.signature,j.decision_path,j.error_code,j.error_message
+		       COALESCE(j.signed,false),j.signature,COALESCE(j.decision_path,'[]'::jsonb),j.error_code,j.error_message
 		FROM latest_events e
 		LEFT JOIN LATERAL (
 			SELECT id::text,status,completed_at,
