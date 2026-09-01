@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 )
 
 // LatestPumpHighVolumeReportsExact is the owner-panel read path for automatic
 // Pump reports. Solana addresses are case-sensitive base58 values, so exact
-// equality is both correct and allows the existing (module_id,target,...) index
-// to avoid repeatedly scanning every final verdict for each target.
+// equality is required. Completion comes from the canonical investigation job
+// ledger; the retired final_verdict_engine table is not a report authority.
 func (s *SecurityRadarStore) LatestPumpHighVolumeReportsExact(ctx context.Context, limit int) ([]PumpHighVolumeOwnerItem, error) {
 	if s == nil || s.DB == nil {
 		return []PumpHighVolumeOwnerItem{}, nil
@@ -25,17 +26,30 @@ func (s *SecurityRadarStore) LatestPumpHighVolumeReportsExact(ctx context.Contex
 			ORDER BY e.target, e.created_at DESC, e.id DESC
 		)
 		SELECT e.id,e.target,e.signals,e.created_at,
-		       v.risk_index,v.risk_level,v.verdict,v.created_at
+		       j.id,j.status,j.completed_at,j.grade,j.verdict,j.ruleset_version,
+		       j.signed,j.signature,j.decision_path,j.error_code,j.error_message
 		FROM latest_events e
 		LEFT JOIN LATERAL (
-			SELECT risk_index,risk_level,verdict,created_at
-			FROM security_radar_verdicts v
-			WHERE v.target=e.target AND v.module_id='final_verdict_engine'
-			  AND v.signed=true AND v.source=$2
-			ORDER BY v.created_at DESC,v.id DESC LIMIT 1
-		) v ON true
+			SELECT id::text,status,completed_at,
+			       COALESCE(result_payload->'final_verdict'->>'grade','') AS grade,
+			       COALESCE(result_payload->'final_verdict'->>'verdict','') AS verdict,
+			       COALESCE(result_payload->'final_verdict'->>'ruleset_version','') AS ruleset_version,
+			       CASE WHEN lower(COALESCE(result_payload->'final_verdict'->>'signed','false'))='true' THEN true ELSE false END AS signed,
+			       COALESCE(result_payload->'final_verdict'->>'signature','') AS signature,
+			       COALESCE(result_payload->'final_verdict'->'decision_path','[]'::jsonb) AS decision_path,
+			       COALESCE(error_code,'') AS error_code,
+			       COALESCE(error_message,'') AS error_message
+			FROM web3_jobs j
+			WHERE j.job_type='canonical_investigation'
+			  AND j.network='solana-mainnet'
+			  AND j.target=e.target
+			  AND COALESCE(j.request_payload->>'source','')=$2
+			  AND COALESCE(j.request_payload->>'mode','')=$3
+			ORDER BY j.queued_at DESC,j.id DESC
+			LIMIT 1
+		) j ON true
 		ORDER BY COALESCE((e.signals->>'volume_24h_usd')::numeric,0) DESC,e.created_at DESC
-		LIMIT $3`, pumpHighVolumeEventType, pumpHighVolumeSource, limit)
+		LIMIT $4`, pumpHighVolumeEventType, PumpHighVolumeCanonicalSource, PumpHighVolumeCanonicalMode, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -44,11 +58,15 @@ func (s *SecurityRadarStore) LatestPumpHighVolumeReportsExact(ctx context.Contex
 	out := []PumpHighVolumeOwnerItem{}
 	for rows.Next() {
 		var item PumpHighVolumeOwnerItem
-		var signalsRaw []byte
-		var risk sql.NullInt64
-		var level, verdict sql.NullString
+		var signalsRaw, decisionPathRaw []byte
+		var jobID, jobStatus, grade, verdict, ruleset, signature, errorCode, errorMessage sql.NullString
 		var reportAt sql.NullTime
-		if err := rows.Scan(&item.EventID, &item.Target, &signalsRaw, &item.ObservedAt, &risk, &level, &verdict, &reportAt); err != nil {
+		var signed bool
+		if err := rows.Scan(
+			&item.EventID, &item.Target, &signalsRaw, &item.ObservedAt,
+			&jobID, &jobStatus, &reportAt, &grade, &verdict, &ruleset,
+			&signed, &signature, &decisionPathRaw, &errorCode, &errorMessage,
+		); err != nil {
 			return nil, err
 		}
 		item.Signals = map[string]any{}
@@ -62,16 +80,43 @@ func (s *SecurityRadarStore) LatestPumpHighVolumeReportsExact(ctx context.Contex
 		item.LiquidityUSD = pumpSignalFloat(item.Signals, "liquidity_usd")
 		item.MarketCapUSD = pumpSignalFloat(item.Signals, "market_cap_usd")
 		item.VolumeProvider = pumpSignalString(item.Signals, "volume_provider")
-		item.ReportStatus = "queued"
+
+		item.ReportStatus = "observed"
 		if pumpSignalBool(item.Signals, "auto_scan_attempted") {
 			item.ReportStatus = "evidence_pending"
 		}
-		if risk.Valid {
-			value := int(risk.Int64)
-			item.RiskIndex = &value
-			item.RiskLevel = level.String
-			item.Verdict = verdict.String
-			item.ReportStatus = "completed"
+		if jobStatus.Valid && strings.TrimSpace(jobStatus.String) != "" {
+			item.ReportStatus = strings.TrimSpace(jobStatus.String)
+			item.Signals["canonical_job_status"] = item.ReportStatus
+			if jobID.Valid {
+				item.Signals["canonical_job_id"] = strings.TrimSpace(jobID.String)
+			}
+			if errorCode.Valid && strings.TrimSpace(errorCode.String) != "" {
+				item.Signals["canonical_job_error_code"] = strings.TrimSpace(errorCode.String)
+			}
+			if errorMessage.Valid && strings.TrimSpace(errorMessage.String) != "" {
+				item.Signals["canonical_job_error_message"] = strings.TrimSpace(errorMessage.String)
+			}
+		}
+		if jobStatus.Valid && strings.EqualFold(strings.TrimSpace(jobStatus.String), "completed") {
+			item.Verdict = strings.TrimSpace(verdict.String)
+			item.Signals["grade"] = strings.TrimSpace(grade.String)
+			item.Signals["ruleset_version"] = strings.TrimSpace(ruleset.String)
+			item.Signals["signed"] = signed
+			if signature.Valid && strings.TrimSpace(signature.String) != "" {
+				item.Signals["signature"] = strings.TrimSpace(signature.String)
+			}
+			decisionPath := []string{}
+			if len(decisionPathRaw) > 0 {
+				_ = json.Unmarshal(decisionPathRaw, &decisionPath)
+			}
+			item.Signals["decision_path"] = decisionPath
+			if signed {
+				item.ReportStatus = "completed"
+			} else {
+				// A completed worker job is not equivalent to a signed canonical verdict.
+				item.ReportStatus = "completed_unsigned"
+			}
 		}
 		if reportAt.Valid {
 			value := reportAt.Time.UTC()
