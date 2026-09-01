@@ -61,7 +61,7 @@ func LoadWith(get Getter) Config {
 		RiskScannerEnabled:       boolEnv(get, "FEATURE_RISK_SCANNER", true),
 		SolanaEnabled:            boolEnv(get, "FEATURE_SOLANA", true),
 		ModelRouterEnabled:       boolEnv(get, "KOSCHEI_MODEL_ROUTER_ENABLED", true),
-		PublicBadgeEnabled:       boolEnv(get, "KOSCHEI_PUBLIC_BADGE_ENABLED", true),
+		PublicBadgeEnabled:       boolEnv(get, "KOSCHEI_PUBLIC_BADGE_ENABLED", false),
 		SecurityModules:          csvEnv(get, "KOSCHEI_SECURITY_MODULES"),
 		SecurityProvider:         enumEnv(get, "KOSCHEI_SECURITY_PROVIDER", DefaultSecuritySource, "auto", "alchemy", "helius", "quicknode", "rpc", "solscan"),
 		VerdictMode:              enumEnv(get, "KOSCHEI_VERDICT_MODE", DefaultSecurityMode, "evidence_first", "strict", "observe", "evidence_only"),

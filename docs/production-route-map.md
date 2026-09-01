@@ -29,7 +29,9 @@ The machine-readable source is `productionRouteInventory()` in `koschei/api/inte
 - `POST /api/agent/metadata-template`
 - `POST /api/agent/chain-health`
 
-Some routes in this group are public while others still enforce their own authentication or database requirements. The route inventory records boot-chain presence; handler policy remains authoritative for the final access decision.
+Some routes in this group are public while others still enforce their own authentication, database or runtime-readiness requirements. The route inventory records boot-chain presence; handler and feature-gate policy remain authoritative for the final access decision.
+
+`GET /api/v1/risk/badge` is registered but `KOSCHEI_PUBLIC_BADGE_ENABLED` defaults to `false`. It must not be described as production-ready until a canonical unified public decision path and its abuse/cost boundary are verified.
 
 ## Identity and account access
 
@@ -145,9 +147,10 @@ These are lab/reproduction surfaces and remain separate from ARVIS verdict autho
 
 ## Route hygiene contract
 
-- Boot-chain registration defines whether a handler is live.
+- Boot-chain registration defines whether a handler exists; runtime feature gates define whether an opt-in capability is currently available.
 - `productionRouteInventory()` must contain every literal `/api/*` boot-chain registration and must not retain removed routes.
 - The database-optional allowlist must not contain an unregistered API path.
 - Documentation must not resurrect legacy Shopier, package-purchase or owner-payment routes that are no longer registered.
 - Evidence-backed outputs are signed only when verified evidence exists.
 - Missing, malformed or unavailable evidence fails closed rather than becoming a safety signal.
+- A registered route must not be marketed as production-ready solely because it is present in the boot chain.

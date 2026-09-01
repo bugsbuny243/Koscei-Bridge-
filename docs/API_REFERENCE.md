@@ -94,51 +94,23 @@ If the evidence boundary is not satisfied, the response is unsigned and `charged
 
 ## GET /api/v1/risk/badge
 
-Returns a public, rate-limited risk badge.
+The public badge route is registered in the server boot chain but is **readiness-gated and disabled by default**.
 
-Query parameters:
+`KOSCHEI_PUBLIC_BADGE_ENABLED=true` is an explicit operator opt-in. Registration or opt-in alone is not a production-readiness claim. The current badge handler still consumes the legacy ARVIS compatibility final rather than the canonical unified decision path, so Koschei does not advertise a stable signed public badge contract yet.
 
-- `address` — required target address
-- `token` — accepted alias for `address`
-- `network` — defaults to `solana-mainnet`
+With the default configuration, the runtime feature gate returns `503` with `code: feature_disabled` and `feature: public_badge`.
 
-Example:
-
-```bash
-curl "https://tradepigloball.co/api/v1/risk/badge?address=So11111111111111111111111111111111111111112&network=solana-mainnet"
-```
-
-Success response shape:
-
-```json
-{
-  "ok": true,
-  "address": "So11111111111111111111111111111111111111112",
-  "grade": "B",
-  "risk_index": 35,
-  "risk_level": "medium",
-  "verdict": "monitor",
-  "recommendation": "Review the verified findings before interacting.",
-  "rule_version": "current",
-  "signed": true,
-  "signature": "...",
-  "verified_arm_count": 8
-}
-```
-
-The sample values above describe the response structure only. They are not a live verdict for the example address.
-
-When evidence is unavailable, the endpoint returns `503` with `signed: false`.
+Do not publish cached grade, numeric risk-index, verdict or signature examples as if they were current public badge outputs. A future public badge may be enabled only after it is bound to the canonical deterministic decision/evidence contract and its low-cost public abuse boundary is verified.
 
 ## Status behavior
 
-- `200` — evidence-backed success
+- `200` — evidence-backed success on a production-ready enabled route
 - `400` — invalid input
 - `401` — authentication required
 - `402` — active entitlement or output required
 - `502` — authenticated analysis could not obtain sufficient real evidence
-- `503` — public badge could not obtain sufficient real evidence
+- `503` — readiness/feature gate disabled or required public evidence unavailable
 
 ## Integration rule
 
-Always check the evidence state and `signed` value before displaying a verdict. Missing evidence is not a safety signal.
+Always check the evidence state and signed decision contract before displaying a verdict. Missing evidence is not a safety signal. A registered route is not, by itself, proof that the capability is production-ready.
