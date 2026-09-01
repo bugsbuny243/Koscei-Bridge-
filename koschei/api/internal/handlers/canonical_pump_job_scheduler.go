@@ -138,7 +138,7 @@ func (s *canonicalPumpJobScheduler) RunOnce(ctx context.Context) (candidateCount
 		if s.MaxJobsPerCycle > 0 && queuedCount >= s.MaxJobsPerCycle {
 			break
 		}
-		reported, reportErr := s.RadarStore.PumpHighVolumeReportedRecently(ctx, row.Candidate.Mint, s.ReportCooldown)
+		reported, reportErr := s.RadarStore.PumpHighVolumeCanonicalReportCompletedRecently(ctx, row.Candidate.Mint, s.ReportCooldown)
 		if reportErr != nil {
 			return candidateCount, qualifiedCount, queuedCount, reportErr
 		}
@@ -160,11 +160,11 @@ func (s *canonicalPumpJobScheduler) RunOnce(ctx context.Context) (candidateCount
 		if bucket.IsZero() {
 			bucket = time.Now().UTC().Truncate(s.ReportCooldown)
 		}
-		dedupe := strings.Join([]string{"pump_volume_gate", row.Candidate.Mint, bucket.Format(time.RFC3339)}, "|")
+		dedupe := strings.Join([]string{services.PumpHighVolumeCanonicalSource, row.Candidate.Mint, bucket.Format(time.RFC3339)}, "|")
 		payload := canonicalInvestigationJobPayload{
 			Mint: row.Candidate.Mint, Network: "solana-mainnet",
-			Mode: "background_pump_high_volume", RootTarget: row.Candidate.Mint,
-			Source: "pump_volume_gate", SourceEventID: eventID, Depth: 0,
+			Mode: services.PumpHighVolumeCanonicalMode, RootTarget: row.Candidate.Mint,
+			Source: services.PumpHighVolumeCanonicalSource, SourceEventID: eventID, Depth: 0,
 			MaxDepth: canonicalWorkerEnvInt("ACTOR_RECURSIVE_MAX_DEPTH", 1, 1, 3), DedupeKey: dedupe,
 		}
 		_, created, createErr := s.JobStore.CreateUniqueActive(ctx, jobs.CreateInput{
@@ -213,5 +213,5 @@ func canonicalPumpJobDedupeKey(mint string, observedAt time.Time, cooldown time.
 	if observedAt.IsZero() {
 		observedAt = time.Now().UTC()
 	}
-	return fmt.Sprintf("pump_volume_gate|%s|%s", strings.TrimSpace(mint), observedAt.UTC().Truncate(cooldown).Format(time.RFC3339))
+	return fmt.Sprintf("%s|%s|%s", services.PumpHighVolumeCanonicalSource, strings.TrimSpace(mint), observedAt.UTC().Truncate(cooldown).Format(time.RFC3339))
 }
