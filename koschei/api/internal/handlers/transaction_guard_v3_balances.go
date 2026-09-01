@@ -122,10 +122,10 @@ func evaluateTransactionGuardV3AutomaticBalances(
 		preBig, postBig := big.NewInt(preLamports), big.NewInt(postLamports)
 		lamportDelta := new(big.Int).Sub(new(big.Int).Set(postBig), preBig)
 		delta.PreLamports, delta.PostLamports, delta.LamportDelta = preBig.String(), postBig.String(), lamportDelta.String()
-		if strings.EqualFold(strings.TrimSpace(wallet), address) {
+		if strings.TrimSpace(wallet) == address {
 			walletDelta.Set(lamportDelta)
 		}
-		if preInfo != nil && postInfo != nil && !strings.EqualFold(delta.PreProgramOwner, delta.PostProgramOwner) {
+		if preInfo != nil && postInfo != nil && delta.PreProgramOwner != delta.PostProgramOwner {
 			findings = append(findings, transactionFirewallFinding{
 				Code: "automatic_account_program_owner_changed", Severity: "high", Title: "Writable account program owner changed",
 				Evidence: fmt.Sprintf("account=%s before=%s after=%s", address, delta.PreProgramOwner, delta.PostProgramOwner), Score: 30,
@@ -176,7 +176,7 @@ func evaluateTransactionGuardV3AutomaticBalances(
 				closedTokenAccounts = append(closedTokenAccounts, address)
 			}
 		}
-		delta.Changed = delta.AccountCreated || delta.AccountClosed || lamportDelta.Sign() != 0 || delta.TokenDeltaRaw != "" && delta.TokenDeltaRaw != "0" || !strings.EqualFold(delta.PreProgramOwner, delta.PostProgramOwner)
+		delta.Changed = delta.AccountCreated || delta.AccountClosed || lamportDelta.Sign() != 0 || delta.TokenDeltaRaw != "" && delta.TokenDeltaRaw != "0" || delta.PreProgramOwner != delta.PostProgramOwner
 		if delta.Changed {
 			analysis.ChangedAccountCount++
 		}
@@ -234,12 +234,12 @@ func transactionGuardV3TokenSnapshot(info *services.SolanaAccountInfo) (services
 
 func transactionGuardV3AddressWritable(decoded transactionGuardDecodedTransaction, address string) bool {
 	for _, account := range decoded.StaticAccounts {
-		if strings.EqualFold(account.Address, address) {
+		if account.Address == address {
 			return account.Writable
 		}
 	}
 	for _, account := range decoded.LoadedAccounts {
-		if strings.EqualFold(account.Address, address) {
+		if account.Address == address {
 			return account.Writable
 		}
 	}
