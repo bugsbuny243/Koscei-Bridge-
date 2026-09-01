@@ -27,12 +27,17 @@ type canonicalPumpJobScheduler struct {
 	AttemptCooldown time.Duration
 }
 
+// canonicalPumpAutoSchedulingAllowed is the explicit bounded exception to the
+// broad automatic-scanning/RPC-saver gates. Pump discovery stays cheap and only
+// a mint that crosses the configured 24h USD volume threshold may enqueue a
+// canonical investigation. The investigation still consumes the shared Solana
+// RPC budget and the scheduler keeps its per-cycle job cap.
 func canonicalPumpAutoSchedulingAllowed() bool {
-	return !services.SolanaRPCLimitSaverEnabled()
+	return services.PumpHighVolumeRadarEnabled()
 }
 
 func StartCanonicalPumpJobScheduler(ctx context.Context, db *sql.DB, store *jobs.Store) func() {
-	if !CanonicalInvestigationJobWorkerEnabled() || !services.AutomaticBackgroundScanningEnabled() || !services.PumpHighVolumeRadarEnabled() || !canonicalPumpAutoSchedulingAllowed() || db == nil {
+	if !CanonicalInvestigationJobWorkerEnabled() || !canonicalPumpAutoSchedulingAllowed() || db == nil {
 		return func() {}
 	}
 	if store == nil {
@@ -50,7 +55,7 @@ func StartCanonicalPumpJobScheduler(ctx context.Context, db *sql.DB, store *jobs
 		AttemptCooldown: time.Duration(canonicalPumpEnvInt("PUMP_HIGH_VOLUME_ATTEMPT_COOLDOWN_SECONDS", 1800, 300, 21600)) * time.Second,
 	}
 	go scheduler.Start(workerCtx)
-	log.Printf("canonical pump job scheduler started volume_window=24h threshold=%.0f poll=%s max_jobs_per_cycle=%d", scheduler.ThresholdUSD, scheduler.PollEvery, scheduler.MaxJobsPerCycle)
+	log.Printf("canonical pump selective scheduler started volume_window=24h threshold=%.0f poll=%s max_jobs_per_cycle=%d rpc_saver=%t", scheduler.ThresholdUSD, scheduler.PollEvery, scheduler.MaxJobsPerCycle, services.SolanaRPCLimitSaverEnabled())
 	return cancel
 }
 
