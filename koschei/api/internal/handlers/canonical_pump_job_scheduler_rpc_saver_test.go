@@ -2,29 +2,35 @@ package handlers
 
 import "testing"
 
-func TestCanonicalPumpAutoSchedulingBlockedByRPCLimitSaver(t *testing.T) {
+func TestCanonicalPumpAutoSchedulingAllowedBySelectiveGateUnderRPCLimitSaver(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("KOSCHEI_OWNER_UNLIMITED_AUTOSCAN_ENABLED", "false")
 	t.Setenv("SOLANA_RPC_LIMIT_SAVER_ENABLED", "true")
-	if canonicalPumpAutoSchedulingAllowed() {
-		t.Fatal("automatic pump scheduling must be blocked while RPC limit saver is active")
+	t.Setenv("PUMPPORTAL_ENABLED", "true")
+	t.Setenv("PUMP_HIGH_VOLUME_RADAR_ENABLED", "true")
+	if !canonicalPumpAutoSchedulingAllowed() {
+		t.Fatal("explicit selective Pump scheduling must remain allowed while broad RPC saver is active")
 	}
 }
 
-func TestCanonicalPumpAutoSchedulingAllowedWhenSaverDisabled(t *testing.T) {
+func TestCanonicalPumpAutoSchedulingStillRequiresSelectiveGateWhenSaverDisabled(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("KOSCHEI_OWNER_UNLIMITED_AUTOSCAN_ENABLED", "false")
 	t.Setenv("SOLANA_RPC_LIMIT_SAVER_ENABLED", "false")
-	if !canonicalPumpAutoSchedulingAllowed() {
-		t.Fatal("automatic pump scheduling should be allowed when RPC limit saver is explicitly disabled")
+	t.Setenv("PUMPPORTAL_ENABLED", "true")
+	t.Setenv("PUMP_HIGH_VOLUME_RADAR_ENABLED", "false")
+	if canonicalPumpAutoSchedulingAllowed() {
+		t.Fatal("disabling RPC saver must not implicitly enable selective Pump scheduling")
 	}
 }
 
-func TestCanonicalPumpOwnerUnlimitedModeOverridesLimitSaver(t *testing.T) {
+func TestCanonicalPumpOwnerUnlimitedDoesNotBypassDisabledSelectiveGate(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("KOSCHEI_OWNER_UNLIMITED_AUTOSCAN_ENABLED", "true")
 	t.Setenv("SOLANA_RPC_LIMIT_SAVER_ENABLED", "true")
-	if !canonicalPumpAutoSchedulingAllowed() {
-		t.Fatal("owner unlimited autoscan mode should explicitly allow automatic pump scheduling")
+	t.Setenv("PUMPPORTAL_ENABLED", "true")
+	t.Setenv("PUMP_HIGH_VOLUME_RADAR_ENABLED", "false")
+	if canonicalPumpAutoSchedulingAllowed() {
+		t.Fatal("owner unlimited mode must not silently enable a selectively disabled Pump scheduler")
 	}
 }

@@ -5,10 +5,12 @@ import (
 	"strings"
 )
 
-// AutomaticBackgroundScanningEnabled is the master switch for every
-// quota-consuming background scanner. It is intentionally opt-in: an absent,
-// malformed, or false value keeps automatic scanning disabled while manual
-// owner/customer endpoints remain available.
+// AutomaticBackgroundScanningEnabled is the master switch for broad
+// quota-consuming background scanners. It is intentionally opt-in: an absent,
+// malformed, or false value keeps broad automatic scanning disabled while
+// manual owner/customer endpoints remain available. A narrowly bounded worker
+// may have its own explicit opt-in (for example the high-volume Pump scheduler)
+// and must still obey the shared RPC budget and its own per-cycle limits.
 func AutomaticBackgroundScanningEnabled() bool {
 	if OwnerUnlimitedAutomaticScanningEnabled() {
 		return true
