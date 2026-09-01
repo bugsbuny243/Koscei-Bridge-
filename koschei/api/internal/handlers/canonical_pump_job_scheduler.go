@@ -82,7 +82,7 @@ func (s *canonicalPumpJobScheduler) RunOnce(ctx context.Context) (candidateCount
 	if !canonicalPumpAutoSchedulingAllowed() {
 		return 0, 0, 0, nil
 	}
-	candidates, err := s.RadarStore.ListPumpPortalCandidates(ctx, s.CandidateLimit, time.Time{}, "")
+	candidates, err := s.RadarStore.ListPumpPortalCandidatesExact(ctx, s.CandidateLimit, time.Time{}, "")
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -145,7 +145,7 @@ func (s *canonicalPumpJobScheduler) RunOnce(ctx context.Context) (candidateCount
 		if reported {
 			continue
 		}
-		attempted, attemptErr := s.RadarStore.PumpHighVolumeAttemptedRecently(ctx, row.Candidate.Mint, s.AttemptCooldown)
+		attempted, attemptErr := s.RadarStore.PumpHighVolumeAttemptedRecentlyExact(ctx, row.Candidate.Mint, s.AttemptCooldown)
 		if attemptErr != nil {
 			return candidateCount, qualifiedCount, queuedCount, attemptErr
 		}
