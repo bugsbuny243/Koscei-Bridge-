@@ -42,11 +42,14 @@ func main() {
 	appCtx, stopApp := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopApp()
 
-	databaseURL := os.Getenv("DATABASE_URL")
+	authOnly := services.NeonAuthOnlyMode()
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	var conn *sql.DB
 	var readConn *sql.DB
 	var dbInitError string
-	if databaseURL == "" {
+	if authOnly {
+		log.Printf("Neon auth-only mode enabled: application PostgreSQL persistence and database workers are disabled")
+	} else if databaseURL == "" {
 		dbInitError = "DATABASE_URL is not set"
 		log.Printf("database unavailable: %s", dbInitError)
 	} else {
@@ -62,19 +65,21 @@ func main() {
 	if conn != nil {
 		defer conn.Close()
 	}
-	readURL := os.Getenv("DATABASE_READ_URL")
-	if readURL != "" && readURL != databaseURL {
-		var err error
-		readConn, err = db.ConnectReplica(readURL)
-		if err != nil {
-			log.Printf("database read replica unavailable, falling back to primary: %v", err)
-			readConn = conn
+	if !authOnly {
+		readURL := strings.TrimSpace(os.Getenv("DATABASE_READ_URL"))
+		if readURL != "" && readURL != databaseURL {
+			var err error
+			readConn, err = db.ConnectReplica(readURL)
+			if err != nil {
+				log.Printf("database read replica unavailable, falling back to primary: %v", err)
+				readConn = conn
+			} else {
+				defer readConn.Close()
+				log.Printf("database read replica connected")
+			}
 		} else {
-			defer readConn.Close()
-			log.Printf("database read replica connected")
+			readConn = conn
 		}
-	} else {
-		readConn = conn
 	}
 
 	appCache := buildCache()
@@ -85,23 +90,27 @@ func main() {
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
-	stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
-	defer stopSecurityRadars()
-	if services.AutomaticBackgroundScanningEnabled() {
-		stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
-		defer stopPumpPortal()
-		stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
-		defer stopActorDefense()
-		if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
-			log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
+	if conn != nil {
+		stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
+		defer stopSecurityRadars()
+		if services.AutomaticBackgroundScanningEnabled() {
+			stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
+			defer stopPumpPortal()
+			stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
+			defer stopActorDefense()
+			if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
+				log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
+			} else {
+				stopSBX1Stream := services.StartSecurityRadarSovereignStreamIfEnabled(appCtx, conn)
+				defer stopSBX1Stream()
+			}
+			stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
+			defer stopWatchlistMonitor()
 		} else {
-			stopSBX1Stream := services.StartSecurityRadarSovereignStreamIfEnabled(appCtx, conn)
-			defer stopSBX1Stream()
+			log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
 		}
-		stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
-		defer stopWatchlistMonitor()
 	} else {
-		log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
+		log.Printf("database-backed radar, PumpPortal, actor-defense and watchlist workers not started")
 	}
 
 	jobStore := jobs.NewStore(conn)
@@ -111,16 +120,20 @@ func main() {
 	}
 	defer jobQueue.Close()
 
-	stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-	defer stopWebhookDeliveries()
-	stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-	defer stopSecurityAlertDeliveries()
-	stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
-	defer stopCanonicalWorker()
-	stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
-	defer stopCanonicalPumpScheduler()
-	stopAutopublish := handlers.StartAutopublishWorker(appCtx, conn)
-	defer stopAutopublish()
+	if conn != nil {
+		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
+		defer stopWebhookDeliveries()
+		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
+		defer stopSecurityAlertDeliveries()
+		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
+		defer stopCanonicalWorker()
+		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
+		defer stopCanonicalPumpScheduler()
+		stopAutopublish := handlers.StartAutopublishWorker(appCtx, conn)
+		defer stopAutopublish()
+	} else {
+		log.Printf("database-backed webhook, alert, investigation, pump scheduler and autopublish workers not started")
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
