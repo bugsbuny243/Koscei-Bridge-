@@ -44,6 +44,17 @@ func main() {
 
 	authOnly := services.NeonAuthOnlyMode()
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if authOnly && neonAuthOnlyPurgeRequested() {
+		if databaseURL == "" {
+			log.Fatalf("CRITICAL: KOSCHEI_NEON_AUTH_ONLY_PURGE requires DATABASE_URL")
+		}
+		purgeCtx, cancelPurge := context.WithTimeout(appCtx, 5*time.Minute)
+		if err := purgePublicApplicationTables(purgeCtx, databaseURL); err != nil {
+			cancelPurge()
+			log.Fatalf("CRITICAL: Neon auth-only purge failed: %v", err)
+		}
+		cancelPurge()
+	}
 	var conn *sql.DB
 	var readConn *sql.DB
 	var dbInitError string
