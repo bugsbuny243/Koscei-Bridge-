@@ -58,5 +58,8 @@ func ownerSessionStorageName(h *Handler) string {
 	if h != nil && h.DB != nil {
 		return "database_hash"
 	}
+	if ownerSessionMemoryAllowed() && isProduction() {
+		return "auth_only_memory_hash"
+	}
 	return "development_memory_hash"
 }
