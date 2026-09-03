@@ -130,11 +130,11 @@ func buildTransactionGuardAttackPaths(
 			continue
 		}
 		steps = append(steps, transactionGuardAttackPathStep{
-			Layer:     "state_diff",
-			Kind:      "wallet_value_decrease",
-			Subject:   delta.Address,
-			Severity:  "high",
-			Evidence:  compactGuardV3Evidence(fmt.Sprintf("lamport_delta=%s token_delta_raw=%s account_closed=%t evidence_status=%s", delta.LamportDelta, delta.TokenDeltaRaw, delta.AccountClosed, delta.EvidenceStatus)),
+			Layer:    "state_diff",
+			Kind:     "wallet_value_decrease",
+			Subject:  delta.Address,
+			Severity: "high",
+			Evidence: compactGuardV3Evidence(fmt.Sprintf("lamport_delta=%s token_delta_raw=%s account_closed=%t evidence_status=%s", delta.LamportDelta, delta.TokenDeltaRaw, delta.AccountClosed, delta.EvidenceStatus)),
 		})
 		impact = appendUniqueAttackPathValue(impact, "simulated wallet value decreases")
 	}
@@ -146,8 +146,13 @@ func buildTransactionGuardAttackPaths(
 		if attackPathFindingAlreadyRepresented(steps, finding.Code) {
 			continue
 		}
+		layer := "guard_finding"
+		if strings.HasPrefix(finding.Code, "signed_ui_intent_") {
+			layer = "signed_intent_boundary"
+			impact = appendUniqueAttackPathValue(impact, "signed UI intent does not match the transaction or request boundary")
+		}
 		steps = append(steps, transactionGuardAttackPathStep{
-			Layer:    "guard_finding",
+			Layer:    layer,
 			Kind:     finding.Code,
 			Severity: finding.Severity,
 			Evidence: compactGuardV3Evidence(finding.Evidence),
@@ -219,15 +224,15 @@ func appendUniqueAttackPathValue(values []string, value string) []string {
 
 func attackPathFindingAlreadyRepresented(steps []transactionGuardAttackPathStep, code string) bool {
 	aliases := map[string][]string{
-		"delegate_approval":          {"approve", "approve_checked"},
-		"decoded_delegate_approval":  {"approve", "approve_checked"},
-		"authority_change":           {"set_authority"},
-		"decoded_authority_change":   {"set_authority"},
-		"decoded_close_account":      {"close_account"},
-		"decoded_freeze_account":     {"freeze_account"},
-		"decoded_token_burn":         {"burn", "burn_checked"},
-		"permanent_delegate":         {"initialize_permanent_delegate"},
-		"transfer_hook":              {"initialize_transfer_hook", "update_transfer_hook"},
+		"delegate_approval":         {"approve", "approve_checked"},
+		"decoded_delegate_approval": {"approve", "approve_checked"},
+		"authority_change":          {"set_authority"},
+		"decoded_authority_change":  {"set_authority"},
+		"decoded_close_account":     {"close_account"},
+		"decoded_freeze_account":    {"freeze_account"},
+		"decoded_token_burn":        {"burn", "burn_checked"},
+		"permanent_delegate":        {"initialize_permanent_delegate"},
+		"transfer_hook":             {"initialize_transfer_hook", "update_transfer_hook"},
 	}
 	for _, step := range steps {
 		if step.Kind == code {
