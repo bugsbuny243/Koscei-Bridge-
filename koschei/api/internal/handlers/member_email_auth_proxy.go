@@ -74,6 +74,14 @@ func (h *Handler) memberEmailPasswordProxy(w http.ResponseWriter, r *http.Reques
 	}
 
 	claims, err := parseAndVerifyNeonJWT(jwt)
+	if isJWKSKeyNotFound(err) {
+		// A brand-new Neon Auth branch can generate its first signing key during
+		// the same request that creates/signs in the first user. The JWKS endpoint
+		// may lag that key creation by a fraction of a second. Retry once after a
+		// short delay; signature, issuer, expiry and claim checks still run in full.
+		time.Sleep(350 * time.Millisecond)
+		claims, err = parseAndVerifyNeonJWT(jwt)
+	}
 	safeAuthDebugLog(endpoint+"_verify", result.StatusCode, result.Body, nil, result.TokenFound, err == nil)
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": "The authentication response could not be verified."})
@@ -89,6 +97,14 @@ func (h *Handler) memberEmailPasswordProxy(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "token": jwt, "access_token": jwt, "token_type": "Bearer", "user": profile})
+}
+
+func isJWKSKeyNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	var verificationErr neonJWTVerificationError
+	return errors.As(err, &verificationErr) && verificationErr.Category == neonJWTFailureJWKSKeyNotFound
 }
 
 func (h *Handler) callMemberNeonEmailAuth(r *http.Request, request memberEmailAuthRequest, neonPath string) (memberNeonAuthResult, bool) {
