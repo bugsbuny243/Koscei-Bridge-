@@ -66,7 +66,7 @@ func sensitiveRateLimit(db *sql.DB, next http.Handler) http.Handler {
 				EventType: "rate_limit_exceeded", ActorType: "request", IP: clientIP, UserAgent: r.UserAgent(),
 				Path: r.URL.Path, Severity: "warning", Metadata: map[string]any{
 					"limit": rule.Limit, "window_seconds": int(rule.Window.Seconds()), "request_count": decision.Count,
-					"reset_after_seconds": decision.ResetAfterSeconds, "shared_store": "postgresql",
+					"reset_after_seconds": decision.ResetAfterSeconds, "shared_store": sensitiveRateLimitStorageName(db),
 				},
 			})
 			writeSecurityJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limit_exceeded", "message": "Too many requests. Please try again later."})
@@ -138,6 +138,9 @@ func sensitiveRuleForPath(path string) (sensitiveLimitRule, bool) {
 
 func consumeSharedSensitiveLimit(ctx context.Context, db *sql.DB, keyHash, route string, rule sensitiveLimitRule) (sensitiveLimitDecision, error) {
 	if db == nil {
+		if services.NeonAuthOnlyMode() {
+			return consumeMemorySensitiveLimit(keyHash, route, rule, time.Now().UTC())
+		}
 		return sensitiveLimitDecision{}, errors.New("rate limit database unavailable")
 	}
 	keyHash = strings.TrimSpace(keyHash)
@@ -198,6 +201,16 @@ FROM consumed`
 	}
 	decision.Remaining = remaining
 	return decision, nil
+}
+
+func sensitiveRateLimitStorageName(db *sql.DB) string {
+	if db != nil {
+		return "postgresql"
+	}
+	if services.NeonAuthOnlyMode() {
+		return "bounded_memory"
+	}
+	return "unavailable"
 }
 
 func sensitiveBucketKeyHash(clientIP, route string) string {
