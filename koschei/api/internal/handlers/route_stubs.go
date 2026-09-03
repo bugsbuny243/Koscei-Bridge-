@@ -7,7 +7,16 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	h.memberEmailPasswordProxy(w, r, "/sign-in/email")
+	switch r.URL.Query().Get("action") {
+	case "request_password_reset":
+		h.passwordResetProxy(w, r, "/request-password-reset")
+		return
+	case "reset_password":
+		h.passwordResetProxy(w, r, "/reset-password")
+		return
+	default:
+		h.memberEmailPasswordProxy(w, r, "/sign-in/email")
+	}
 }
 
 // Me confirms the already-verified Neon Auth identity installed by RequireAuth.
