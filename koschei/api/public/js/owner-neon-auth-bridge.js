@@ -51,8 +51,24 @@ async function verifyOwnerAccess(){
   return true;
 }
 
+function bindOwnerLogout(){
+  const signOut=async()=>{
+    try{await fetch('/api/owner/logout',{method:'POST',credentials:'same-origin'});}catch{}
+    if(window.KoscheiAuth&&window.KoscheiAuth.signOut){
+      await window.KoscheiAuth.signOut();
+      return;
+    }
+    window.location.href=ownerLoginURL();
+  };
+  for(const id of ['logoutButton','mobileLogoutButton']){
+    const button=$(id);
+    if(button) button.onclick=signOut;
+  }
+}
+
 async function bindOwnerLogin(){
   prepareOwnerIdentityUI();
+  bindOwnerLogout();
   const form=$('loginForm');
   if(!form) return;
   form.onsubmit=async event=>{
