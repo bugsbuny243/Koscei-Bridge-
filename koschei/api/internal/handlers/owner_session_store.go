@@ -51,7 +51,7 @@ func (h *Handler) issueOwnerSession(ctx context.Context, wallet string, r *http.
 		}
 		return token, expiresAt, nil
 	}
-	if !ownerSessionMemoryAllowed() {
+	if isProduction() {
 		return "", time.Time{}, errors.New("owner session database unavailable")
 	}
 
@@ -91,7 +91,7 @@ func (h *Handler) ownerSessionFromRequest(ctx context.Context, r *http.Request) 
 		}
 		return normalizeWallet(wallet), true
 	}
-	if !ownerSessionMemoryAllowed() {
+	if isProduction() {
 		return "", false
 	}
 
