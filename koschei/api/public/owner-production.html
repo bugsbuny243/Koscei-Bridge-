@@ -25,8 +25,13 @@
   <main id="loginView" class="login-wrap">
     <section class="login-card" aria-labelledby="ownerLoginTitle">
       <div class="brand"><span class="brand-mark" aria-hidden="true">K</span><span><strong>KOSCHEİ WEB3</strong><small>Owner Control Center</small></span></div>
-      <div class="login-copy"><span class="eyebrow">Owner only · Neon Auth verified</span><h1 id="ownerLoginTitle">Production evidence, customers and system health in one control center.</h1><p class="muted">Owner access is bound to the verified Koschei Neon Auth identity. No second owner password is collected by this page.</p><div class="production-note">Verified identity · evidence first · AI is explanation only</div></div>
-      <form id="loginForm" novalidate><div class="field"><label for="loginWallet">Verified owner identity</label><input class="input" id="loginWallet" autocomplete="username" placeholder="Neon Auth identity" readonly></div><input id="loginSecret" type="hidden" value=""><button class="btn primary full" id="loginButton" type="submit">Neon Auth ile kontrol merkezine gir</button><div id="loginError" class="error-box hidden" role="alert"></div></form>
+      <div class="login-copy"><span class="eyebrow">Owner only · private production access</span><h1 id="ownerLoginTitle">Production evidence, customers and system health in one control center.</h1><p class="muted">This private owner surface authenticates directly against Neon Auth and then enforces the server-side owner allowlist. It is not connected to the public customer login flow.</p><div class="production-note">Private owner boundary · verified identity · evidence first</div></div>
+      <form id="loginForm" novalidate>
+        <div class="field"><label for="loginWallet">Owner identity</label><input class="input" id="loginWallet" type="email" autocomplete="username" placeholder="Owner email" required></div>
+        <div class="field"><label for="loginSecret">Owner password</label><input class="input" id="loginSecret" type="password" autocomplete="current-password" placeholder="Neon Auth password" required></div>
+        <button class="btn primary full" id="loginButton" type="submit">Kontrol merkezine gir</button>
+        <div id="loginError" class="error-box hidden" role="alert"></div>
+      </form>
     </section>
   </main>
   <div id="appView" class="owner-app hidden">
@@ -38,7 +43,7 @@
   <div id="modalRoot"></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/js/koschei-auth.js?v=2"></script>
   <script src="/js/owner-control-center.js?v=12"></script>
-  <script src="/js/owner-neon-auth-bridge.js?v=1"></script>
+  <script src="/js/owner-neon-auth-bridge.js?v=2"></script>
   <script src="/js/verdict-card.js?v=2"></script>
   <script src="/js/arvis-premium-contract.js?v=1"></script>
   <script src="/js/owner-publishing-center.js?v=3"></script>
