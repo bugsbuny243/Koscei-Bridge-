@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"database/sql"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,35 +23,15 @@ var arvisHealthCache = struct {
 }{}
 
 // Health is the public liveness/readiness endpoint used by Railway and external
-// transport monitors. It must remain bounded and must not execute the full ARVIS
-// operational query set. Detailed pipeline health remains on the dedicated
-// Web3/owner health surfaces.
+// transport monitors. Koschei Web3 is intentionally stateless for application
+// blockchain/radar/evidence data, so PostgreSQL is not a readiness dependency.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), publicHealthTimeout)
-	defer cancel()
-	if err := h.dbAvailable(ctx); err != nil {
-		log.Printf("health check database ping failed: %v", err)
-		payload := map[string]any{
-			"status":   "error",
-			"database": "unavailable",
-			"service":  "koschei-web3",
-			"arvis": map[string]any{
-				"pipeline_status": "database_unavailable",
-				"details_url":     "/api/web3/health",
-			},
-		}
-		if !isProduction() {
-			payload["details"] = err.Error()
-		}
-		writeJSON(w, http.StatusServiceUnavailable, payload)
-		return
-	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":   "ok",
-		"database": "connected",
-		"service":  "koschei-web3",
-		"arvis":    cachedArvisHealthSnapshot(),
+		"status":      "ok",
+		"persistence": "stateless",
+		"database":    "not_used",
+		"service":     "koschei-web3",
+		"arvis":       cachedArvisHealthSnapshot(),
 	})
 }
 
@@ -61,7 +40,7 @@ func cachedArvisHealthSnapshot() map[string]any {
 	defer arvisHealthCache.RUnlock()
 	if arvisHealthCache.data == nil {
 		return map[string]any{
-			"pipeline_status": "not_sampled",
+			"pipeline_status": "live_provider_mode",
 			"details_url":     "/api/web3/health",
 			"cached":          false,
 		}
