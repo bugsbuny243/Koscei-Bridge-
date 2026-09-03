@@ -9,18 +9,6 @@ import (
 )
 
 func (h *Handler) OwnerLoginAudited(w http.ResponseWriter, r *http.Request) {
-	if neonAuthOnlyMode() {
-		claims, ok := verifiedOwnerNeonClaims(r)
-		if !ok {
-			services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "owner_login_failed", "owner", "critical", map[string]any{"reason": "verified_neon_owner_identity_required"}))
-			http.NotFound(w, r)
-			return
-		}
-		services.WriteSecurityAuditEvent(r.Context(), h.DB, securityAuditFromRequest(r, "owner_login_success", "owner", "info", map[string]any{"auth_subject": claims.Sub, "session_storage": "neon_jwt"}))
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Owner kimliği Neon Auth ile doğrulandı."})
-		return
-	}
-
 	ownerWallet := normalizeWallet(firstEnv("OWNER_WALLET", "KOSCHEI_OWNER_WALLET"))
 	ownerSecret := strings.TrimSpace(firstEnv("OWNER_SECRET", "KOSCHEI_OWNER_SECRET"))
 	if ownerSecret == "" {
@@ -69,9 +57,6 @@ func requestAuditIP(r *http.Request) string {
 func ownerSessionStorageName(h *Handler) string {
 	if h != nil && h.DB != nil {
 		return "database_hash"
-	}
-	if ownerSessionMemoryAllowed() && isProduction() {
-		return "auth_only_memory_hash"
 	}
 	return "development_memory_hash"
 }
