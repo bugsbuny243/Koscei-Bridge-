@@ -49,10 +49,7 @@ func consumeMemorySensitiveLimit(keyHash, route string, rule sensitiveLimitRule,
 	if remaining < 0 {
 		remaining = 0
 	}
-	reset := int64(time.Until(bucket.ExpiresAt).Seconds())
-	if now.Location() != time.Local {
-		reset = int64(bucket.ExpiresAt.Sub(now).Seconds())
-	}
+	reset := int64(bucket.ExpiresAt.Sub(now).Seconds())
 	if reset < 1 {
 		reset = 1
 	}
