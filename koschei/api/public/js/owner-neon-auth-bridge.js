@@ -38,7 +38,6 @@ async function tryExistingOwnerSession(){
     const restored=await window.KoscheiAuth.init();
     if(!restored&&!window.KoscheiAuth.isLoggedIn())return false;
     await verifyOwnerAccess();
-    window.location.reload();
     return true;
   }catch{
     clearOwnerClientAuth();
