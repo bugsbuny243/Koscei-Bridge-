@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -13,15 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"koschei/api/internal/alerts"
 	"koschei/api/internal/cache"
-	"koschei/api/internal/db"
 	"koschei/api/internal/handlers"
 	apihttp "koschei/api/internal/http"
 	"koschei/api/internal/jobs"
 	"koschei/api/internal/services"
 	"koschei/api/internal/web3"
-	"koschei/api/internal/webhooks"
 )
 
 const (
@@ -34,7 +30,6 @@ const (
 
 func main() {
 	log.Printf("koschei api starting")
-	log.Printf("migrations path: /app/migrations")
 	if missing := services.MissingProductionSecurityEnv(); len(missing) > 0 {
 		log.Fatalf("CRITICAL: missing required production security env vars: %s", strings.Join(missing, ", "))
 	}
@@ -42,56 +37,12 @@ func main() {
 	appCtx, stopApp := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopApp()
 
-	authOnly := services.NeonAuthOnlyMode()
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if authOnly && neonAuthOnlyPurgeRequested() {
-		if databaseURL == "" {
-			log.Fatalf("CRITICAL: KOSCHEI_NEON_AUTH_ONLY_PURGE requires DATABASE_URL")
-		}
-		purgeCtx, cancelPurge := context.WithTimeout(appCtx, 5*time.Minute)
-		if err := purgePublicApplicationTables(purgeCtx, databaseURL); err != nil {
-			cancelPurge()
-			log.Fatalf("CRITICAL: Neon auth-only purge failed: %v", err)
-		}
-		cancelPurge()
-	}
-	var conn *sql.DB
-	var readConn *sql.DB
-	var dbInitError string
-	if authOnly {
-		log.Printf("Neon auth-only mode enabled: application PostgreSQL persistence and database workers are disabled")
-	} else if databaseURL == "" {
-		dbInitError = "DATABASE_URL is not set"
-		log.Printf("database unavailable: %s", dbInitError)
-	} else {
-		var err error
-		conn, err = db.Connect(databaseURL)
-		if err != nil {
-			dbInitError = err.Error()
-			log.Printf("database unavailable: %v", err)
-		} else {
-			log.Printf("database connected")
-		}
-	}
-	if conn != nil {
-		defer conn.Close()
-	}
-	if !authOnly {
-		readURL := strings.TrimSpace(os.Getenv("DATABASE_READ_URL"))
-		if readURL != "" && readURL != databaseURL {
-			var err error
-			readConn, err = db.ConnectReplica(readURL)
-			if err != nil {
-				log.Printf("database read replica unavailable, falling back to primary: %v", err)
-				readConn = conn
-			} else {
-				defer readConn.Close()
-				log.Printf("database read replica connected")
-			}
-		} else {
-			readConn = conn
-		}
-	}
+	// Architecture boundary: Koschei Web3 is stateless with respect to application
+	// blockchain/radar/evidence data. Neon is an authentication system only.
+	// This process intentionally never reads DATABASE_URL, never opens PostgreSQL,
+	// and never starts database-backed radar, telemetry, job, alert or webhook workers.
+	const dbInitError = "application persistence disabled by architecture"
+	log.Printf("stateless Web3 runtime enabled: application PostgreSQL persistence is not part of this process")
 
 	appCache := buildCache()
 	defer appCache.Close()
@@ -101,50 +52,12 @@ func main() {
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
-	if conn != nil {
-		stopSecurityRadars := services.StartSecurityRadarWatcher(appCtx, conn, solanaRPC)
-		defer stopSecurityRadars()
-		if services.AutomaticBackgroundScanningEnabled() {
-			stopPumpPortal := services.StartPumpPortalRadarIfEnabled(appCtx, conn)
-			defer stopPumpPortal()
-			stopActorDefense := services.StartActorDefenseCorrelator(appCtx, conn)
-			defer stopActorDefense()
-			if services.SolanaRPCLimitSaverEnabled() && !services.ForceBackgroundRadarEnabled() {
-				log.Printf("broad Solana streams paused: RPC saver protects quota; explicitly enabled selective workers may remain active")
-			} else {
-				stopSBX1Stream := services.StartSecurityRadarSovereignStreamIfEnabled(appCtx, conn)
-				defer stopSBX1Stream()
-			}
-			stopWatchlistMonitor := handlers.StartWatchlistMonitor(appCtx, conn)
-			defer stopWatchlistMonitor()
-		} else {
-			log.Printf("automatic scanning disabled: no Pump discovery, radar stream, actor correlation or watchlist refresh")
-		}
-	} else {
-		log.Printf("database-backed radar, PumpPortal, actor-defense and watchlist workers not started")
-	}
-
-	jobStore := jobs.NewStore(conn)
+	jobStore := jobs.NewStore(nil)
 	jobQueue := jobs.Queue(jobs.NoopQueue{})
 	if natsURL := os.Getenv("NATS_URL"); natsURL != "" {
 		jobQueue = jobs.NewNATSQueue(natsURL, os.Getenv("NATS_SUBJECT_PREFIX"))
 	}
 	defer jobQueue.Close()
-
-	if conn != nil {
-		stopWebhookDeliveries := webhooks.StartDeliveryWorker(appCtx, conn)
-		defer stopWebhookDeliveries()
-		stopSecurityAlertDeliveries := alerts.StartDeliveryWorker(appCtx, conn)
-		defer stopSecurityAlertDeliveries()
-		stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, conn, readConn, solanaRPC, jobStore)
-		defer stopCanonicalWorker()
-		stopCanonicalPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, conn, jobStore)
-		defer stopCanonicalPumpScheduler()
-		stopAutopublish := handlers.StartAutopublishWorker(appCtx, conn)
-		defer stopAutopublish()
-	} else {
-		log.Printf("database-backed webhook, alert, investigation, pump scheduler and autopublish workers not started")
-	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -155,7 +68,18 @@ func main() {
 	}
 	staticDir := resolveStaticDir(os.Getenv("STATIC_DIR"))
 	log.Printf("static public path: %s", staticDir)
-	handler := englishPublicHTML(apihttp.NewServer(conn, dbInitError, os.Getenv("ADMIN_PASSWORD"), firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"), staticDir, apihttp.WithReadDB(readConn), apihttp.WithCache(appCache), apihttp.WithSolanaRPC(solanaRPC), apihttp.WithJobStore(jobStore), apihttp.WithJobQueue(jobQueue)))
+	handler := englishPublicHTML(apihttp.NewServer(
+		nil,
+		dbInitError,
+		os.Getenv("ADMIN_PASSWORD"),
+		firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"),
+		staticDir,
+		apihttp.WithReadDB(nil),
+		apihttp.WithCache(appCache),
+		apihttp.WithSolanaRPC(solanaRPC),
+		apihttp.WithJobStore(jobStore),
+		apihttp.WithJobQueue(jobQueue),
+	))
 	server := newHTTPServer(port, handler)
 
 	serverErrors := make(chan error, 1)
