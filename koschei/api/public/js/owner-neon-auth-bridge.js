@@ -3,38 +3,22 @@
 
 const $=id=>document.getElementById(id);
 
-function ownerLoginURL(){
-  const next='/owner-production';
-  return '/login.html?next='+encodeURIComponent(next);
+function setError(message=''){
+  const error=$('loginError');
+  if(!error)return;
+  error.textContent=message;
+  error.classList.toggle('hidden',!message);
 }
 
-function prepareOwnerIdentityUI(){
-  const secret=$('loginSecret');
-  if(secret){
-    const field=secret.closest('.field');
-    if(field) field.style.display='none';
-    secret.value='';
-    secret.required=false;
-  }
-  const identity=$('loginWallet');
-  const email=window.KoscheiAuth&&window.KoscheiAuth.getEmail?window.KoscheiAuth.getEmail():'';
-  if(identity){
-    identity.value=email||'';
-    identity.readOnly=true;
-    identity.required=false;
-    identity.placeholder='Neon Auth owner identity';
-  }
-  const button=$('loginButton');
-  if(button) button.textContent='Neon Auth ile kontrol merkezine gir';
+function clearOwnerClientAuth(){
+  try{
+    localStorage.removeItem('koschei_jwt');
+    localStorage.removeItem('koschei_token');
+  }catch{}
 }
 
 async function verifyOwnerAccess(){
-  if(!window.KoscheiAuth) throw new Error('Neon Auth istemcisi yüklenemedi.');
-  const restored=await window.KoscheiAuth.init();
-  if(!restored&&!window.KoscheiAuth.isLoggedIn()){
-    window.location.href=ownerLoginURL();
-    return false;
-  }
+  if(!window.KoscheiAuth) throw new Error('Owner kimlik doğrulama istemcisi yüklenemedi.');
   const response=await window.KoscheiAuth.apiCall('/api/owner/login',{
     method:'POST',
     credentials:'same-origin',
@@ -42,23 +26,31 @@ async function verifyOwnerAccess(){
     body:'{}'
   });
   if(!response||!response.ok){
-    if(response&&[401,403].includes(response.status)){
-      window.location.href=ownerLoginURL();
-      return false;
-    }
-    throw new Error('Bu Neon Auth hesabının owner erişimi yok.');
+    clearOwnerClientAuth();
+    throw new Error(response&&response.status===403?'Bu hesap owner allowlist içinde değil.':'Owner kimliği doğrulanamadı.');
   }
   return true;
+}
+
+async function tryExistingOwnerSession(){
+  if(!window.KoscheiAuth)return false;
+  try{
+    const restored=await window.KoscheiAuth.init();
+    if(!restored&&!window.KoscheiAuth.isLoggedIn())return false;
+    await verifyOwnerAccess();
+    window.location.reload();
+    return true;
+  }catch{
+    clearOwnerClientAuth();
+    return false;
+  }
 }
 
 function bindOwnerLogout(){
   const signOut=async()=>{
     try{await fetch('/api/owner/logout',{method:'POST',credentials:'same-origin'});}catch{}
-    if(window.KoscheiAuth&&window.KoscheiAuth.signOut){
-      await window.KoscheiAuth.signOut();
-      return;
-    }
-    window.location.href=ownerLoginURL();
+    clearOwnerClientAuth();
+    window.location.reload();
   };
   for(const id of ['logoutButton','mobileLogoutButton']){
     const button=$(id);
@@ -67,26 +59,39 @@ function bindOwnerLogout(){
 }
 
 async function bindOwnerLogin(){
-  prepareOwnerIdentityUI();
   bindOwnerLogout();
   const form=$('loginForm');
-  if(!form) return;
+  if(!form)return;
+
+  const emailField=$('loginWallet');
+  if(emailField&&!emailField.value&&window.KoscheiAuth&&window.KoscheiAuth.getEmail){
+    emailField.value=window.KoscheiAuth.getEmail()||'';
+  }
+
   form.onsubmit=async event=>{
     event.preventDefault();
+    const email=String($('loginWallet')?.value||'').trim();
+    const password=String($('loginSecret')?.value||'');
     const button=$('loginButton');
-    const error=$('loginError');
+    if(!email||!password){setError('Owner email ve parola gerekli.');return;}
     if(button){button.disabled=true;button.textContent='Owner kimliği doğrulanıyor…';}
-    if(error){error.textContent='';error.classList.add('hidden');}
+    setError('');
     try{
-      if(await verifyOwnerAccess()) window.location.reload();
+      if(!window.KoscheiAuth)throw new Error('Owner kimlik doğrulama istemcisi yüklenemedi.');
+      await window.KoscheiAuth.signIn(email,password);
+      if(await verifyOwnerAccess())window.location.reload();
     }catch(err){
-      if(error){error.textContent=err&&err.message?err.message:'Owner kimliği doğrulanamadı.';error.classList.remove('hidden');}
+      clearOwnerClientAuth();
+      if($('loginSecret'))$('loginSecret').value='';
+      setError(err&&err.message?err.message:'Owner kimliği doğrulanamadı.');
     }finally{
-      if(button){button.disabled=false;button.textContent='Neon Auth ile kontrol merkezine gir';}
+      if(button){button.disabled=false;button.textContent='Kontrol merkezine gir';}
     }
   };
+
+  await tryExistingOwnerSession();
 }
 
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindOwnerLogin,{once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindOwnerLogin,{once:true});
 else bindOwnerLogin();
 })();
