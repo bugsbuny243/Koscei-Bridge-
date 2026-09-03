@@ -10,14 +10,6 @@ import (
 )
 
 func (h *Handler) ownerAuth(w http.ResponseWriter, r *http.Request) bool {
-	if neonAuthOnlyMode() {
-		if _, ok := verifiedOwnerNeonClaims(r); !ok {
-			http.NotFound(w, r)
-			return false
-		}
-		return true
-	}
-
 	ownerWallet := normalizeWallet(firstEnv("OWNER_WALLET", "KOSCHEI_OWNER_WALLET"))
 	ownerSecret := strings.TrimSpace(firstEnv("OWNER_SECRET", "KOSCHEI_OWNER_SECRET"))
 	if ownerSecret == "" {
@@ -63,32 +55,6 @@ func (h *Handler) ownerAuth(w http.ResponseWriter, r *http.Request) bool {
 
 func (h *Handler) OwnerAuth(w http.ResponseWriter, r *http.Request) bool {
 	return h.ownerAuth(w, r)
-}
-
-func verifiedOwnerNeonClaims(r *http.Request) (neonJWTClaims, bool) {
-	var zero neonJWTClaims
-	if r == nil {
-		return zero, false
-	}
-	ownerEmail := strings.ToLower(strings.TrimSpace(firstEnv("OWNER_EMAIL", "KOSCHEI_OWNER_EMAIL")))
-	if ownerEmail == "" {
-		return zero, false
-	}
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return zero, false
-	}
-	claims, err := parseAndVerifyNeonJWT(strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")))
-	if err != nil {
-		return zero, false
-	}
-	if !constantTimeStringEqual(strings.ToLower(strings.TrimSpace(claims.Email)), ownerEmail) {
-		return zero, false
-	}
-	if strings.TrimSpace(claims.Sub) == "" {
-		return zero, false
-	}
-	return claims, true
 }
 
 func walletFromBearer(r *http.Request) string {
