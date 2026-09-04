@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"koschei/api/internal/handlers"
+	"koschei/api/internal/services"
 )
 
 var databaseOptionalAPIPaths = func() map[string]struct{} {
@@ -27,6 +28,15 @@ var databaseOptionalAPIPaths = func() map[string]struct{} {
 		"/api/owner/logout",
 		"/api/owner/command-center",
 		"/api/owner/operations",
+		"/api/owner/arvis",
+		"/api/owner/arvis/scan",
+		"/api/owner/radar/unified",
+		"/api/owner/web3/shield/preflight",
+		"/api/owner/web3/transaction-guard",
+		"/api/owner/web3/transaction-guard/state-recheck",
+		"/api/owner/web3/address-poisoning/check",
+		"/api/owner/web3/defense-validation",
+		"/api/owner/web3/execution-assurance/safe/verify",
 		"/api/public/impact",
 		"/api/public/metrics",
 		"/api/public/token/status",
@@ -108,6 +118,10 @@ func ownerOnly(h *handlers.Handler, next http.HandlerFunc) http.HandlerFunc {
 
 func requiresDB(h *handlers.Handler, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if services.NeonAuthOnlyMode() && allowedWithoutDatabase(r.URL.Path) {
+			next(w, r)
+			return
+		}
 		if !h.RequireDB(w) {
 			return
 		}
