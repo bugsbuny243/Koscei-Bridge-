@@ -40,6 +40,7 @@ jobs:
       - name: Remove one-shot files and commit code
         run: |
           rm .github/stateless-wallet.patch .github/workflows/apply-stateless-wallet-once.yml
+          rm -f .github/stateless-wallet-trigger
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
