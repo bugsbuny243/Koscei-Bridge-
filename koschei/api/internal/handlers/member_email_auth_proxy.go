@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -75,15 +76,17 @@ func (h *Handler) memberEmailPasswordProxy(w http.ResponseWriter, r *http.Reques
 
 	claims, err := parseAndVerifyNeonJWT(jwt)
 	if isJWKSKeyNotFound(err) {
-		// A brand-new Neon Auth branch can generate its first signing key during
-		// the same request that creates/signs in the first user. The JWKS endpoint
-		// may lag that key creation by a fraction of a second. Retry once after a
-		// short delay; signature, issuer, expiry and claim checks still run in full.
 		time.Sleep(350 * time.Millisecond)
 		claims, err = parseAndVerifyNeonJWT(jwt)
 	}
 	safeAuthDebugLog(endpoint+"_verify", result.StatusCode, result.Body, nil, result.TokenFound, err == nil)
 	if err != nil {
+		category := neonJWTFailureUnknown
+		var verificationErr neonJWTVerificationError
+		if errors.As(err, &verificationErr) {
+			category = verificationErr.Category
+		}
+		log.Printf("neon_auth verify_failed endpoint=%s category=%s", endpoint, category)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": "The authentication response could not be verified."})
 		return
 	}
