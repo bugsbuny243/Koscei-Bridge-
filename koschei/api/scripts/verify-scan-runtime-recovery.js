@@ -9,6 +9,8 @@ const ownerSource=fs.readFileSync(path.join(rootDir,'public','js','owner-court-u
 const publicSource=fs.readFileSync(path.join(rootDir,'public','js','public-solana-scan.js'),'utf8');
 const ownerHTML=fs.readFileSync(path.join(rootDir,'public','owner-production.html'),'utf8');
 const scanHTML=fs.readFileSync(path.join(rootDir,'public','scan.html'),'utf8');
+const serverSource=fs.readFileSync(path.join(rootDir,'internal','http','server.go'),'utf8');
+const unifiedHandlerSource=fs.readFileSync(path.join(rootDir,'internal','handlers','owner_unified_radar.go'),'utf8');
 
 function assert(condition,message){if(!condition)throw new Error(message)}
 
@@ -55,6 +57,13 @@ async function ownerScenario(status,payload){
   assert(Boolean(invalid.error),'invalid owner target error was swallowed');
   assert(invalid.directCalls===0,'invalid owner target incorrectly fell back to a second scan');
 
+  assert(serverSource.includes('mux.HandleFunc("/api/owner/arvis/scan", ownerOnly(h, method("POST", h.OwnerUnifiedRadarScan)))'),'owner direct scan is still blocked by requiresDB before stateless fallback');
+  assert(serverSource.includes('mux.HandleFunc("/api/owner/radar/unified", ownerOnly(h, method("POST", h.OwnerUnifiedRadarScan)))'),'owner unified scan is still blocked by requiresDB before stateless fallback');
+  assert(!serverSource.includes('mux.HandleFunc("/api/owner/arvis/scan", requiresDB'),'owner direct scan unexpectedly regained a database gate');
+  assert(!serverSource.includes('mux.HandleFunc("/api/owner/radar/unified", requiresDB'),'owner unified scan unexpectedly regained a database gate');
+  assert(unifiedHandlerSource.includes('ownerUnifiedWalletRadarStateless'),'wallet scan has no stateless execution path');
+  assert(unifiedHandlerSource.includes('"execution_mode": "stateless_live"'),'stateless wallet response does not expose execution mode');
+
   const timeout=publicSource.match(/const TOKEN_SCAN_TIMEOUT_MS=(\d+);/);
   assert(timeout,'public token scan timeout constant is missing');
   assert(Number(timeout[1])>=180000,'public token scan aborts before the server investigation budget');
@@ -62,7 +71,7 @@ async function ownerScenario(status,payload){
   assert(ownerHTML.includes('/js/owner-court-ui.js?v=4'),'owner scan recovery cache key is stale');
   assert(scanHTML.includes('/js/public-solana-scan.js?v=12'),'public scan recovery cache key is stale');
 
-  console.log('stateless owner fallback and public scan timeout contracts: ok');
+  console.log('stateless owner token/wallet fallback and public scan timeout contracts: ok');
 })().catch(error=>{
   console.error(error);
   process.exitCode=1;
