@@ -26,6 +26,7 @@ var databaseOptionalAPIPaths = func() map[string]struct{} {
 		"/api/owner/login",
 		"/api/owner/logout",
 		"/api/owner/command-center",
+		"/api/owner/operations",
 		"/api/public/impact",
 		"/api/public/metrics",
 		"/api/public/token/status",
