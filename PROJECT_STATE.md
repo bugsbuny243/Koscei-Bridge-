@@ -19,6 +19,7 @@ This is the authoritative checkpoint for the uploaded working snapshot. The arch
 - `/api/owner/radar/jobs` remains database-required and fail-closed. No fake durable job or persistence result is created.
 - The public token-scan browser timeout is now 210 seconds and its cache key is incremented.
 - Owner and public cache keys, Go surface expectations, CI routing, and a new executable regression verifier were updated.
+- The release gate exposed a pre-existing `gofmt` alignment error in `internal/archive/google_drive.go`; it was formatted without changing behavior so the full Go gate can run.
 
 ## VERIFIED
 
@@ -29,7 +30,7 @@ This is the authoritative checkpoint for the uploaded working snapshot. The arch
 - Canonical product, deep-scan navigation, owner evidence explorer, and production RPC-isolation contracts pass.
 - Railway production deployment `e57c529d-dacf-4e4e-80aa-060a9ee01418` is healthy on `main` commit `c114aac`. Its startup log explicitly confirms the stateless Web3 runtime.
 - A live production full-scan acceptance request returned `200` and passed its response-contract checks in 152,610 ms. This directly reproduces why the old 45-second browser timeout discarded otherwise valid results.
-- A clean archive comparison shows only the documented recovery files changed.
+- A clean archive comparison shows only the documented recovery files plus the release-gate formatting repair changed.
 
 ## BROKEN / MISSING
 
