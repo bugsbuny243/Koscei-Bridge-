@@ -177,7 +177,7 @@ func (h *Handler) ownerUnifiedWalletRadar(w http.ResponseWriter, r *http.Request
 		db = h.DB
 	}
 	if db == nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Unified Radar database is unavailable")
+		h.ownerUnifiedWalletRadarStateless(w, r, requestedTarget, wallet, network, classification, liveEvidence)
 		return
 	}
 	timeout := 180 * time.Second
@@ -242,6 +242,115 @@ func (h *Handler) ownerUnifiedWalletRadar(w http.ResponseWriter, r *http.Request
 			"external_attribution_is_observed_only": true,
 			"identity_scope":                        "onchain_wallet_only", "caller_type_changes_evidence": false,
 		},
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) ownerUnifiedWalletRadarStateless(w http.ResponseWriter, r *http.Request, requestedTarget, wallet, network string, classification radarTargetClassification, liveEvidence bool) {
+	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
+	defer cancel()
+	now := time.Now().UTC()
+	dossier := services.ActorDefenseDossier{
+		Wallet: wallet, Network: network,
+		Tokens: []services.ActorDefenseTokenObservation{}, RelatedActors: []services.ActorDefenseRelatedActor{},
+		Evidence: []services.ActorDefenseEvidenceRecord{}, Coverage: map[string]any{},
+		Policy: map[string]any{
+			"no_evidence_no_claim":                                           true,
+			"wallet_addresses_are_case_sensitive":                            true,
+			"verified_requires_transaction_or_owner_resolved_chain_evidence": true,
+			"identity_or_wrongdoing_claim":                                   false,
+		}, GeneratedAt: now,
+	}
+	dossier.Track = services.ActorDefenseTrack{
+		Network: network, TargetKind: "wallet", TargetID: wallet, State: "detected",
+		Dossier: map[string]any{
+			"state_basis":                 []string{"live_rpc_evidence", "bounded_created_mint_discovery"},
+			"persistence":                 "database_unavailable",
+			"no_identity_or_intent_claim": true,
+		},
+	}
+
+	externalDiscovery := newActorExternalDiscoveryRun(wallet)
+	funding := services.ActorFundingOrigin{
+		Wallet: wallet, Status: "not_requested", VerificationStatus: "unverified",
+		TrailStatus: "not_investigated", IdentityScope: "onchain_wallet_only", Limitations: []string{},
+	}
+	fundingPersistence := "not_requested"
+	coverage := actorDefenseLiveCoverage{Status: "not_requested", Evidence: []services.ActorDefenseEvidenceRecord{}, Limitations: []string{}}
+	if liveEvidence {
+		externalDiscovery = h.collectActorExternalDiscovery(ctx, nil, wallet, network)
+		for _, candidate := range externalDiscovery.CreatedMintPortfolio.VerifiedCandidates {
+			if strings.TrimSpace(candidate.Mint) == "" {
+				continue
+			}
+			dossier.Tokens = append(dossier.Tokens, services.ActorDefenseTokenObservation{
+				Mint: candidate.Mint, Roles: []string{"creator"}, CreatorSignature: candidate.Signature,
+				FirstObservedAt: candidate.ObservedAt, LastObservedAt: candidate.ObservedAt,
+			})
+		}
+		dossier.Track.CreatedTokenCount = len(dossier.Tokens)
+		createdEvidence := services.ActorCreatedMintCandidateEvidence(wallet, network, externalDiscovery.CreatedMintPortfolio.VerifiedCandidates)
+		dossier.Evidence = append(dossier.Evidence, createdEvidence...)
+
+		funding, fundingPersistence = h.collectActorFundingOrigin(ctx, nil, wallet, network)
+		if fundingEvidence, ok := services.ActorFundingOriginEvidence(funding, network); ok {
+			dossier.Evidence = append(dossier.Evidence, fundingEvidence)
+		}
+
+		coverage = h.collectActorDefenseLiveEvidence(ctx, nil, dossier)
+		dossier.Evidence = append(dossier.Evidence, coverage.Evidence...)
+	}
+
+	verified, observed := 0, 0
+	for _, item := range dossier.Evidence {
+		switch strings.ToLower(strings.TrimSpace(item.VerificationStatus)) {
+		case "verified":
+			verified++
+		case "observed":
+			observed++
+		}
+	}
+	dossier.Track.VerifiedEvidenceCount = verified
+	dossier.Track.ObservedEvidenceCount = observed
+	dossier.Track.State = services.DeriveActorDefenseTrackState(dossier.Track, dossier.RelatedActors)
+	dossier.Track.Dossier["token_count"] = len(dossier.Tokens)
+	dossier.Track.Dossier["direct_evidence_count"] = len(dossier.Evidence)
+	dossier.Coverage["live_evidence"] = coverage
+	dossier.Coverage["funding_origin"] = funding
+	dossier.Coverage["funding_origin_persistence"] = fundingPersistence
+	dossier.Coverage["external_discovery"] = externalDiscovery
+	dossier.Coverage["persistence"] = "database_unavailable"
+	dossier.Coverage["numeric_score_disabled"] = true
+
+	actorVerdict := services.EvaluateActorDefenseRules(dossier.Track, dossier.Evidence)
+	behavior := services.EvaluateUnifiedRadarBehavior("", wallet, services.TokenMarketSnapshot{}, services.HolderIntelligence{}, services.HolderClusterAnalysis{}, services.CreatorSellAcceleration{}, now)
+	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior)
+	response := map[string]any{
+		"ok": true, "schema_version": "koschei-unified-investigation-v1",
+		"target": requestedTarget, "wallet": wallet, "network": network,
+		"generated_at":          now.Format(time.RFC3339),
+		"target_classification": classification, "analysis_scope": "wallet_actor_investigation",
+		"manual_only": true, "automatic_scanning": false,
+		"execution_mode": "stateless_live", "database_available": false,
+		"final_verdict":             unifiedVerdict,
+		"final_verdict_persistence": "database_unavailable",
+		"final_verdict_history":     []services.UnifiedRadarVerdictHistoryRecord{},
+		"legacy_14_arm_radar":       map[string]any{"applicable": false, "reason": "Token-specific collectors are not fabricated for a wallet-only target.", "modules": []any{}},
+		"actor_investigation": map[string]any{
+			"wallet": wallet, "dossier": dossier, "external_discovery": externalDiscovery,
+			"funding_origin": funding, "funding_origin_persistence": fundingPersistence,
+			"live_evidence": coverage, "rule_verdict": actorVerdict,
+			"rule_verdict_persistence": "database_unavailable",
+		},
+		"behavior_signals":            behavior,
+		"investigation_output_policy": services.SharedInvestigationOutputPolicy(),
+		"evidence_policy": map[string]any{
+			"numeric_final_score_disabled": true, "no_evidence_no_claim": true,
+			"inferred_watch_only": true, "unverified_excluded": true,
+			"external_attribution_is_observed_only": true,
+			"identity_scope":                        "onchain_wallet_only", "caller_type_changes_evidence": false,
+		},
+		"limitations": []string{"Persistent actor memory and verdict history are unavailable in stateless runtime; live evidence remains request-scoped."},
 	}
 	writeJSON(w, http.StatusOK, response)
 }

@@ -21,16 +21,18 @@ type actorDefenseRequest struct {
 }
 
 type actorDefenseLiveCoverage struct {
-	Status              string   `json:"status"`
-	SignaturesSeen      int      `json:"signatures_seen"`
-	TransactionsParsed  int      `json:"transactions_parsed"`
-	EvidencePersisted   int      `json:"evidence_persisted"`
-	RPCFailures         int      `json:"rpc_failures"`
-	PersistenceFailures int      `json:"persistence_failures"`
-	SignatureLimit      int      `json:"signature_limit"`
-	TransactionLimit    int      `json:"transaction_limit"`
-	EvidenceLimit       int      `json:"evidence_limit"`
-	Limitations         []string `json:"limitations"`
+	Status              string                                `json:"status"`
+	SignaturesSeen      int                                   `json:"signatures_seen"`
+	TransactionsParsed  int                                   `json:"transactions_parsed"`
+	EvidenceProduced    int                                   `json:"evidence_produced"`
+	EvidencePersisted   int                                   `json:"evidence_persisted"`
+	RPCFailures         int                                   `json:"rpc_failures"`
+	PersistenceFailures int                                   `json:"persistence_failures"`
+	SignatureLimit      int                                   `json:"signature_limit"`
+	TransactionLimit    int                                   `json:"transaction_limit"`
+	EvidenceLimit       int                                   `json:"evidence_limit"`
+	Evidence            []services.ActorDefenseEvidenceRecord `json:"evidence,omitempty"`
+	Limitations         []string                              `json:"limitations"`
 }
 
 type actorDefenseTokenAccountOwner struct {
@@ -187,6 +189,9 @@ func (h *Handler) collectActorFundingOrigin(ctx context.Context, store *services
 	if !ok {
 		return origin, "no_persistable_evidence"
 	}
+	if store == nil {
+		return origin, "database_unavailable"
+	}
 	if err := store.UpsertEvidence(ctx, evidence); err != nil {
 		return origin, "failed"
 	}
@@ -199,6 +204,7 @@ func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *se
 		SignatureLimit:   actorDefenseEnvInt("ACTOR_DEFENSE_SIGNATURE_LIMIT", 120, 20, 500),
 		TransactionLimit: actorDefenseEnvInt("ACTOR_DEFENSE_TRANSACTION_LIMIT", 40, 5, 120),
 		EvidenceLimit:    actorDefenseEnvInt("ACTOR_DEFENSE_EVIDENCE_LIMIT", 100, 10, 300),
+		Evidence:         []services.ActorDefenseEvidenceRecord{},
 		Limitations:      []string{},
 	}
 	rpcURL := creatorIntelRPCURL()
@@ -228,7 +234,12 @@ func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *se
 		}
 	}
 	persist := func(item services.ActorDefenseEvidenceRecord) {
-		if coverage.EvidencePersisted >= coverage.EvidenceLimit {
+		if coverage.EvidenceProduced >= coverage.EvidenceLimit {
+			return
+		}
+		coverage.Evidence = append(coverage.Evidence, item)
+		coverage.EvidenceProduced++
+		if store == nil {
 			return
 		}
 		if err := store.UpsertEvidence(ctx, item); err != nil {
@@ -239,7 +250,7 @@ func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *se
 	}
 
 	for _, signature := range signatures {
-		if coverage.TransactionsParsed >= coverage.TransactionLimit || coverage.EvidencePersisted >= coverage.EvidenceLimit || ctx.Err() != nil {
+		if coverage.TransactionsParsed >= coverage.TransactionLimit || coverage.EvidenceProduced >= coverage.EvidenceLimit || ctx.Err() != nil {
 			break
 		}
 		if signature.Err != nil || strings.TrimSpace(signature.Signature) == "" {
@@ -264,7 +275,7 @@ func (h *Handler) collectActorDefenseLiveEvidence(ctx context.Context, store *se
 		instructions := actorDefenseInstructions(message, meta)
 
 		for index, instruction := range instructions {
-			if coverage.EvidencePersisted >= coverage.EvidenceLimit {
+			if coverage.EvidenceProduced >= coverage.EvidenceLimit {
 				break
 			}
 			for _, item := range actorDefenseInstructionEvidence(dossier, signature, observedAt, actorSigned, instruction, owners, knownMints, relatedActors, index) {
