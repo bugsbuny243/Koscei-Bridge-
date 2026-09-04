@@ -59,7 +59,7 @@ jobs:
       - name: Upload repository SARIF
         if: ${{ always() && hashFiles('trivy-repository.sarif') != '' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: trivy-repository.sarif
           category: trivy-repository
@@ -98,7 +98,7 @@ jobs:
       - name: Upload container SARIF
         if: ${{ always() && hashFiles('trivy-container.sarif') != '' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: trivy-container.sarif
           category: trivy-production-container
@@ -123,7 +123,7 @@ jobs:
         run: docker save koschei-api:${GITHUB_SHA} --output koschei-api-image.tar
       - name: Attest production image SBOM
         if: github.event_name != 'pull_request'
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: koschei-api-image.tar
           sbom-path: koschei-api.spdx.json
