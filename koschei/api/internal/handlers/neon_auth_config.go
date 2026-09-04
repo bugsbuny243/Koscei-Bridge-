@@ -79,27 +79,14 @@ func normalizeAbsoluteBaseURL(raw string) string {
 }
 
 func configuredNeonAuthIssuer() string {
-	baseURL := strings.TrimRight(configuredNeonAuthBaseURL(), "/")
-	value := strings.TrimRight(trimmedEnv("NEON_AUTH_ISSUER"), "/")
-	if value == "" {
-		return baseURL
-	}
-	if baseURL == "" {
+	// Treat the configured issuer as an exact trust boundary. Neon Auth's public
+	// API URL includes the /neondb/auth base path, while the JWT plugin issuer can
+	// be the auth service origin. Rewriting a host-only issuer to the API base path
+	// causes valid Neon JWTs to fail issuer verification.
+	if value := strings.TrimRight(trimmedEnv("NEON_AUTH_ISSUER"), "/"); value != "" {
 		return value
 	}
-
-	// Neon Managed Better Auth signs JWTs with the Auth BASE_URL as issuer.
-	// Older Koschei deployments stored only the auth host in NEON_AUTH_ISSUER;
-	// normalize that legacy host-only value to the configured Auth BASE_URL.
-	issuerURL, issuerErr := url.Parse(value)
-	baseParsed, baseErr := url.Parse(baseURL)
-	if issuerErr == nil && baseErr == nil &&
-		issuerURL.Scheme == baseParsed.Scheme &&
-		issuerURL.Host == baseParsed.Host &&
-		(strings.TrimSpace(issuerURL.Path) == "" || issuerURL.Path == "/") {
-		return baseURL
-	}
-	return value
+	return strings.TrimRight(configuredNeonAuthBaseURL(), "/")
 }
 
 func configuredNeonAuthJWKSURL() string {
