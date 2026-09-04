@@ -190,7 +190,6 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		out.VerifiedCandidates = append(out.VerifiedCandidates, verified)
 		for _, evidence := range services.ActorCreatedMintCandidateEvidence(wallet, network, []services.ActorCreatedMintCandidate{verified}) {
 			if store == nil {
-				out.PersistenceFailures++
 				continue
 			}
 			if err := store.UpsertEvidence(ctx, evidence); err != nil {
@@ -201,6 +200,9 @@ func (h *Handler) collectActorCreatedMintPortfolio(ctx context.Context, store *s
 		}
 	}
 
+	if store == nil && len(out.VerifiedCandidates) > 0 {
+		out.Limitations = append(out.Limitations, "Verified created-mint evidence was produced in request scope but not persisted because the actor evidence store is unavailable.")
+	}
 	out.LifecycleSummary = services.SummarizeActorTokenLifecycles(out.LifecycleObservations)
 	if out.LifecyclePersistenceFailures > 0 {
 		out.Limitations = append(out.Limitations, "Güncel token akıbeti hesaplandı ancak bazı lifecycle gözlemleri kalıcı geçmişe yazılamadı; ortalama ömür yalnız eldeki kanıtlanmış geçiş örneklerini kullanır.")
