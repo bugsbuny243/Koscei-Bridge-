@@ -24,9 +24,9 @@ jobs:
         run: |
           gofmt -w koschei/api/internal/archive/google_drive.go koschei/api/internal/handlers/transaction_guard_v3_attack_path_test.go
           test -z "$(gofmt -l koschei/api/internal/archive/google_drive.go koschei/api/internal/handlers/transaction_guard_v3_attack_path_test.go)"
-      - name: Commit formatted files and remove one-shot workflow
+      - name: Commit formatted files and remove one-shot files
         run: |
-          rm .github/workflows/format-release-gate-once.yml
+          rm -f .github/workflows/format-release-gate-once.yml .github/release-gate-format-trigger
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
