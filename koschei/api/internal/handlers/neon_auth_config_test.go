@@ -39,13 +39,40 @@ func TestConfiguredPublicNeonAuthURLPrefersExplicitPublicURL(t *testing.T) {
 	}
 }
 
+func TestConfiguredNeonAuthIssuerFallsBackToBaseURL(t *testing.T) {
+	t.Setenv("NEON_AUTH_BASE_URL", "https://auth.example/neondb/auth/")
+	t.Setenv("NEON_AUTH_ISSUER", "")
+
+	if got, want := configuredNeonAuthIssuer(), "https://auth.example/neondb/auth"; got != want {
+		t.Fatalf("configuredNeonAuthIssuer() = %q, want %q", got, want)
+	}
+}
+
+func TestConfiguredNeonAuthIssuerNormalizesLegacyHostOnlyValue(t *testing.T) {
+	t.Setenv("NEON_AUTH_BASE_URL", "https://auth.example/neondb/auth")
+	t.Setenv("NEON_AUTH_ISSUER", "https://auth.example/")
+
+	if got, want := configuredNeonAuthIssuer(), "https://auth.example/neondb/auth"; got != want {
+		t.Fatalf("configuredNeonAuthIssuer() = %q, want %q", got, want)
+	}
+}
+
+func TestConfiguredNeonAuthIssuerPreservesExplicitDifferentIssuer(t *testing.T) {
+	t.Setenv("NEON_AUTH_BASE_URL", "https://auth.example/neondb/auth")
+	t.Setenv("NEON_AUTH_ISSUER", "https://issuer.example/custom")
+
+	if got, want := configuredNeonAuthIssuer(), "https://issuer.example/custom"; got != want {
+		t.Fatalf("configuredNeonAuthIssuer() = %q, want %q", got, want)
+	}
+}
+
 func TestMissingProductionAuthEnv(t *testing.T) {
 	t.Setenv("NEON_AUTH_BASE_URL", "")
 	t.Setenv("NEON_AUTH_ISSUER", "issuer")
 	t.Setenv("NEON_AUTH_JWKS_URL", "jwks")
 	t.Setenv("NEON_AUTH_STATE_SECRET", "secret")
 	t.Setenv("KOSCHEI_AUTH_STATE_SECRET", "")
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_URL", "")
 	t.Setenv("CORS_ORIGIN", "https://example.com")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
 
@@ -60,7 +87,7 @@ func TestMissingProductionAuthEnvDoesNotRequireDedicatedStateSecret(t *testing.T
 	t.Setenv("NEON_AUTH_JWKS_URL", "jwks")
 	t.Setenv("NEON_AUTH_STATE_SECRET", "")
 	t.Setenv("KOSCHEI_AUTH_STATE_SECRET", "")
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_URL", "")
 	t.Setenv("CORS_ORIGIN", "")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "https://example.com")
 
@@ -75,7 +102,7 @@ func TestMissingProductionAuthEnvReportsAlternativeGroups(t *testing.T) {
 	t.Setenv("NEON_AUTH_JWKS_URL", "jwks")
 	t.Setenv("NEON_AUTH_STATE_SECRET", "")
 	t.Setenv("KOSCHEI_AUTH_STATE_SECRET", "")
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_URL", "")
 	t.Setenv("CORS_ORIGIN", "")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
 
