@@ -11,9 +11,7 @@ const defaultPublicAppURL = "https://tradepigloball.co"
 
 var requiredProductionAuthEnv = [][]string{
 	{"NEON_AUTH_BASE_URL"},
-	{"NEON_AUTH_ISSUER"},
 	{"NEON_AUTH_JWKS_URL"},
-	{"DATABASE_URL"},
 	{"CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"},
 }
 
@@ -81,7 +79,27 @@ func normalizeAbsoluteBaseURL(raw string) string {
 }
 
 func configuredNeonAuthIssuer() string {
-	return trimmedEnv("NEON_AUTH_ISSUER")
+	baseURL := strings.TrimRight(configuredNeonAuthBaseURL(), "/")
+	value := strings.TrimRight(trimmedEnv("NEON_AUTH_ISSUER"), "/")
+	if value == "" {
+		return baseURL
+	}
+	if baseURL == "" {
+		return value
+	}
+
+	// Neon Managed Better Auth signs JWTs with the Auth BASE_URL as issuer.
+	// Older Koschei deployments stored only the auth host in NEON_AUTH_ISSUER;
+	// normalize that legacy host-only value to the configured Auth BASE_URL.
+	issuerURL, issuerErr := url.Parse(value)
+	baseParsed, baseErr := url.Parse(baseURL)
+	if issuerErr == nil && baseErr == nil &&
+		issuerURL.Scheme == baseParsed.Scheme &&
+		issuerURL.Host == baseParsed.Host &&
+		(strings.TrimSpace(issuerURL.Path) == "" || issuerURL.Path == "/") {
+		return baseURL
+	}
+	return value
 }
 
 func configuredNeonAuthJWKSURL() string {
