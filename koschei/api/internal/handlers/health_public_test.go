@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -11,7 +12,7 @@ import (
 func TestCachedArvisHealthSnapshotDoesNotTriggerCollection(t *testing.T) {
 	resetArvisHealthCache()
 	snapshot := cachedArvisHealthSnapshot()
-	if snapshot["pipeline_status"] != "not_sampled" || snapshot["cached"] != false {
+	if snapshot["pipeline_status"] != "live_provider_mode" || snapshot["cached"] != false {
 		t.Fatalf("snapshot=%#v", snapshot)
 	}
 	if snapshot["details_url"] != "/api/web3/health" {
@@ -38,7 +39,7 @@ func TestCachedArvisHealthSnapshotCopiesCachedData(t *testing.T) {
 	}
 }
 
-func TestPublicHealthFailsClosedWithoutLeakingProductionDBError(t *testing.T) {
+func TestPublicHealthStaysReadyInStatelessRuntimeWithoutLeakingDBError(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	h := &Handler{DBInitError: "secret database connection detail"}
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -49,8 +50,11 @@ func TestPublicHealthFailsClosedWithoutLeakingProductionDBError(t *testing.T) {
 	if elapsed := time.Since(started); elapsed > publicHealthTimeout {
 		t.Fatalf("health exceeded public timeout: %s", elapsed)
 	}
-	if recorder.Code != http.StatusServiceUnavailable {
+	if recorder.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "secret database connection detail") {
+		t.Fatalf("production health leaked database details: %s", recorder.Body.String())
 	}
 	var body map[string]any
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
@@ -59,7 +63,7 @@ func TestPublicHealthFailsClosedWithoutLeakingProductionDBError(t *testing.T) {
 	if _, leaked := body["details"]; leaked {
 		t.Fatalf("production health leaked database details: %#v", body)
 	}
-	if body["service"] != "koschei-web3" || body["database"] != "unavailable" {
+	if body["service"] != "koschei-web3" || body["status"] != "ok" || body["database"] != "not_used" || body["persistence"] != "stateless" {
 		t.Fatalf("body=%#v", body)
 	}
 }
