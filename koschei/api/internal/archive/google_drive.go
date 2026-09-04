@@ -37,8 +37,8 @@ type DriveArchive struct {
 
 type serviceAccountCredentials struct {
 	ClientEmail string `json:"client_email"`
-	PrivateKey string `json:"private_key"`
-	TokenURI   string `json:"token_uri"`
+	PrivateKey  string `json:"private_key"`
+	TokenURI    string `json:"token_uri"`
 }
 
 type DriveObject struct {
