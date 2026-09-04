@@ -26,6 +26,7 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const form=$('scanForm'),submit=$('submit'),target=$('target'),kind=$('kind'),kindLabel=$('kindLabel'),note=$('note'),transaction=$('transaction'),wallet=$('wallet'),targetFields=$('targetFields'),transactionFields=$('transactionFields'),modeSummary=$('modeSummary'),empty=$('empty'),result=$('result'),share=$('shareResult'),openExplorer=$('openExplorer');
 const requestGuard=window.KoscheiPublicScanGuard;
+const TOKEN_SCAN_TIMEOUT_MS=210000;
 let activeMode='token';
 let lastSharePayload={};
 const clamp=n=>Math.max(0,Math.min(100,Math.round(Number(n)||0)));
@@ -33,7 +34,10 @@ const level=r=>r>=85?'critical':r>=65?'high':r>=35?'medium':'low';
 const short=value=>{const text=String(value??'');return text.length>24?`${text.slice(0,10)}…${text.slice(-8)}`:text};
 
 async function fetchJSON(url,options={}){
-  const timeoutMs=url.includes('/api/token/scan')?45000:url.includes('/api/public/transaction-simulate')?30000:15000;
+  // Full token evidence can legitimately spend up to 120 seconds in launch
+  // forensics, plus bounded holder and market collectors. Do not abort a live
+  // server investigation at the old 45-second UI boundary.
+  const timeoutMs=url.includes('/api/token/scan')?TOKEN_SCAN_TIMEOUT_MS:url.includes('/api/public/transaction-simulate')?30000:15000;
   const controller=new AbortController();
   const externalSignal=options.signal;
   let timedOut=false;

@@ -186,6 +186,7 @@ jobs:
           node scripts/verify-lp-control-evidence-card.js
           node scripts/verify-live-evidence-card.js
           node scripts/verify-customer-investigation-ui.js
+          node scripts/verify-scan-runtime-recovery.js
           node scripts/verify-report-trust-consistency.js
           node scripts/verify-dossier-contract.mjs
       - name: Check public language and investigation contracts

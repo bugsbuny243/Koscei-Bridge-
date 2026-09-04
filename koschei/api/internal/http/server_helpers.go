@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"koschei/api/internal/handlers"
-	"koschei/api/internal/services"
 )
 
 var databaseOptionalAPIPaths = func() map[string]struct{} {
@@ -118,7 +117,11 @@ func ownerOnly(h *handlers.Handler, next http.HandlerFunc) http.HandlerFunc {
 
 func requiresDB(h *handlers.Handler, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if services.NeonAuthOnlyMode() && allowedWithoutDatabase(r.URL.Path) {
+		// These exact routes own their own degraded-mode behavior and are safe to
+		// execute without application persistence. Keep this gate consistent with
+		// apiReadiness: the runtime is stateless even when the deployment forgot to
+		// set the legacy KOSCHEI_NEON_AUTH_ONLY compatibility flag.
+		if allowedWithoutDatabase(r.URL.Path) {
 			next(w, r)
 			return
 		}

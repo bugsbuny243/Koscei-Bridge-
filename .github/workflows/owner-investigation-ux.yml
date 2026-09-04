@@ -4,9 +4,11 @@ on:
   pull_request:
     paths:
       - "koschei/api/public/owner-production.html"
+      - "koschei/api/public/js/owner-court-ui.js"
       - "koschei/api/public/js/owner-investigation-ux.js"
       - "koschei/api/public/css/owner-investigation-ux.css"
       - "koschei/api/scripts/verify-owner-investigation-ux.js"
+      - "koschei/api/scripts/verify-scan-runtime-recovery.js"
       - ".github/workflows/owner-investigation-ux.yml"
 
 permissions:
@@ -21,6 +23,10 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check koschei/api/public/js/owner-investigation-ux.js
+          node --check koschei/api/public/js/owner-court-ui.js
           node --check koschei/api/scripts/verify-owner-investigation-ux.js
+          node --check koschei/api/scripts/verify-scan-runtime-recovery.js
       - name: Verify owner investigation UX contract
-        run: node koschei/api/scripts/verify-owner-investigation-ux.js
+        run: |
+          node koschei/api/scripts/verify-owner-investigation-ux.js
+          node koschei/api/scripts/verify-scan-runtime-recovery.js
