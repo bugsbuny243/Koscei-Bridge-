@@ -62,7 +62,7 @@ func TestTransactionGuardAttackPathPermanentDelegateIsCritical(t *testing.T) {
 	delegate := guardV3TestAddress(21)
 	decoded := transactionGuardDecodedTransaction{
 		Available: true, Complete: true,
-		TokenOperations: []transactionGuardDecodedTokenOperation{{Kind: "initialize_permanent_delegate", ProgramID: guardV3Token2022ProgramID, Mint: mint, Account: mint, Delegate: delegate, NewAuthority: delegate}},
+		TokenOperations:  []transactionGuardDecodedTokenOperation{{Kind: "initialize_permanent_delegate", ProgramID: guardV3Token2022ProgramID, Mint: mint, Account: mint, Delegate: delegate, NewAuthority: delegate}},
 		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Requested: false, Complete: true},
 	}
 	authority := transactionGuardAuthoritySurfaceAnalysis{
@@ -83,7 +83,7 @@ func TestTransactionGuardAttackPathTransferHookSurfacesPersistentExecutionContro
 	hook := guardV3TestAddress(31)
 	decoded := transactionGuardDecodedTransaction{
 		Available: true, Complete: true,
-		TokenOperations: []transactionGuardDecodedTokenOperation{{Kind: "initialize_transfer_hook", ProgramID: guardV3Token2022ProgramID, Mint: mint, Account: mint, NewAuthority: hook}},
+		TokenOperations:  []transactionGuardDecodedTokenOperation{{Kind: "initialize_transfer_hook", ProgramID: guardV3Token2022ProgramID, Mint: mint, Account: mint, NewAuthority: hook}},
 		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Requested: false, Complete: true},
 	}
 	authority := transactionGuardAuthoritySurfaceAnalysis{
@@ -144,7 +144,7 @@ func TestTransactionGuardAttackPathAccountCloseLinksStateClosure(t *testing.T) {
 func TestTransactionGuardAttackPathMarksIncompleteRequiredEvidence(t *testing.T) {
 	decoded := transactionGuardDecodedTransaction{
 		Available: true, Complete: true,
-		TokenOperations: []transactionGuardDecodedTokenOperation{{Kind: "set_authority", ProgramID: guardV3SPLTokenProgramID, Account: guardV3TestAddress(10), NewAuthority: guardV3TestAddress(11)}},
+		TokenOperations:  []transactionGuardDecodedTokenOperation{{Kind: "set_authority", ProgramID: guardV3SPLTokenProgramID, Account: guardV3TestAddress(10), NewAuthority: guardV3TestAddress(11)}},
 		AutomaticBalance: transactionGuardAutomaticBalanceAnalysis{Requested: true, Available: false, Complete: false},
 	}
 	cpi := transactionGuardCPIFlowAnalysis{Requested: true, Required: true, Available: false, Complete: false}
