@@ -47,3 +47,40 @@ func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 		t.Fatalf("free token scan unexpectedly gated: status=%d body=%s", rr.Code, rr.Body.String())
 	}
 }
+
+func TestRequiresDBAllowsExplicitStatelessRoute(t *testing.T) {
+	h := &handlers.Handler{}
+	called := false
+	next := requiresDB(h, func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	rr := httptest.NewRecorder()
+	next(rr, httptest.NewRequest(http.MethodPost, "/api/owner/arvis/scan", nil))
+
+	if !called {
+		t.Fatal("explicit stateless route was blocked by the database gate")
+	}
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("stateless route status=%d want=%d body=%s", rr.Code, http.StatusNoContent, rr.Body.String())
+	}
+}
+
+func TestRequiresDBStillBlocksDurableJobRouteWithoutDatabase(t *testing.T) {
+	h := &handlers.Handler{}
+	called := false
+	next := requiresDB(h, func(http.ResponseWriter, *http.Request) {
+		called = true
+	})
+
+	rr := httptest.NewRecorder()
+	next(rr, httptest.NewRequest(http.MethodPost, "/api/owner/radar/jobs", nil))
+
+	if called {
+		t.Fatal("durable job route ran without its database")
+	}
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("durable job route status=%d want=%d body=%s", rr.Code, http.StatusServiceUnavailable, rr.Body.String())
+	}
+}

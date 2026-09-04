@@ -55,7 +55,7 @@ func TestCanonicalInvestigationSurfaceMountsCompleteModesAndEvidenceControllers(
 		"arvis-premium-contract.js",
 		"customer-arvis-premium-suite.js",
 		"data-customer-arvis-result",
-		"public-solana-scan.js?v=11",
+		"public-solana-scan.js?v=12",
 		"Missing evidence is shown as a limitation, not converted into a safety claim.",
 	} {
 		if !strings.Contains(text, required) {

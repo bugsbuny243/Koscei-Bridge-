@@ -9,6 +9,7 @@
   const short=(value,length=56)=>{const text=String(value||'');return text.length>length?`${text.slice(0,length-12)}…${text.slice(-9)}`:text||'—'};
   const rootFor=value=>typeof value==='string'?document.getElementById(value):value;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const directScan=typeof kit.scan==='function'?kit.scan:null;
   const statusLabel=value=>({ready:'BAĞIMSIZ İNCELEME TAMAMLANDI',partial:'KISMİ İNCELEME',error:'İNCELEME HATASI',disabled:'DERİN İNCELEME KAPALI',skipped:'UYGULANMADI',budget_exhausted:'GÜNLÜK LİMİT DOLDU'}[String(value||'').toLowerCase()]||String(value||'BİLİNMİYOR').toUpperCase());
   const stanceLabel=value=>({elevated:'YÜKSELTİLMİŞ İNCELEME',neutral:'NÖTR ANALİZ',insufficient:'KANIT YETERSİZ'}[String(value||'').toLowerCase()]||String(value||'KANIT YETERSİZ').toUpperCase());
   const tone=value=>{const text=String(value||'').toLowerCase();if(text==='ready'||text==='neutral')return'ok';if(text==='error'||text==='elevated')return'bad';return'warn'};
@@ -93,8 +94,20 @@
       const response=await fetch('/api/owner/radar/jobs',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,network:'solana-mainnet',max_depth:1})});
       let data={};
       try{data=await response.json()}catch{}
-      if(!response.ok||data.ok===false)throw new Error(data.message||data.detail||data.error||`İş oluşturulamadı (${response.status})`);
+      if(!response.ok||data.ok===false){
+        // Canonical jobs need the retired application database and worker. A
+        // stateless deployment must still run the live, synchronous scan.
+        if(directScan&&[404,405,501,503].includes(response.status)){
+          root.innerHTML='<div class="card loading">Kalıcı iş altyapısı kapalı; canlı ARVIS taraması başlatılıyor…</div>';
+          return await directScan(target,root);
+        }
+        throw new Error(data.message||data.detail||data.error||`İş oluşturulamadı (${response.status})`);
+      }
       const pollUrl=String(data.poll_url||'');
+      if(!pollUrl&&directScan){
+        root.innerHTML='<div class="card loading">Kalıcı iş yanıtı eksik; canlı ARVIS taraması başlatılıyor…</div>';
+        return await directScan(target,root);
+      }
       if(!pollUrl)throw new Error('Canonical job poll adresi üretilmedi.');
       renderJobProgress(root,obj(data.job));
       return await pollCanonicalJob(pollUrl,root);

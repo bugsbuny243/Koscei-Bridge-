@@ -30,7 +30,7 @@ requireText(css,'.customer-result-summary','summary styles');
 requireText(css,'.customer-full-technical','technical disclosure styles');
 requireText(css,'.customer-source-panels','source disclosure styles');
 
-const publicScanIndex=html.indexOf('/js/public-solana-scan.js?v=11');
+const publicScanIndex=html.indexOf('/js/public-solana-scan.js?v=12');
 const uxIndex=html.indexOf('/js/customer-investigation-ux-v2.js?v=1');
 if(publicScanIndex<0||uxIndex<publicScanIndex)throw new Error('scan html: customer UX v2 must load after public scan renderer');
 
