@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"koschei/api/internal/cache"
+	"koschei/api/internal/db"
 	"koschei/api/internal/handlers"
 	apihttp "koschei/api/internal/http"
 	"koschei/api/internal/jobs"
@@ -37,12 +38,14 @@ func main() {
 	appCtx, stopApp := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopApp()
 
-	// Architecture boundary: Koschei Web3 is stateless with respect to application
-	// blockchain/radar/evidence data. Neon is an authentication system only.
-	// This process intentionally never reads DATABASE_URL, never opens PostgreSQL,
-	// and never starts database-backed radar, telemetry, job, alert or webhook workers.
-	const dbInitError = "application persistence disabled by architecture"
-	log.Printf("stateless Web3 runtime enabled: application PostgreSQL persistence is not part of this process")
+	// Persistence is opt-in. The default runtime remains stateless so a missing or
+	// misconfigured application database cannot silently become a security signal.
+	// When KOSCHEI_DURABLE_INTELLIGENCE_ENABLED=true, DATABASE_URL is mandatory and
+	// startup fails closed unless migrations and schema verification succeed.
+	appDB, dbInitError := buildApplicationDB()
+	if appDB != nil {
+		defer appDB.Close()
+	}
 
 	appCache := buildCache()
 	defer appCache.Close()
@@ -52,12 +55,17 @@ func main() {
 		web3.RPCProviderHost(web3.SolanaRPCFallbackURL("solana-mainnet")),
 	)
 
-	jobStore := jobs.NewStore(nil)
+	jobStore := jobs.NewStore(appDB)
 	jobQueue := jobs.Queue(jobs.NoopQueue{})
 	if natsURL := os.Getenv("NATS_URL"); natsURL != "" {
 		jobQueue = jobs.NewNATSQueue(natsURL, os.Getenv("NATS_SUBJECT_PREFIX"))
 	}
 	defer jobQueue.Close()
+
+	stopCanonicalWorker := handlers.StartCanonicalInvestigationJobWorker(appCtx, appDB, appDB, solanaRPC, jobStore)
+	defer stopCanonicalWorker()
+	stopPumpScheduler := handlers.StartCanonicalPumpJobScheduler(appCtx, appDB, jobStore)
+	defer stopPumpScheduler()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -69,12 +77,12 @@ func main() {
 	staticDir := resolveStaticDir(os.Getenv("STATIC_DIR"))
 	log.Printf("static public path: %s", staticDir)
 	handler := englishPublicHTML(apihttp.NewServer(
-		nil,
+		appDB,
 		dbInitError,
 		os.Getenv("ADMIN_PASSWORD"),
 		firstEnv("CORS_ORIGIN", "CORS_ALLOWED_ORIGIN"),
 		staticDir,
-		apihttp.WithReadDB(nil),
+		apihttp.WithReadDB(appDB),
 		apihttp.WithCache(appCache),
 		apihttp.WithSolanaRPC(solanaRPC),
 		apihttp.WithJobStore(jobStore),
@@ -110,6 +118,27 @@ func main() {
 			log.Printf("http server shutdown deadline reached")
 		}
 	}
+}
+
+func durableIntelligenceEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_DURABLE_INTELLIGENCE_ENABLED")), "true")
+}
+
+func buildApplicationDB() (*sql.DB, string) {
+	if !durableIntelligenceEnabled() {
+		log.Printf("stateless Web3 runtime enabled: durable intelligence persistence is disabled")
+		return nil, "application persistence disabled by architecture"
+	}
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		log.Fatalf("CRITICAL: KOSCHEI_DURABLE_INTELLIGENCE_ENABLED=true requires DATABASE_URL")
+	}
+	applicationDB, err := db.Connect(databaseURL)
+	if err != nil {
+		log.Fatalf("CRITICAL: durable intelligence database unavailable: %v", err)
+	}
+	log.Printf("durable intelligence runtime enabled: application PostgreSQL persistence and canonical investigation worker are active")
+	return applicationDB, ""
 }
 
 func newHTTPServer(port string, handler http.Handler) *http.Server {
