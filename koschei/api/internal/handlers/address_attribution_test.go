@@ -1,6 +1,10 @@
 package handlers
 
-import "testing"
+import (
+	"testing"
+
+	"koschei/api/internal/services"
+)
 
 func TestSelectAddressAttributionCounterpartiesPrefersMostActive(t *testing.T) {
 	rows := []addressFlowCounterparty{
@@ -24,5 +28,26 @@ func TestNewAddressAttributionReportDoesNotClaimPersonIdentity(t *testing.T) {
 	}
 	if report.Policy["unknown_remains_unknown"] != true || report.Policy["provider_lookup_is_opt_in"] != true {
 		t.Fatalf("policy=%#v", report.Policy)
+	}
+	if report.Policy["target_address_checked"] != true {
+		t.Fatalf("policy=%#v", report.Policy)
+	}
+}
+
+func TestAddressAttributionEntityFromLabelPreservesProviderProvenance(t *testing.T) {
+	label := &services.WalletLabel{
+		Address:  "WalletABC",
+		Name:     "Known Wallet",
+		Entity:   "Known Entity",
+		Category: "Centralized Exchange",
+		Labels:   []string{"exchange hot wallet"},
+		Source:   "helius_identity",
+	}
+	entity := addressAttributionEntityFromLabel("WalletABC", label, addressFlowCounterparty{})
+	if entity.Entity != "Known Entity" || entity.Source != "helius_identity" {
+		t.Fatalf("entity=%#v", entity)
+	}
+	if entity.Verification != "provider_verified" || entity.IdentityScope != "known_onchain_entity_not_real_person_identity" {
+		t.Fatalf("entity=%#v", entity)
 	}
 }
