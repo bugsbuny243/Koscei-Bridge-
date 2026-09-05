@@ -59,7 +59,7 @@ func TestBuildAddressRelationshipsDeduplicatesAndBoundsEvidence(t *testing.T) {
 func TestBuildAddressRelationshipsMarksIncompleteCoverage(t *testing.T) {
 	report := buildAddressRelationships("WalletA", addressFlowReport{
 		FlowComplete: false,
-		Transfers: []addressFlowTransfer{{Direction: "inbound", AssetType: "SOL", Counterparty: "WalletB", Signature: "sig1"}},
+		Transfers:    []addressFlowTransfer{{Direction: "inbound", AssetType: "SOL", Counterparty: "WalletB", Signature: "sig1"}},
 	}, addressAttributionReport{})
 	if len(report.Limitations) == 0 {
 		t.Fatal("bounded flow must propagate a relationship coverage limitation")
