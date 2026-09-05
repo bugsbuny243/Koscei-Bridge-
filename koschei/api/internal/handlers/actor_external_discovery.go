@@ -19,6 +19,7 @@ type actorProviderDiscovery struct {
 type actorExternalDiscoveryRun struct {
 	Status               string                         `json:"status"`
 	Discovery            actorProviderDiscovery         `json:"discovery"`
+	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -34,6 +35,11 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 			Status: "rpc_only", Provider: "solana_rpc", Wallet: wallet,
 			Limitations: []string{},
 		},
+		AddressHistory: services.AddressHistoryReport{
+			SchemaVersion: "koschei-address-history-v1", Status: "not_requested",
+			Address: wallet, Entries: []services.AddressHistoryEntry{}, Limitations: []string{},
+			EvidenceSource: "solana_getSignaturesForAddress", IdentityScope: "onchain_address_only",
+		},
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -48,17 +54,32 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 		return out
 	}
 
+	history, historyErr := services.CollectAddressHistory(ctx, creatorIntelRPCURL(), network, wallet, services.AddressHistoryOptions{
+		PageSize: actorDefenseEnvInt("ARVIS_ADDRESS_HISTORY_PAGE_SIZE", 250, 50, 1000),
+		MaxPages: actorDefenseEnvInt("ARVIS_ADDRESS_HISTORY_MAX_PAGES", 8, 1, 20),
+	})
+	out.AddressHistory = history
+	if historyErr != nil {
+		out.Limitations = append(out.Limitations, "Address history collection incomplete: "+creatorIntelCompactError(historyErr))
+	}
+	out.Limitations = append(out.Limitations, history.Limitations...)
+
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
-	out.Discovery.Configured = out.CreatedMintPortfolio.Discovery.Configured
-	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available
+	out.Discovery.Configured = out.CreatedMintPortfolio.Discovery.Configured || history.Status != "rpc_unavailable"
+	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available || history.SignaturesSeen > 0 || history.HistoryComplete
 	out.Discovery.Status = out.CreatedMintPortfolio.Discovery.Status
 	out.Discovery.Provider = out.CreatedMintPortfolio.Discovery.Provider
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
-	if out.CreatedMintPortfolio.Discovery.Available {
+	switch {
+	case history.HistoryComplete && out.CreatedMintPortfolio.Discovery.Available:
+		out.Status = "address_history_and_created_mint_portfolio_available"
+	case history.SignaturesSeen > 0 || history.HistoryComplete:
+		out.Status = "address_history_available"
+	case out.CreatedMintPortfolio.Discovery.Available:
 		out.Status = "created_mint_portfolio_available"
-	} else {
+	default:
 		out.Status = "no_external_discovery"
 	}
 	return out
