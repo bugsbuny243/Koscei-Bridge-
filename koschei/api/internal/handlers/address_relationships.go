@@ -9,32 +9,32 @@ import (
 const addressRelationshipsSchemaVersion = "koschei-address-relationships-v1"
 
 type addressRelationship struct {
-	Address             string   `json:"address"`
-	Relation            string   `json:"relation"`
-	InboundTransfers    int      `json:"inbound_transfers"`
-	OutboundTransfers   int      `json:"outbound_transfers"`
-	FirstObservedAt     time.Time `json:"first_observed_at,omitempty"`
-	LastObservedAt      time.Time `json:"last_observed_at,omitempty"`
-	EvidenceSignatures  []string `json:"evidence_signatures"`
-	Assets              []string `json:"assets"`
-	TokenMints          []string `json:"token_mints"`
-	AttributedEntity    string   `json:"attributed_entity,omitempty"`
-	AttributedCategory  string   `json:"attributed_category,omitempty"`
-	AttributionSource   string   `json:"attribution_source,omitempty"`
-	Verification        string   `json:"verification"`
-	SameActorClaimed    bool     `json:"same_actor_claimed"`
-	IdentityClaimed     bool     `json:"identity_claimed"`
+	Address            string    `json:"address"`
+	Relation           string    `json:"relation"`
+	InboundTransfers   int       `json:"inbound_transfers"`
+	OutboundTransfers  int       `json:"outbound_transfers"`
+	FirstObservedAt    time.Time `json:"first_observed_at,omitempty"`
+	LastObservedAt     time.Time `json:"last_observed_at,omitempty"`
+	EvidenceSignatures []string  `json:"evidence_signatures"`
+	Assets             []string  `json:"assets"`
+	TokenMints         []string  `json:"token_mints"`
+	AttributedEntity   string    `json:"attributed_entity,omitempty"`
+	AttributedCategory string    `json:"attributed_category,omitempty"`
+	AttributionSource  string    `json:"attribution_source,omitempty"`
+	Verification       string    `json:"verification"`
+	SameActorClaimed   bool      `json:"same_actor_claimed"`
+	IdentityClaimed    bool      `json:"identity_claimed"`
 }
 
 type addressRelationshipsReport struct {
-	SchemaVersion  string                `json:"schema_version"`
-	Status         string                `json:"status"`
-	Address        string                `json:"address"`
-	FlowComplete   bool                  `json:"flow_complete"`
-	RelationshipCount int                `json:"relationship_count"`
-	Relationships  []addressRelationship `json:"relationships"`
-	Limitations    []string              `json:"limitations"`
-	Policy         map[string]any        `json:"policy"`
+	SchemaVersion     string                `json:"schema_version"`
+	Status            string                `json:"status"`
+	Address           string                `json:"address"`
+	FlowComplete      bool                  `json:"flow_complete"`
+	RelationshipCount int                   `json:"relationship_count"`
+	Relationships     []addressRelationship `json:"relationships"`
+	Limitations       []string              `json:"limitations"`
+	Policy            map[string]any        `json:"policy"`
 }
 
 type addressRelationshipBuilder struct {
@@ -53,10 +53,10 @@ func buildAddressRelationships(wallet string, flow addressFlowReport, attributio
 		Relationships: []addressRelationship{},
 		Limitations:   []string{},
 		Policy: map[string]any{
-			"direct_flow_is_relationship_evidence": true,
+			"direct_flow_is_relationship_evidence":      true,
 			"same_actor_claim_requires_separate_evidence": true,
-			"real_person_identity_claim": false,
-			"unknown_entity_remains_unknown": true,
+			"real_person_identity_claim":                  false,
+			"unknown_entity_remains_unknown":              true,
 		},
 	}
 
@@ -80,7 +80,9 @@ func buildAddressRelationships(wallet string, flow addressFlowReport, attributio
 					TokenMints:         []string{},
 					Verification:       "verified_direct_onchain_flow",
 				},
-				signatures: map[string]bool{}, assets: map[string]bool{}, mints: map[string]bool{},
+				signatures: map[string]bool{},
+				assets:     map[string]bool{},
+				mints:      map[string]bool{},
 			}
 			builders[address] = builder
 		}
