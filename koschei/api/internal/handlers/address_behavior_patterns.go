@@ -24,15 +24,15 @@ type addressBehaviorPatternMatch struct {
 }
 
 type addressBehaviorPatternsReport struct {
-	SchemaVersion   string                        `json:"schema_version"`
-	Status          string                        `json:"status"`
-	Address         string                        `json:"address"`
-	TriggeredCount  int                           `json:"triggered_count"`
-	Matches         []addressBehaviorPatternMatch `json:"matches"`
-	FlowComplete    bool                          `json:"flow_complete"`
-	TimelineEvents  int                           `json:"timeline_events"`
-	Limitations     []string                      `json:"limitations"`
-	Policy          map[string]any                `json:"policy"`
+	SchemaVersion  string                        `json:"schema_version"`
+	Status         string                        `json:"status"`
+	Address        string                        `json:"address"`
+	TriggeredCount int                           `json:"triggered_count"`
+	Matches        []addressBehaviorPatternMatch `json:"matches"`
+	FlowComplete   bool                          `json:"flow_complete"`
+	TimelineEvents int                           `json:"timeline_events"`
+	Limitations    []string                      `json:"limitations"`
+	Policy         map[string]any                `json:"policy"`
 }
 
 func newAddressBehaviorPatternsReport(wallet string) addressBehaviorPatternsReport {
