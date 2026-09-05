@@ -8,6 +8,7 @@ import (
 
 const addressRelationshipsSchemaVersion = "koschei-address-relationships-v1"
 
+// addressRelationship is an evidence projection over already-decoded direct transfers.
 type addressRelationship struct {
 	Address            string    `json:"address"`
 	Relation           string    `json:"relation"`
