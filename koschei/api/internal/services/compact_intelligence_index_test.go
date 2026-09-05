@@ -10,6 +10,7 @@ import (
 
 func TestCompactIntelligenceIndexCreatesAndUpdatesWithoutRawTargetKey(t *testing.T) {
 	t.Setenv("KOSCHEI_COMPACT_INDEX_TTL_HOURS", "24")
+	t.Setenv("KOSCHEI_COMPACT_INDEX_ALLOW_MEMORY", "true")
 	ctx := context.Background()
 	c := cache.NewMemory()
 	defer c.Close()
@@ -53,6 +54,7 @@ func TestCompactIntelligenceIndexCreatesAndUpdatesWithoutRawTargetKey(t *testing
 }
 
 func TestCompactIntelligenceIndexIsBounded(t *testing.T) {
+	t.Setenv("KOSCHEI_COMPACT_INDEX_ALLOW_MEMORY", "true")
 	ctx := context.Background()
 	c := cache.NewMemory()
 	defer c.Close()
@@ -77,6 +79,18 @@ func TestCompactIntelligenceIndexIsBounded(t *testing.T) {
 	}
 	if len(record.DecisionPath) != compactDecisionPathLimit || len(record.BehaviorSignals) != compactBehaviorSignalLimit {
 		t.Fatalf("path=%d signals=%d", len(record.DecisionPath), len(record.BehaviorSignals))
+	}
+}
+
+func TestCompactIntelligenceIndexMemoryDisabledByDefault(t *testing.T) {
+	c := cache.NewMemory()
+	defer c.Close()
+	_, status, err := UpsertCompactIntelligenceIndex(context.Background(), c, "solana-mainnet", "wallet", "WalletABC", UnifiedRadarVerdict{}, UnifiedRadarBehaviorReport{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != "disabled" {
+		t.Fatalf("status=%s", status)
 	}
 }
 
