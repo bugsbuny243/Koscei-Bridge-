@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Relationship tests intentionally verify evidence semantics independently of identity claims.
 func TestBuildAddressRelationshipsAggregatesBidirectionalEvidence(t *testing.T) {
 	first := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	last := first.Add(48 * time.Hour)
