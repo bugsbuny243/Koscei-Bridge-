@@ -325,6 +325,7 @@ func (h *Handler) ownerUnifiedWalletRadarStateless(w http.ResponseWriter, r *htt
 	actorVerdict := services.EvaluateActorDefenseRules(dossier.Track, dossier.Evidence)
 	behavior := services.EvaluateUnifiedRadarBehavior("", wallet, services.TokenMarketSnapshot{}, services.HolderIntelligence{}, services.HolderClusterAnalysis{}, services.CreatorSellAcceleration{}, now)
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior)
+	unifiedPersistence, unifiedHistory := h.persistUnifiedRadarVerdict(ctx, nil, network, "wallet", wallet, unifiedVerdict, behavior)
 	response := map[string]any{
 		"ok": true, "schema_version": "koschei-unified-investigation-v1",
 		"target": requestedTarget, "wallet": wallet, "network": network,
@@ -333,8 +334,8 @@ func (h *Handler) ownerUnifiedWalletRadarStateless(w http.ResponseWriter, r *htt
 		"manual_only": true, "automatic_scanning": false,
 		"execution_mode": "stateless_live", "database_available": false,
 		"final_verdict":             unifiedVerdict,
-		"final_verdict_persistence": "database_unavailable",
-		"final_verdict_history":     []services.UnifiedRadarVerdictHistoryRecord{},
+		"final_verdict_persistence": unifiedPersistence,
+		"final_verdict_history":     unifiedHistory,
 		"legacy_14_arm_radar":       map[string]any{"applicable": false, "reason": "Token-specific collectors are not fabricated for a wallet-only target.", "modules": []any{}},
 		"actor_investigation": map[string]any{
 			"wallet": wallet, "dossier": dossier, "external_discovery": externalDiscovery,
@@ -350,7 +351,7 @@ func (h *Handler) ownerUnifiedWalletRadarStateless(w http.ResponseWriter, r *htt
 			"external_attribution_is_observed_only": true,
 			"identity_scope":                        "onchain_wallet_only", "caller_type_changes_evidence": false,
 		},
-		"limitations": []string{"Persistent actor memory and verdict history are unavailable in stateless runtime; live evidence remains request-scoped."},
+		"limitations": []string{"Raw actor evidence remains request-scoped in stateless runtime; only a bounded TTL verdict fingerprint index may be retained by the configured cache."},
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -366,7 +367,21 @@ func ownerCourtUnavailableReport(status string) *CourtReport {
 
 func (h *Handler) persistUnifiedRadarVerdict(ctx context.Context, db *sql.DB, network, targetKind, targetID string, verdict services.UnifiedRadarVerdict, behavior services.UnifiedRadarBehaviorReport) (string, []services.UnifiedRadarVerdictHistoryRecord) {
 	if db == nil {
-		return "database_unavailable", []services.UnifiedRadarVerdictHistoryRecord{}
+		record, status, err := services.UpsertCompactIntelligenceIndex(ctx, h.Cache, network, targetKind, targetID, verdict, behavior)
+		if err != nil {
+			return "compact_index_failed", []services.UnifiedRadarVerdictHistoryRecord{}
+		}
+		if status == "disabled" {
+			return "database_unavailable", []services.UnifiedRadarVerdictHistoryRecord{}
+		}
+		return status, []services.UnifiedRadarVerdictHistoryRecord{{
+			Network: record.Network, TargetKind: record.TargetKind, TargetID: targetID,
+			Grade: record.Grade, Verdict: record.Verdict, RulesetVersion: record.RulesetVersion,
+			ActorRulesetVersion: record.ActorRulesetVersion, Signed: record.Signed,
+			Fingerprint: record.Fingerprint, TriggeredRules: record.TriggeredRules, WatchFlags: record.WatchFlags,
+			DecisionPath: record.DecisionPath, BehaviorSignals: record.BehaviorSignals,
+			FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt, ScanCount: record.ScanCount,
+		}}
 	}
 	store := services.NewUnifiedRadarVerdictStore(db)
 	status := "persisted"
