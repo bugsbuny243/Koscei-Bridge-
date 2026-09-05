@@ -18,7 +18,7 @@ func TestCompactIntelligenceIndexCreatesAndUpdatesWithoutRawTargetKey(t *testing
 	verdict := UnifiedRadarVerdict{
 		Grade: "F", Verdict: "high_risk", RulesetVersion: "rules-v1", ActorRuleset: "actor-v1",
 		TriggeredRules: []ActorDefenseRuleHit{{RuleID: "R-1"}},
-		DecisionPath: []string{"evidence", "rule", "verdict"}, GeneratedAt: now,
+		DecisionPath:   []string{"evidence", "rule", "verdict"}, GeneratedAt: now,
 	}
 	behavior := UnifiedRadarBehaviorReport{Signals: []UnifiedRadarSignal{{RuleID: "U-1", Triggered: true}}}
 
