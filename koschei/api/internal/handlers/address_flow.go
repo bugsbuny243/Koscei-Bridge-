@@ -278,7 +278,7 @@ func applyAddressFlowCounterparty(state map[string]*addressFlowCounterpartyBuild
 	builder := state[transfer.Counterparty]
 	if builder == nil {
 		builder = &addressFlowCounterpartyBuilder{
-			item: addressFlowCounterparty{Address: transfer.Counterparty, VerificationStatus: "verified", TokenMints: []string{}},
+			item:  addressFlowCounterparty{Address: transfer.Counterparty, VerificationStatus: "verified", TokenMints: []string{}},
 			mints: map[string]bool{},
 		}
 		state[transfer.Counterparty] = builder
