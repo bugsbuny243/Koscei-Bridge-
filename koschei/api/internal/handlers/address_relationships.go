@@ -53,7 +53,7 @@ func buildAddressRelationships(wallet string, flow addressFlowReport, attributio
 		Relationships: []addressRelationship{},
 		Limitations:   []string{},
 		Policy: map[string]any{
-			"direct_flow_is_relationship_evidence":      true,
+			"direct_flow_is_relationship_evidence":        true,
 			"same_actor_claim_requires_separate_evidence": true,
 			"real_person_identity_claim":                  false,
 			"unknown_entity_remains_unknown":              true,
