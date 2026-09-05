@@ -21,6 +21,7 @@ type actorExternalDiscoveryRun struct {
 	Discovery            actorProviderDiscovery         `json:"discovery"`
 	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
 	AddressFlow          addressFlowReport              `json:"address_flow"`
+	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -42,6 +43,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 			EvidenceSource: "solana_getSignaturesForAddress", IdentityScope: "onchain_address_only",
 		},
 		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
+		AddressAttribution:   newAddressAttributionReport(wallet),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -69,6 +71,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 
 	out.AddressFlow = h.collectAddressFlow(ctx, wallet, network, history)
 	out.Limitations = append(out.Limitations, out.AddressFlow.Limitations...)
+	out.AddressAttribution = collectAddressAttribution(ctx, wallet, creatorIntelRPCURL(), out.AddressFlow)
+	out.Limitations = append(out.Limitations, out.AddressAttribution.Limitations...)
 
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
@@ -79,6 +83,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	switch {
+	case out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
+		out.Status = "address_history_flow_and_verified_attribution_available"
 	case history.HistoryComplete && out.AddressFlow.FlowComplete && out.CreatedMintPortfolio.Discovery.Available:
 		out.Status = "address_history_flow_and_created_mint_portfolio_available"
 	case history.SignaturesSeen > 0 && out.AddressFlow.TransactionsDecoded > 0:
