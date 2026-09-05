@@ -14,13 +14,13 @@ import (
 )
 
 const (
-	compactIntelligenceIndexVersion  = "koschei-compact-intelligence-index-v1"
-	compactIntelligenceDefaultTTL    = 7 * 24 * time.Hour
-	compactIntelligenceMaxTTL        = 30 * 24 * time.Hour
-	compactTriggeredRuleLimit        = 16
-	compactWatchFlagLimit            = 16
-	compactDecisionPathLimit         = 16
-	compactBehaviorSignalLimit       = 24
+	compactIntelligenceIndexVersion = "koschei-compact-intelligence-index-v1"
+	compactIntelligenceDefaultTTL   = 7 * 24 * time.Hour
+	compactIntelligenceMaxTTL       = 30 * 24 * time.Hour
+	compactTriggeredRuleLimit       = 16
+	compactWatchFlagLimit           = 16
+	compactDecisionPathLimit        = 16
+	compactBehaviorSignalLimit      = 24
 )
 
 type CompactIntelligenceIndexRecord struct {
