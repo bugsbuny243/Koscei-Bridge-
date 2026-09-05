@@ -22,6 +22,7 @@ type actorExternalDiscoveryRun struct {
 	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
 	AddressFlow          addressFlowReport              `json:"address_flow"`
 	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
+	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -44,6 +45,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		},
 		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
 		AddressAttribution:   newAddressAttributionReport(wallet),
+		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -73,6 +75,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.AddressFlow.Limitations...)
 	out.AddressAttribution = collectAddressAttribution(ctx, wallet, creatorIntelRPCURL(), out.AddressFlow)
 	out.Limitations = append(out.Limitations, out.AddressAttribution.Limitations...)
+	out.AddressRelationships = buildAddressRelationships(wallet, out.AddressFlow, out.AddressAttribution)
+	out.Limitations = append(out.Limitations, out.AddressRelationships.Limitations...)
 
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
@@ -83,6 +87,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	switch {
+	case out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
+		out.Status = "address_history_flow_relationships_and_verified_attribution_available"
+	case out.AddressRelationships.RelationshipCount > 0 && history.SignaturesSeen > 0:
+		out.Status = "address_history_flow_and_relationships_available"
 	case out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
 		out.Status = "address_history_flow_and_verified_attribution_available"
 	case history.HistoryComplete && out.AddressFlow.FlowComplete && out.CreatedMintPortfolio.Discovery.Available:
