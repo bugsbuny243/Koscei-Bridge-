@@ -20,7 +20,7 @@ type intelligenceMemoryReceipt struct {
 // archiveIntelligenceMemory is deliberately best-effort. A Drive outage must
 // never suppress or alter a completed ARVIS result. Neon/PostgreSQL is not part
 // of this path; durable intelligence memory belongs in Google Drive.
-func (h *Handler) archiveIntelligenceMemory(ctx context.Context, kind, network, target string, payload any) intelligenceMemoryReceipt {
+func archiveIntelligenceMemory(ctx context.Context, kind, network, target string, payload any) intelligenceMemoryReceipt {
 	if strings.TrimSpace(target) == "" {
 		return intelligenceMemoryReceipt{Status: "invalid_target"}
 	}
@@ -55,4 +55,8 @@ func (h *Handler) archiveIntelligenceMemory(ctx context.Context, kind, network, 
 	}
 	object := result.Object
 	return intelligenceMemoryReceipt{Status: result.Status, Durable: result.Status == "drive_archived", Object: &object}
+}
+
+func (h *Handler) archiveIntelligenceMemory(ctx context.Context, kind, network, target string, payload any) intelligenceMemoryReceipt {
+	return archiveIntelligenceMemory(ctx, kind, network, target, payload)
 }
