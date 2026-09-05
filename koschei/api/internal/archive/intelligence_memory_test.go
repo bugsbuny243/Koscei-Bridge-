@@ -28,7 +28,7 @@ func TestIntelligenceMemoryFilenameDoesNotExposeTarget(t *testing.T) {
 
 func TestRedactSensitiveMemoryRecurses(t *testing.T) {
 	input := map[string]any{
-		"wallet": "public-address",
+		"wallet":  "public-address",
 		"api_key": "should-not-leak",
 		"nested": map[string]any{
 			"private_key": "never",
