@@ -38,6 +38,16 @@ Plaintext target addresses are not used in archive filenames. Solana target hash
 
 Before serialization, secret-like fields including private keys, seed phrases, API keys, access/refresh tokens, authorization values and passwords are redacted recursively.
 
+### Live runtime wiring
+
+The first live Drive-memory runtime paths are:
+- canonical customer-facing token investigations after the deterministic analysis summary and attack-path projection are attached,
+- wallet address external-discovery investigations after history, fund flow, verified attribution, related addresses, behavior timeline, behavior patterns, behavior summary and created-mint portfolio are assembled.
+
+Each response exposes an `intelligence_memory` receipt. A successful archive reports `drive_archived` plus the Drive object ID/name/SHA-256. If Drive is not configured or an upload fails, the receipt reports that state and the completed ARVIS result is still returned unchanged. Durable-memory failure is never allowed to censor or replace a security verdict.
+
+The receipt is attached only after the archive payload is serialized so the durable object does not recursively contain its own storage receipt. Repeated customer envelope projection does not intentionally trigger a second upload for the same in-memory report.
+
 ### Blockchain / providers
 
 The chain/provider remains the source of truth for raw historical state. Google Drive stores ARVIS evidence/results needed for durable investigation memory; it is not a second blockchain database.

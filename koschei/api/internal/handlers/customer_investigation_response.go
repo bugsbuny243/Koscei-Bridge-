@@ -1,6 +1,11 @@
 package handlers
 
-import "koschei/api/internal/services"
+import (
+	"context"
+	"strings"
+
+	"koschei/api/internal/services"
+)
 
 const customerInvestigationResponseSchemaVersion = "koschei-customer-investigation-response-v3"
 
@@ -51,6 +56,18 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
+
+	// Durable intelligence memory is Drive-first and best-effort. The receipt is
+	// attached after serialization so a repeated envelope projection does not
+	// upload the same report twice. Neon/PostgreSQL is never used by this path.
+	if _, exists := assembly.Report["intelligence_memory"]; !exists {
+		target := strings.TrimSpace(assembly.Core.Request.Target)
+		network := strings.TrimSpace(assembly.Core.Request.Network)
+		if network == "" {
+			network = "solana-mainnet"
+		}
+		assembly.Report["intelligence_memory"] = archiveIntelligenceMemory(context.Background(), "token_investigation", network, target, assembly.Report)
+	}
 	return analysisSummary
 }
 

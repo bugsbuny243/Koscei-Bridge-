@@ -30,6 +30,7 @@ type actorExternalDiscoveryRun struct {
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
 	PersistenceFailures  int                            `json:"persistence_failures"`
+	IntelligenceMemory   intelligenceMemoryReceipt      `json:"intelligence_memory"`
 	Limitations          []string                       `json:"limitations"`
 }
 
@@ -53,6 +54,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		BehaviorPatterns:     newAddressBehaviorPatternsReport(wallet),
 		BehaviorSummary:      newAddressBehaviorSummaryReport(wallet),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
+		IntelligenceMemory:   intelligenceMemoryReceipt{Status: "not_requested"},
 		Limitations:          []string{},
 	}
 }
@@ -130,5 +132,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	default:
 		out.Status = "no_external_discovery"
 	}
+
+	// Archive the complete evidence projection after all derived address layers
+	// have been assembled. The receipt is added afterwards, so the archived
+	// payload is stable and does not recursively contain its own Drive object.
+	out.IntelligenceMemory = h.archiveIntelligenceMemory(ctx, "wallet_address_investigation", network, wallet, out)
 	return out
 }
