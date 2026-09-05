@@ -15,9 +15,9 @@ func TestCollectAddressHistoryCompletesAcrossPages(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req struct {
-			ID     int             `json:"id"`
-			Method string          `json:"method"`
-			Params []any           `json:"params"`
+			ID     int    `json:"id"`
+			Method string `json:"method"`
+			Params []any  `json:"params"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatal(err)
