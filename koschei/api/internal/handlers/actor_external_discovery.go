@@ -25,6 +25,7 @@ type actorExternalDiscoveryRun struct {
 	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
 	BehaviorTimeline     addressBehaviorTimelineReport  `json:"behavior_timeline"`
 	BehaviorPatterns     addressBehaviorPatternsReport  `json:"behavior_patterns"`
+	BehaviorSummary      addressBehaviorSummaryReport   `json:"behavior_summary"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -50,6 +51,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
 		BehaviorTimeline:     newAddressBehaviorTimelineReport(wallet),
 		BehaviorPatterns:     newAddressBehaviorPatternsReport(wallet),
+		BehaviorSummary:      newAddressBehaviorSummaryReport(wallet),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -88,6 +90,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.BehaviorTimeline.Limitations...)
 	out.BehaviorPatterns = buildAddressBehaviorPatterns(wallet, out.AddressFlow, out.AddressRelationships, out.BehaviorTimeline)
 	out.Limitations = append(out.Limitations, out.BehaviorPatterns.Limitations...)
+	out.BehaviorSummary = buildAddressBehaviorSummary(wallet, history.HistoryComplete, out.AddressFlow, out.AddressRelationships, out.BehaviorTimeline, out.BehaviorPatterns)
+	out.Limitations = append(out.Limitations, out.BehaviorSummary.Limitations...)
 	out.Discovery.Configured = out.CreatedMintPortfolio.Discovery.Configured || history.Status != "rpc_unavailable"
 	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available || history.SignaturesSeen > 0 || history.HistoryComplete
 	out.Discovery.Status = out.CreatedMintPortfolio.Discovery.Status
@@ -95,6 +99,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	switch {
+	case out.BehaviorSummary.Status == "observed_behavior_summary_available" && out.BehaviorPatterns.TriggeredCount > 0 && out.BehaviorTimeline.EventCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
+		out.Status = "address_intelligence_summary_complete_for_observed_evidence"
+	case out.BehaviorSummary.Status == "observed_behavior_summary_available":
+		out.Status = "address_behavior_summary_available_with_gaps"
 	case out.BehaviorPatterns.TriggeredCount > 0 && out.BehaviorTimeline.EventCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
 		out.Status = "address_history_flow_relationships_attribution_timeline_and_patterns_available"
 	case out.BehaviorPatterns.TriggeredCount > 0 && out.BehaviorTimeline.EventCount > 0:
