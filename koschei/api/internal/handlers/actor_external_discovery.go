@@ -23,6 +23,7 @@ type actorExternalDiscoveryRun struct {
 	AddressFlow          addressFlowReport              `json:"address_flow"`
 	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
 	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
+	BehaviorTimeline     addressBehaviorTimelineReport  `json:"behavior_timeline"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -46,6 +47,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
 		AddressAttribution:   newAddressAttributionReport(wallet),
 		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
+		BehaviorTimeline:     newAddressBehaviorTimelineReport(wallet),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -80,6 +82,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
+	out.BehaviorTimeline = buildAddressBehaviorTimeline(wallet, out.AddressFlow, out.CreatedMintPortfolio)
+	out.Limitations = append(out.Limitations, out.BehaviorTimeline.Limitations...)
 	out.Discovery.Configured = out.CreatedMintPortfolio.Discovery.Configured || history.Status != "rpc_unavailable"
 	out.Discovery.Available = out.CreatedMintPortfolio.Discovery.Available || history.SignaturesSeen > 0 || history.HistoryComplete
 	out.Discovery.Status = out.CreatedMintPortfolio.Discovery.Status
@@ -87,6 +91,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	switch {
+	case out.BehaviorTimeline.EventCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
+		out.Status = "address_history_flow_relationships_attribution_and_timeline_available"
+	case out.BehaviorTimeline.EventCount > 0 && out.AddressRelationships.RelationshipCount > 0:
+		out.Status = "address_history_flow_relationships_and_timeline_available"
 	case out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
 		out.Status = "address_history_flow_relationships_and_verified_attribution_available"
 	case out.AddressRelationships.RelationshipCount > 0 && history.SignaturesSeen > 0:
