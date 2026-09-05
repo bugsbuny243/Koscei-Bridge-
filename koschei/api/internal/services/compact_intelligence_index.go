@@ -60,11 +60,21 @@ func CompactIntelligenceIndexTTL() time.Duration {
 	return ttl
 }
 
-func UpsertCompactIntelligenceIndex(ctx context.Context, c cache.Cache, network, targetKind, targetID string, verdict UnifiedRadarVerdict, behavior UnifiedRadarBehaviorReport) (CompactIntelligenceIndexRecord, string, error) {
+func compactIntelligenceCacheAllowed(c cache.Cache) bool {
 	if c == nil {
-		return CompactIntelligenceIndexRecord{}, "disabled", nil
+		return false
 	}
-	if _, ok := c.(cache.Noop); ok {
+	if _, ok := c.(*cache.Redis); ok {
+		return true
+	}
+	if _, ok := c.(*cache.Memory); ok {
+		return strings.EqualFold(strings.TrimSpace(os.Getenv("KOSCHEI_COMPACT_INDEX_ALLOW_MEMORY")), "true")
+	}
+	return false
+}
+
+func UpsertCompactIntelligenceIndex(ctx context.Context, c cache.Cache, network, targetKind, targetID string, verdict UnifiedRadarVerdict, behavior UnifiedRadarBehaviorReport) (CompactIntelligenceIndexRecord, string, error) {
+	if !compactIntelligenceCacheAllowed(c) {
 		return CompactIntelligenceIndexRecord{}, "disabled", nil
 	}
 	network = normalizeRadarNetwork(network)
