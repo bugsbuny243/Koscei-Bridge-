@@ -20,6 +20,7 @@ type actorExternalDiscoveryRun struct {
 	Status               string                         `json:"status"`
 	Discovery            actorProviderDiscovery         `json:"discovery"`
 	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
+	AddressFlow          addressFlowReport              `json:"address_flow"`
 	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
 	EvidenceProduced     int                            `json:"evidence_produced"`
 	EvidencePersisted    int                            `json:"evidence_persisted"`
@@ -40,6 +41,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 			Address: wallet, Entries: []services.AddressHistoryEntry{}, Limitations: []string{},
 			EvidenceSource: "solana_getSignaturesForAddress", IdentityScope: "onchain_address_only",
 		},
+		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
 		CreatedMintPortfolio: newActorCreatedMintIntegrationRun(wallet),
 		Limitations:          []string{},
 	}
@@ -48,6 +50,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *services.ActorDefenseStore, wallet, network string) actorExternalDiscoveryRun {
 	wallet = strings.TrimSpace(wallet)
 	out := newActorExternalDiscoveryRun(wallet)
+	out.AddressFlow.Network = network
 	if wallet == "" {
 		out.Status = "wallet_required"
 		out.Limitations = append(out.Limitations, "Actor discovery için wallet hedefi çözümlenemedi.")
@@ -64,6 +67,9 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	}
 	out.Limitations = append(out.Limitations, history.Limitations...)
 
+	out.AddressFlow = h.collectAddressFlow(ctx, wallet, network, history)
+	out.Limitations = append(out.Limitations, out.AddressFlow.Limitations...)
+
 	out.CreatedMintPortfolio = h.collectActorCreatedMintPortfolio(ctx, store, wallet, network)
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
 	out.Discovery.Configured = out.CreatedMintPortfolio.Discovery.Configured || history.Status != "rpc_unavailable"
@@ -73,6 +79,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Discovery.Limitations = append(out.Discovery.Limitations, out.CreatedMintPortfolio.Discovery.Limitations...)
 
 	switch {
+	case history.HistoryComplete && out.AddressFlow.FlowComplete && out.CreatedMintPortfolio.Discovery.Available:
+		out.Status = "address_history_flow_and_created_mint_portfolio_available"
+	case history.SignaturesSeen > 0 && out.AddressFlow.TransactionsDecoded > 0:
+		out.Status = "address_history_and_flow_available"
 	case history.HistoryComplete && out.CreatedMintPortfolio.Discovery.Available:
 		out.Status = "address_history_and_created_mint_portfolio_available"
 	case history.SignaturesSeen > 0 || history.HistoryComplete:
