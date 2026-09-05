@@ -11,18 +11,18 @@ import (
 const addressAttributionSchemaVersion = "koschei-address-attribution-v1"
 
 type addressAttributionEntity struct {
-	Address        string   `json:"address"`
-	Name           string   `json:"name,omitempty"`
-	Entity         string   `json:"entity,omitempty"`
-	Category       string   `json:"category,omitempty"`
-	Labels         []string `json:"labels,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
-	Source         string   `json:"source"`
-	TransferCount  int      `json:"transfer_count"`
-	InboundCount   int      `json:"inbound_count"`
-	OutboundCount  int      `json:"outbound_count"`
-	Verification   string   `json:"verification"`
-	IdentityScope  string   `json:"identity_scope"`
+	Address       string   `json:"address"`
+	Name          string   `json:"name,omitempty"`
+	Entity        string   `json:"entity,omitempty"`
+	Category      string   `json:"category,omitempty"`
+	Labels        []string `json:"labels,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	Source        string   `json:"source"`
+	TransferCount int      `json:"transfer_count"`
+	InboundCount  int      `json:"inbound_count"`
+	OutboundCount int      `json:"outbound_count"`
+	Verification  string   `json:"verification"`
+	IdentityScope string   `json:"identity_scope"`
 }
 
 type addressAttributionReport struct {
