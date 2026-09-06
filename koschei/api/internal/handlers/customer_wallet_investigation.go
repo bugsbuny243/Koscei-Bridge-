@@ -244,6 +244,19 @@ func customerWalletInvestigationMessage(result customerWalletInvestigationResult
 	return "Wallet investigation completed with evidence gaps; missing evidence is not treated as a safe finding."
 }
 
+func customerWalletEvidencePolicy() map[string]any {
+	policy := map[string]any{}
+	policy["numeric_final_score_disabled"] = true
+	policy["missing_evidence_is_not_safe"] = true
+	policy["bounded_is_not_verified"] = true
+	policy["identity_scope"] = "onchain_wallet_only"
+	policy["historical_memory_cannot_override_live_evidence"] = true
+	policy["historical_snapshot_is_not_current_chain_state"] = true
+	policy["neon_intelligence_persistence"] = false
+	policy["durable_memory_backend"] = "google_drive"
+	return policy
+}
+
 func customerWalletInvestigationEnvelope(result customerWalletInvestigationResult, charged bool) map[string]any {
 	return map[string]any{
 		"ok":                      true,
@@ -267,16 +280,7 @@ func customerWalletInvestigationEnvelope(result customerWalletInvestigationResul
 		"rule_verdict":            result.RuleVerdict,
 		"historical_memory":       result.HistoricalMemory,
 		"intelligence_memory":     result.Memory,
-		"evidence_policy": map[string]any{
-			"numeric_final_score_disabled":                  true,
-			"missing_evidence_is_not_safe":                  true,
-			"bounded_is_not_verified":                       true,
-			"identity_scope":                                "onchain_wallet_only",
-			"historical_memory_cannot_override_live_evidence": true,
-			"historical_snapshot_is_not_current_chain_state":  true,
-			"neon_intelligence_persistence":                 false,
-			"durable_memory_backend":                        "google_drive",
-		},
+		"evidence_policy":         customerWalletEvidencePolicy(),
 	}
 }
 
