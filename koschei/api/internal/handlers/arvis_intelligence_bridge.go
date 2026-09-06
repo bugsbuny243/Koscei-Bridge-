@@ -246,5 +246,8 @@ func attachArvisIntelligenceBridge(assembly *unifiedInvestigationAssembly) {
 			applyArvisFundingRelationship(&investigation, origin, network)
 		}
 	}
+	if behavior, ok := assembly.Report["behavior_signals"].(services.UnifiedRadarBehaviorReport); ok {
+		applyArvisBehaviorFindings(&investigation, behavior)
+	}
 	assembly.Report["intelligence_contract"] = investigation
 }
