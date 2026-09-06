@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Evidence-grounded ARVIS investigation chat for Koschei Professional customers.">
+<meta name="theme-color" content="#0b0f13">
+<title>Koschei Web3 | ARVIS Chat</title>
+<link rel="stylesheet" href="/css/koschei-global-shell.css?v=4">
+<link rel="stylesheet" href="/css/customer-operations-v2.css?v=1">
+<link rel="stylesheet" href="/css/customer-arvis-chat-v1.css?v=1">
+</head>
+<body class="koschei-v2">
+<main class="ops-page arvis-chat-page">
+<nav class="ops-nav"><a class="ops-brand" href="/dashboard"><span class="ops-mark">K</span><span><strong>Koschei Web3</strong><br><small class="ops-muted">ARVIS Investigation Chat</small></span></a><div class="ops-nav-links"><a class="ops-btn" href="/dashboard">Workspace</a><a class="ops-btn" href="/scan?mode=deep">Classic Scan</a><a class="ops-btn" href="/reports">History</a><a class="ops-btn" href="/account">Account</a></div></nav>
+<section class="ops-hero arvis-chat-hero"><div><span class="ops-eyebrow">PROFESSIONAL · EVIDENCE-GROUNDED INVESTIGATION</span><h1>One address. Full ARVIS context.</h1><p class="ops-muted">Paste a Solana wallet or token mint. ARVIS runs the existing canonical investigation pipeline once. Follow-up questions are answered only from the returned investigation evidence; chat cannot invent or replace the deterministic verdict.</p></div><aside class="ops-boundary"><b>Evidence boundary</b><p>Relationships are not identity claims. Missing evidence is not treated as safe. Follow-up questions do not silently re-scan or fabricate findings.</p></aside></section>
+<section class="arvis-chat-shell">
+<aside class="ops-panel arvis-chat-controls"><form id="arvisChatScanForm" class="ops-form"><label>Address or token mint<input id="arvisChatTarget" class="ops-input" autocomplete="off" maxlength="128" required placeholder="Solana address"></label><label>Network<select id="arvisChatNetwork" class="ops-input"><option value="solana-mainnet">Solana Mainnet</option></select></label><button id="arvisChatScanButton" class="ops-btn primary" type="submit">Investigate with ARVIS</button></form><div id="arvisChatCaseMeta" class="ops-boundary arvis-chat-case"><b>No active investigation</b><p>Start with one address. The latest evidence stays in this page session only.</p></div></aside>
+<section class="ops-panel arvis-chat-conversation"><div id="arvisChatMessages" class="arvis-chat-messages" aria-live="polite"><article class="arvis-message assistant"><b>ARVIS</b><p>Send an address to start. After the result arrives, ask things like “why is this risky?”, “show funding”, “show evidence”, “what is unknown?”, or “what attack path is supported?”</p></article></div><form id="arvisChatQuestionForm" class="arvis-chat-question"><input id="arvisChatQuestion" class="ops-input" autocomplete="off" maxlength="500" disabled placeholder="Ask about the current investigation evidence"><button id="arvisChatAskButton" class="ops-btn primary" type="submit" disabled>Ask ARVIS</button></form><div id="arvisChatStatus" class="ops-status" role="status"></div></section>
+</section>
+</main>
+<script src="/js/koschei-auth.js?v=33"></script>
+<script src="/js/customer-arvis-chat-v1.js?v=1"></script>
+<script src="/js/koschei-global-shell.js?v=4"></script>
+</body>
+</html>
