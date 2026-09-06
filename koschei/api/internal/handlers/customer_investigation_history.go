@@ -23,11 +23,11 @@ type customerInvestigationHistoryItem struct {
 }
 
 // CustomerInvestigationHistory lists durable canonical investigation jobs owned
-// by the authenticated account. Reading paid history requires an active Starter
-// SaaS entitlement or higher and does not consume a new premium output; new
+// by the authenticated account. Reading retained history requires an active
+// Professional entitlement and does not consume a new premium output; new
 // investigations remain metered at creation.
 func (h *Handler) CustomerInvestigationHistory(w http.ResponseWriter, r *http.Request) {
-	h.RequirePlanTier("starter", h.customerInvestigationHistoryRead)(w, r)
+	h.RequirePlanTier("professional", h.customerInvestigationHistoryRead)(w, r)
 }
 
 func (h *Handler) customerInvestigationHistoryRead(w http.ResponseWriter, r *http.Request) {
