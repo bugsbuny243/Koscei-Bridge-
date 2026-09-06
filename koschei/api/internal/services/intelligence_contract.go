@@ -11,8 +11,8 @@ import (
 const (
 	IntelligenceContractVersion = "koschei-intelligence-contract-v1"
 
-	IntelligenceChainFamilyEVM    = "evm"
-	IntelligenceChainFamilySolana = "solana"
+	IntelligenceChainFamilyEVM     = "evm"
+	IntelligenceChainFamilySolana  = "solana"
 	IntelligenceChainFamilyUnknown = "unknown"
 
 	IntelligenceSubjectAddress = "address"
@@ -27,13 +27,13 @@ const (
 var evmAddressPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`)
 
 type IntelligenceSubject struct {
-	ID                 string `json:"id"`
-	Raw                string `json:"raw"`
-	CanonicalRef       string `json:"canonical_ref"`
-	ChainFamily        string `json:"chain_family"`
-	Chain              string `json:"chain"`
-	Network            string `json:"network"`
-	Kind               string `json:"kind"`
+	ID                  string `json:"id"`
+	Raw                 string `json:"raw"`
+	CanonicalRef        string `json:"canonical_ref"`
+	ChainFamily         string `json:"chain_family"`
+	Chain               string `json:"chain"`
+	Network             string `json:"network"`
+	Kind                string `json:"kind"`
 	ClassificationBasis string `json:"classification_basis"`
 }
 
