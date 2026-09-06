@@ -27,6 +27,7 @@ type customerWalletInvestigationResult struct {
 	PublishedResult       bool
 	ExecutionMode         string
 	Memory                intelligenceMemoryReceipt
+	HistoricalMemory      intelligenceMemoryReadReceipt
 }
 
 func radarTargetWalletInvestigationAllowed(classification radarTargetClassification) bool {
@@ -66,6 +67,10 @@ func (h *Handler) runCustomerWalletInvestigation(ctx context.Context, target, ne
 		return out, err
 	}
 	out.Wallet = wallet
+	// Historical Drive memory is contextual only and is loaded before live
+	// collection so the snapshot written by this run cannot be misreported as
+	// prior history. Fresh chain evidence always takes precedence.
+	out.HistoricalMemory = h.loadLatestIntelligenceMemory(ctx, "wallet_investigation", network, wallet)
 
 	db := h.DBRead
 	if db == nil {
@@ -260,14 +265,17 @@ func customerWalletInvestigationEnvelope(result customerWalletInvestigationResul
 		"funding_origin":          result.FundingOrigin,
 		"actor_live_evidence":     result.LiveCoverage,
 		"rule_verdict":            result.RuleVerdict,
+		"historical_memory":       result.HistoricalMemory,
 		"intelligence_memory":     result.Memory,
 		"evidence_policy": map[string]any{
-			"numeric_final_score_disabled":  true,
-			"missing_evidence_is_not_safe":  true,
-			"bounded_is_not_verified":       true,
-			"identity_scope":                "onchain_wallet_only",
-			"neon_intelligence_persistence": false,
-			"durable_memory_backend":        "google_drive",
+			"numeric_final_score_disabled":                  true,
+			"missing_evidence_is_not_safe":                  true,
+			"bounded_is_not_verified":                       true,
+			"identity_scope":                                "onchain_wallet_only",
+			"historical_memory_cannot_override_live_evidence": true,
+			"historical_snapshot_is_not_current_chain_state":  true,
+			"neon_intelligence_persistence":                 false,
+			"durable_memory_backend":                        "google_drive",
 		},
 	}
 }
