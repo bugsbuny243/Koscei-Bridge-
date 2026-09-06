@@ -42,6 +42,7 @@ requireText(renderer,'source.width=1;source.height=1','temporary canvas release'
 requireText(renderer,"stream.getTracks().forEach(track=>{try{track.stop();}catch{}})",'media track cleanup');
 requireText(renderer,'safe.__koscheiOwnerMobileSafe=true','ARVIS recorder patch marker');
 requireText(renderer,'api.recordVerticalVideo=safe','ARVIS recorder patch install');
+requireText(renderer,'api.recordVerticalVideo?.__koscheiOwnerVoiceWrapper','voice wrapper preservation');
 requireText(renderer,'lab.recordVideo=safe','Web3 Lab recorder patch');
 forbidText(renderer,'requestAnimationFrame','mobile-safe renderer must not allocate on every display frame');
 forbidText(renderer,'videoBitsPerSecond:9000000','mobile-safe renderer must not restore 9Mbps encoding');
@@ -51,6 +52,7 @@ requireText(voice,"/api/owner/chat?mode=tts&language=en",'Together TTS owner pat
 requireText(voice,'recordWithAudio','narrated video mux');
 requireText(voice,'state.audioBlob?recordWithAudio','deterministic renderer audio extension');
 requireText(voice,'renderer.recordARVIS(input,{...options,audioBlob})','narrated mobile-safe renderer');
+requireText(voice,'api.recordVerticalVideo.__koscheiOwnerVoiceWrapper=true','voice wrapper marker');
 forbidText(voice,'requestAnimationFrame','voice mux must not render every display frame');
 forbidText(voice,'videoBitsPerSecond:9000000','voice mux must not restore 9Mbps encoding');
 
