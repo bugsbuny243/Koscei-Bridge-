@@ -150,6 +150,9 @@ func investorVerifiedHardTriggers(hits []services.ActorDefenseRuleHit) []service
 		if !strings.EqualFold(strings.TrimSpace(hit.EvidenceStatus), "verified") {
 			continue
 		}
+		if !investorHasEvidenceReference(hit) {
+			continue
+		}
 		gradeCap := strings.ToUpper(strings.TrimSpace(hit.GradeCap))
 		gradeEffect := strings.ToUpper(strings.TrimSpace(hit.GradeEffect))
 		if investorValidGrade(gradeCap) || strings.HasPrefix(gradeEffect, "HARD_CAP_") {
@@ -157,6 +160,20 @@ func investorVerifiedHardTriggers(hits []services.ActorDefenseRuleHit) []service
 		}
 	}
 	return out
+}
+
+func investorHasEvidenceReference(hit services.ActorDefenseRuleHit) bool {
+	for _, key := range hit.EvidenceKeys {
+		if strings.TrimSpace(key) != "" {
+			return true
+		}
+	}
+	for _, signature := range hit.Signatures {
+		if strings.TrimSpace(signature) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func investorGradeAtLeast(grade, floor string) bool {

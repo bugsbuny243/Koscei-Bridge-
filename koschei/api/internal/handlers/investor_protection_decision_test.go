@@ -19,7 +19,7 @@ func TestInvestorProtectionAvoidsVerifiedFHardTrigger(t *testing.T) {
 					GradeEffect:    "HARD_CAP_F",
 					GradeCap:       "F",
 					Summary:        "Owner-resolved top ownership concentration exceeded the hard threshold.",
-					EvidenceKeys:   []string{"owner_resolved_top_share_pct"},
+					EvidenceKeys:   []string{"owner:verified-wallet"},
 				},
 			},
 		},
@@ -73,7 +73,7 @@ func TestInvestorProtectionObservedHardLikeRuleDoesNotBecomeVerifiedBlock(t *tes
 			Grade:   "F",
 			Verdict: "hard_trigger",
 			TriggeredRules: []services.ActorDefenseRuleHit{{
-				RuleID: "TEST", EvidenceStatus: "observed", GradeEffect: "HARD_CAP_F", GradeCap: "F",
+				RuleID: "TEST", EvidenceStatus: "observed", GradeEffect: "HARD_CAP_F", GradeCap: "F", EvidenceKeys: []string{"observed:key"},
 			}},
 		},
 	}
@@ -81,5 +81,25 @@ func TestInvestorProtectionObservedHardLikeRuleDoesNotBecomeVerifiedBlock(t *tes
 	got := buildInvestorProtectionDecision(report, coverage, investigationTransparencyReport{})
 	if len(got.Basis) != 0 {
 		t.Fatalf("OBSERVED rule must not be promoted to VERIFIED hard-trigger basis: %#v", got.Basis)
+	}
+}
+
+func TestInvestorProtectionVerifiedHardRuleWithoutReferenceIsNotVerifiedBasis(t *testing.T) {
+	report := map[string]any{
+		"final_verdict": services.UnifiedRadarVerdict{
+			Grade:   "F",
+			Verdict: "hard_trigger",
+			TriggeredRules: []services.ActorDefenseRuleHit{{
+				RuleID: "TEST-NO-REF", EvidenceStatus: "verified", GradeEffect: "HARD_CAP_F", GradeCap: "F",
+			}},
+		},
+	}
+	coverage := canonicalIntegrationCoverage{OverallStatus: "complete"}
+	got := buildInvestorProtectionDecision(report, coverage, investigationTransparencyReport{})
+	if len(got.Basis) != 0 {
+		t.Fatalf("a VERIFIED label without an evidence key/signature must not become verified investor basis: %#v", got.Basis)
+	}
+	if got.Cleared {
+		t.Fatalf("an evidence-binding gap must never clear a severe target: %#v", got)
 	}
 }
