@@ -5,15 +5,15 @@ import "testing"
 func TestInvestigationTransparencySeparatesEvidenceLimitsFromCollectionGaps(t *testing.T) {
 	coverage := canonicalIntegrationCoverage{Capabilities: map[string]canonicalCapabilityStatus{
 		"bounded_history": {
-			Capability: "Bounded address history",
-			Status: canonicalCapabilityPartial,
-			Source: "address_history",
+			Capability:  "Bounded address history",
+			Status:      canonicalCapabilityPartial,
+			Source:      "address_history",
 			Limitations: []string{"Older activity may exist outside the bounded observation window; absence here is not proof of absence."},
 		},
 		"exit_liquidity": {
-			Capability: "Jupiter exit liquidity",
-			Status: canonicalCapabilityUnavailable,
-			Source: "exit_liquidity",
+			Capability:  "Jupiter exit liquidity",
+			Status:      canonicalCapabilityUnavailable,
+			Source:      "exit_liquidity",
 			Limitations: []string{"JUPITER_API_KEY is required for the official quote endpoint."},
 		},
 	}}
@@ -36,9 +36,9 @@ func TestInvestigationTransparencySeparatesEvidenceLimitsFromCollectionGaps(t *t
 func TestInvestigationTransparencyTreatsUnavailableCapabilityAsCollectionGap(t *testing.T) {
 	coverage := canonicalIntegrationCoverage{Capabilities: map[string]canonicalCapabilityStatus{
 		"actor_history": {
-			Capability: "Actor historical memory",
-			Status: canonicalCapabilityUnavailable,
-			Source: "actor_history",
+			Capability:  "Actor historical memory",
+			Status:      canonicalCapabilityUnavailable,
+			Source:      "actor_history",
 			Limitations: []string{"Historical memory is unavailable in this runtime."},
 		},
 	}}
