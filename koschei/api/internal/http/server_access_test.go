@@ -9,7 +9,7 @@ import (
 	"koschei/api/internal/handlers"
 )
 
-func TestProductRouteTierMapAndFreeCore(t *testing.T) {
+func TestProductRouteTierMapIsProfessionalOnly(t *testing.T) {
 	mux := http.NewServeMux()
 	h := &handlers.Handler{}
 	meteredTiers := []string{}
@@ -24,13 +24,11 @@ func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 	}
 	registerProductRoutes(mux, h, meteredGate, accessGate)
 
-	// SaaS plan names are the route authorization contract: Starter includes the
-	// paid investigation routes and canonical durable-job create routes. Professional
-	// preflight and advanced radar outputs are metered; the immediate state recheck
-	// is entitlement-only so the same signing decision is not charged twice. Job
-	// reads remain authenticated but are not counted here because they do not
-	// consume a new premium output.
-	wantMetered := []string{"starter", "starter", "starter", "starter", "starter", "starter", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}
+	// Professional is the single operational customer SaaS entitlement. All
+	// metered investigation, radar and durable-job create routes use the same
+	// Professional authorization contract. The immediate state recheck remains
+	// entitlement-only so one signing decision is not charged twice.
+	wantMetered := []string{"professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional", "professional"}
 	if !reflect.DeepEqual(meteredTiers, wantMetered) {
 		t.Fatalf("metered route tiers=%v want=%v", meteredTiers, wantMetered)
 	}
@@ -39,12 +37,15 @@ func TestProductRouteTierMapAndFreeCore(t *testing.T) {
 		t.Fatalf("entitlement-only route tiers=%v want=%v", accessTiers, wantAccess)
 	}
 
-	// A GET reaches the free route's method guard directly. A SaaS entitlement
-	// gate would have been registered through the SaaS gates above and changed the tier lists.
-	rr := httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/token/scan", nil))
-	if rr.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("free token scan unexpectedly gated: status=%d body=%s", rr.Code, rr.Body.String())
+	// The legacy route registrations stay physically present for compatibility,
+	// but the outer HTTP readiness boundary classifies them as Professional-only.
+	for _, path := range []string{"/api/token/scan", "/api/arvis/preflight"} {
+		if !requiresProfessionalLegacyOperation(path) {
+			t.Fatalf("legacy operational route %s is not Professional-gated", path)
+		}
+		if allowedWithoutDatabase(path) {
+			t.Fatalf("legacy operational route %s still has stateless/free execution semantics", path)
+		}
 	}
 }
 
