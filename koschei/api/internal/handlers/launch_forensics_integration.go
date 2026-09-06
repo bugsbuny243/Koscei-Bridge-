@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -37,7 +38,7 @@ func (h *Handler) analyzeLaunchForensics(parent context.Context, target string, 
 	correlationSource := "helius_rpc"
 	if correlationRPCURL == "" {
 		correlationRPCURL = rpcURL
-		correlationSource = "canonical_solana_rpc_fallback"
+		correlationSource = classifyCorrelationRPCSource(correlationRPCURL)
 	}
 	correlationLimit := 12
 	if raw := strings.TrimSpace(os.Getenv("ARVIS_PUMP_CORRELATION_LIMIT")); raw != "" {
@@ -61,6 +62,21 @@ func (h *Handler) analyzeLaunchForensics(parent context.Context, target string, 
 		}
 	}
 	return result
+}
+
+// classifyCorrelationRPCSource derives provider provenance from the hostname
+// only. Query strings and credentials are never copied into the investigation
+// report. Helius documents mainnet.helius-rpc.com as its shared RPC endpoint.
+func classifyCorrelationRPCSource(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "canonical_solana_rpc_fallback"
+	}
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	if host == "mainnet.helius-rpc.com" || host == "devnet.helius-rpc.com" || strings.HasSuffix(host, ".helius-rpc.com") {
+		return "helius_rpc"
+	}
+	return "canonical_solana_rpc_fallback"
 }
 
 // resolveLaunchForensicsAnchor keeps sniper timing tied to the token's verified
