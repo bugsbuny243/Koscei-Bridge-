@@ -10,19 +10,19 @@ import (
 )
 
 type customerProgramInvestigationResult struct {
-	Target         string
-	Network        string
-	Classification radarTargetClassification
+	Target          string
+	Network         string
+	Classification  radarTargetClassification
 	ProgramSecurity services.ProgramSecuritySurface
-	Transparency   investigationTransparencyReport
-	Memory         intelligenceMemoryReceipt
-	Published      bool
+	Transparency    investigationTransparencyReport
+	Memory          intelligenceMemoryReceipt
+	Published       bool
 }
 
 func (h *Handler) runCustomerProgramInvestigation(ctx context.Context, target, network string, classification radarTargetClassification) customerProgramInvestigationResult {
 	out := customerProgramInvestigationResult{
-		Target: target,
-		Network: network,
+		Target:          target,
+		Network:         network,
 		Classification: classification,
 		ProgramSecurity: newProgramSecuritySurface("not_requested"),
 	}
@@ -39,7 +39,7 @@ func (h *Handler) runCustomerProgramInvestigation(ctx context.Context, target, n
 	out.Published = out.ProgramSecurity.Available || len(out.ProgramSecurity.Programs) > 0
 
 	coverage := canonicalIntegrationCoverage{
-		SchemaVersion: "koschei-capability-integration-v1",
+		SchemaVersion:     "koschei-capability-integration-v1",
 		LiveScanRequested: true,
 		Capabilities: map[string]canonicalCapabilityStatus{
 			"program_security": canonicalStatusFromRaw(
@@ -70,11 +70,11 @@ func (h *Handler) runCustomerProgramInvestigation(ctx context.Context, target, n
 	out.Transparency = buildInvestigationTransparency(coverage)
 
 	memoryPayload := map[string]any{
-		"schema_version": "koschei-program-investigation-v1",
-		"target": target,
-		"network": network,
-		"target_classification": classification,
-		"program_security": out.ProgramSecurity,
+		"schema_version":             "koschei-program-investigation-v1",
+		"target":                     target,
+		"network":                    network,
+		"target_classification":      classification,
+		"program_security":           out.ProgramSecurity,
 		"investigation_transparency": out.Transparency,
 	}
 	out.Memory = h.archiveIntelligenceMemory(ctx, "program_investigation", network, target, memoryPayload)
@@ -87,17 +87,17 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 		status = "evidence_available_with_gaps"
 	}
 	return map[string]any{
-		"ok":                     true,
-		"status":                 status,
-		"investigation_kind":     "program_security",
-		"schema_version":         "koschei-program-investigation-v1",
-		"target":                 result.Target,
-		"network":                result.Network,
-		"target_classification":  result.Classification,
-		"program_security":       result.ProgramSecurity,
+		"ok":                         true,
+		"status":                     status,
+		"investigation_kind":         "program_security",
+		"schema_version":             "koschei-program-investigation-v1",
+		"target":                     result.Target,
+		"network":                    result.Network,
+		"target_classification":      result.Classification,
+		"program_security":           result.ProgramSecurity,
 		"investigation_transparency": result.Transparency,
-		"intelligence_memory":    result.Memory,
-		"charged":                charged,
+		"intelligence_memory":        result.Memory,
+		"charged":                    charged,
 		"final_verdict": map[string]any{
 			"grade":          "-",
 			"risk_index":     nil,
