@@ -33,11 +33,6 @@ jobs:
             echo "No Chromium-compatible browser found on runner"
             exit 1
           fi
-          compare_bin="$(command -v compare || true)"
-          if [ -z "$compare_bin" ]; then
-            echo "ImageMagick compare not found on runner"
-            exit 1
-          fi
 
           python3 -m http.server 8765 --directory baseline/koschei/api/public >/tmp/koschei-baseline-http.log 2>&1 &
           baseline_pid=$!
@@ -48,27 +43,19 @@ jobs:
 
           mkdir -p /tmp/koschei-visual
           pages=(index.html dashboard.html arvis-chat.html scan.html)
-          total_fail=0
+          failed=0
           for page in "${pages[@]}"; do
             name="${page%.html}"
             common=(--headless=new --no-sandbox --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --force-prefers-reduced-motion --window-size=1440,1000 --virtual-time-budget=1500)
             "$chrome" "${common[@]}" --screenshot="/tmp/koschei-visual/${name}-baseline.png" "http://127.0.0.1:8765/${page}" >/tmp/${name}-baseline-chrome.log 2>&1
             "$chrome" "${common[@]}" --screenshot="/tmp/koschei-visual/${name}-candidate.png" "http://127.0.0.1:8766/${page}" >/tmp/${name}-candidate-chrome.log 2>&1
-
-            set +e
-            metric="$($compare_bin -metric AE "/tmp/koschei-visual/${name}-baseline.png" "/tmp/koschei-visual/${name}-candidate.png" null: 2>&1)"
-            status=$?
-            set -e
-            pixels="$(identify -format '%[fx:w*h]' "/tmp/koschei-visual/${name}-baseline.png")"
-            python3 - "$name" "$metric" "$pixels" <<'PY'
-          import sys
-          name, metric, pixels = sys.argv[1], float(sys.argv[2] or 0), float(sys.argv[3])
-          ratio = metric / pixels if pixels else 1.0
-          print(f"VISUAL {name}: changed_pixels={int(metric)} total_pixels={int(pixels)} ratio={ratio:.8f}")
-          # Exact equality is ideal. Allow only a tiny rasterization/runtime fringe.
-          if ratio > 0.001:
-              raise SystemExit(1)
-          PY
-            if [ $? -ne 0 ]; then total_fail=1; fi
+            baseline_sha="$(sha256sum "/tmp/koschei-visual/${name}-baseline.png" | cut -d' ' -f1)"
+            candidate_sha="$(sha256sum "/tmp/koschei-visual/${name}-candidate.png" | cut -d' ' -f1)"
+            if cmp -s "/tmp/koschei-visual/${name}-baseline.png" "/tmp/koschei-visual/${name}-candidate.png"; then
+              echo "VISUAL ${name}: exact-match sha256=${baseline_sha}"
+            else
+              echo "VISUAL ${name}: DIFFERENT baseline=${baseline_sha} candidate=${candidate_sha}"
+              failed=1
+            fi
           done
-          exit "$total_fail"
+          exit "$failed"
