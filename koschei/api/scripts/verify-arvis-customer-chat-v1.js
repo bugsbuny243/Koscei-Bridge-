@@ -4,9 +4,9 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','arvis-chat.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','customer-arvis-chat-v1.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-arvis-chat-v1.css'),'utf8');
-const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
-const metaverse=fs.readFileSync(path.join(root,'public','css','customer-arvis-metaverse-v1.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const metaverse=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const metaverseJS=fs.readFileSync(path.join(root,'public','js','customer-arvis-metaverse-v1.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
 

@@ -6,7 +6,7 @@ const safeHTML=fs.readFileSync(path.join(root,'public','safe-check.html'),'utf8'
 const txHTML=fs.readFileSync(path.join(root,'public','transaction-shield.html'),'utf8');
 const safeJS=fs.readFileSync(path.join(root,'public','js','public-safe-check-v2.js'),'utf8');
 const txJS=fs.readFileSync(path.join(root,'public','js','public-transaction-shield-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','public-safety-surfaces-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}

@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','dashboard.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-workspace-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
@@ -53,9 +53,9 @@ requireText(js,"!text(item.read_at)",'existing alert unread handling');
 requireText(css,'.workspace-live','operations styles');
 requireText(css,'.workspace-alert','alert styles');
 requireText(css,'.workspace-report-card','investigation card styles');
-const shellCss=fs.readFileSync(path.join(root,'public','css','customer-command-center-v1.css'),'utf8');
+const shellCss=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-center-v1.js'),'utf8');
-const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const commandUniverseJs=fs.readFileSync(path.join(root,'public','js','customer-command-universe-v2.js'),'utf8');
 requireText(shellCss,'.customer-app-shell','app shell');
 requireText(shellCss,'.customer-sidebar','sidebar');

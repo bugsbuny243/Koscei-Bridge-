@@ -2,7 +2,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
-const css=fs.readFileSync(path.join(root,'public','css','public-casefile.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const handler=fs.readFileSync(path.join(root,'internal','handlers','public_case_page.go'),'utf8');
 
 function requireText(source,needle,label){

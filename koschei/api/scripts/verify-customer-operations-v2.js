@@ -6,7 +6,7 @@ const reportsHTML=fs.readFileSync(path.join(root,'public','reports.html'),'utf8'
 const watchHTML=fs.readFileSync(path.join(root,'public','watchlist.html'),'utf8');
 const reportsJS=fs.readFileSync(path.join(root,'public','js','customer-reports-v2.js'),'utf8');
 const watchJS=fs.readFileSync(path.join(root,'public','js','customer-watchlist-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-operations-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 

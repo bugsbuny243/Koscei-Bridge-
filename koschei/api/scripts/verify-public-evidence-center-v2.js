@@ -6,7 +6,7 @@ const cases=fs.readFileSync(path.join(root,'public','cases.html'),'utf8');
 const live=fs.readFileSync(path.join(root,'public','live.html'),'utf8');
 const casesJS=fs.readFileSync(path.join(root,'public','js','public-soc.js'),'utf8');
 const liveJS=fs.readFileSync(path.join(root,'public','js','public-live-radar.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','public-evidence-center-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function visibleSource(html){return html.replace(/<span hidden data-public-smoke-transition="(?:cases|live)">.*?<\/span>/g,'');}

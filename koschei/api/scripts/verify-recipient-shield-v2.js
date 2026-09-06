@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','address-poisoning-shield.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','address-poisoning-shield-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','public-safety-surfaces-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function requireOrder(source,first,second,label){const a=source.indexOf(first),b=source.indexOf(second);if(a<0||b<0||a>=b)throw new Error(`${label}: expected ${first} before ${second}`);}

@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','owner-production.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','owner-investigation-ux.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','owner-investigation-ux.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){
   if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);

@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','scan.html'),'utf8');
 const ux=fs.readFileSync(path.join(root,'public','js','customer-investigation-ux-v2.js'),'utf8');
 const premium=fs.readFileSync(path.join(root,'public','js','customer-arvis-premium-suite.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-investigation-ux-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
