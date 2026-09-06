@@ -6,6 +6,7 @@ on:
       - "koschei/api/public/owner-production.html"
       - "koschei/api/public/js/owner-customer-directory.js"
       - "koschei/api/public/js/owner-social-studio.js"
+      - "koschei/api/public/js/owner-social-mobile-renderer.js"
       - "koschei/api/public/js/owner-social-voice.js"
       - "koschei/api/internal/handlers/owner_ai_chat.go"
       - "koschei/api/internal/handlers/owner_ai_chat_context.go"
@@ -20,6 +21,7 @@ on:
       - "koschei/api/public/owner-production.html"
       - "koschei/api/public/js/owner-customer-directory.js"
       - "koschei/api/public/js/owner-social-studio.js"
+      - "koschei/api/public/js/owner-social-mobile-renderer.js"
       - "koschei/api/public/js/owner-social-voice.js"
       - "koschei/api/internal/handlers/owner_ai_chat.go"
       - "koschei/api/internal/handlers/owner_ai_chat_context.go"
@@ -49,6 +51,7 @@ jobs:
         run: |
           node --check koschei/api/public/js/owner-customer-directory.js
           node --check koschei/api/public/js/owner-social-studio.js
+          node --check koschei/api/public/js/owner-social-mobile-renderer.js
           node --check koschei/api/public/js/owner-social-voice.js
           node --check koschei/api/scripts/verify-owner-growth-console.js
       - name: Verify Owner Growth Console contract
