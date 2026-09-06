@@ -312,10 +312,10 @@
         ],
         "summary": "GET /api/account/api-keys",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -411,10 +411,10 @@
         ],
         "summary": "POST /api/account/api-keys",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -522,10 +522,10 @@
         ],
         "summary": "POST /api/account/api-keys/{id}/revoke",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -3942,10 +3942,10 @@
         "security": [],
         "summary": "POST /api/arvis/preflight",
         "tags": [
-          "public_and_system"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -4311,10 +4311,10 @@
         ],
         "summary": "GET /api/auth/premium-access",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -4566,10 +4566,10 @@
         ],
         "summary": "POST /api/auth/wallet/challenge",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -4657,10 +4657,10 @@
         ],
         "summary": "GET /api/auth/wallet/status",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -4758,10 +4758,10 @@
         ],
         "summary": "POST /api/auth/wallet/unlink",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -4859,10 +4859,10 @@
         ],
         "summary": "POST /api/auth/wallet/verify",
         "tags": [
-          "account_and_saas_access"
+          "account_and_professional_access"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_enterprise_for_api_keys",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -5027,10 +5027,10 @@
         ],
         "summary": "POST /api/customer/web3/transaction-preflight",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -5148,10 +5148,10 @@
         ],
         "summary": "POST /api/customer/web3/transaction-state-recheck",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -5249,10 +5249,10 @@
         ],
         "summary": "POST /api/jobs/token-scan",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -5350,10 +5350,10 @@
         ],
         "summary": "GET /api/jobs/{id}",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -12467,10 +12467,10 @@
         "security": [],
         "summary": "POST /api/token/scan",
         "tags": [
-          "public_and_system"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "public",
-        "x-koschei-inventory-auth": "public_or_mixed",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -12568,10 +12568,10 @@
         ],
         "summary": "POST /api/v1/address-poisoning/check",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -12611,26 +12611,6 @@
             },
             "description": "Invalid request."
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Identity credential missing or invalid."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authenticated identity lacks the required access tier."
-          },
           "405": {
             "content": {
               "application/json": {
@@ -12662,17 +12642,13 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [
-          {
-            "developerAPIKey": []
-          }
-        ],
+        "security": [],
         "summary": "POST /api/v1/defense/validation",
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -12823,26 +12799,6 @@
             },
             "description": "Invalid request."
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Identity credential missing or invalid."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authenticated identity lacks the required access tier."
-          },
           "405": {
             "content": {
               "application/json": {
@@ -12874,17 +12830,13 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [
-          {
-            "developerAPIKey": []
-          }
-        ],
+        "security": [],
         "summary": "POST /api/v1/execution-assurance/safe/verify",
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "public",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -12972,10 +12924,10 @@
         ],
         "summary": "GET /api/v1/radar/actor-intelligence",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13073,10 +13025,10 @@
         ],
         "summary": "POST /api/v1/radar/check",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13174,10 +13126,10 @@
         ],
         "summary": "POST /api/v1/radar/court",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13265,10 +13217,10 @@
         ],
         "summary": "GET /api/v1/radar/creator-intelligence",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13356,10 +13308,10 @@
         ],
         "summary": "GET /api/v1/radar/detail",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13447,10 +13399,10 @@
         ],
         "summary": "GET /api/v1/radar/exposure",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13538,10 +13490,10 @@
         ],
         "summary": "GET /api/v1/radar/feed",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13629,10 +13581,10 @@
         ],
         "summary": "GET /api/v1/radar/graph",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13730,10 +13682,10 @@
         ],
         "summary": "POST /api/v1/radar/jobs",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -13831,10 +13783,10 @@
         ],
         "summary": "GET /api/v1/radar/jobs/{id}",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14002,7 +13954,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14103,7 +14055,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14204,7 +14156,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14305,7 +14257,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14406,7 +14358,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14504,10 +14456,10 @@
         ],
         "summary": "POST /api/v1/token/extensions",
         "tags": [
-          "premium_radar_and_reports"
+          "professional_customer_operations"
         ],
         "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
-        "x-koschei-inventory-auth": "customer_session_plus_saas_entitlement",
+        "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14598,7 +14550,7 @@
           "developer_api"
         ],
         "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "api_key_plus_enterprise_entitlement",
+        "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14756,7 +14708,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -14855,7 +14807,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -14946,7 +14898,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15047,7 +14999,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15148,7 +15100,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15397,7 +15349,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -15496,7 +15448,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15587,7 +15539,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15688,7 +15640,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -15797,7 +15749,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -15888,7 +15840,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
       "post": {
@@ -15987,7 +15939,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     },
@@ -16088,7 +16040,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
       "patch": {
@@ -16197,7 +16149,7 @@
           "watchlist_and_webhooks"
         ],
         "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
-        "x-koschei-inventory-auth": "professional_or_enterprise_saas_entitlement",
+        "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
     }
