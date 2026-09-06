@@ -17,13 +17,13 @@ for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist ht
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','reports html');
 requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');
 requireText(reportsHTML,'History without invented evidence.','reports truth boundary');
-requireText(reportsHTML,'STARTER+ SAAS · DURABLE CANONICAL JOB HISTORY','reports Starter SaaS boundary');
-requireText(reportsHTML,'Reading history does not consume a premium output','reports read-only quota boundary');
-requireText(reportsHTML,'Commercial access is determined only by the active SaaS entitlement.','reports SaaS authority boundary');
-if(/\bKOSCH\b|token holdings|BASIC\+ KOSCH|Basic KOSCH tier/i.test(reportsHTML))throw new Error('reports html: legacy token-tier history access copy is forbidden');
+requireText(reportsHTML,'PROFESSIONAL · DURABLE CANONICAL JOB HISTORY','reports Professional boundary');
+requireText(reportsHTML,'History access requires an active Professional entitlement.','reports Professional authority boundary');
+requireText(reportsHTML,'Commercial access is determined only by the active server-side entitlement.','reports entitlement authority boundary');
+if(/\bKOSCH\b|token holdings|STARTER\+|ENTERPRISE\+|Basic KOSCH tier/i.test(reportsHTML))throw new Error('reports html: retired access copy is forbidden');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
-requireText(watchHTML,'Professional plan or higher','watchlist Professional SaaS boundary');
-if(/\bKOSCH\b tier|holder tier|Pro tier or higher/i.test(watchHTML))throw new Error('watchlist html: legacy token-tier access copy is forbidden');
+requireText(watchHTML,'Monitoring requires the Professional plan','watchlist Professional boundary');
+if(/\bKOSCH\b tier|holder tier|Pro tier or higher|Starter|Enterprise/i.test(watchHTML))throw new Error('watchlist html: retired tier access copy is forbidden');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'canonical investigation history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'history schema gate');
@@ -34,6 +34,7 @@ requireText(reportsJS,"signed===true)return {kind:'incomplete',label:'SIGNATURE 
 requireText(reportsJS,"if(!Array.isArray(history))",'history unavailable-not-empty boundary');
 requireText(reportsJS,"setUnavailableKPIs('Canonical investigation history unavailable; no history count inferred.')",'history unavailable-not-zero KPI boundary');
 requireText(reportsJS,"KoscheiAuth.requireAuth('/login.html')",'canonical login continuation');
+requireText(reportsJS,'Investigation history requires an active Professional entitlement.','Professional history access message');
 if(reportsJS.includes('/api/v1/unified/reports'))throw new Error('reports js: must not call removed unified-reports frontend contract');
 if(reportsJS.includes('/api/v1/investigations/history'))throw new Error('reports js: must use canonical radar jobs history collection');
 if(reportsJS.includes('.innerHTML='))throw new Error('reports js: canonical history must use DOM/textContent rendering');
@@ -52,7 +53,7 @@ requireText(watchJS,"setTargetKPIsUnavailable('Monitoring target collection unav
 requireText(watchJS,"setAlertKPIUnavailable('Alert collection unavailable; no unread count inferred.')",'watchlist alert unavailable-not-zero boundary');
 requireText(watchJS,"load({preserveStatus:true})",'action feedback preservation');
 if(watchJS.includes('.innerHTML='))throw new Error('watchlist js: API data must use DOM/textContent rendering');
-if(/Pro KOSCH|token tier|holder tier/i.test(watchJS))throw new Error('watchlist js: legacy token-tier access messaging is forbidden');
+if(/Pro KOSCH|token tier|holder tier|Starter|Enterprise/i.test(watchJS))throw new Error('watchlist js: retired access messaging is forbidden');
 
 for(const [js,label] of [[reportsJS,'reports js'],[watchJS,'watchlist js']]){
   if(js.includes('Math.random('))throw new Error(`${label}: must not fabricate operational metrics`);
@@ -62,4 +63,4 @@ if(/[İıŞşĞğÇçÖöÜü]/.test(watchHTML))throw new Error('watchlist html:
 requireText(css,'.ops-record','shared record styles');
 requireText(css,'.ops-monitor-card','monitoring card styles');
 requireText(css,'.ops-kpis','operations KPI styles');
-console.log('customer operations v2 contract: ok');
+console.log('customer operations Professional-only contract: ok');
