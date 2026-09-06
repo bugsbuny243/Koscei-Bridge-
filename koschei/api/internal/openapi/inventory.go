@@ -70,7 +70,6 @@ func RouteInventory(sourceDir string) ([]InventoryRoute, error) {
 							if value, ok := stringLiteral(raw); ok {
 								routes = append(routes, value)
 							}
-						}
 					}
 				}
 				for _, raw := range routes {
@@ -180,12 +179,24 @@ func normalizedInventoryAuth(inventoryAuth, path, filename string) string {
 		return "public"
 	case "owner_session":
 		return "owner_session"
+	case "api_key_plus_professional_entitlement":
+		return "api_key_plus_professional_entitlement"
+	case "customer_session_plus_professional_entitlement", "professional_saas_entitlement":
+		return "customer_session_plus_professional_entitlement"
+	case "customer_session_plus_professional_for_api_keys":
+		if strings.HasPrefix(path, "/api/account/") {
+			return "customer_session_plus_professional_entitlement"
+		}
+		return authTier(path, filename)
+	case "customer_session_or_verified_provider_webhook":
+		return authTier(path, filename)
+	// Legacy labels remain readable only so historical branches/specs can still be
+	// parsed. They must not create new Starter/Enterprise authorization semantics.
 	case "api_key_plus_enterprise_entitlement":
-		return "api_key_plus_enterprise_entitlement"
+		return "api_key_plus_professional_entitlement"
 	case "customer_session_plus_saas_entitlement",
 		"customer_session_plus_enterprise_for_api_keys",
-		"professional_or_enterprise_saas_entitlement",
-		"customer_session_or_verified_provider_webhook":
+		"professional_or_enterprise_saas_entitlement":
 		return authTier(path, filename)
 	default:
 		return authTier(path, filename)
