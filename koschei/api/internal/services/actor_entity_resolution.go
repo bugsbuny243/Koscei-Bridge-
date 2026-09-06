@@ -34,8 +34,11 @@ type ActorResolvedRelationship struct {
 type ActorResolvedTransaction struct {
 	Signature          string    `json:"signature"`
 	Slot               int64     `json:"slot,omitempty"`
+	Slots              []int64   `json:"slots,omitempty"`
+	SlotConflict       bool      `json:"slot_conflict"`
 	ObservedAt         time.Time `json:"observed_at"`
 	VerificationStatus string    `json:"verification_status"`
+	EvidenceStatuses   []string  `json:"evidence_statuses"`
 	EntityIDs          []string  `json:"entity_ids"`
 	Relations          []string  `json:"relations"`
 	SourceProviders    []string  `json:"source_providers"`
@@ -69,9 +72,10 @@ type actorResolvedEntityBuilder struct {
 
 type actorResolvedTransactionBuilder struct {
 	signature string
-	slot      int64
 	observed  time.Time
 	status    string
+	slots     map[int64]struct{}
+	statuses  map[string]struct{}
 	entities  map[string]struct{}
 	relations map[string]struct{}
 	providers map[string]struct{}
@@ -97,6 +101,8 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			"identifiers_are_case_sensitive":                    true,
 			"transaction_projection_requires_signature":         true,
 			"unsigned_relationship_not_promoted_to_transaction": true,
+			"transaction_slot_conflicts_are_explicit":           true,
+			"mixed_evidence_statuses_are_preserved":             true,
 			"identity_or_wrongdoing_claim":                      false,
 		},
 	}
@@ -190,6 +196,8 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			transaction = &actorResolvedTransactionBuilder{
 				signature: signature,
 				status:    "unverified",
+				slots:     map[int64]struct{}{},
+				statuses:  map[string]struct{}{},
 				entities:  map[string]struct{}{},
 				relations: map[string]struct{}{},
 				providers: map[string]struct{}{},
@@ -197,14 +205,16 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			}
 			transactionBuilders[signature] = transaction
 		}
-		if transaction.slot == 0 && edge.Slot != 0 {
-			transaction.slot = edge.Slot
+		if edge.Slot != 0 {
+			transaction.slots[edge.Slot] = struct{}{}
 		}
 		if transaction.observed.IsZero() || (!edge.ObservedAt.IsZero() && edge.ObservedAt.Before(transaction.observed)) {
 			transaction.observed = edge.ObservedAt
 		}
-		if actorGraphStatusRank(edge.VerificationStatus) > actorGraphStatusRank(transaction.status) {
-			transaction.status = normalizeActorGraphStatus(edge.VerificationStatus)
+		normalizedStatus := normalizeActorGraphStatus(edge.VerificationStatus)
+		transaction.statuses[normalizedStatus] = struct{}{}
+		if actorGraphStatusRank(normalizedStatus) > actorGraphStatusRank(transaction.status) {
+			transaction.status = normalizedStatus
 		}
 		transaction.entities[edge.Source] = struct{}{}
 		transaction.entities[edge.Target] = struct{}{}
@@ -231,11 +241,19 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		out.Entities = append(out.Entities, entity)
 	}
 	for _, builder := range transactionBuilders {
+		slots := actorEntitySortedInt64Keys(builder.slots)
+		slot := int64(0)
+		if len(slots) == 1 {
+			slot = slots[0]
+		}
 		out.Transactions = append(out.Transactions, ActorResolvedTransaction{
 			Signature:          builder.signature,
-			Slot:               builder.slot,
+			Slot:               slot,
+			Slots:              slots,
+			SlotConflict:       len(slots) > 1,
 			ObservedAt:         builder.observed,
 			VerificationStatus: normalizeActorGraphStatus(builder.status),
+			EvidenceStatuses:   actorEntitySortedKeys(builder.statuses),
 			EntityIDs:          actorEntitySortedKeys(builder.entities),
 			Relations:          actorEntitySortedKeys(builder.relations),
 			SourceProviders:    actorEntitySortedKeys(builder.providers),
@@ -284,5 +302,14 @@ func actorEntitySortedKeys(values map[string]struct{}) []string {
 		out = append(out, value)
 	}
 	sort.Strings(out)
+	return out
+}
+
+func actorEntitySortedInt64Keys(values map[int64]struct{}) []int64 {
+	out := make([]int64, 0, len(values))
+	for value := range values {
+		out = append(out, value)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
