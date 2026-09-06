@@ -29,23 +29,23 @@ func TestBuildTransactionInvestigationReportProjectsExecutionEvidence(t *testing
 			},
 		},
 		"meta": map[string]any{
-			"err":         nil,
-			"fee":         float64(5000),
-			"preBalances": []any{float64(10000), float64(1000), float64(0)},
+			"err":          nil,
+			"fee":          float64(5000),
+			"preBalances":  []any{float64(10000), float64(1000), float64(0)},
 			"postBalances": []any{float64(4000), float64(2000), float64(0)},
 			"preTokenBalances": []any{
 				map[string]any{
-					"accountIndex": float64(2),
-					"mint":         "Mint111",
-					"owner":        "Signer111",
+					"accountIndex":  float64(2),
+					"mint":          "Mint111",
+					"owner":         "Signer111",
 					"uiTokenAmount": map[string]any{"amount": "100", "decimals": float64(0), "uiAmount": float64(100)},
 				},
 			},
 			"postTokenBalances": []any{
 				map[string]any{
-					"accountIndex": float64(2),
-					"mint":         "Mint111",
-					"owner":        "Signer111",
+					"accountIndex":  float64(2),
+					"mint":          "Mint111",
+					"owner":         "Signer111",
 					"uiTokenAmount": map[string]any{"amount": "40", "decimals": float64(0), "uiAmount": float64(40)},
 				},
 			},
