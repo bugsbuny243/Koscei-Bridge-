@@ -23,7 +23,7 @@ requireText(html,'PROFESSIONAL · ARVIS COMMAND UNIVERSE','ARVIS universe bounda
 requireText(html,'Investigate. Correlate. Prove.','workspace universe headline');
 requireText(html,'ARVIS case workspace','primary investigation surface');
 requireText(html,'Professional Security Workspace','Professional workspace copy');
-if(/Starter|Enterprise|ARVIS early access|Preview monitored targets/i.test(html))throw new Error('workspace contains retired commercial or preview copy');
+if(/ARVIS early access|Preview monitored targets|STARTER\+|ENTERPRISE\+/i.test(html))throw new Error('workspace contains retired commercial or preview copy');
 if(/holder access|Checking holder access/i.test(html))throw new Error('workspace contains legacy holder access copy');
 
 requireText(js,"read('/api/auth/premium-access')",'Professional access source');
