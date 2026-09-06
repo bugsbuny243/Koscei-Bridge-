@@ -39,16 +39,16 @@ func TestPrimaryPublicSurfacesAreSourceEnglish(t *testing.T) {
 	}
 }
 
-func TestCanonicalInvestigationSurfaceMountsCompleteModesAndEvidenceControllers(t *testing.T) {
+func TestCanonicalInvestigationSurfaceMountsProfessionalModesAndEvidenceControllers(t *testing.T) {
 	body, err := os.ReadFile("public/scan.html")
 	if err != nil {
 		t.Fatalf("read canonical investigation page: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Evidence-backed investigation",
-		"Inspect a target before you trust it.",
-		"data-scan-mode=\"quick\"",
+		"PROFESSIONAL · CLASSIC INVESTIGATION CONSOLE",
+		"Descend into the evidence.",
+		"Free Quick Check execution has been removed",
 		"data-scan-mode=\"token\"",
 		"data-scan-mode=\"transaction\"",
 		"data-scan-mode=\"deep\"",
@@ -62,25 +62,26 @@ func TestCanonicalInvestigationSurfaceMountsCompleteModesAndEvidenceControllers(
 			t.Errorf("canonical investigation page missing %q", required)
 		}
 	}
-	for _, forbidden := range []string{`href="/safe-check"`, `href="/transaction-shield"`, `href="/security-radar"`} {
+	for _, forbidden := range []string{`data-scan-mode="quick"`, `href="/safe-check"`, `href="/transaction-shield"`, `href="/security-radar"`} {
 		if strings.Contains(text, forbidden) {
-			t.Errorf("canonical investigation page still links to duplicate scanner %q", forbidden)
+			t.Errorf("canonical investigation page contains retired or duplicate scanner contract %q", forbidden)
 		}
 	}
 }
 
-func TestDashboardIsSecurityWorkspaceNotAnotherScanner(t *testing.T) {
+func TestDashboardIsARVISProfessionalSecurityWorkspace(t *testing.T) {
 	body, err := os.ReadFile("public/dashboard.html")
 	if err != nil {
 		t.Fatalf("read dashboard: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Security Workspace",
-		"Investigations, monitoring and evidence in one workspace.",
-		"Start Investigation",
-		"Investigation history",
-		"Monitoring and integration",
+		"Professional Security Workspace",
+		"PROFESSIONAL · ARVIS COMMAND UNIVERSE",
+		"Investigate. Correlate. Prove.",
+		"Enter ARVIS Investigation",
+		"Investigation History",
+		"Monitoring & developer access",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("dashboard missing workspace contract %q", required)
@@ -93,7 +94,7 @@ func TestDashboardIsSecurityWorkspaceNotAnotherScanner(t *testing.T) {
 	}
 }
 
-func TestUnifiedScanBehaviorUsesRealModeEndpoints(t *testing.T) {
+func TestUnifiedScanBehaviorKeepsRealLegacyEndpointsWithoutExposingQuickModeUI(t *testing.T) {
 	body, err := os.ReadFile("public/js/public-solana-scan.js")
 	if err != nil {
 		t.Fatalf("read unified scan behavior: %v", err)

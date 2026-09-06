@@ -26,12 +26,14 @@ func TestPremiumAccessCarriesEntitlementCapacity(t *testing.T) {
 	}
 }
 
-func TestPremiumAccessHasNoDailyTokenQuotaAuthority(t *testing.T) {
-	evaluation := planAccessEvaluation{Active: true, Plan: "starter", OutputsTotal: 25, OutputsRemaining: 25, Source: "entitlement"}
-	if !planTierAuthorizes(evaluation.Plan, "starter") {
-		t.Fatal("active Starter entitlement did not authorize Starter access")
+func TestPremiumAccessHasProfessionalOnlySaaSAuthority(t *testing.T) {
+	evaluation := planAccessEvaluation{Active: true, Plan: "professional", OutputsTotal: 100, OutputsRemaining: 100, Source: "entitlement"}
+	if !planTierAuthorizes(evaluation.Plan, "professional") {
+		t.Fatal("active Professional entitlement did not authorize Professional access")
 	}
-	if planTierAuthorizes("kosch", "starter") {
-		t.Fatal("KOSCH label unexpectedly authorized a SaaS plan")
+	for _, removed := range []string{"starter", "enterprise", "kosch"} {
+		if planTierAuthorizes(removed, "professional") {
+			t.Fatalf("removed label %q unexpectedly authorized Professional SaaS access", removed)
+		}
 	}
 }

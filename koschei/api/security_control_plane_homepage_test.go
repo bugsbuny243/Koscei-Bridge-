@@ -16,7 +16,8 @@ func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
 		"Koschei Web3 | Check before you trust",
 		"Check it before you trust it.",
 		"data-koschei-home-scan",
-		"Token mint, wallet, site URL, or transaction context",
+		"Token mint, wallet address, or supported transaction context",
+		"Enter the threat universe.",
 		"One scan. Four questions answered.",
 		"Should I proceed?",
 		"What changed the decision?",
@@ -25,7 +26,9 @@ func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
 		"The proof still matters.",
 		"Production signing enforcement remains a separate validation milestone",
 		"Koschei Professional is the single paid access plan.",
+		"There is no free investigation tier",
 		"koschei-enterprise-v3.css",
+		"koschei-universe-v1.css",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("homepage missing customer-first Koschei Web3 contract %q", required)

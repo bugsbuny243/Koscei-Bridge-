@@ -7,25 +7,26 @@ const js=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'
 const css=fs.readFileSync(path.join(root,'public','css','customer-workspace-v2.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
-function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden ${pattern}`);}
 
 requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
 requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
-requireText(html,'/css/customer-command-center-v1.css?v=3','premium customer command center style');
-requireText(html,'/js/customer-command-center-v1.js?v=3','premium customer command center behavior');
+requireText(html,'/css/customer-command-center-v1.css?v=3','customer command center style');
+requireText(html,'/js/customer-command-center-v1.js?v=3','customer command center behavior');
 requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
 requireText(html,'id="workspaceMissionControl"','operations mount');
 requireText(html,'id="workspaceLatestReport"','latest investigation mount');
 requireText(html,'id="workspaceAlerts"','alerts mount');
 requireText(html,'RECENT INVESTIGATION','recent investigation copy');
 requireText(html,'Investigation jobs','history KPI copy');
-requireText(html,'SaaS plan','SaaS access KPI');
-requireText(html,'ARVIS early access','ARVIS readiness disclosure');
-requireText(html,'Preview monitored targets','watchlist preview disclosure');
-requireText(html,'Their presence in the workspace is not a claim of full production readiness.','unfinished surface boundary');
-forbid(html,/holder access|Checking holder access/i,'legacy holder access workspace copy');
+requireText(html,'Professional access','Professional access KPI');
+requireText(html,'PROFESSIONAL · ARVIS COMMAND UNIVERSE','ARVIS universe boundary');
+requireText(html,'Investigate. Correlate. Prove.','workspace universe headline');
+requireText(html,'ARVIS case workspace','primary investigation surface');
+requireText(html,'Professional Security Workspace','Professional workspace copy');
+if(/ARVIS early access|Preview monitored targets|STARTER\+|ENTERPRISE\+/i.test(html))throw new Error('workspace contains retired commercial or preview copy');
+if(/holder access|Checking holder access/i.test(html))throw new Error('workspace contains legacy holder access copy');
 
-requireText(js,"read('/api/auth/premium-access')",'SaaS access source');
+requireText(js,"read('/api/auth/premium-access')",'Professional access source');
 requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
 requireText(js,"read('/api/watchlist')",'watchlist source');
 requireText(js,"read('/api/watchlist/alerts')",'alerts source');
@@ -37,10 +38,10 @@ requireText(js,"data.job_type!=='canonical_investigation'",'history job-type bou
 requireText(js,"if(signed===true&&signature&&ruleset)return'SIGNED'",'strict signed evidence state');
 requireText(js,"if(signed===true)return'SIGNATURE INCOMPLETE'",'incomplete signed evidence state');
 requireText(js,'historyAvailable=Array.isArray(investigationHistory)','history unavailable-not-empty boundary');
-requireText(js,"const plan=text(access.plan||'none').toUpperCase()",'SaaS plan projection');
-requireText(js,'access.outputs_remaining','remaining SaaS capacity');
-requireText(js,'access.outputs_total','total SaaS capacity');
-requireText(js,'No active paid SaaS entitlement.','inactive SaaS boundary');
+requireText(js,"const plan=text(access.plan||'none').toUpperCase()",'plan projection');
+requireText(js,'access.outputs_remaining','remaining capacity');
+requireText(js,'access.outputs_total','total capacity');
+requireText(js,'No active paid SaaS entitlement.','inactive server entitlement boundary');
 requireText(js,'Professional plan required.','Professional watchlist boundary');
 requireText(js,"encodeURIComponent(target)",'safe target navigation');
 requireText(js,"!text(item.read_at)",'existing alert unread handling');
@@ -49,33 +50,34 @@ requireText(css,'.workspace-alert','alert styles');
 requireText(css,'.workspace-report-card','investigation card styles');
 const shellCss=fs.readFileSync(path.join(root,'public','css','customer-command-center-v1.css'),'utf8');
 const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-center-v1.js'),'utf8');
-requireText(shellCss,'.customer-app-shell','premium app shell');
-requireText(shellCss,'.customer-sidebar','premium sidebar');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
+requireText(shellCss,'.customer-app-shell','app shell');
+requireText(shellCss,'.customer-sidebar','sidebar');
 requireText(shellCss,'.customer-command-palette','navigation command palette style');
 requireText(shellCss,'.customer-capability-access','capability access label style');
-requireText(shellJs,"{label:'Overview',href:'/dashboard',access:'PUBLIC'}",'public overview capability');
-requireText(shellJs,"{label:'Deep Investigation',href:'/scan?mode=deep',mode:'primary',access:'PUBLIC'}",'public investigation capability');
-requireText(shellJs,"{label:'Evidence History',href:'/reports',access:'STARTER+'}",'history capability');
-requireText(shellJs,"{label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL+'}",'professional monitoring capability');
-requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'PUBLIC · MIXED'}",'mixed public API reference capability');
-requireText(shellJs,"{label:'Public Evidence Cases',href:'/cases',access:'PUBLIC'}",'public evidence capability');
-requireText(shellJs,"{label:'Account & Plan',href:'/account',access:'ACCOUNT'}",'account capability');
-requireText(shellJs,'Access labels describe the current route surface; server authorization remains authoritative.','server authorization boundary');
+requireText(shellJs,"{label:'Command Center',href:'/dashboard',access:'PROFESSIONAL'}",'Professional command center capability');
+requireText(shellJs,"{label:'ARVIS Investigation',href:'/arvis-chat',mode:'primary',access:'PROFESSIONAL'}",'ARVIS capability');
+requireText(shellJs,"{label:'Evidence History',href:'/reports',access:'PROFESSIONAL'}",'history capability');
+requireText(shellJs,"{label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL'}",'monitoring capability');
+requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'PROFESSIONAL API'}",'Professional API capability');
+requireText(shellJs,"{label:'Evidence Cases',href:'/cases',access:'PUBLIC PROOF'}",'public proof capability');
+requireText(shellJs,"{label:'Account & Access',href:'/account',access:'ACCOUNT'}",'account capability');
+requireText(shellJs,'Professional is the single operational customer entitlement.','single-entitlement boundary');
 requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
 requireText(shellJs,".top, .ops-nav",'shared customer header mount');
 requireText(shellJs,'customer-command-palette','navigation command palette');
 requireText(shellJs,"event.key.toLowerCase()==='k'",'keyboard command palette shortcut');
 requireText(shellJs,"event.key==='Escape'",'command palette escape close');
+requireText(universe,'body.koschei-universe','universe style contract');
 for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=3',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=3',page+' shared shell behavior');}
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');
 if(/data-plan-gated|disabled\s*=/.test(shellJs))throw new Error('capability labels must not become client-side authorization gates');
-
 if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
 if(/token_tier|token_amount|holder access/i.test(js))throw new Error('workspace must not derive access from token holdings');
 if(js.includes('Math.random('))throw new Error('workspace must not fabricate live metrics');
 if(/fetch\s*\(/.test(js))throw new Error('workspace account data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
 if(!html.includes('If a source is unavailable, the workspace leaves it unavailable instead of inventing a status.'))throw new Error('dashboard must expose the no-fake-data boundary');
-console.log('customer workspace evidence + SaaS access contract: ok');
+console.log('customer workspace ARVIS Professional universe contract: ok');

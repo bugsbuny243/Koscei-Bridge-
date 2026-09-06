@@ -43,8 +43,6 @@ var databaseOptionalAPIPaths = func() map[string]struct{} {
 		"/api/public/token/readiness",
 		"/api/web3/health",
 		"/api/analytics/event",
-		"/api/arvis/preflight",
-		"/api/token/scan",
 	}
 	result := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
@@ -53,8 +51,22 @@ var databaseOptionalAPIPaths = func() map[string]struct{} {
 	return result
 }()
 
+// These two legacy customer scan routes historically bypassed account billing.
+// Keep the routes for backwards compatibility, but no longer keep the free
+// execution semantics: both resolve through the same Professional entitlement
+// and output ledger as the canonical customer investigation routes.
+var professionalLegacyOperationalAPIPaths = map[string]struct{}{
+	"/api/arvis/preflight": {},
+	"/api/token/scan":      {},
+}
+
 func allowedWithoutDatabase(path string) bool {
 	_, ok := databaseOptionalAPIPaths[path]
+	return ok
+}
+
+func requiresProfessionalLegacyOperation(path string) bool {
+	_, ok := professionalLegacyOperationalAPIPaths[path]
 	return ok
 }
 
@@ -63,6 +75,18 @@ func apiReadiness(db *sql.DB, next http.Handler) http.Handler {
 	protected := bodyLimit(sensitiveRateLimit(db, next))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
+		if requiresProfessionalLegacyOperation(path) {
+			if db == nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "database unavailable"})
+				return
+			}
+			access := &handlers.Handler{DB: db, DBRead: db}
+			target := func(gw http.ResponseWriter, gr *http.Request) { protected.ServeHTTP(gw, gr) }
+			handlers.RequireAuth(access.RequirePlanTier("professional", access.EnforcePlanOutput(target)))(w, r)
+			return
+		}
 		if strings.HasPrefix(path, "/api/") && !allowedWithoutDatabase(path) && db == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)

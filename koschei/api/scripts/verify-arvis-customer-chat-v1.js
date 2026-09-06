@@ -5,16 +5,19 @@ const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','arvis-chat.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','customer-arvis-chat-v1.js'),'utf8');
 const css=fs.readFileSync(path.join(root,'public','css','customer-arvis-chat-v1.css'),'utf8');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden ${pattern}`);}
 
-requireText(html,'ARVIS Investigation Chat','customer chat title');
-requireText(html,'Follow-up questions are answered only from the returned investigation evidence','evidence-grounded copy');
+requireText(html,'One address. Open the whole case.','customer universe chat headline');
+requireText(html,'Follow-up answers are limited to the investigation evidence','evidence-grounded copy');
+requireText(html,'PROFESSIONAL · UNIVERSAL INVESTIGATION ENTRY POINT','Professional chat boundary');
 requireText(html,'id="arvisChatScanForm"','scan form');
 requireText(html,'id="arvisChatQuestionForm"','question form');
 requireText(html,'/js/customer-arvis-chat-v1.js?v=1','chat controller');
+requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
@@ -36,4 +39,5 @@ forbid(js,/signMessage|signTransaction|signAllTransactions|signAndSendTransactio
 
 requireText(css,'.arvis-chat-shell','chat layout');
 requireText(css,'@media(max-width:800px)','mobile layout');
-console.log('ARVIS customer chat v1 acceptance: ok');
+requireText(universe,'.universe-entry','universe entry visual contract');
+console.log('ARVIS customer chat universe acceptance: ok');

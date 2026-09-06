@@ -17,10 +17,11 @@ func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 			"id=\"execution-proof\"",
 		},
 		"public/account.html": {
-			"Account & SaaS Access",
+			"Professional Access",
 			"Verify with Phantom",
 			"Identity only.",
-			"Current paid plan",
+			"Current customer access",
+			"Professional is the single operational customer plan",
 		},
 		"public/reports.html": {
 			"Investigation History",

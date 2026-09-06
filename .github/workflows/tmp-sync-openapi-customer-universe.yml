@@ -1,0 +1,99 @@
+name: Temporary OpenAPI Sync Customer Universe
+
+on:
+  push:
+    branches:
+      - feat/customer-universe-professional-v1
+    paths:
+      - "koschei/api/internal/http/**"
+      - "koschei/api/internal/openapi/**"
+      - "koschei/api/openapi.yaml"
+      - ".github/workflows/tmp-sync-openapi-customer-universe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-openapi:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/customer-universe-professional-v1
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: koschei/api/go.mod
+          cache-dependency-path: koschei/api/go.sum
+      - name: Normalize OpenAPI auth semantics to Professional-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          generator = Path('koschei/api/internal/openapi/generator.go')
+          text = generator.read_text()
+          replacements = {
+              'case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/"):\n\t\treturn "api_key_plus_enterprise_entitlement"':
+              'case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/") || strings.HasPrefix(path, "/api/v1/defense/") || strings.HasPrefix(path, "/api/v1/execution-assurance/"):\n\t\treturn "api_key_plus_professional_entitlement"',
+              'case strings.HasPrefix(path, "/api/webhooks"):\n\t\treturn "customer_session_plus_enterprise_entitlement"':
+              'case strings.HasPrefix(path, "/api/webhooks"):\n\t\treturn "customer_session_plus_professional_entitlement"',
+              'case strings.HasPrefix(path, "/api/account/"):\n\t\treturn "customer_session_plus_enterprise_entitlement"':
+              'case strings.HasPrefix(path, "/api/account/"):\n\t\treturn "customer_session_plus_professional_entitlement"',
+              'case path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":\n\t\treturn "customer_session_plus_starter_entitlement"':
+              'case path == "/api/arvis/preflight" || path == "/api/token/scan" || path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":\n\t\treturn "customer_session_plus_professional_entitlement"',
+              'case "api_key_plus_enterprise_entitlement":\n\t\treturn []any{map[string]any{"developerAPIKey": []string{}}}':
+              'case "api_key_plus_professional_entitlement", "api_key_plus_enterprise_entitlement":\n\t\treturn []any{map[string]any{"developerAPIKey": []string{}}}',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing generator replacement anchor: {old[:90]}')
+              text = text.replace(old, new, 1)
+          generator.write_text(text)
+
+          inventory = Path('koschei/api/internal/openapi/inventory.go')
+          text = inventory.read_text()
+          old = '''\tcase "api_key_plus_enterprise_entitlement":
+\t\treturn "api_key_plus_enterprise_entitlement"
+\tcase "customer_session_plus_saas_entitlement",
+\t\t"customer_session_plus_enterprise_for_api_keys",
+\t\t"professional_or_enterprise_saas_entitlement",
+\t\t"customer_session_or_verified_provider_webhook":
+\t\treturn authTier(path, filename)'''
+          new = '''\tcase "api_key_plus_professional_entitlement":
+\t\treturn "api_key_plus_professional_entitlement"
+\tcase "api_key_plus_enterprise_entitlement":
+\t\treturn "api_key_plus_enterprise_entitlement"
+\tcase "customer_session_plus_professional_entitlement",
+\t\t"customer_session_plus_professional_for_api_keys",
+\t\t"professional_saas_entitlement",
+\t\t"customer_session_plus_saas_entitlement",
+\t\t"customer_session_plus_enterprise_for_api_keys",
+\t\t"professional_or_enterprise_saas_entitlement",
+\t\t"customer_session_or_verified_provider_webhook":
+\t\treturn authTier(path, filename)'''
+          if old not in text:
+              raise SystemExit('missing inventory auth normalization anchor')
+          inventory.write_text(text.replace(old, new, 1))
+          PY
+          gofmt -w koschei/api/internal/openapi/generator.go koschei/api/internal/openapi/inventory.go
+      - name: Regenerate exact OpenAPI contract
+        working-directory: koschei/api
+        run: |
+          go test ./internal/openapi -run 'TestProfessionalOnlyAuthSemantics' -count=1 || true
+          go run ./cmd/openapi-gen
+      - name: Commit normalized source and generated contract when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- koschei/api/internal/openapi/generator.go koschei/api/internal/openapi/inventory.go koschei/api/openapi.yaml; then
+            echo "Professional OpenAPI semantics already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add koschei/api/internal/openapi/generator.go koschei/api/internal/openapi/inventory.go koschei/api/openapi.yaml
+          git commit -m "fix(openapi): document Professional-only authorization"
+          git push origin HEAD:feat/customer-universe-professional-v1
