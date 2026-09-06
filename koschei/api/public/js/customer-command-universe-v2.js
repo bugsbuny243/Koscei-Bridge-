@@ -3,6 +3,7 @@
 if(window.__koscheiCommandUniverseV2)return;
 window.__koscheiCommandUniverseV2=true;
 const text=v=>String(v??'').trim();
+function ensureResponsiveLayer(){if(document.querySelector('link[data-koschei-dashboard-v2]'))return;const link=document.createElement('link');link.rel='stylesheet';link.href='/css/customer-dashboard-universe-v2.css?v=1';link.dataset.koscheiDashboardV2='1';document.head.append(link);}
 function sync(){
   const live=document.querySelector('[data-koschei-live]');
   const liveOut=document.getElementById('commandPipelineState');
@@ -14,5 +15,5 @@ function sync(){
   const reportOut=document.getElementById('commandInvestigationState');
   if(reportOut)reportOut.textContent=text(report?.textContent)||'—';
 }
-document.addEventListener('DOMContentLoaded',()=>{document.body.classList.add('koschei-command-universe');sync();const observer=new MutationObserver(sync);['workspaceLiveState','workspaceReportsKpi'].forEach(id=>{const el=document.getElementById(id);if(el)observer.observe(el,{subtree:true,childList:true,characterData:true,attributes:true});});const live=document.querySelector('[data-koschei-live]');if(live)observer.observe(live,{subtree:true,childList:true,characterData:true});});
+document.addEventListener('DOMContentLoaded',()=>{ensureResponsiveLayer();document.body.classList.add('koschei-command-universe');sync();const observer=new MutationObserver(sync);['workspaceLiveState','workspaceReportsKpi'].forEach(id=>{const el=document.getElementById(id);if(el)observer.observe(el,{subtree:true,childList:true,characterData:true,attributes:true});});const live=document.querySelector('[data-koschei-live]');if(live)observer.observe(live,{subtree:true,childList:true,characterData:true});});
 })();
