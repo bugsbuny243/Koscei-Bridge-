@@ -13,6 +13,5 @@ func registerDossierRoutes(mux *http.ServeMux, h *handlers.Handler) {
 	mux.HandleFunc("/api/public/cases", method(http.MethodGet, h.PublicDossierCasesPortable))
 	mux.HandleFunc("/api/public/soc/feed", requiresDB(h, method(http.MethodGet, h.PublicRadarLiveFeed)))
 	mux.HandleFunc("/api/owner/dossier/publications", requiresDB(h, ownerOnly(h, method(http.MethodPost, h.OwnerDossierPublication))))
-	mux.HandleFunc("/api/owner/dossier/public-registry/sync", requiresDB(h, ownerOnly(h, method(http.MethodPost, h.OwnerPublicDossierRegistrySync))))
 	mux.HandleFunc("/api/owner/arvis/acceptance", requiresDB(h, ownerOnly(h, method(http.MethodPost, h.OwnerInvestigationAcceptance))))
 }
