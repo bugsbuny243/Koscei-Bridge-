@@ -55,3 +55,19 @@ func buildArvisIntelligenceBridge(target, network string, transactions []unified
 
 	return investigation
 }
+
+func attachArvisIntelligenceBridge(assembly *unifiedInvestigationAssembly) {
+	if assembly == nil {
+		return
+	}
+	if assembly.Report == nil {
+		assembly.Report = map[string]any{}
+	}
+	transactions, _ := assembly.Report["transaction_evidence"].([]unifiedTransactionEvidence)
+	target := strings.TrimSpace(assembly.Core.Request.Target)
+	network := strings.TrimSpace(assembly.Core.Request.Network)
+	if network == "" {
+		network = "solana-mainnet"
+	}
+	assembly.Report["intelligence_contract"] = buildArvisIntelligenceBridge(target, network, transactions, time.Now().UTC())
+}
