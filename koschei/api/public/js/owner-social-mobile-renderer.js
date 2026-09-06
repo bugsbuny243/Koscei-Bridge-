@@ -145,7 +145,8 @@ async function recordLab(input,options={}){
 }
 function patchARVIS(){
   const api=window.KoscheiARVISPremium;
-  if(!api?.drawCardCanvas||api.recordVerticalVideo?.__koscheiOwnerMobileSafe)return Boolean(api?.recordVerticalVideo?.__koscheiOwnerMobileSafe);
+  if(!api?.drawCardCanvas)return false;
+  if(api.recordVerticalVideo?.__koscheiOwnerMobileSafe||api.recordVerticalVideo?.__koscheiOwnerVoiceWrapper)return true;
   const safe=async(input,options={})=>recordARVIS(input,options);
   safe.__koscheiOwnerMobileSafe=true;
   api.recordVerticalVideo=safe;
