@@ -1,6 +1,7 @@
 package services
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -18,6 +19,8 @@ func c005Holder(share float64) HolderIntelligence {
 				OwnerResolved:          true,
 				RiskBearing:            true,
 				ExcludedFromHolderRisk: false,
+				Role:                   "externally_owned_wallet",
+				RoleConfidence:         "high",
 			},
 		},
 	}
@@ -88,5 +91,72 @@ func TestC005ExcludedInfrastructureOwnerCannotTrigger(t *testing.T) {
 
 	if behavior.Signals[0].Triggered || behavior.Signals[0].EvidenceStatus != "unverified" {
 		t.Fatalf("infrastructure owner triggered C005: %#v", behavior.Signals[0])
+	}
+}
+
+func TestC005UnidentifiedDominantOwnerCannotHardCap(t *testing.T) {
+	now := time.Date(2026, 9, 6, 6, 0, 0, 0, time.UTC)
+	for _, role := range []string{
+		"program_controlled_unresolved",
+		"owner_unresolved",
+		"wallet_account_unavailable",
+		"",
+	} {
+		holder := c005Holder(95.7596)
+		holder.Rows[0].Role = role
+		holder.Rows[0].RoleConfidence = "medium"
+		behavior := UnifiedRadarBehaviorReport{Mint: "UnresolvedMint", Signals: []UnifiedRadarSignal{}, Evidence: []ActorDefenseEvidenceRecord{}, GeneratedAt: now}
+		behavior = ApplyOwnerConcentrationRuleV110(behavior, holder, now)
+
+		signal := behavior.Signals[0]
+		if signal.GradeEffect != "none" {
+			t.Fatalf("role %q produced grade effect %q; an unidentified owner must not cap the grade", role, signal.GradeEffect)
+		}
+		if signal.EvidenceStatus != "inferred" {
+			t.Fatalf("role %q produced evidence status %q, want inferred so the rule stays watch-only", role, signal.EvidenceStatus)
+		}
+
+		verdict := EvaluateUnifiedRadarVerdictV110("UnresolvedMint", ActorDefenseRuleVerdict{Grade: "-"}, behavior)
+		if verdict.Grade == "F" || verdict.Grade == "D" {
+			t.Fatalf("role %q still graded %s", role, verdict.Grade)
+		}
+		if len(verdict.WatchFlags) == 0 {
+			t.Fatalf("role %q dropped the finding entirely; it must remain visible as a watch flag", role)
+		}
+	}
+}
+
+func TestC005IdentifiedWalletStillHardCapsAtF(t *testing.T) {
+	now := time.Date(2026, 9, 6, 6, 0, 0, 0, time.UTC)
+	holder := c005Holder(95.7596)
+	holder.Rows[0].Role = "externally_owned_wallet"
+	holder.Rows[0].RoleConfidence = "high"
+	behavior := UnifiedRadarBehaviorReport{Mint: "WhaleMint", Signals: []UnifiedRadarSignal{}, Evidence: []ActorDefenseEvidenceRecord{}, GeneratedAt: now}
+	behavior = ApplyOwnerConcentrationRuleV110(behavior, holder, now)
+
+	if behavior.Signals[0].GradeEffect != "hard_cap_F" {
+		t.Fatalf("identified whale did not cap at F: %#v", behavior.Signals[0])
+	}
+	if verdict := EvaluateUnifiedRadarVerdictV110("WhaleMint", ActorDefenseRuleVerdict{Grade: "-"}, behavior); verdict.Grade != "F" {
+		t.Fatalf("verdict grade=%q, want F", verdict.Grade)
+	}
+}
+
+func TestC005UnidentifiedSignalNamesTheRole(t *testing.T) {
+	now := time.Date(2026, 9, 6, 6, 0, 0, 0, time.UTC)
+	holder := c005Holder(95.7596)
+	holder.Rows[0].Role = "program_controlled_unresolved"
+	behavior := UnifiedRadarBehaviorReport{Mint: "NamedMint", Signals: []UnifiedRadarSignal{}, Evidence: []ActorDefenseEvidenceRecord{}, GeneratedAt: now}
+	behavior = ApplyOwnerConcentrationRuleV110(behavior, holder, now)
+
+	signal := behavior.Signals[0]
+	if !strings.Contains(signal.Summary, "program_controlled_unresolved") {
+		t.Fatalf("summary does not name the unresolved role: %q", signal.Summary)
+	}
+	if got := signal.Metrics["top_owner_role_identified"]; got != false {
+		t.Fatalf("top_owner_role_identified=%v, want false", got)
+	}
+	if got := signal.Metrics["top_owner_role"]; got != "program_controlled_unresolved" {
+		t.Fatalf("top_owner_role=%v", got)
 	}
 }
