@@ -1,0 +1,26 @@
+/* Motion layer for the HTML5 Koschei universe. Respects reduced-motion preferences. */
+@media(prefers-reduced-motion:no-preference){
+.home-universe:before{animation:kuHomeStars 52s linear infinite}
+.home-universe:after{animation:kuHomePlanetBreath 7s ease-in-out infinite}
+.orbit-system:before{animation:kuHomeOrbitA 44s linear infinite}
+.orbit-system:after{animation:kuHomeOrbitB 61s linear infinite reverse}
+.core-sphere{animation:kuHomeCorePulse 6.8s ease-in-out infinite}
+.core-sphere b{animation:kuHomeCoreGlyph 4.5s ease-in-out infinite}
+.chain-node{animation:kuHomeNodeGlow 5.2s ease-in-out infinite}
+.n-sol{animation-delay:-.4s}.n-eth{animation-delay:-1.1s}.n-tron{animation-delay:-2.2s}.n-base{animation-delay:-3.1s}.n-bnb{animation-delay:-4.1s}.n-arb{animation-delay:-1.8s}.n-poly{animation-delay:-2.8s}.n-avax{animation-delay:-3.7s}.n-op{animation-delay:-4.7s}
+.home-enter{animation:kuHomeEnter 3.6s ease-in-out infinite}
+.home-enter:before{animation:kuHomeBeacon 2.7s ease-in-out infinite}
+.home-investigate form{animation:kuHomeInputGlow 6s ease-in-out infinite}
+.universe-overline{animation:kuHomeOverline 4.8s ease-in-out infinite}
+}
+@keyframes kuHomeStars{0%{background-position:0 0,37px 59px}100%{background-position:182px 182px,323px 345px}}
+@keyframes kuHomePlanetBreath{0%,100%{filter:brightness(.82) saturate(.9);box-shadow:0 0 0 34px rgba(104,186,239,.018),0 0 0 82px rgba(104,186,239,.012),0 0 130px rgba(90,173,229,.12),inset 0 0 80px rgba(110,198,255,.08)}50%{filter:brightness(1.08) saturate(1.08);box-shadow:0 0 0 40px rgba(104,186,239,.03),0 0 0 94px rgba(104,186,239,.018),0 0 210px rgba(90,173,229,.24),inset 0 0 120px rgba(110,198,255,.14)}}
+@keyframes kuHomeOrbitA{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:.48}50%{opacity:.9}100%{transform:translate(-50%,-50%) rotate(360deg);opacity:.48}}
+@keyframes kuHomeOrbitB{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:.28}50%{opacity:.65}100%{transform:translate(-50%,-50%) rotate(360deg);opacity:.28}}
+@keyframes kuHomeCorePulse{0%,100%{box-shadow:0 0 58px rgba(83,174,232,.14),inset 0 0 45px rgba(84,164,214,.06);filter:brightness(.92)}50%{box-shadow:0 0 92px rgba(83,174,232,.28),inset 0 0 62px rgba(84,164,214,.12);filter:brightness(1.08)}}
+@keyframes kuHomeCoreGlyph{0%,100%{text-shadow:0 0 12px rgba(142,211,255,.2)}50%{text-shadow:0 0 30px rgba(142,211,255,.65)}}
+@keyframes kuHomeNodeGlow{0%,100%{filter:brightness(.86);box-shadow:0 0 18px rgba(60,132,183,.07)}50%{filter:brightness(1.12);box-shadow:0 0 34px rgba(60,132,183,.18)}}
+@keyframes kuHomeEnter{0%,100%{box-shadow:0 0 24px rgba(111,199,255,.08),inset 0 0 24px rgba(75,157,211,.05)}50%{box-shadow:0 0 46px rgba(111,199,255,.2),inset 0 0 34px rgba(75,157,211,.11)}}
+@keyframes kuHomeBeacon{0%,100%{filter:brightness(.8);box-shadow:0 0 14px rgba(99,188,243,.3)}50%{filter:brightness(1.25);box-shadow:0 0 31px rgba(99,188,243,.72)}}
+@keyframes kuHomeInputGlow{0%,100%{border-color:rgba(134,188,222,.14);box-shadow:0 0 0 rgba(85,173,226,0)}50%{border-color:rgba(134,188,222,.26);box-shadow:0 0 28px rgba(85,173,226,.08)}}
+@keyframes kuHomeOverline{0%,100%{opacity:.56;letter-spacing:.58em}50%{opacity:.96;letter-spacing:.66em}}
