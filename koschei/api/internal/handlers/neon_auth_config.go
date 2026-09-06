@@ -79,29 +79,14 @@ func normalizeAbsoluteBaseURL(raw string) string {
 }
 
 func configuredNeonAuthIssuer() string {
-	base := strings.TrimRight(configuredNeonAuthBaseURL(), "/")
-	explicit := strings.TrimRight(trimmedEnv("NEON_AUTH_ISSUER"), "/")
-	if explicit == "" {
-		return base
+	// Treat the configured issuer as an exact trust boundary. Neon Auth's public
+	// API URL includes the /neondb/auth base path, while the JWT plugin issuer can
+	// be the auth service origin. Rewriting a host-only issuer to the API base path
+	// causes valid Neon JWTs to fail issuer verification.
+	if value := strings.TrimRight(trimmedEnv("NEON_AUTH_ISSUER"), "/"); value != "" {
+		return value
 	}
-
-	// Legacy deployments stored only the Neon Auth origin in NEON_AUTH_ISSUER
-	// while NEON_AUTH_BASE_URL carried the canonical /neondb/auth path. Normalize
-	// that legacy form only when both values resolve to the same origin. A
-	// different explicit issuer remains an exact trust boundary and is never
-	// rewritten.
-	if base != "" {
-		explicitURL, explicitErr := url.Parse(explicit)
-		baseURL, baseErr := url.Parse(base)
-		if explicitErr == nil && baseErr == nil && explicitURL.IsAbs() && baseURL.IsAbs() &&
-			strings.EqualFold(explicitURL.Scheme, baseURL.Scheme) &&
-			strings.EqualFold(explicitURL.Host, baseURL.Host) &&
-			(explicitURL.Path == "" || explicitURL.Path == "/") &&
-			baseURL.Path != "" && baseURL.Path != "/" {
-			return base
-		}
-	}
-	return explicit
+	return strings.TrimRight(configuredNeonAuthBaseURL(), "/")
 }
 
 func configuredNeonAuthJWKSURL() string {
