@@ -15,23 +15,23 @@ import (
 const publicCaseRegistryDriveObjectName = "koschei-public-case-registry-v1.json"
 
 type publicDossierRegistrySnapshot struct {
-	OK                          bool                  `json:"ok"`
-	SchemaVersion               string                `json:"schema_version"`
-	GeneratedAt                 time.Time             `json:"generated_at"`
-	RegistryStatus              string                `json:"registry_status"`
-	RegistryComplete            bool                  `json:"registry_complete"`
-	PublicationLedgerStatus     string                `json:"publication_ledger_status"`
-	PublicationLedgerComplete   bool                  `json:"publication_ledger_complete"`
-	TotalPublications           int                   `json:"total_publications"`
-	InspectedPublications       int                   `json:"inspected_publications"`
-	InvalidPublications         int                   `json:"invalid_publications"`
-	UninspectedPublications     int                   `json:"uninspected_publications"`
-	LedgerVerifiedPublications  int                   `json:"ledger_verified_publications"`
-	LegacyUnlinkedPublications  int                   `json:"legacy_unlinked_publications"`
-	InvalidLedgerPublications   int                   `json:"invalid_ledger_publications"`
-	Count                       int                   `json:"count"`
-	PublicationPolicy           map[string]any        `json:"publication_policy"`
-	Cases                       []publicDossierCaseV2 `json:"cases"`
+	OK                         bool                  `json:"ok"`
+	SchemaVersion              string                `json:"schema_version"`
+	GeneratedAt                time.Time             `json:"generated_at"`
+	RegistryStatus             string                `json:"registry_status"`
+	RegistryComplete           bool                  `json:"registry_complete"`
+	PublicationLedgerStatus    string                `json:"publication_ledger_status"`
+	PublicationLedgerComplete  bool                  `json:"publication_ledger_complete"`
+	TotalPublications          int                   `json:"total_publications"`
+	InspectedPublications      int                   `json:"inspected_publications"`
+	InvalidPublications        int                   `json:"invalid_publications"`
+	UninspectedPublications    int                   `json:"uninspected_publications"`
+	LedgerVerifiedPublications int                   `json:"ledger_verified_publications"`
+	LegacyUnlinkedPublications int                   `json:"legacy_unlinked_publications"`
+	InvalidLedgerPublications  int                   `json:"invalid_ledger_publications"`
+	Count                      int                   `json:"count"`
+	PublicationPolicy          map[string]any        `json:"publication_policy"`
+	Cases                      []publicDossierCaseV2 `json:"cases"`
 }
 
 // PublicDossierCasesPortable preserves the primary-database security contract when
@@ -230,7 +230,7 @@ func (h *Handler) OwnerPublicDossierRegistrySync(w http.ResponseWriter, r *http.
 	snapshot := publicDossierRegistrySnapshotFromLoad(loaded, time.Now().UTC())
 	payload, err := json.Marshal(snapshot)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APICodeInternal, "Public dossier registry snapshot could not be encoded")
+		writeAPIError(w, http.StatusInternalServerError, APICodeInternalError, "Public dossier registry snapshot could not be encoded")
 		return
 	}
 	drive, err := archive.NewGoogleDriveFromEnv()
@@ -244,13 +244,13 @@ func (h *Handler) OwnerPublicDossierRegistrySync(w http.ResponseWriter, r *http.
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
-		"schema_version": publicCaseRegistrySchemaVersion,
-		"registry_backend": "google_drive",
-		"registry_object_id": object.ID,
-		"registry_object_sha256": object.Hash,
-		"count": snapshot.Count,
-		"generated_at": snapshot.GeneratedAt,
+		"ok":                         true,
+		"schema_version":             publicCaseRegistrySchemaVersion,
+		"registry_backend":           "google_drive",
+		"registry_object_id":         object.ID,
+		"registry_object_sha256":     object.Hash,
+		"count":                      snapshot.Count,
+		"generated_at":               snapshot.GeneratedAt,
 		"immutable_evidence_unchanged": true,
 	})
 }
