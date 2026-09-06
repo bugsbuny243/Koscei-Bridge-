@@ -72,6 +72,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 	unifiedVerdict := services.EvaluateUnifiedRadarVerdict(wallet, actorVerdict, behavior)
 	unifiedPersistence, unifiedHistory := h.persistUnifiedRadarVerdict(ctx, db, network, "wallet", wallet, unifiedVerdict, behavior)
 	evidenceGraph := services.BuildActorEvidenceGraph(final)
+	entityResolution := services.BuildActorEntityResolution(final)
 	campaignGenome := services.BuildActorCampaignGenome(final)
 	fundingClusterMemory, fundingClusterErr := services.LoadPersistentFundingClusterHistory(ctx, db, wallet, network, 8, 25)
 	if fundingClusterErr != nil {
@@ -136,6 +137,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"actor_live_evidence":        coverage,
 			"live_evidence":              coverage,
 			"evidence_graph":             evidenceGraph,
+			"entity_resolution":          entityResolution,
 			"campaign_genome":            campaignGenome,
 			"rule_verdict":               actorVerdict,
 			"rule_verdict_persistence":   actorVerdictPersistence,
@@ -154,6 +156,7 @@ func (h *Handler) buildUnifiedWalletInvestigationReport(ctx context.Context, req
 			"shared_funder_is_not_operator_identity":  true,
 			"inactive_lifecycle_is_not_rug_claim":     true,
 			"trajectory_graph_is_evidence_projection": true,
+			"entity_resolution_is_not_identity_claim": true,
 			"caller_type_changes_evidence":            false,
 		},
 	}
@@ -182,6 +185,7 @@ func attachCanonicalWalletIntegrationCoverage(report map[string]any) {
 	put("actor_live_transaction_evidence", canonicalStatusFromRaw("Actor live transaction evidence", actor["actor_live_evidence"], live, true, "actor_investigation.actor_live_evidence"))
 	put("persistent_actor_dossier", canonicalStatusFromDossier(actor["dossier"], live))
 	put("actor_evidence_graph", canonicalStatusFromGraph(actor["evidence_graph"], live))
+	put("actor_entity_resolution", canonicalStatusFromRaw("Evidence-backed entity relationship projection", actor["entity_resolution"], live, true, "actor_investigation.entity_resolution"))
 	put("actor_campaign_genome", canonicalStatusFromRaw("Technical campaign genome", actor["campaign_genome"], live, false, "actor_investigation.campaign_genome"))
 	put("actor_ruleset", canonicalStatusFromSignedVerdict("Deterministic actor ruleset", actor["rule_verdict"], true, "actor_investigation.rule_verdict"))
 	put("deterministic_unified_verdict", canonicalStatusFromSignedVerdict("Deterministic Unified Verdict", report["final_verdict"], true, "final_verdict"))
