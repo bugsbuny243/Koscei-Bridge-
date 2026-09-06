@@ -42,7 +42,7 @@ func customerTransactionInvestigationEnvelope(report transactionInvestigationRep
 			"withheld":   true,
 		},
 		"evidence_policy": map[string]any{
-			"historical_execution_is_not_presigning_intent": true,
+			"historical_execution_is_not_presigning_intent":   true,
 			"historical_memory_cannot_override_live_evidence": true,
 			"signer_is_not_real_world_identity":               true,
 			"program_id_is_not_bytecode_semantics":            true,
