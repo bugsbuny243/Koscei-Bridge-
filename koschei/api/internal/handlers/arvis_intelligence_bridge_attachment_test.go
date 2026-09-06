@@ -10,7 +10,7 @@ import (
 func TestAttachArvisIntelligenceBridgePreservesExistingReportAndAddsContract(t *testing.T) {
 	observedAt := time.Date(2026, 9, 6, 6, 0, 0, 0, time.UTC)
 	assembly := unifiedInvestigationAssembly{
-		Core: holderIntelligenceCoreResult{Request: radarDetailRequest{
+		Core: holderIntelligenceCoreResult{Request: services.SecurityRadarRequest{
 			Target:  "62tJyrfNfYJ2qZncdbwFYmeJmSFn66BhGfgj491ppump",
 			Network: "solana-mainnet",
 		}},
