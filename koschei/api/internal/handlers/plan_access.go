@@ -35,6 +35,19 @@ func canonicalSaaSPlan(plan string) string {
 	return ""
 }
 
+// canonicalRequiredSaaSPlan is only a route-migration shim. A few server route
+// declarations still carry old tier labels; they all require the same current
+// Professional entitlement. Removed labels are never accepted from billing,
+// entitlement storage, checkout, or customer plan input.
+func canonicalRequiredSaaSPlan(plan string) string {
+	switch strings.ToLower(strings.TrimSpace(plan)) {
+	case "professional", "starter", "enterprise":
+		return "professional"
+	default:
+		return ""
+	}
+}
+
 func planTierRank(plan string) int {
 	if canonicalSaaSPlan(plan) == "professional" {
 		return 1
@@ -118,7 +131,7 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 }
 
 func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = canonicalSaaSPlan(required)
+	required = canonicalRequiredSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := userFromContext(r.Context())
 		if !ok {
@@ -148,7 +161,7 @@ func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.H
 }
 
 func (h *Handler) RequireAPIKeyPlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = canonicalSaaSPlan(required)
+	required = canonicalRequiredSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := apiPrincipalFromContext(r.Context())
 		if !ok {
