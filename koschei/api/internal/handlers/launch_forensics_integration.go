@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -26,6 +27,38 @@ func (h *Handler) analyzeLaunchForensics(parent context.Context, target string, 
 	result := services.AnalyzeLaunchForensics(ctx, h.launchForensicsDB(), rpcURL, target, creator, roles, launchBlockTime, launchSlot)
 	if anchorSource != "" && result.LaunchSlot == launchSlot && launchSlot > 0 {
 		result.LaunchTimeSource = anchorSource
+	}
+
+	// PumpPortal is the realtime observation source; Helius is preferred for the
+	// independent historical/on-chain reread. A fallback RPC may preserve
+	// availability, but the source label remains explicit. Correlation is
+	// evidence-only and never mutates the deterministic ARVIS verdict.
+	correlationRPCURL := strings.TrimSpace(os.Getenv("HELIUS_SOLANA_RPC_URL"))
+	correlationSource := "helius_rpc"
+	if correlationRPCURL == "" {
+		correlationRPCURL = rpcURL
+		correlationSource = "canonical_solana_rpc_fallback"
+	}
+	correlationLimit := 12
+	if raw := strings.TrimSpace(os.Getenv("ARVIS_PUMP_CORRELATION_LIMIT")); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value >= 1 && value <= 50 {
+			correlationLimit = value
+		}
+	}
+	correlation := services.CorrelatePumpPortalTradeEvents(ctx, h.launchForensicsDB(), correlationRPCURL, correlationSource, target, correlationLimit)
+	if source != nil {
+		source["pump_helius_trade_correlation"] = correlation
+	}
+	if correlation.ObservedCount > 0 {
+		result.Findings = append(result.Findings, fmt.Sprintf(
+			"PumpPortal→canonical correlation: %d/%d bounded live trade signatures independently matched on-chain (%s).",
+			correlation.VerifiedCount, correlation.SelectedCount, correlation.VerificationSource,
+		))
+		if correlation.Status != "verified" {
+			result.Limitations = append(result.Limitations,
+				"PumpPortal trade correlation is incomplete; unmatched or unavailable observations remain observed-only and are not treated as safe evidence.",
+			)
+		}
 	}
 	return result
 }
