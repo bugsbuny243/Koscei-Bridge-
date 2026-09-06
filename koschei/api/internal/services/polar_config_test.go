@@ -2,7 +2,7 @@ package services
 
 import "testing"
 
-func TestLoadPolarConfigFromEnvMapsCanonicalProducts(t *testing.T) {
+func TestLoadPolarConfigFromEnvUsesSingleProfessionalCheckoutProduct(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "sandbox")
 	t.Setenv("POLAR_ACCESS_TOKEN", "test-token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "polar_whs_test")
@@ -19,11 +19,19 @@ func TestLoadPolarConfigFromEnvMapsCanonicalProducts(t *testing.T) {
 	if got := cfg.ProductID("professional"); got != "prod_professional" {
 		t.Fatalf("professional product = %q", got)
 	}
-	if got := cfg.PlanForProduct("prod_enterprise"); got != "enterprise" {
-		t.Fatalf("enterprise plan mapping = %q", got)
+	if got := cfg.ProductID("starter"); got != "" {
+		t.Fatalf("legacy starter unexpectedly sellable: %q", got)
 	}
-	if !cfg.CheckoutConfigured("starter") || !cfg.WebhookConfigured() {
-		t.Fatal("expected configured sandbox billing")
+	if got := cfg.ProductID("enterprise"); got != "" {
+		t.Fatalf("legacy enterprise unexpectedly sellable: %q", got)
+	}
+	for _, productID := range []string{"prod_professional", "prod_starter", "prod_enterprise"} {
+		if got := cfg.PlanForProduct(productID); got != "professional" {
+			t.Fatalf("product %q plan mapping = %q", productID, got)
+		}
+	}
+	if !cfg.CheckoutConfigured("professional") || !cfg.WebhookConfigured() {
+		t.Fatal("expected configured Professional sandbox billing")
 	}
 	if cfg.SuccessURL == "" {
 		t.Fatal("expected trusted HTTPS success URL")
@@ -37,10 +45,10 @@ func TestLoadPolarConfigFromEnvFailsClosedOnUnknownEnvironment(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "staging")
 	t.Setenv("POLAR_ACCESS_TOKEN", "token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "secret")
-	t.Setenv("POLAR_PRODUCT_STARTER_ID", "prod_starter")
+	t.Setenv("POLAR_PRODUCT_PROFESSIONAL_ID", "prod_professional")
 
 	cfg := LoadPolarConfigFromEnv()
-	if cfg.CheckoutConfigured("starter") || cfg.WebhookConfigured() {
+	if cfg.CheckoutConfigured("professional") || cfg.WebhookConfigured() {
 		t.Fatalf("unknown environment must fail closed: %#v", cfg)
 	}
 }
