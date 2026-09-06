@@ -2,7 +2,7 @@ package services
 
 import "testing"
 
-func TestLoadPolarConfigFromEnvUsesOnlyProfessionalCheckoutProduct(t *testing.T) {
+func TestLoadPolarConfigFromEnvUsesSingleProfessionalCheckoutProduct(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "sandbox")
 	t.Setenv("POLAR_ACCESS_TOKEN", "test-token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "polar_whs_test")
@@ -17,16 +17,16 @@ func TestLoadPolarConfigFromEnvUsesOnlyProfessionalCheckoutProduct(t *testing.T)
 	if got := cfg.ProductID("professional"); got != "prod_professional" {
 		t.Fatalf("professional product = %q", got)
 	}
-	for _, removed := range []string{"starter", "enterprise", "pro", "studio"} {
+	for _, removed := range []string{"starter", "enterprise", "pro", "studio", "basic"} {
 		if got := cfg.ProductID(removed); got != "" {
 			t.Fatalf("removed plan %q unexpectedly sellable: %q", removed, got)
 		}
 	}
 	if got := cfg.PlanForProduct("prod_professional"); got != "professional" {
-		t.Fatalf("Professional product plan mapping = %q", got)
+		t.Fatalf("professional product plan mapping = %q", got)
 	}
 	if got := cfg.PlanForProduct("prod_removed"); got != "" {
-		t.Fatalf("unknown product unexpectedly mapped to plan %q", got)
+		t.Fatalf("unknown/removed product unexpectedly mapped: %q", got)
 	}
 	if !cfg.CheckoutConfigured("professional") || !cfg.WebhookConfigured() {
 		t.Fatal("expected configured Professional sandbox billing")
