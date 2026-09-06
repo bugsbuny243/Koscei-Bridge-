@@ -16,7 +16,7 @@ func TestRadarTargetWalletInvestigationAllowed(t *testing.T) {
 		{name: "resolved token account", in: radarTargetClassification{Type: radarTargetTokenAccount, TokenOwnerWallet: "owner"}, want: true},
 		{name: "unresolved token account", in: radarTargetClassification{Type: radarTargetTokenAccount}, want: false},
 		{name: "mint", in: radarTargetClassification{Type: radarTargetTokenMint}, want: false},
-		{name: "program", in: radarTargetClassification{Type: radarTargetProgram}, want: false},
+		{name: "program routes through universal customer target gate", in: radarTargetClassification{Type: radarTargetProgram}, want: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
