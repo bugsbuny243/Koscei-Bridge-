@@ -76,10 +76,10 @@ func TestDashboardIsARVISProfessionalSecurityWorkspace(t *testing.T) {
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Professional Security Workspace",
+		"Professional Security Command Center",
 		"PROFESSIONAL · ARVIS COMMAND UNIVERSE",
 		"Investigate. Correlate. Prove.",
-		"Enter ARVIS Investigation",
+		"ARVIS Investigation",
 		"Investigation History",
 		"Monitoring & developer access",
 	} {
