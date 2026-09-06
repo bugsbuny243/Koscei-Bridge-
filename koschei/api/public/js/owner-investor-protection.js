@@ -13,6 +13,41 @@ function currentReport(){
   return obj(payload.investigation_report||payload.report||payload);
 }
 
+function protectionActionLabel(decision){
+  const explicit=text(decision.investor_action).replaceAll('_',' ');
+  if(explicit)return explicit;
+  switch(text(decision.decision).toUpperCase()){
+    case'AVOID':return'AVOID TARGET';
+    case'NOT_CLEARED':return'DO NOT TREAT AS SAFE';
+    case'REVIEW_FIRST':return'REQUIRE EXPERT REVIEW';
+    case'CLEARED_WITH_LIMITS':return'PROCEED WITH LIMITS';
+    default:return'REVIEW RESULT';
+  }
+}
+
+function harmonizeDecisionLens(card,decision){
+  const lens=card.querySelector('.koschei-decision-lens');
+  if(!lens)return;
+  const decisionName=text(decision.decision).toUpperCase();
+  if(!decisionName)return;
+
+  const title=lens.querySelector('.koschei-decision-lens__copy h3');
+  const copy=lens.querySelector('.koschei-decision-lens__copy p');
+  const action=lens.querySelector('.koschei-decision-lens__action');
+  if(title)title.textContent=`Why ${decisionName.replaceAll('_',' ')}?`;
+  if(copy)copy.textContent=text(decision.summary)||'The investor protection contract is authoritative for the customer action.';
+  if(action){
+    action.textContent=protectionActionLabel(decision);
+    action.dataset.policy=text(decision.execution_action).toLowerCase()||text(decision.decision).toLowerCase();
+  }
+
+  // Once the backend protection contract exists, the old local policy chip is
+  // context only. It must never render a softer action than the backend truth.
+  lens.dataset.protectionDecision=decisionName.toLowerCase();
+  const note=lens.querySelector('.koschei-ux-note');
+  if(note)note.textContent='Investor Protection Decision is authoritative. Legacy policy labels are retained only as rule-engine context.';
+}
+
 function renderProtection(card){
   const report=currentReport();
   const decision=obj(report.investor_protection_decision);
@@ -30,7 +65,7 @@ function renderProtection(card){
     el('h2','',text(decision.decision).replaceAll('_',' ')),
     el('p','',text(decision.summary)||'Koschei has not issued a safety clearance for this target.')
   );
-  const action=el('strong','koschei-investor-protection__action',text(decision.investor_action).replaceAll('_',' ')||'DO NOT TREAT AS SAFE');
+  const action=el('strong','koschei-investor-protection__action',protectionActionLabel(decision));
   top.append(copy,action);section.appendChild(top);
 
   const facts=el('div','koschei-investor-protection__facts');
@@ -68,6 +103,7 @@ function renderProtection(card){
   const head=card.querySelector('.arvis-premium-head');
   if(head)head.insertAdjacentElement('afterend',section);
   else card.prepend(section);
+  harmonizeDecisionLens(card,decision);
 }
 
 function enhance(root=document){
