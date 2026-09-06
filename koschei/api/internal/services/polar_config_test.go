@@ -2,13 +2,11 @@ package services
 
 import "testing"
 
-func TestLoadPolarConfigFromEnvUsesSingleProfessionalCheckoutProduct(t *testing.T) {
+func TestLoadPolarConfigFromEnvUsesOnlyProfessionalCheckoutProduct(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "sandbox")
 	t.Setenv("POLAR_ACCESS_TOKEN", "test-token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "polar_whs_test")
-	t.Setenv("POLAR_PRODUCT_STARTER_ID", "prod_starter")
 	t.Setenv("POLAR_PRODUCT_PROFESSIONAL_ID", "prod_professional")
-	t.Setenv("POLAR_PRODUCT_ENTERPRISE_ID", "prod_enterprise")
 	t.Setenv("POLAR_SUCCESS_URL", "https://tradepigloball.co/account?billing=success")
 	t.Setenv("POLAR_RETURN_URL", "http://unsafe.example.test/return")
 
@@ -19,16 +17,16 @@ func TestLoadPolarConfigFromEnvUsesSingleProfessionalCheckoutProduct(t *testing.
 	if got := cfg.ProductID("professional"); got != "prod_professional" {
 		t.Fatalf("professional product = %q", got)
 	}
-	if got := cfg.ProductID("starter"); got != "" {
-		t.Fatalf("legacy starter unexpectedly sellable: %q", got)
-	}
-	if got := cfg.ProductID("enterprise"); got != "" {
-		t.Fatalf("legacy enterprise unexpectedly sellable: %q", got)
-	}
-	for _, productID := range []string{"prod_professional", "prod_starter", "prod_enterprise"} {
-		if got := cfg.PlanForProduct(productID); got != "professional" {
-			t.Fatalf("product %q plan mapping = %q", productID, got)
+	for _, removed := range []string{"starter", "enterprise", "pro", "studio"} {
+		if got := cfg.ProductID(removed); got != "" {
+			t.Fatalf("removed plan %q unexpectedly sellable: %q", removed, got)
 		}
+	}
+	if got := cfg.PlanForProduct("prod_professional"); got != "professional" {
+		t.Fatalf("Professional product plan mapping = %q", got)
+	}
+	if got := cfg.PlanForProduct("prod_removed"); got != "" {
+		t.Fatalf("unknown product unexpectedly mapped to plan %q", got)
 	}
 	if !cfg.CheckoutConfigured("professional") || !cfg.WebhookConfigured() {
 		t.Fatal("expected configured Professional sandbox billing")
