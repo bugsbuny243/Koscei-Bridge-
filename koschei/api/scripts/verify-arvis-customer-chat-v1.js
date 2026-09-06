@@ -24,7 +24,7 @@ requireText(js,"mode:'customer_arvis_chat'",'chat investigation mode');
 requireText(js,"KoscheiAuth.apiCall(path",'shared authenticated API client');
 requireText(js,"KoscheiAuth.requireAuth('/login.html')",'verified customer session');
 requireText(js,'Chat does not create a second verdict.','deterministic verdict boundary');
-requireText(js,'Missing evidence is not treated as safe','missing evidence boundary');
+requireText(js,'I still do not infer safety from missing evidence.','missing evidence boundary');
 requireText(js,'No evidence-backed attack-path projection was returned','no invented attack path');
 requireText(js,'Follow-up questions use this returned evidence only.','follow-up evidence boundary');
 forbid(js,/\bfetch\s*\(/,'raw fetch bypass');
