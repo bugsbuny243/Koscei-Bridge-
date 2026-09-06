@@ -30,18 +30,18 @@ type creatorTokenOutcome struct {
 }
 
 type creatorOutcomeHistoryReport struct {
-	SchemaVersion                  string                `json:"schema_version"`
-	Status                         string                `json:"status"`
-	CreatorWallet                  string                `json:"creator_wallet"`
-	VerifiedTokenCount             int                   `json:"verified_token_count"`
-	OutcomeCount                   int                   `json:"outcome_count"`
-	ActiveCount                    int                   `json:"active_count"`
-	InactiveOrDeadCount            int                   `json:"inactive_or_dead_count"`
-	MarketDataUnavailableCount     int                   `json:"market_data_unavailable_count"`
-	VerifiedLifetimeSampleCount    int                   `json:"verified_lifetime_sample_count"`
-	Outcomes                       []creatorTokenOutcome `json:"outcomes"`
-	Limitations                    []string              `json:"limitations"`
-	Policy                         map[string]any         `json:"policy"`
+	SchemaVersion               string                `json:"schema_version"`
+	Status                      string                `json:"status"`
+	CreatorWallet               string                `json:"creator_wallet"`
+	VerifiedTokenCount          int                   `json:"verified_token_count"`
+	OutcomeCount                int                   `json:"outcome_count"`
+	ActiveCount                 int                   `json:"active_count"`
+	InactiveOrDeadCount         int                   `json:"inactive_or_dead_count"`
+	MarketDataUnavailableCount  int                   `json:"market_data_unavailable_count"`
+	VerifiedLifetimeSampleCount int                   `json:"verified_lifetime_sample_count"`
+	Outcomes                    []creatorTokenOutcome `json:"outcomes"`
+	Limitations                 []string              `json:"limitations"`
+	Policy                      map[string]any         `json:"policy"`
 }
 
 func newCreatorOutcomeHistoryReport(wallet string) creatorOutcomeHistoryReport {
@@ -55,9 +55,9 @@ func newCreatorOutcomeHistoryReport(wallet string) creatorOutcomeHistoryReport {
 			"verified_creator_mint_evidence_only": true,
 			"current_market_snapshot_only":        true,
 			"inactive_is_not_rug":                 true,
-			"rug_claimed":                          false,
-			"wrongdoing_claimed":                   false,
-			"neon_persistence":                     false,
+			"rug_claimed":                         false,
+			"wrongdoing_claimed":                  false,
+			"neon_persistence":                    false,
 		},
 	}
 }
