@@ -1,0 +1,11 @@
+/* WebGL structural intelligence layer. Decorative only: no counts, addresses, findings or synthetic claims. */
+.intelligence-graph{inset:1%!important;z-index:3!important;filter:drop-shadow(0 0 28px rgba(39,166,235,.24))!important;overflow:visible!important}
+.koschei-webgl-intelligence{position:absolute;inset:-4%;width:108%;height:108%;pointer-events:none;opacity:1;mix-blend-mode:screen;filter:saturate(1.14) contrast(1.06)}
+.webgl-unavailable{background:radial-gradient(circle at center,rgba(20,95,145,.22),rgba(3,12,20,.04) 55%,transparent 72%)}
+.orbit-system:before{box-shadow:0 0 0 1px rgba(92,183,235,.08),0 0 120px rgba(44,142,202,.12)!important}
+.core-sphere{z-index:4!important;background:radial-gradient(circle at 36% 28%,rgba(170,225,255,.18),rgba(4,13,22,.80) 55%,rgba(2,7,12,.86) 76%)!important;backdrop-filter:blur(1.5px)}
+.chain-node{z-index:6!important}
+.universe-starfield{display:none!important}
+@media(max-width:1180px){.intelligence-graph{inset:0!important}.koschei-webgl-intelligence{inset:-7%;width:114%;height:114%}}
+@media(max-width:640px){.koschei-webgl-intelligence{inset:-10%;width:120%;height:120%;filter:saturate(1.1) contrast(1.08)}}
+@media(prefers-reduced-motion:reduce){.koschei-webgl-intelligence{opacity:.9}}

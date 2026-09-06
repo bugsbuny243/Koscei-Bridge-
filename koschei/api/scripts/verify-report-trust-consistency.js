@@ -30,18 +30,20 @@ need('public/scan.html', '/css/koschei-universe-v1.css?v=1');
 reject('public/scan.html', 'data-scan-mode="quick"');
 reject('public/scan.html', 'Professional+');
 
-// Homepage keeps the evidence and authority boundaries while becoming the
-// gateway into the ARVIS investigation universe.
-need('public/index.html', 'Check it before you trust it.');
-need('public/index.html', 'One scan. Four questions answered.');
-need('public/index.html', 'The proof still matters.');
-need('public/index.html', 'Production signing enforcement remains a separate validation milestone');
-need('public/index.html', 'Unknown stays unknown');
-need('public/index.html', 'no synthetic certainty');
-need('public/index.html', 'Enter the threat universe.');
+// Homepage keeps the same evidence and authority boundaries while becoming
+// the cinematic Universe Gateway. Solana is the only production-live chain.
+need('public/index.html', 'One address. Full threat context.');
+need('public/index.html', 'Solana is the live production core today.');
+need('public/index.html', 'without inventing certainty');
+need('public/index.html', 'Professional operation · no private keys · no custody · unknown stays unknown');
+need('public/index.html', 'Enter the universe');
 need('public/index.html', '/css/koschei-universe-v1.css?v=1');
+need('public/index.html', '/css/koschei-home-universe-v2.css?v=1');
+need('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
 reject('public/index.html', '/js/homepage-preflight-v2.js?v=1');
 reject('public/index.html', '/js/koschei-security-world.js?v=1');
 reject('public/index.html', 'STATIC HTML + VANILLA JS');
+reject('public/index.html', 'Ethereum</b><small>LIVE');
+reject('public/index.html', 'TRON</b><small>LIVE');
 
-console.log('Professional investigation, report and homepage trust consistency contract verified');
+console.log('Professional investigation, report and Universe Gateway trust consistency contract verified');
