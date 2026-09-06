@@ -1,0 +1,74 @@
+name: Public Single CSS Visual Equivalence
+
+on:
+  push:
+    branches:
+      - refactor/public-single-css-v1
+
+permissions:
+  contents: read
+
+jobs:
+  visual-equivalence:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout single-CSS branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refactor/public-single-css-v1
+          path: candidate
+
+      - name: Checkout main baseline
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          path: baseline
+
+      - name: Compare flagship rendering with main
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then
+            echo "No Chromium-compatible browser found on runner"
+            exit 1
+          fi
+          compare_bin="$(command -v compare || true)"
+          if [ -z "$compare_bin" ]; then
+            echo "ImageMagick compare not found on runner"
+            exit 1
+          fi
+
+          python3 -m http.server 8765 --directory baseline/koschei/api/public >/tmp/koschei-baseline-http.log 2>&1 &
+          baseline_pid=$!
+          python3 -m http.server 8766 --directory candidate/koschei/api/public >/tmp/koschei-candidate-http.log 2>&1 &
+          candidate_pid=$!
+          trap 'kill $baseline_pid $candidate_pid 2>/dev/null || true' EXIT
+          sleep 1
+
+          mkdir -p /tmp/koschei-visual
+          pages=(index.html dashboard.html arvis-chat.html scan.html)
+          total_fail=0
+          for page in "${pages[@]}"; do
+            name="${page%.html}"
+            common=(--headless=new --no-sandbox --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --force-prefers-reduced-motion --window-size=1440,1000 --virtual-time-budget=1500)
+            "$chrome" "${common[@]}" --screenshot="/tmp/koschei-visual/${name}-baseline.png" "http://127.0.0.1:8765/${page}" >/tmp/${name}-baseline-chrome.log 2>&1
+            "$chrome" "${common[@]}" --screenshot="/tmp/koschei-visual/${name}-candidate.png" "http://127.0.0.1:8766/${page}" >/tmp/${name}-candidate-chrome.log 2>&1
+
+            set +e
+            metric="$($compare_bin -metric AE "/tmp/koschei-visual/${name}-baseline.png" "/tmp/koschei-visual/${name}-candidate.png" null: 2>&1)"
+            status=$?
+            set -e
+            pixels="$(identify -format '%[fx:w*h]' "/tmp/koschei-visual/${name}-baseline.png")"
+            python3 - "$name" "$metric" "$pixels" <<'PY'
+          import sys
+          name, metric, pixels = sys.argv[1], float(sys.argv[2] or 0), float(sys.argv[3])
+          ratio = metric / pixels if pixels else 1.0
+          print(f"VISUAL {name}: changed_pixels={int(metric)} total_pixels={int(pixels)} ratio={ratio:.8f}")
+          # Exact equality is ideal. Allow only a tiny rasterization/runtime fringe.
+          if ratio > 0.001:
+              raise SystemExit(1)
+          PY
+            if [ $? -ne 0 ]; then total_fail=1; fi
+          done
+          exit "$total_fail"
