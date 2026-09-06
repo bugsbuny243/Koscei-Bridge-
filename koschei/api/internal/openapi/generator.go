@@ -193,7 +193,7 @@ func authTier(path, filename string) string {
 	switch {
 	case strings.HasPrefix(path, "/api/owner/"):
 		return "owner_session"
-	case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/"):
+	case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/") || strings.HasPrefix(path, "/api/v1/defense/") || strings.HasPrefix(path, "/api/v1/execution-assurance/"):
 		return "api_key_plus_professional_entitlement"
 	case strings.HasPrefix(path, "/api/webhooks"):
 		return "customer_session_plus_professional_entitlement"
@@ -207,7 +207,7 @@ func authTier(path, filename string) string {
 		return "customer_session"
 	case path == "/api/v1/radar/feed" || path == "/api/v1/radar/creator-intelligence" || path == "/api/v1/radar/actor-intelligence" || path == "/api/v1/radar/graph" || path == "/api/v1/radar/exposure" || path == "/api/v1/radar/court":
 		return "customer_session_plus_professional_entitlement"
-	case path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":
+	case path == "/api/arvis/preflight" || path == "/api/token/scan" || path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":
 		return "customer_session_plus_professional_entitlement"
 	case strings.Contains(filename, "dossier") && strings.HasPrefix(path, "/api/v1/dossier/"):
 		return "dossier_access_contract"
