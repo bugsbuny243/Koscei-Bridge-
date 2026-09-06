@@ -32,6 +32,7 @@ type actorExternalDiscoveryRun struct {
 	CreatedMintPortfolio      actorCreatedMintIntegrationRun    `json:"created_mint_portfolio"`
 	CreatorOutcomeHistory     creatorOutcomeHistoryReport       `json:"creator_outcome_history"`
 	CreatorTokenObservedPaths creatorTokenObservedPathsReport   `json:"creator_token_observed_paths"`
+	CreatorTokenRecurrence    creatorTokenRecurrenceReport      `json:"creator_token_recurrence"`
 	EvidenceProduced          int                               `json:"evidence_produced"`
 	EvidencePersisted         int                               `json:"evidence_persisted"`
 	PersistenceFailures       int                               `json:"persistence_failures"`
@@ -64,6 +65,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		CreatedMintPortfolio:      newActorCreatedMintIntegrationRun(wallet),
 		CreatorOutcomeHistory:     newCreatorOutcomeHistoryReport(wallet),
 		CreatorTokenObservedPaths: newCreatorTokenObservedPathsReport(wallet),
+		CreatorTokenRecurrence:    newCreatorTokenRecurrenceReport(wallet),
 		IntelligenceMemory:        intelligenceMemoryReceipt{Status: "not_requested"},
 		Limitations:               []string{},
 	}
@@ -108,6 +110,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.CreatorOutcomeHistory.Limitations...)
 	out.CreatorTokenObservedPaths = buildCreatorTokenObservedPaths(wallet, out.CreatedMintPortfolio, out.AddressFlow, out.AddressInteractions, out.CreatorOutcomeHistory)
 	out.Limitations = append(out.Limitations, out.CreatorTokenObservedPaths.Limitations...)
+	out.CreatorTokenRecurrence = buildCreatorTokenRecurrence(wallet, out.CreatorTokenObservedPaths)
+	out.Limitations = append(out.Limitations, out.CreatorTokenRecurrence.Limitations...)
 	out.BehaviorTimeline = buildAddressBehaviorTimeline(wallet, out.AddressFlow, out.CreatedMintPortfolio)
 	out.Limitations = append(out.Limitations, out.BehaviorTimeline.Limitations...)
 	out.BehaviorPatterns = buildAddressBehaviorPatterns(wallet, out.AddressFlow, out.AddressRelationships, out.BehaviorTimeline)
