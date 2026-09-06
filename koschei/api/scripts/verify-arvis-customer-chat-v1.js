@@ -44,10 +44,10 @@ requireText(js,'investigation_report?.intelligence_contract?.hypotheses','canoni
 requireText(js,'Evidence refs:','hypothesis evidence references');
 requireText(js,'Still required:','hypothesis missing evidence projection');
 requireText(js,'Follow-up questions use this returned evidence only.','follow-up evidence boundary');
-requireText(js,"window.dispatchEvent(new CustomEvent('koschei:arvis-investigation'",'canonical result is published to metaverse');
-requireText(metaverseJS,"addEventListener('koschei:arvis-investigation'",'metaverse consumes canonical result event');
+requireText(js,"document.dispatchEvent(new CustomEvent('koschei:arvis-investigation-ready'",'canonical result is published to metaverse');
+requireText(metaverseJS,"document.addEventListener('koschei:arvis-investigation-ready'",'metaverse consumes canonical result event');
 requireText(metaverseJS,'NO SUPPORTED PATH','attack-path absence stays explicit');
-requireText(metaverseJS,'NOT RETURNED','missing evidence stays explicit');
+requireText(metaverseJS,'NOT EXPLICITLY RETURNED','missing evidence stays explicit');
 forbid(js,/\bfetch\s*\(/,'raw fetch bypass');
 forbid(js,/\blocalStorage\b|\bsessionStorage\b/,'browser persistence');
 forbid(js,/\.innerHTML\s*=/,'API-derived innerHTML');
