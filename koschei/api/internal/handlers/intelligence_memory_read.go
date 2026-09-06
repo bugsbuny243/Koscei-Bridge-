@@ -11,16 +11,16 @@ import (
 const intelligenceMemoryReadTimeout = 12 * time.Second
 
 type intelligenceMemoryReadReceipt struct {
-	Status              string                 `json:"status"`
-	Available           bool                   `json:"available"`
-	Backend             string                 `json:"backend"`
-	ConfigurationStatus string                 `json:"configuration_status,omitempty"`
-	Kind                string                 `json:"kind,omitempty"`
-	Network             string                 `json:"network,omitempty"`
-	CapturedAt          time.Time              `json:"captured_at,omitempty"`
-	Object              *archive.DriveObject   `json:"object,omitempty"`
-	Payload             map[string]any         `json:"payload,omitempty"`
-	Limitations         []string               `json:"limitations"`
+	Status              string               `json:"status"`
+	Available           bool                 `json:"available"`
+	Backend             string               `json:"backend"`
+	ConfigurationStatus string               `json:"configuration_status,omitempty"`
+	Kind                string               `json:"kind,omitempty"`
+	Network             string               `json:"network,omitempty"`
+	CapturedAt          time.Time            `json:"captured_at,omitempty"`
+	Object              *archive.DriveObject `json:"object,omitempty"`
+	Payload             map[string]any       `json:"payload,omitempty"`
+	Limitations         []string             `json:"limitations"`
 }
 
 func loadLatestIntelligenceMemory(ctx context.Context, kind, network, target string) intelligenceMemoryReadReceipt {
