@@ -76,7 +76,7 @@ func applyArvisCreatorRelationship(investigation *services.IntelligenceInvestiga
 	if creatorSubject.ChainFamily != services.IntelligenceChainFamilySolana {
 		return
 	}
-	investigation.Subjects = append(investigation.Subjects, creatorSubject)
+	appendIntelligenceSubjectIfMissing(investigation, creatorSubject)
 
 	status := services.IntelligenceEvidenceObserved
 	verified := strings.EqualFold(strings.TrimSpace(relation.Evidence.VerificationStatus), "verified") &&
@@ -130,6 +130,100 @@ func applyArvisCreatorRelationship(investigation *services.IntelligenceInvestiga
 	investigation.Relationships = append(investigation.Relationships, relationship)
 }
 
+func applyArvisFundingRelationship(investigation *services.IntelligenceInvestigation, origin services.ActorFundingOrigin, network string) {
+	if investigation == nil || len(investigation.Subjects) == 0 {
+		return
+	}
+	if investigation.Subjects[0].ChainFamily != services.IntelligenceChainFamilySolana {
+		return
+	}
+
+	actorEvidence, ok := services.ActorFundingOriginEvidence(origin, network)
+	if !ok {
+		return
+	}
+	sourceWallet := strings.TrimSpace(actorEvidence.CounterpartID)
+	destinationWallet := strings.TrimSpace(actorEvidence.ActorWallet)
+	evidenceKey := strings.TrimSpace(actorEvidence.EvidenceKey)
+	if sourceWallet == "" || destinationWallet == "" || evidenceKey == "" {
+		return
+	}
+
+	sourceSubject := services.ClassifyIntelligenceSubject(sourceWallet, network)
+	destinationSubject := services.ClassifyIntelligenceSubject(destinationWallet, network)
+	if sourceSubject.ChainFamily != services.IntelligenceChainFamilySolana || destinationSubject.ChainFamily != services.IntelligenceChainFamilySolana {
+		return
+	}
+	appendIntelligenceSubjectIfMissing(investigation, sourceSubject)
+	appendIntelligenceSubjectIfMissing(investigation, destinationSubject)
+
+	status := services.IntelligenceEvidenceObserved
+	verified := strings.EqualFold(strings.TrimSpace(actorEvidence.VerificationStatus), "verified") &&
+		strings.TrimSpace(actorEvidence.Signature) != "" && actorEvidence.Slot > 0
+	if verified {
+		status = services.IntelligenceEvidenceVerified
+	}
+
+	evidenceID := "arvis_funding:" + evidenceKey
+	investigation.Evidence = append(investigation.Evidence, services.IntelligenceEvidence{
+		ID:              evidenceID,
+		SubjectID:       sourceSubject.ID,
+		ChainFamily:     sourceSubject.ChainFamily,
+		Chain:           sourceSubject.Chain,
+		Network:         sourceSubject.Network,
+		Source:          strings.TrimSpace(actorEvidence.Source),
+		Status:          status,
+		TransactionHash: strings.TrimSpace(actorEvidence.Signature),
+		BlockOrSlot:     actorEvidence.Slot,
+		ObservedAt:      actorEvidence.ObservedAt.UTC(),
+		Address:         sourceWallet,
+		Method:          strings.TrimSpace(actorEvidence.Relation),
+		StateChange:     fmt.Sprintf("funded %s with %.9f SOL", destinationWallet, actorEvidence.AmountNative),
+		Provenance:      "existing_arvis_funding_origin_evidence",
+		Confidence:      1,
+		Attributes: map[string]any{
+			"verification_status": actorEvidence.VerificationStatus,
+			"evidence_key":        evidenceKey,
+			"destination_wallet":  destinationWallet,
+			"history_complete":    origin.HistoryComplete,
+			"trail_status":        origin.TrailStatus,
+		},
+	})
+
+	investigation.Entities = append(investigation.Entities, services.IntelligenceEntity{
+		ID:           "entity:" + sourceSubject.ID,
+		Kind:         "funding_source_wallet",
+		Label:        sourceWallet,
+		Attribution:  "onchain_role_only",
+		Confidence:   1,
+		EvidenceRefs: []string{evidenceID},
+	})
+
+	relationship := services.VerifiedIntelligenceRelationship(
+		sourceSubject.ID,
+		destinationSubject.ID,
+		strings.TrimSpace(actorEvidence.Relation),
+		[]string{evidenceID},
+		1,
+	)
+	if !verified {
+		relationship.Status = services.IntelligenceEvidenceObserved
+	}
+	investigation.Relationships = append(investigation.Relationships, relationship)
+}
+
+func appendIntelligenceSubjectIfMissing(investigation *services.IntelligenceInvestigation, subject services.IntelligenceSubject) {
+	if investigation == nil || strings.TrimSpace(subject.ID) == "" {
+		return
+	}
+	for _, existing := range investigation.Subjects {
+		if existing.ID == subject.ID {
+			return
+		}
+	}
+	investigation.Subjects = append(investigation.Subjects, subject)
+}
+
 func attachArvisIntelligenceBridge(assembly *unifiedInvestigationAssembly) {
 	if assembly == nil {
 		return
@@ -147,6 +241,9 @@ func attachArvisIntelligenceBridge(assembly *unifiedInvestigationAssembly) {
 	if actorInvestigation, ok := assembly.Report["actor_investigation"].(map[string]any); ok {
 		if relation, ok := actorInvestigation["current_creator_relation"].(actorCreatorRelationRun); ok {
 			applyArvisCreatorRelationship(&investigation, relation, network)
+		}
+		if origin, ok := actorInvestigation["funding_origin"].(services.ActorFundingOrigin); ok {
+			applyArvisFundingRelationship(&investigation, origin, network)
 		}
 	}
 	assembly.Report["intelligence_contract"] = investigation
