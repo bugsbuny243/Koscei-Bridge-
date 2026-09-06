@@ -1,0 +1,24 @@
+name: ARVIS Customer Chat V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/public/arvis-chat.html'
+      - 'koschei/api/public/js/customer-arvis-chat-v1.js'
+      - 'koschei/api/public/css/customer-arvis-chat-v1.css'
+      - 'koschei/api/scripts/verify-arvis-customer-chat-v1.js'
+      - '.github/workflows/arvis-customer-chat-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arvis-customer-chat:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check customer chat JavaScript syntax
+        run: node --check koschei/api/public/js/customer-arvis-chat-v1.js
+      - name: Verify evidence-grounded customer chat contract
+        run: node koschei/api/scripts/verify-arvis-customer-chat-v1.js
