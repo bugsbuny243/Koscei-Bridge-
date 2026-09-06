@@ -39,21 +39,21 @@ func buildInvestorProtectionDecision(report map[string]any, coverage canonicalIn
 	verdict := investorProtectionVerdict(report["final_verdict"])
 	grade := strings.ToUpper(strings.TrimSpace(verdict.Grade))
 	out := investorProtectionDecision{
-		SchemaVersion:  investorProtectionDecisionSchemaV1,
-		Decision:       "NOT_CLEARED",
-		InvestorAction: "DO_NOT_TREAT_AS_SAFE",
+		SchemaVersion:   investorProtectionDecisionSchemaV1,
+		Decision:        "NOT_CLEARED",
+		InvestorAction:  "DO_NOT_TREAT_AS_SAFE",
 		ExecutionAction: "WITHHOLD",
-		Cleared:        false,
-		Grade:          grade,
-		Verdict:        strings.TrimSpace(verdict.Verdict),
-		Basis:          []investorProtectionBasis{},
-		CriticalGaps:   append([]investigationTransparencyItem{}, transparency.CollectionGaps...),
-		EvidenceLimits: append([]investigationTransparencyItem{}, transparency.EvidenceLimits...),
+		Cleared:         false,
+		Grade:           grade,
+		Verdict:         strings.TrimSpace(verdict.Verdict),
+		Basis:           []investorProtectionBasis{},
+		CriticalGaps:    append([]investigationTransparencyItem{}, transparency.CollectionGaps...),
+		EvidenceLimits:  append([]investigationTransparencyItem{}, transparency.EvidenceLimits...),
 		Policy: map[string]any{
-			"unknown_is_not_safe":                    true,
-			"missing_evidence_cannot_clear_target":   true,
-			"verified_hard_risk_precedes_uncertainty": true,
-			"grade_is_not_a_safety_certificate":      true,
+			"unknown_is_not_safe":                       true,
+			"missing_evidence_cannot_clear_target":      true,
+			"verified_hard_risk_precedes_uncertainty":   true,
+			"grade_is_not_a_safety_certificate":         true,
 			"investor_decision_is_not_financial_advice": true,
 		},
 	}
@@ -74,9 +74,6 @@ func buildInvestorProtectionDecision(report map[string]any, coverage canonicalIn
 		})
 	}
 
-	// A verified hard-cap at D/E/F is sufficient to tell an investor not to
-	// proceed. Missing liquidity, creator or other evidence never downgrades a
-	// verified critical risk into a softer review state.
 	if len(verifiedHard) > 0 && investorGradeAtLeast(out.Grade, "D") {
 		out.Decision = "AVOID"
 		out.InvestorAction = "AVOID_TARGET"
