@@ -22,6 +22,7 @@ type actorExternalDiscoveryRun struct {
 	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
 	AddressFlow          addressFlowReport              `json:"address_flow"`
 	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
+	AddressInteractions  addressInteractionsReport      `json:"address_interactions"`
 	FundingPaths         addressFundingPathsReport      `json:"funding_paths"`
 	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
 	BehaviorTimeline     addressBehaviorTimelineReport  `json:"behavior_timeline"`
@@ -50,6 +51,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		},
 		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
 		AddressAttribution:   newAddressAttributionReport(wallet),
+		AddressInteractions:  newAddressInteractionsReport(wallet),
 		FundingPaths:         newAddressFundingPathsReport(wallet),
 		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
 		BehaviorTimeline:     newAddressBehaviorTimelineReport(wallet),
@@ -85,6 +87,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.AddressFlow.Limitations...)
 	out.AddressAttribution = collectAddressAttribution(ctx, wallet, creatorIntelRPCURL(), out.AddressFlow)
 	out.Limitations = append(out.Limitations, out.AddressAttribution.Limitations...)
+	out.AddressInteractions = buildAddressInteractions(wallet, out.AddressFlow, out.AddressAttribution)
+	out.Limitations = append(out.Limitations, out.AddressInteractions.Limitations...)
 	out.FundingPaths = buildAddressFundingPaths(wallet, out.AddressFlow, out.AddressAttribution)
 	out.Limitations = append(out.Limitations, out.FundingPaths.Limitations...)
 	out.AddressRelationships = buildAddressRelationships(wallet, out.AddressFlow, out.AddressAttribution)
