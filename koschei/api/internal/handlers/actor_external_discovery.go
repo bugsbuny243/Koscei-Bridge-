@@ -17,23 +17,24 @@ type actorProviderDiscovery struct {
 }
 
 type actorExternalDiscoveryRun struct {
-	Status               string                         `json:"status"`
-	Discovery            actorProviderDiscovery         `json:"discovery"`
-	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
-	AddressFlow          addressFlowReport              `json:"address_flow"`
-	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
-	AddressInteractions  addressInteractionsReport      `json:"address_interactions"`
-	FundingPaths         addressFundingPathsReport      `json:"funding_paths"`
-	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
-	BehaviorTimeline     addressBehaviorTimelineReport  `json:"behavior_timeline"`
-	BehaviorPatterns     addressBehaviorPatternsReport  `json:"behavior_patterns"`
-	BehaviorSummary      addressBehaviorSummaryReport   `json:"behavior_summary"`
-	CreatedMintPortfolio actorCreatedMintIntegrationRun `json:"created_mint_portfolio"`
-	EvidenceProduced     int                            `json:"evidence_produced"`
-	EvidencePersisted    int                            `json:"evidence_persisted"`
-	PersistenceFailures  int                            `json:"persistence_failures"`
-	IntelligenceMemory   intelligenceMemoryReceipt      `json:"intelligence_memory"`
-	Limitations          []string                       `json:"limitations"`
+	Status               string                            `json:"status"`
+	Discovery            actorProviderDiscovery            `json:"discovery"`
+	AddressHistory       services.AddressHistoryReport     `json:"address_history"`
+	AddressFlow          addressFlowReport                 `json:"address_flow"`
+	AddressAttribution   addressAttributionReport          `json:"address_attribution"`
+	AddressInteractions  addressInteractionsReport         `json:"address_interactions"`
+	FundingPaths         addressFundingPathsReport         `json:"funding_paths"`
+	MultiHopFundingPaths addressMultiHopFundingPathsReport `json:"multi_hop_funding_paths"`
+	AddressRelationships addressRelationshipsReport        `json:"address_relationships"`
+	BehaviorTimeline     addressBehaviorTimelineReport     `json:"behavior_timeline"`
+	BehaviorPatterns     addressBehaviorPatternsReport     `json:"behavior_patterns"`
+	BehaviorSummary      addressBehaviorSummaryReport      `json:"behavior_summary"`
+	CreatedMintPortfolio actorCreatedMintIntegrationRun    `json:"created_mint_portfolio"`
+	EvidenceProduced     int                               `json:"evidence_produced"`
+	EvidencePersisted    int                               `json:"evidence_persisted"`
+	PersistenceFailures  int                               `json:"persistence_failures"`
+	IntelligenceMemory   intelligenceMemoryReceipt         `json:"intelligence_memory"`
+	Limitations          []string                          `json:"limitations"`
 }
 
 func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
@@ -53,6 +54,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		AddressAttribution:   newAddressAttributionReport(wallet),
 		AddressInteractions:  newAddressInteractionsReport(wallet),
 		FundingPaths:         newAddressFundingPathsReport(wallet),
+		MultiHopFundingPaths: newAddressMultiHopFundingPathsReport(wallet),
 		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
 		BehaviorTimeline:     newAddressBehaviorTimelineReport(wallet),
 		BehaviorPatterns:     newAddressBehaviorPatternsReport(wallet),
@@ -91,6 +93,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.AddressInteractions.Limitations...)
 	out.FundingPaths = buildAddressFundingPaths(wallet, out.AddressFlow, out.AddressAttribution)
 	out.Limitations = append(out.Limitations, out.FundingPaths.Limitations...)
+	out.MultiHopFundingPaths = h.collectAddressMultiHopFundingPaths(ctx, wallet, network, out.FundingPaths)
+	out.Limitations = append(out.Limitations, out.MultiHopFundingPaths.Limitations...)
 	out.AddressRelationships = buildAddressRelationships(wallet, out.AddressFlow, out.AddressAttribution)
 	out.Limitations = append(out.Limitations, out.AddressRelationships.Limitations...)
 
@@ -113,6 +117,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 		out.Status = "address_intelligence_summary_complete_for_observed_evidence"
 	case out.BehaviorSummary.Status == "observed_behavior_summary_available":
 		out.Status = "address_behavior_summary_available_with_gaps"
+	case out.MultiHopFundingPaths.ExtensionsObserved > 0 && out.AddressAttribution.ResolvedCount > 0:
+		out.Status = "address_history_flow_verified_multihop_paths_and_attribution_available"
+	case out.MultiHopFundingPaths.ExtensionsObserved > 0:
+		out.Status = "address_history_flow_and_multihop_paths_available"
 	case out.FundingPaths.PathCandidateCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
 		out.Status = "address_history_flow_funding_paths_relationships_and_verified_attribution_available"
 	case out.FundingPaths.PathCandidateCount > 0 && history.SignaturesSeen > 0:
