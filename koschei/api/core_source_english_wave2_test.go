@@ -9,12 +9,13 @@ import (
 func TestCoreCustomerSurfacesAreSourceEnglishWave2(t *testing.T) {
 	files := map[string][]string{
 		"public/index.html": {
-			"Check it before you trust it.",
-			"One scan. Four questions answered.",
-			"The proof still matters.",
-			"Production signing enforcement remains a separate validation milestone",
-			"Unknown stays unknown",
-			"id=\"execution-proof\"",
+			"Koschei Web3 | The Universe",
+			"Web3 defenses?<br>Who tests them?",
+			"One address. Full threat context.",
+			"Solana is the live production core today.",
+			"Every material conclusion should descend to evidence",
+			"unknown stays unknown",
+			"data-koschei-home-scan",
 		},
 		"public/account.html": {
 			"Professional Access",
