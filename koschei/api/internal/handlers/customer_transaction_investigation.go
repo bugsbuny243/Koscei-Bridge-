@@ -10,10 +10,18 @@ func transactionInvestigationPublished(report transactionInvestigationReport) bo
 	return report.Status == "complete" && len(report.EvidenceRefs) > 0
 }
 
-func customerTransactionInvestigationEnvelope(report transactionInvestigationReport, classification radarTargetClassification, charged bool) map[string]any {
+func customerTransactionInvestigationEnvelope(report transactionInvestigationReport, classification radarTargetClassification, charged bool, historical ...intelligenceMemoryReadReceipt) map[string]any {
 	status := "evidence_gap"
 	if transactionInvestigationPublished(report) {
 		status = "evidence_available"
+	}
+	history := intelligenceMemoryReadReceipt{
+		Status:      "not_requested",
+		Backend:     "google_drive",
+		Limitations: []string{},
+	}
+	if len(historical) > 0 {
+		history = historical[0]
 	}
 	return map[string]any{
 		"ok":                    true,
@@ -24,6 +32,7 @@ func customerTransactionInvestigationEnvelope(report transactionInvestigationRep
 		"network":               report.Network,
 		"target_classification": classification,
 		"transaction":           report,
+		"historical_memory":     history,
 		"charged":               charged,
 		"final_verdict": map[string]any{
 			"grade":      "-",
@@ -34,12 +43,13 @@ func customerTransactionInvestigationEnvelope(report transactionInvestigationRep
 		},
 		"evidence_policy": map[string]any{
 			"historical_execution_is_not_presigning_intent": true,
-			"signer_is_not_real_world_identity":             true,
-			"program_id_is_not_bytecode_semantics":          true,
-			"missing_evidence_is_not_safe":                  true,
-			"raw_transaction_saved":                         false,
-			"durable_memory_backend":                        "google_drive",
-			"neon_intelligence_persistence":                 false,
+			"historical_memory_cannot_override_live_evidence": true,
+			"signer_is_not_real_world_identity":               true,
+			"program_id_is_not_bytecode_semantics":            true,
+			"missing_evidence_is_not_safe":                    true,
+			"raw_transaction_saved":                           false,
+			"durable_memory_backend":                          "google_drive",
+			"neon_intelligence_persistence":                   false,
 		},
 	}
 }
@@ -47,6 +57,9 @@ func customerTransactionInvestigationEnvelope(report transactionInvestigationRep
 func (h *Handler) securityRadarTransactionCheck(w http.ResponseWriter, r *http.Request, authSubject, claimEmail, target, network string, classification radarTargetClassification) {
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
+	// Read the prior verified snapshot before the live investigation writes the
+	// current snapshot, otherwise "historical" context would merely echo this run.
+	history := h.loadLatestIntelligenceMemory(ctx, "transaction_investigation", network, target)
 	report := h.investigateTransactionSignature(ctx, target, network)
 
 	charged := false
@@ -59,5 +72,5 @@ func (h *Handler) securityRadarTransactionCheck(w http.ResponseWriter, r *http.R
 	}
 	h.logTool(claimEmail, "security_radar_transaction_check", report.Status)
 	h.trackEvent(claimEmail, "security_radar_transaction_check", r.URL.Path)
-	writeJSON(w, http.StatusOK, customerTransactionInvestigationEnvelope(report, classification, charged))
+	writeJSON(w, http.StatusOK, customerTransactionInvestigationEnvelope(report, classification, charged, history))
 }
