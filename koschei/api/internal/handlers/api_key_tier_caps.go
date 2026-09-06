@@ -10,10 +10,10 @@ type apiKeyTierCaps struct {
 	MaxRPM     int
 }
 
+// Koschei exposes one paid SaaS entitlement: Professional. Historical paid
+// plan labels are normalized by canonicalSaaSPlan before reaching this map.
 var apiKeyCapsByTier = map[string]apiKeyTierCaps{
-	"starter":      {MaxMonthly: 1000, MaxRPM: 30},
 	"professional": {MaxMonthly: 20000, MaxRPM: 120},
-	"enterprise":   {MaxMonthly: 200000, MaxRPM: 600},
 }
 
 func apiKeyEffectiveTier(evaluation planAccessEvaluation, evaluationErr error) string {
@@ -35,7 +35,7 @@ func apiKeyCapsForTier(tier string) apiKeyTierCaps {
 	if caps, ok := apiKeyCapsByTier[plan]; ok {
 		return caps
 	}
-	return apiKeyCapsByTier["starter"]
+	return apiKeyCapsByTier["professional"]
 }
 
 func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) (int, int) {
@@ -57,10 +57,10 @@ func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) 
 }
 
 // APIKeyAuth avoids re-running billing authorization on every request. Route
-// authorization binds the owning API key to an active Enterprise entitlement;
+// authorization binds the owning API key to an active Professional entitlement;
 // these caps remain an absolute server-side ceiling for stored key limits.
 func clampAPIPrincipalToAbsoluteCaps(p apiPrincipal) apiPrincipal {
-	caps := apiKeyCapsByTier["enterprise"]
+	caps := apiKeyCapsByTier["professional"]
 	p.MonthlyLimit, p.RateLimitPerMinute = clampAPIKeyLimits(p.MonthlyLimit, p.RateLimitPerMinute, caps)
 	return p
 }
