@@ -1,0 +1,27 @@
+name: ARVIS Jupiter Primary Market V1 Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'koschei/api/internal/services/jupiter_market_context_primary.go'
+      - 'koschei/api/internal/services/jupiter_market_context_primary_test.go'
+      - 'docs/arvis-provider-source-policy-v1.md'
+      - '.github/workflows/arvis-jupiter-primary-market-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jupiter-primary-market:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: koschei/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.7'
+      - name: Verify Jupiter-primary provider projection
+        run: go test ./internal/services -run 'TestResolvePrimaryMarketPrice|TestJupiterMarketContextJSONIncludesPrimaryProviderPolicy' -count=1
