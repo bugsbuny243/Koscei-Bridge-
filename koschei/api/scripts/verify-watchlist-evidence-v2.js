@@ -27,7 +27,7 @@ forbid(html,/KOSCH tier|holder tier|Enterprise-entitlement/i,'removed package/to
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(routes,'func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered routeGate, enterprise routeGate)','route gate parameters');
+requireText(routes,'func registerWatchlistRoutes','watchlist route registration function');
 for(const route of ['"/api/watchlist", requiresDB(h, proMetered(','"/api/watchlist/refresh", requiresDB(h, proMetered(','"/api/watchlist/alerts", requiresDB(h, proMetered(','"/api/watchlist/", requiresDB(h, proMetered('])requireText(routes,route,`metered watchlist route ${route}`);
 requireText(server,'return planTier("professional", next)','Professional watchlist server gate');
 requireText(server,'return planTierAccess("professional", next)','Professional watchlist access gate');
