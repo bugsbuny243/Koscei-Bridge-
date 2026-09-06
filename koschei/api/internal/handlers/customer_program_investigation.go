@@ -81,11 +81,20 @@ func (h *Handler) runCustomerProgramInvestigation(ctx context.Context, target, n
 	return out
 }
 
-func customerProgramInvestigationEnvelope(result customerProgramInvestigationResult, charged bool) map[string]any {
+func customerProgramInvestigationEnvelope(result customerProgramInvestigationResult, charged bool, historical ...intelligenceMemoryReadReceipt) map[string]any {
 	status := "evidence_pending"
 	if result.Published {
 		status = "evidence_available_with_gaps"
 	}
+	history := intelligenceMemoryReadReceipt{
+		Status:      "not_requested",
+		Backend:     "google_drive",
+		Limitations: []string{},
+	}
+	if len(historical) > 0 {
+		history = historical[0]
+	}
+	evidencePolicy := customerProgramEvidencePolicy()
 	return map[string]any{
 		"ok":                         true,
 		"status":                     status,
@@ -96,6 +105,7 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 		"target_classification":      result.Classification,
 		"program_security":           result.ProgramSecurity,
 		"investigation_transparency": result.Transparency,
+		"historical_memory":          history,
 		"intelligence_memory":        result.Memory,
 		"charged":                    charged,
 		"final_verdict": map[string]any{
@@ -106,18 +116,26 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 			"verdict":        "Program authority/deployment evidence is available, but arbitrary-program code semantics are not yet complete enough for a maliciousness verdict.",
 			"recommendation": "review_program_authority_and_semantic_gaps",
 		},
-		"evidence_policy": map[string]any{
-			"no_evidence_no_claim":            true,
-			"upgrade_authority_is_not_intent": true,
-			"unknown_is_not_safe":             true,
-			"numeric_final_score_disabled":    true,
-		},
+		"evidence_policy": evidencePolicy,
 	}
+}
+
+func customerProgramEvidencePolicy() map[string]any {
+	policy := map[string]any{}
+	policy["no_evidence_no_claim"] = true
+	policy["upgrade_authority_is_not_intent"] = true
+	policy["unknown_is_not_safe"] = true
+	policy["numeric_final_score_disabled"] = true
+	policy["historical_memory_cannot_override_live_evidence"] = true
+	policy["durable_memory_backend"] = "google_drive"
+	policy["neon_intelligence_persistence"] = false
+	return policy
 }
 
 func (h *Handler) securityRadarProgramCheck(w http.ResponseWriter, r *http.Request, authSubject, claimEmail, target, network string, classification radarTargetClassification) {
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
+	history := h.loadLatestIntelligenceMemory(ctx, "program_investigation", network, target)
 	result := h.runCustomerProgramInvestigation(ctx, target, network, classification)
 
 	charged := false
@@ -130,12 +148,13 @@ func (h *Handler) securityRadarProgramCheck(w http.ResponseWriter, r *http.Reque
 	}
 	h.logTool(claimEmail, "security_radar_program_check", map[bool]string{true: "ready", false: "evidence_pending"}[result.Published])
 	h.trackEvent(claimEmail, "security_radar_program_check", r.URL.Path)
-	writeJSON(w, http.StatusOK, customerProgramInvestigationEnvelope(result, charged))
+	writeJSON(w, http.StatusOK, customerProgramInvestigationEnvelope(result, charged, history))
 }
 
 func (h *Handler) ownerUnifiedProgramRadar(w http.ResponseWriter, r *http.Request, target, network string, classification radarTargetClassification) {
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
+	history := h.loadLatestIntelligenceMemory(ctx, "program_investigation", network, target)
 	result := h.runCustomerProgramInvestigation(ctx, target, network, classification)
-	writeJSON(w, http.StatusOK, customerProgramInvestigationEnvelope(result, false))
+	writeJSON(w, http.StatusOK, customerProgramInvestigationEnvelope(result, false, history))
 }
