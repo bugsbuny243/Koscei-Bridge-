@@ -40,7 +40,8 @@ requireText(renderer,'width:540,height:960,fps:10,bitrate:1800000','low-memory v
 requireText(renderer,'if(scene!==lastScene){paint(scene,progress);lastScene=scene;}','scene-change-only rendering');
 requireText(renderer,'source.width=1;source.height=1','temporary canvas release');
 requireText(renderer,"stream.getTracks().forEach(track=>{try{track.stop();}catch{}})",'media track cleanup');
-requireText(renderer,'recordVerticalVideo.__koscheiOwnerMobileSafe','ARVIS recorder patch');
+requireText(renderer,'safe.__koscheiOwnerMobileSafe=true','ARVIS recorder patch marker');
+requireText(renderer,'api.recordVerticalVideo=safe','ARVIS recorder patch install');
 requireText(renderer,'lab.recordVideo=safe','Web3 Lab recorder patch');
 forbidText(renderer,'requestAnimationFrame','mobile-safe renderer must not allocate on every display frame');
 forbidText(renderer,'videoBitsPerSecond:9000000','mobile-safe renderer must not restore 9Mbps encoding');
