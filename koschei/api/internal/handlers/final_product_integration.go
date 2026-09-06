@@ -43,6 +43,7 @@ func attachFinalProductIntegrationDiagnostics(report map[string]any) {
 	markDisabledDefenseRuntimeOptional(report, &coverage)
 	recountFinalProductCoverage(&coverage)
 	report["capability_integration"] = coverage
+	report["investigation_transparency"] = buildInvestigationTransparency(coverage)
 }
 
 func attachFinalWalletIntegrationDiagnostics(report map[string]any) {
@@ -58,6 +59,7 @@ func attachFinalWalletIntegrationDiagnostics(report map[string]any) {
 	}
 	recountFinalProductCoverage(&coverage)
 	report["capability_integration"] = coverage
+	report["investigation_transparency"] = buildInvestigationTransparency(coverage)
 }
 
 func markDisabledDefenseRuntimeOptional(report map[string]any, coverage *canonicalIntegrationCoverage) {
