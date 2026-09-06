@@ -11,55 +11,80 @@ import (
 const creatorOutcomeHistorySchemaVersion = "koschei-creator-outcome-history-v1"
 
 type creatorTokenOutcome struct {
-	Mint                      string     `json:"mint"`
-	CreationSignature         string     `json:"creation_signature,omitempty"`
-	CreationSlot              int64      `json:"creation_slot,omitempty"`
-	CreatedOnChainAt          *time.Time `json:"created_on_chain_at,omitempty"`
-	LastObservedAt            time.Time  `json:"last_observed_at"`
-	CurrentLiquidityUSD       float64    `json:"current_liquidity_usd"`
-	CurrentPriceUSD           float64    `json:"current_price_usd"`
-	FateStatus                string     `json:"fate_status"`
-	LifecycleStatus           string     `json:"lifecycle_status"`
-	AgeAvailable              bool       `json:"age_available"`
-	AgeDays                   float64    `json:"age_days,omitempty"`
-	VerifiedLifetimeAvailable bool       `json:"verified_lifetime_available"`
-	VerifiedLifetimeDays      float64    `json:"verified_lifetime_days,omitempty"`
-	EvidenceStatus            string     `json:"evidence_status"`
-	RugClaimed                bool       `json:"rug_claimed"`
-	WrongdoingClaimed         bool       `json:"wrongdoing_claimed"`
+	Mint string `json:"mint"`
+
+	CreationSignature string `json:"creation_signature,omitempty"`
+
+	CreationSlot int64 `json:"creation_slot,omitempty"`
+
+	CreatedOnChainAt *time.Time `json:"created_on_chain_at,omitempty"`
+
+	LastObservedAt time.Time `json:"last_observed_at"`
+
+	CurrentLiquidityUSD float64 `json:"current_liquidity_usd"`
+
+	CurrentPriceUSD float64 `json:"current_price_usd"`
+
+	FateStatus string `json:"fate_status"`
+
+	LifecycleStatus string `json:"lifecycle_status"`
+
+	AgeAvailable bool `json:"age_available"`
+
+	AgeDays float64 `json:"age_days,omitempty"`
+
+	VerifiedLifetimeAvailable bool `json:"verified_lifetime_available"`
+
+	VerifiedLifetimeDays float64 `json:"verified_lifetime_days,omitempty"`
+
+	EvidenceStatus string `json:"evidence_status"`
+
+	RugClaimed bool `json:"rug_claimed"`
+
+	WrongdoingClaimed bool `json:"wrongdoing_claimed"`
 }
 
 type creatorOutcomeHistoryReport struct {
-	SchemaVersion               string                `json:"schema_version"`
-	Status                      string                `json:"status"`
-	CreatorWallet               string                `json:"creator_wallet"`
-	VerifiedTokenCount          int                   `json:"verified_token_count"`
-	OutcomeCount                int                   `json:"outcome_count"`
-	ActiveCount                 int                   `json:"active_count"`
-	InactiveOrDeadCount         int                   `json:"inactive_or_dead_count"`
-	MarketDataUnavailableCount  int                   `json:"market_data_unavailable_count"`
-	VerifiedLifetimeSampleCount int                   `json:"verified_lifetime_sample_count"`
-	Outcomes                    []creatorTokenOutcome `json:"outcomes"`
-	Limitations                 []string              `json:"limitations"`
-	Policy                      map[string]any         `json:"policy"`
+	SchemaVersion string `json:"schema_version"`
+
+	Status string `json:"status"`
+
+	CreatorWallet string `json:"creator_wallet"`
+
+	VerifiedTokenCount int `json:"verified_token_count"`
+
+	OutcomeCount int `json:"outcome_count"`
+
+	ActiveCount int `json:"active_count"`
+
+	InactiveOrDeadCount int `json:"inactive_or_dead_count"`
+
+	MarketDataUnavailableCount int `json:"market_data_unavailable_count"`
+
+	VerifiedLifetimeSampleCount int `json:"verified_lifetime_sample_count"`
+
+	Outcomes []creatorTokenOutcome `json:"outcomes"`
+
+	Limitations []string `json:"limitations"`
+
+	Policy map[string]any `json:"policy"`
 }
 
 func newCreatorOutcomeHistoryReport(wallet string) creatorOutcomeHistoryReport {
-	return creatorOutcomeHistoryReport{
-		SchemaVersion: creatorOutcomeHistorySchemaVersion,
-		Status:        "no_verified_creator_outcomes",
-		CreatorWallet: strings.TrimSpace(wallet),
-		Outcomes:      []creatorTokenOutcome{},
-		Limitations:   []string{},
-		Policy: map[string]any{
-			"verified_creator_mint_evidence_only": true,
-			"current_market_snapshot_only":        true,
-			"inactive_is_not_rug":                 true,
-			"rug_claimed":                         false,
-			"wrongdoing_claimed":                  false,
-			"neon_persistence":                    false,
-		},
-	}
+	out := creatorOutcomeHistoryReport{}
+	out.SchemaVersion = creatorOutcomeHistorySchemaVersion
+	out.Status = "no_verified_creator_outcomes"
+	out.CreatorWallet = strings.TrimSpace(wallet)
+	out.Outcomes = []creatorTokenOutcome{}
+	out.Limitations = []string{}
+	out.Policy = map[string]any{}
+	out.Policy["verified_creator_mint_evidence_only"] = true
+	out.Policy["current_market_snapshot_only"] = true
+	out.Policy["inactive_is_not_rug"] = true
+	out.Policy["rug_claimed"] = false
+	out.Policy["wrongdoing_claimed"] = false
+	out.Policy["neon_persistence"] = false
+	return out
 }
 
 func buildCreatorOutcomeHistory(wallet string, portfolio actorCreatedMintIntegrationRun) creatorOutcomeHistoryReport {
@@ -71,25 +96,25 @@ func buildCreatorOutcomeHistory(wallet string, portfolio actorCreatedMintIntegra
 		if strings.TrimSpace(observation.Mint) == "" {
 			continue
 		}
-		row := creatorTokenOutcome{
-			Mint:                      strings.TrimSpace(observation.Mint),
-			CreationSignature:         strings.TrimSpace(observation.CreationSignature),
-			CreationSlot:              observation.CreationSlot,
-			CreatedOnChainAt:          observation.CreatedOnChainAt,
-			LastObservedAt:            observation.LastObservedAt,
-			CurrentLiquidityUSD:       observation.CurrentLiquidityUSD,
-			CurrentPriceUSD:           observation.CurrentPriceUSD,
-			FateStatus:                strings.TrimSpace(observation.FateStatus),
-			LifecycleStatus:           strings.TrimSpace(observation.LifecycleStatus),
-			AgeAvailable:              observation.AgeAvailable,
-			AgeDays:                   observation.AgeDays,
-			VerifiedLifetimeAvailable: observation.VerifiedLifetimeAvailable,
-			VerifiedLifetimeDays:      observation.VerifiedLifetimeDays,
-			EvidenceStatus:            "verified_creator_mint_plus_market_snapshot",
-			RugClaimed:                false,
-			WrongdoingClaimed:         false,
-		}
+		row := creatorTokenOutcome{}
+		row.Mint = strings.TrimSpace(observation.Mint)
+		row.CreationSignature = strings.TrimSpace(observation.CreationSignature)
+		row.CreationSlot = observation.CreationSlot
+		row.CreatedOnChainAt = observation.CreatedOnChainAt
+		row.LastObservedAt = observation.LastObservedAt
+		row.CurrentLiquidityUSD = observation.CurrentLiquidityUSD
+		row.CurrentPriceUSD = observation.CurrentPriceUSD
+		row.FateStatus = strings.TrimSpace(observation.FateStatus)
+		row.LifecycleStatus = strings.TrimSpace(observation.LifecycleStatus)
+		row.AgeAvailable = observation.AgeAvailable
+		row.AgeDays = observation.AgeDays
+		row.VerifiedLifetimeAvailable = observation.VerifiedLifetimeAvailable
+		row.VerifiedLifetimeDays = observation.VerifiedLifetimeDays
+		row.EvidenceStatus = "verified_creator_mint_plus_market_snapshot"
+		row.RugClaimed = false
+		row.WrongdoingClaimed = false
 		out.Outcomes = append(out.Outcomes, row)
+
 		switch row.FateStatus {
 		case services.ActorTokenFateActive:
 			out.ActiveCount++
