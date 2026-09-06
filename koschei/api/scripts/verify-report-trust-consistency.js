@@ -39,7 +39,9 @@ need('public/index.html', 'Professional operation · no private keys · no custo
 need('public/index.html', 'Enter the universe');
 need('public/index.html', '/css/koschei-universe-v1.css?v=1');
 need('public/index.html', '/css/koschei-home-universe-v2.css?v=1');
-need('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
+need('public/index.html', '/js/koschei-global-shell.js?v=4');
+need('public/index.html', '/js/feedback-button.js?v=1');
+reject('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
 reject('public/index.html', '/js/homepage-preflight-v2.js?v=1');
 reject('public/index.html', '/js/koschei-security-world.js?v=1');
 reject('public/index.html', 'STATIC HTML + VANILLA JS');
