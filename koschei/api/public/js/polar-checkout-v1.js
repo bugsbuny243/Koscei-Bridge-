@@ -29,7 +29,7 @@ function login(){
 async function openCheckout(button){
   if(!button||button.disabled)return;
   const plan=text(button.dataset.polarPlan).toLowerCase();
-  if(!['starter','professional','enterprise'].includes(plan))return;
+  if(plan!=='professional')return;
   const original=button.textContent;
   button.disabled=true;
   button.setAttribute('aria-busy','true');
@@ -41,14 +41,14 @@ async function openCheckout(button){
     const response=await KoscheiAuth.apiCall('/api/polar/checkout',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({plan}),
+      body:JSON.stringify({plan:'professional'}),
       credentials:'same-origin',
     });
     if(!response)throw new Error('Checkout service is unavailable.');
     const data=await readJSON(response);
     if(response.status===401){login();return;}
     if(!response.ok){
-      if(data?.error==='polar_checkout_not_configured')throw new Error('Secure checkout is not configured for this plan yet.');
+      if(data?.error==='polar_checkout_not_configured')throw new Error('Secure Professional checkout is not configured yet.');
       if(data?.error==='customer_binding_mismatch'||data?.error==='verified_identity_required')throw new Error('Your verified account identity is required before checkout.');
       throw new Error('Secure checkout could not be opened.');
     }
