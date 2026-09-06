@@ -27,16 +27,12 @@ type planAccessRequestContext struct {
 
 type planAccessRequestContextKey struct{}
 
-// canonicalSaaSPlan exposes a single paid SaaS entitlement: Professional.
-// Historical Starter/Enterprise aliases remain readable so an existing paid
-// entitlement cannot be stranded during the commercial-plan migration.
+// canonicalSaaSPlan exposes one paid SaaS entitlement: Professional.
 func canonicalSaaSPlan(plan string) string {
-	switch strings.ToLower(strings.TrimSpace(plan)) {
-	case "starter", "basic", "professional", "builder", "pro", "enterprise", "studio":
+	if strings.EqualFold(strings.TrimSpace(plan), "professional") {
 		return "professional"
-	default:
-		return ""
 	}
+	return ""
 }
 
 func planTierRank(plan string) int {
@@ -90,7 +86,7 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 		FROM entitlements
 		WHERE lower(email)=lower($1)
 		  AND status='active'
-		  AND lower(COALESCE(plan_id,'')) IN ('starter','basic','professional','builder','pro','enterprise','studio')
+		  AND lower(COALESCE(plan_id,''))='professional'
 		  AND (expires_at IS NULL OR expires_at > now())
 		ORDER BY updated_at DESC NULLS LAST, created_at DESC
 		LIMIT 1`, email).Scan(&plan, &total, &remaining, &startsAt, &expiresAt)
