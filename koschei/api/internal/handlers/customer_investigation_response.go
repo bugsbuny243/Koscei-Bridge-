@@ -58,6 +58,11 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	// re-grade the existing investigation.
 	attachArvisIntelligenceBridge(assembly)
 
+	// Reuse the existing typed ARVIS attack-path projection. Only pathways with
+	// concrete linked evidence are copied into the chain-neutral contract; this
+	// remains a capability/exposure projection and never predicts intent.
+	attachArvisIntelligenceAttackPaths(assembly)
+
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
