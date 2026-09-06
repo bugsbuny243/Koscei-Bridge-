@@ -55,6 +55,7 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 			"no_evidence_no_edge":                   true,
 			"inventory_does_not_create_edges":       true,
 			"external_attribution_is_observed_only": true,
+			"identifiers_are_case_sensitive":        true,
 			"identity_or_wrongdoing_claim":          false,
 		},
 	}
@@ -71,7 +72,7 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 		if kind == "" {
 			kind = "wallet"
 		}
-		key := strings.ToLower(kind + "|" + id)
+		key := kind + "|" + id
 		candidate := ActorEvidenceGraphNode{ID: id, Kind: kind, Role: role, VerificationStatus: normalizeActorGraphStatus(status), Metadata: nonNilMap(metadata)}
 		current, exists := nodes[key]
 		if !exists || actorGraphStatusRank(candidate.VerificationStatus) > actorGraphStatusRank(current.VerificationStatus) {
@@ -129,7 +130,7 @@ func BuildActorEvidenceGraph(dossier ActorDefenseDossier) ActorEvidenceGraph {
 			TokenAmount: evidence.TokenAmount, NativeAmount: evidence.AmountNative,
 			SourceProvider: strings.TrimSpace(evidence.Source), Metadata: metadata,
 		}
-		key := strings.ToLower(edge.Source + "|" + edge.Target + "|" + edge.Relation + "|" + edge.Signature + "|" + evidence.EvidenceKey)
+		key := edge.Source + "|" + edge.Target + "|" + edge.Relation + "|" + edge.Signature + "|" + evidence.EvidenceKey
 		if _, exists := edges[key]; !exists {
 			edges[key] = edge
 		}
