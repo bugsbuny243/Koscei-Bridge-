@@ -10,8 +10,7 @@ type apiKeyTierCaps struct {
 	MaxRPM     int
 }
 
-// Koschei exposes one paid SaaS entitlement: Professional. Historical paid
-// plan labels are normalized by canonicalSaaSPlan before reaching this map.
+// Koschei exposes one paid SaaS entitlement: Professional.
 var apiKeyCapsByTier = map[string]apiKeyTierCaps{
 	"professional": {MaxMonthly: 20000, MaxRPM: 120},
 }
@@ -21,19 +20,15 @@ func apiKeyEffectiveTier(evaluation planAccessEvaluation, evaluationErr error) s
 		return "none"
 	}
 	plan := canonicalSaaSPlan(evaluation.Plan)
-	if planTierRank(plan) == 0 {
+	if plan != "professional" {
 		return "none"
 	}
-	if _, ok := apiKeyCapsByTier[plan]; !ok {
-		return "none"
-	}
-	return plan
+	return "professional"
 }
 
 func apiKeyCapsForTier(tier string) apiKeyTierCaps {
-	plan := canonicalSaaSPlan(tier)
-	if caps, ok := apiKeyCapsByTier[plan]; ok {
-		return caps
+	if canonicalSaaSPlan(tier) != "professional" {
+		return apiKeyTierCaps{}
 	}
 	return apiKeyCapsByTier["professional"]
 }
