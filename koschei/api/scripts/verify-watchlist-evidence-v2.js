@@ -15,21 +15,22 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(html,'PROFESSIONAL SAAS · METERED STRUCTURAL MONITORING','Professional metered access copy');
-requireText(html,'Professional plan or higher','Professional access boundary');
-requireText(html,'Webhook management is a separate Enterprise-entitlement surface','watchlist/webhook plan separation');
+requireText(html,'requires the Professional plan','Professional access boundary');
+requireText(html,'Paid monitoring and webhook access are governed by the same Professional entitlement.','single paid-plan boundary');
 requireText(html,'href="/scan?mode=deep"','canonical Deep Scan route');
 requireText(html,'id="watchThreshold" type="number" min="1" max="100" value="50" required','explicit threshold input');
 requireText(html,'id="watchTargetCount">—/—','unknown initial target count');
 requireText(html,'id="watchAlertCount">—/—','unknown initial alert count');
 requireText(html,'/js/koschei-auth.js?v=33','frozen auth client');
 requireText(html,'/js/customer-watchlist-v2.js?v=2','hardened watchlist controller');
-forbid(html,/KOSCH tier|holder tier/i,'token-backed watchlist access copy');
+forbid(html,/KOSCH tier|holder tier|Enterprise-entitlement/i,'removed package/token-backed watchlist access copy');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(routes,'func registerWatchlistRoutes(mux *http.ServeMux, h *handlers.Handler, proMetered routeGate, enterprise routeGate)','route gate parameters');
+requireText(routes,'func registerWatchlistRoutes','watchlist route registration function');
 for(const route of ['"/api/watchlist", requiresDB(h, proMetered(','"/api/watchlist/refresh", requiresDB(h, proMetered(','"/api/watchlist/alerts", requiresDB(h, proMetered(','"/api/watchlist/", requiresDB(h, proMetered('])requireText(routes,route,`metered watchlist route ${route}`);
 requireText(server,'return planTier("professional", next)','Professional watchlist server gate');
+requireText(server,'return planTierAccess("professional", next)','Professional watchlist access gate');
 requireText(server,'registerWatchlistRoutes(mux, h','watchlist route registration');
 forbid(server,/koschTier\(|RequireTokenTier/,'legacy token watchlist authorization');
 
@@ -50,11 +51,11 @@ requireText(migration,"watchlist_alerts_status_check CHECK (status IN ('new','re
 requireText(monitor,'services.AutomaticBackgroundScanningEnabled()','automatic background scanning gate');
 requireText(monitor,'os.Getenv("WATCHLIST_MONITOR_ENABLED")','watchlist worker enable gate');
 requireText(monitor,"WHERE status='active' AND COALESCE(next_check_at,now())<=now()",'due active target claim');
-requireText(docs,'active **Professional SaaS plan or higher**','documented Professional gate');
+requireText(docs,'active **Professional SaaS plan**','documented Professional gate');
 requireText(docs,'paid output-capacity enforcement remains server-owned','documented watchlist metering');
 requireText(docs,'WATCHLIST_MONITOR_ENABLED','documented monitor enable gate');
 requireText(docs,'**both** automatic background scanning and the watchlist monitor are explicitly enabled','documented dual background gate');
-requireText(docs,'KOSCH holder balances and legacy token tiers do not grant or upgrade watchlist access.','documented KOSCH separation');
+requireText(docs,'KOSCH holder balances and removed package labels do not grant or upgrade watchlist access.','documented KOSCH separation');
 
 requireText(js,'let targets=null,alerts=null,maxTargets=null;','unknown initial collections');
 requireText(js,"return allowedSeverities.has(raw)?raw:'unknown'",'unknown severity boundary');

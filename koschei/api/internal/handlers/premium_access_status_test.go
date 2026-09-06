@@ -2,38 +2,22 @@ package handlers
 
 import "testing"
 
-func TestPremiumAccessPlanHierarchyStartsAtStarter(t *testing.T) {
-	if !planTierAuthorizes("starter", "starter") {
-		t.Fatal("starter entitlement did not authorize starter access")
+func TestPremiumAccessUsesOnlyProfessionalPaidTier(t *testing.T) {
+	if got := canonicalSaaSPlan("professional"); got != "professional" {
+		t.Fatalf("canonicalSaaSPlan(professional)=%q want=professional", got)
 	}
-	if !planTierAuthorizes("professional", "starter") {
-		t.Fatal("professional entitlement did not inherit starter access")
-	}
-	if !planTierAuthorizes("enterprise", "starter") {
-		t.Fatal("enterprise entitlement did not inherit starter access")
+	if !planTierAuthorizes("professional", "professional") {
+		t.Fatal("Professional did not authorize Professional access")
 	}
 }
 
-func TestPremiumAccessDoesNotUseWalletOrHolderLabels(t *testing.T) {
-	for _, value := range []string{"holder", "kosch", "token", "whale"} {
-		if canonicalSaaSPlan(value) != "" {
-			t.Fatalf("%q unexpectedly mapped to a paid SaaS plan", value)
+func TestPremiumAccessRejectsRemovedAndNonCommercialPlanLabels(t *testing.T) {
+	for _, value := range []string{"starter", "basic", "builder", "pro", "enterprise", "studio", "holder", "kosch", "token", "whale"} {
+		if got := canonicalSaaSPlan(value); got != "" {
+			t.Fatalf("canonicalSaaSPlan(%q)=%q want empty", value, got)
 		}
-		if planTierAuthorizes(value, "starter") {
-			t.Fatalf("%q unexpectedly authorized Starter access", value)
-		}
-	}
-}
-
-func TestPremiumAccessLegacyPlanAliasesRemainBillingOnly(t *testing.T) {
-	cases := map[string]string{
-		"basic":  "starter",
-		"pro":    "professional",
-		"studio": "enterprise",
-	}
-	for input, want := range cases {
-		if got := canonicalSaaSPlan(input); got != want {
-			t.Fatalf("canonicalSaaSPlan(%q)=%q want=%q", input, got, want)
+		if planTierAuthorizes(value, "professional") {
+			t.Fatalf("%q unexpectedly authorized Professional access", value)
 		}
 	}
 }

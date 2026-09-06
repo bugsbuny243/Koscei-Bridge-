@@ -27,30 +27,32 @@ type planAccessRequestContext struct {
 
 type planAccessRequestContextKey struct{}
 
+// canonicalSaaSPlan exposes one paid SaaS entitlement: Professional.
 func canonicalSaaSPlan(plan string) string {
-	switch strings.ToLower(strings.TrimSpace(plan)) {
-	case "starter", "basic":
-		return "starter"
-	case "professional", "builder", "pro":
+	if strings.EqualFold(strings.TrimSpace(plan), "professional") {
 		return "professional"
-	case "enterprise", "studio":
-		return "enterprise"
+	}
+	return ""
+}
+
+// canonicalRequiredSaaSPlan is only a route-migration shim. A few server route
+// declarations still carry old tier labels; they all require the same current
+// Professional entitlement. Removed labels are never accepted from billing,
+// entitlement storage, checkout, or customer plan input.
+func canonicalRequiredSaaSPlan(plan string) string {
+	switch strings.ToLower(strings.TrimSpace(plan)) {
+	case "professional", "starter", "enterprise":
+		return "professional"
 	default:
 		return ""
 	}
 }
 
 func planTierRank(plan string) int {
-	switch canonicalSaaSPlan(plan) {
-	case "enterprise":
-		return 3
-	case "professional":
-		return 2
-	case "starter":
+	if canonicalSaaSPlan(plan) == "professional" {
 		return 1
-	default:
-		return 0
 	}
+	return 0
 }
 
 func planTierAuthorizes(current, required string) bool {
@@ -97,17 +99,9 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 		FROM entitlements
 		WHERE lower(email)=lower($1)
 		  AND status='active'
-		  AND COALESCE(plan_id,'') <> ''
-		  AND COALESCE(plan_id,'') <> 'free'
+		  AND lower(COALESCE(plan_id,''))='professional'
 		  AND (expires_at IS NULL OR expires_at > now())
-		ORDER BY
-		  CASE lower(COALESCE(plan_id,''))
-		    WHEN 'enterprise' THEN 3 WHEN 'studio' THEN 3
-		    WHEN 'professional' THEN 2 WHEN 'builder' THEN 2 WHEN 'pro' THEN 2
-		    WHEN 'starter' THEN 1 WHEN 'basic' THEN 1 ELSE 0
-		  END DESC,
-		  updated_at DESC NULLS LAST,
-		  created_at DESC
+		ORDER BY updated_at DESC NULLS LAST, created_at DESC
 		LIMIT 1`, email).Scan(&plan, &total, &remaining, &startsAt, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return planAccessEvaluation{Plan: "none", Source: "entitlement"}, nil
@@ -137,7 +131,7 @@ func (h *Handler) evaluatePlanAccess(ctx context.Context, authSubject, claimEmai
 }
 
 func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = canonicalSaaSPlan(required)
+	required = canonicalRequiredSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := userFromContext(r.Context())
 		if !ok {
@@ -167,7 +161,7 @@ func (h *Handler) RequirePlanTier(required string, next http.HandlerFunc) http.H
 }
 
 func (h *Handler) RequireAPIKeyPlanTier(required string, next http.HandlerFunc) http.HandlerFunc {
-	required = canonicalSaaSPlan(required)
+	required = canonicalRequiredSaaSPlan(required)
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := apiPrincipalFromContext(r.Context())
 		if !ok {

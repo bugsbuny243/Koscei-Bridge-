@@ -68,10 +68,7 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 		Errors:      []string{},
 		GeneratedAt: time.Now().UTC(),
 	}
-	if plan == "none" || plan == "starter" || h == nil || h.CourtClient == nil {
-		return report
-	}
-	if plan != "professional" && plan != "enterprise" {
+	if plan != "professional" || h == nil || h.CourtClient == nil {
 		return report
 	}
 	if !envBool("KOSCHEI_COURT_PROSECUTORS_ENABLED", true) {
@@ -103,7 +100,7 @@ func (h *Handler) courtNarrative(ctx context.Context, in CourtReadOnlyInput, req
 			panelRan = true
 		}
 	}
-	if plan == "enterprise" && envBool("KOSCHEI_COURT_SENIOR_ENABLED", true) && (isDF(in.SignedVerdict.Grade) || panelRan || requestedExtended) {
+	if envBool("KOSCHEI_COURT_SENIOR_ENABLED", true) && (isDF(in.SignedVerdict.Grade) || panelRan || requestedExtended) {
 		senior, err := h.CourtClient.SeniorOpinion(ctx, in, report.Prosecutors, report.Panel)
 		if err != nil {
 			report.Errors = append(report.Errors, "senior_panel: "+err.Error())
@@ -138,16 +135,10 @@ func (h *Handler) courtTier(ctx context.Context) string {
 }
 
 func normalizeCourtTier(plan string) string {
-	switch canonicalSaaSPlan(plan) {
-	case "starter":
-		return "starter"
-	case "professional":
+	if canonicalSaaSPlan(plan) == "professional" {
 		return "professional"
-	case "enterprise":
-		return "enterprise"
-	default:
-		return "none"
 	}
+	return "none"
 }
 
 func envBool(k string, d bool) bool {
@@ -201,7 +192,7 @@ func (h *Handler) courtScheduledReport(ctx context.Context) *CourtReport {
 		Authority:   "the signed deterministic verdict is final; court output is commentary/explanation",
 		GeneratedAt: time.Now().UTC(),
 	}
-	if plan == "none" || plan == "starter" || h.CourtClient == nil {
+	if plan != "professional" || h.CourtClient == nil {
 		return report
 	}
 	report.Status = "scheduled"

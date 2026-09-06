@@ -14,9 +14,7 @@ type saasPackage struct {
 }
 
 var saasPackages = map[string]saasPackage{
-	"starter":      {ID: "starter", Name: "Koschei Starter", Outputs: 25},
 	"professional": {ID: "professional", Name: "Koschei Professional", Outputs: 100},
-	"enterprise":   {ID: "enterprise", Name: "Koschei Enterprise", Outputs: 300},
 }
 
 type entitlementActivationResult struct {
@@ -32,14 +30,13 @@ type entitlementRevocationResult struct {
 	ProfilePlan string
 }
 
+// normalizePackageID collapses historical paid package aliases into the single
+// supported commercial package. Legacy names remain readable for entitlement
+// continuity, but no new Starter or Enterprise package is created.
 func normalizePackageID(packageID string) string {
 	switch strings.ToLower(strings.TrimSpace(packageID)) {
-	case "starter":
-		return "starter"
-	case "builder", "pro", "professional":
+	case "starter", "basic", "builder", "pro", "professional", "studio", "enterprise":
 		return "professional"
-	case "studio", "enterprise":
-		return "enterprise"
 	default:
 		return ""
 	}
@@ -181,13 +178,7 @@ func activatePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, email
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE app_user_profiles
-		SET plan_id = CASE
-			WHEN CASE $2 WHEN 'enterprise' THEN 3 WHEN 'professional' THEN 2 WHEN 'starter' THEN 1 ELSE 0 END >=
-			     CASE COALESCE(plan_id, 'free') WHEN 'enterprise' THEN 3 WHEN 'studio' THEN 3 WHEN 'professional' THEN 2 WHEN 'builder' THEN 2 WHEN 'starter' THEN 1 ELSE 0 END
-			THEN $2
-			ELSE plan_id
-		END,
-		updated_at = now()
+		SET plan_id=$2, updated_at=now()
 		WHERE lower(email) = lower($1)`, email, packageID); err != nil {
 		return entitlementActivationResult{}, err
 	}
@@ -261,11 +252,7 @@ func revokePackageEntitlementDetailedTx(ctx context.Context, tx *sql.Tx, payment
 		WHERE lower(email)=lower($1)
 		  AND status='active'
 		  AND (expires_at IS NULL OR expires_at > now())
-		ORDER BY CASE COALESCE(plan_id,'free')
-		           WHEN 'enterprise' THEN 3 WHEN 'studio' THEN 3
-		           WHEN 'professional' THEN 2 WHEN 'builder' THEN 2
-		           WHEN 'starter' THEN 1 ELSE 0 END DESC,
-		         updated_at DESC NULLS LAST, created_at DESC
+		ORDER BY updated_at DESC NULLS LAST, created_at DESC
 		LIMIT 1`, email).Scan(&remainingPlan)
 	if err == nil {
 		if normalized := normalizePackageID(remainingPlan); normalized != "" {

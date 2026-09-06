@@ -12,7 +12,7 @@ Koschei Watchlist stores customer-owned Solana token targets and compares each n
 
 ## Routes
 
-All watchlist routes require a verified Koschei customer session and active **Professional SaaS plan or higher**. They use the metered watchlist route gate, so paid output-capacity enforcement remains server-owned.
+All watchlist routes require a verified Koschei customer session and an active **Professional SaaS plan**. They use the metered watchlist route gate, so paid output-capacity enforcement remains server-owned.
 
 ```text
 GET    /api/watchlist
@@ -25,7 +25,7 @@ GET    /api/watchlist/alerts
 POST   /api/watchlist/alerts
 ```
 
-Webhook management is a separate Enterprise-entitlement surface; it does not change the watchlist route tier or metering contract.
+Webhook management is governed by the same Professional entitlement; there is no separate paid Enterprise tier.
 
 ## Add a target
 
@@ -74,4 +74,4 @@ Koschei also contains a background watchlist monitor, but it runs only when **bo
 
 ## Compatibility
 
-The feature remains account-scoped and additive to the evidence engine. Paid watchlist authorization is based only on the active SaaS entitlement.
+The feature remains account-scoped and additive to the evidence engine. Paid watchlist authorization is based only on the active Professional SaaS entitlement. KOSCH holder balances and removed package labels do not grant or upgrade watchlist access.

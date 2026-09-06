@@ -2,13 +2,11 @@ package services
 
 import "testing"
 
-func TestLoadPolarConfigFromEnvMapsCanonicalProducts(t *testing.T) {
+func TestLoadPolarConfigFromEnvUsesSingleProfessionalCheckoutProduct(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "sandbox")
 	t.Setenv("POLAR_ACCESS_TOKEN", "test-token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "polar_whs_test")
-	t.Setenv("POLAR_PRODUCT_STARTER_ID", "prod_starter")
 	t.Setenv("POLAR_PRODUCT_PROFESSIONAL_ID", "prod_professional")
-	t.Setenv("POLAR_PRODUCT_ENTERPRISE_ID", "prod_enterprise")
 	t.Setenv("POLAR_SUCCESS_URL", "https://tradepigloball.co/account?billing=success")
 	t.Setenv("POLAR_RETURN_URL", "http://unsafe.example.test/return")
 
@@ -19,11 +17,19 @@ func TestLoadPolarConfigFromEnvMapsCanonicalProducts(t *testing.T) {
 	if got := cfg.ProductID("professional"); got != "prod_professional" {
 		t.Fatalf("professional product = %q", got)
 	}
-	if got := cfg.PlanForProduct("prod_enterprise"); got != "enterprise" {
-		t.Fatalf("enterprise plan mapping = %q", got)
+	for _, removed := range []string{"starter", "enterprise", "pro", "studio", "basic"} {
+		if got := cfg.ProductID(removed); got != "" {
+			t.Fatalf("removed plan %q unexpectedly sellable: %q", removed, got)
+		}
 	}
-	if !cfg.CheckoutConfigured("starter") || !cfg.WebhookConfigured() {
-		t.Fatal("expected configured sandbox billing")
+	if got := cfg.PlanForProduct("prod_professional"); got != "professional" {
+		t.Fatalf("professional product plan mapping = %q", got)
+	}
+	if got := cfg.PlanForProduct("prod_removed"); got != "" {
+		t.Fatalf("unknown/removed product unexpectedly mapped: %q", got)
+	}
+	if !cfg.CheckoutConfigured("professional") || !cfg.WebhookConfigured() {
+		t.Fatal("expected configured Professional sandbox billing")
 	}
 	if cfg.SuccessURL == "" {
 		t.Fatal("expected trusted HTTPS success URL")
@@ -37,10 +43,10 @@ func TestLoadPolarConfigFromEnvFailsClosedOnUnknownEnvironment(t *testing.T) {
 	t.Setenv("POLAR_ENVIRONMENT", "staging")
 	t.Setenv("POLAR_ACCESS_TOKEN", "token")
 	t.Setenv("POLAR_WEBHOOK_SECRET", "secret")
-	t.Setenv("POLAR_PRODUCT_STARTER_ID", "prod_starter")
+	t.Setenv("POLAR_PRODUCT_PROFESSIONAL_ID", "prod_professional")
 
 	cfg := LoadPolarConfigFromEnv()
-	if cfg.CheckoutConfigured("starter") || cfg.WebhookConfigured() {
+	if cfg.CheckoutConfigured("professional") || cfg.WebhookConfigured() {
 		t.Fatalf("unknown environment must fail closed: %#v", cfg)
 	}
 }

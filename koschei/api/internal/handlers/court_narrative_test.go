@@ -37,7 +37,7 @@ func (f *fakeCourtClient) SeniorOpinion(context.Context, CourtReadOnlyInput, []C
 	if f.err {
 		return CourtPanel{}, errors.New("boom")
 	}
-	return CourtPanel{Models: []string{"openai", "anthropic"}, Stance: "elevated", Text: "senior commentary"}, nil
+	return CourtPanel{Models: []string{"openai", "together-senior"}, Stance: "elevated", Text: "senior commentary"}, nil
 }
 
 func courtCtx(plan string) context.Context {
@@ -58,47 +58,44 @@ func courtInput(v services.UnifiedRadarVerdict) CourtReadOnlyInput {
 	return CourtReadOnlyInput{Target: "mint", Network: "solana-mainnet", SignedVerdict: v, VerdictCard: map[string]any{"grade": v.Grade, "signature": v.Signature}}
 }
 
-func TestCourtNoneAndStarterPerformZeroModelCalls(t *testing.T) {
+func TestCourtNonePerformsZeroModelCalls(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
-	for _, plan := range []string{"", "starter"} {
-		c := &fakeCourtClient{}
-		h := &Handler{CourtClient: c}
-		r := h.courtNarrative(courtCtx(plan), courtInput(verdict("-", false)), false)
-		if r == nil || c.prosecutors+c.panel+c.senior != 0 {
-			t.Fatalf("%s calls=%d report=%#v", plan, c.prosecutors+c.panel+c.senior, r)
-		}
+	c := &fakeCourtClient{}
+	h := &Handler{CourtClient: c}
+	r := h.courtNarrative(courtCtx(""), courtInput(verdict("-", false)), false)
+	if r == nil || c.prosecutors+c.panel+c.senior != 0 {
+		t.Fatalf("calls=%d report=%#v", c.prosecutors+c.panel+c.senior, r)
 	}
 }
-func TestCourtProfessionalAgreeingProsecutorsNoTriggerSkipsPanel(t *testing.T) {
+func TestCourtProfessionalAgreeingProsecutorsNoTriggerSkipsPanels(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"neutral", "neutral"}}
 	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(verdict("-", false)), false)
-	if r.Status != "ready" || r.TierApplied != "professional" || c.prosecutors != 2 || c.panel != 0 || r.Disagreement {
+	if r.Status != "ready" || r.TierApplied != "professional" || c.prosecutors != 2 || c.panel != 0 || c.senior != 0 || r.Disagreement {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtProfessionalDisagreementInvokesPanel(t *testing.T) {
+func TestCourtProfessionalDisagreementInvokesPanelAndSenior(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"elevated", "neutral"}}
 	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(verdict("-", false)), false)
-	if !r.Disagreement || c.panel != 1 {
+	if !r.Disagreement || c.panel != 1 || c.senior != 1 || r.Senior == nil {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtEnterpriseDGradeInvokesSenior(t *testing.T) {
+func TestCourtProfessionalDGradeInvokesSenior(t *testing.T) {
 	t.Setenv("KOSCHEI_COURT_ENABLED", "true")
 	c := &fakeCourtClient{stances: []string{"neutral", "neutral"}}
-	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("enterprise"), courtInput(verdict("D", true)), false)
-	if c.senior != 1 || r.Senior == nil || r.TierApplied != "enterprise" {
+	r := (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(verdict("D", true)), false)
+	if c.senior != 1 || r.Senior == nil || r.TierApplied != "professional" {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtCanonicalizesLegacyPlanAliasesWithoutTokenContext(t *testing.T) {
-	if got := (&Handler{}).courtTier(courtCtx("pro")); got != "professional" {
-		t.Fatalf("pro alias=%q", got)
-	}
-	if got := (&Handler{}).courtTier(courtCtx("basic")); got != "starter" {
-		t.Fatalf("basic alias=%q", got)
+func TestCourtRemovedPlanLabelsDoNotReceiveCourtAccess(t *testing.T) {
+	for _, removed := range []string{"pro", "basic", "starter", "enterprise", "studio", "builder"} {
+		if got := (&Handler{}).courtTier(courtCtx(removed)); got != "none" {
+			t.Fatalf("removed plan %s unexpectedly mapped to %q", removed, got)
+		}
 	}
 }
 func TestCourtClientErrorPreservesInputVerdict(t *testing.T) {
@@ -115,7 +112,7 @@ func TestCourtDoesNotChangeDeterministicVerdict(t *testing.T) {
 	v := verdict("D", true)
 	before := v.Signature + v.Grade
 	c := &fakeCourtClient{stances: []string{"elevated", "neutral"}}
-	_ = (&Handler{CourtClient: c}).courtNarrative(courtCtx("enterprise"), courtInput(v), true)
+	_ = (&Handler{CourtClient: c}).courtNarrative(courtCtx("professional"), courtInput(v), true)
 	after := v.Signature + v.Grade
 	if before != after {
 		t.Fatalf("verdict changed before=%q after=%q", before, after)

@@ -38,29 +38,25 @@ func LoadPolarConfigFromEnv() PolarConfig {
 		SuccessURL:    trustedPolarRedirectURL(os.Getenv("POLAR_SUCCESS_URL")),
 		ReturnURL:     trustedPolarRedirectURL(os.Getenv("POLAR_RETURN_URL")),
 		Products: map[string]string{
-			"starter":      strings.TrimSpace(os.Getenv("POLAR_PRODUCT_STARTER_ID")),
 			"professional": strings.TrimSpace(os.Getenv("POLAR_PRODUCT_PROFESSIONAL_ID")),
-			"enterprise":   strings.TrimSpace(os.Getenv("POLAR_PRODUCT_ENTERPRISE_ID")),
 		},
 	}
 }
 
 func (c PolarConfig) ProductID(plan string) string {
-	if c.Products == nil {
+	if c.Products == nil || strings.ToLower(strings.TrimSpace(plan)) != "professional" {
 		return ""
 	}
-	return strings.TrimSpace(c.Products[strings.ToLower(strings.TrimSpace(plan))])
+	return strings.TrimSpace(c.Products["professional"])
 }
 
 func (c PolarConfig) PlanForProduct(productID string) string {
 	productID = strings.TrimSpace(productID)
-	if productID == "" {
+	if productID == "" || c.Products == nil {
 		return ""
 	}
-	for _, plan := range []string{"starter", "professional", "enterprise"} {
-		if strings.TrimSpace(c.ProductID(plan)) == productID {
-			return plan
-		}
+	if configured := strings.TrimSpace(c.Products["professional"]); configured != "" && configured == productID {
+		return "professional"
 	}
 	return ""
 }

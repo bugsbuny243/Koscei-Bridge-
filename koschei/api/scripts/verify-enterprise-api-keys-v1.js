@@ -12,8 +12,8 @@ const caps=fs.readFileSync(path.join(root,'internal','handlers','api_key_tier_ca
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
-requireText(html,'ENTERPRISE DEVELOPER CREDENTIALS','Enterprise credential section');
-requireText(html,'API-key management requires an active Enterprise SaaS entitlement','Enterprise credential boundary');
+requireText(html,'PROFESSIONAL DEVELOPER CREDENTIALS','Professional credential section');
+requireText(html,'API-key management requires an active Professional SaaS entitlement','Professional credential boundary');
 requireText(html,'Requested limits are only requests; the server applies current plan caps','server-owned cap copy');
 requireText(html,'Raw keys are returned only at creation','one-time raw-key copy');
 requireText(html,'id="apiKeySecretPanel" hidden','hidden one-time key panel');
@@ -21,12 +21,12 @@ requireText(html,'id="apiKeyCount">UNAVAILABLE','unknown initial key count');
 requireText(html,'/css/customer-api-keys-v1.css?v=1','credential stylesheet');
 requireText(html,'/js/customer-api-keys-v1.js?v=1','credential controller');
 requireText(html,'Never ship it in browser JavaScript','server-side secret guidance');
-forbid(html,/KOSCH eligibility|holder access/i,'token-backed Enterprise credential copy');
+forbid(html,/Starter|Enterprise SaaS entitlement|KOSCH eligibility|holder access/i,'removed paid-plan or token-backed credential copy');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 
-requireText(server,'planTierAccess("enterprise", h.APIKeysCollection)','Enterprise credential collection route');
-requireText(server,'planTierAccess("enterprise", method("POST", h.RevokeAPIKey))','Enterprise credential revoke route');
+requireText(server,'planTierAccess("professional", h.APIKeysCollection)','Professional credential collection route');
+requireText(server,'planTierAccess("professional", method("POST", h.RevokeAPIKey))','Professional credential revoke route');
 forbid(server,/RequireAPIKeyTokenTier|RequireTokenTier|EnforceScanQuota/,'legacy token authorization in boot chain');
 
 requireText(handler,'func (h *Handler) APIKeysCollection','credential collection handler');
@@ -35,7 +35,8 @@ requireText(handler,'h.ListAPIKeys(w, r)','credential list dispatch');
 requireText(handler,'case http.MethodPost:','credential POST collection');
 requireText(handler,'h.CreateAPIKey(w, r)','credential create dispatch');
 requireText(handler,'evaluation, evaluationErr := h.evaluatePlanAccess','SaaS entitlement lookup');
-requireText(handler,'planTierAuthorizes(plan, "enterprise")','Enterprise plan authorization');
+requireText(handler,'planTierAuthorizes(plan, "professional")','Professional plan authorization');
+requireText(handler,'"required_plan": "professional"','Professional required-plan response');
 requireText(handler,'raw, err := newRawAPIKey()','raw credential generation');
 requireText(handler,'hash := hashAPIKey(raw)','raw credential hashing');
 requireText(handler,'INSERT INTO api_keys (auth_subject,email,name,key_prefix,key_hash','hashed credential storage');
@@ -45,9 +46,10 @@ requireText(handler,'SELECT id::text,name,key_prefix,status,monthly_limit,rate_l
 requireText(handler,'"api_keys": items','credential list envelope');
 requireText(handler,"UPDATE api_keys SET status='revoked', revoked_at=now() WHERE id=$1 AND auth_subject=$2 AND status='active'",'active-only revoke');
 requireText(handler,'effectiveMonthly, effectiveRPM := clampAPIKeyLimits(requestedMonthly, requestedRPM, caps)','create-time requested-limit clamp invocation');
-forbid(handler,/evaluateTokenAccess|token_tier/i,'token-backed API key creation');
+forbid(handler,/evaluateTokenAccess|token_tier|"enterprise"/i,'removed Enterprise/token-backed API key creation');
 
 requireText(caps,'apiKeyCapsByTier','server-owned credential cap map');
+requireText(caps,'"professional": {MaxMonthly: 20000, MaxRPM: 120}','single Professional credential cap');
 requireText(caps,'func clampAPIKeyLimits(requestedMonthly, requestedRPM int, caps apiKeyTierCaps) (int, int)','server-side clamp definition');
 requireText(caps,'if monthly > caps.MaxMonthly','monthly cap enforcement');
 requireText(caps,'if rpm > caps.MaxRPM','RPM cap enforcement');
@@ -77,7 +79,7 @@ forbid(js,/\.innerHTML\s*=/,'API-derived innerHTML');
 forbid(js,/Math\.random\s*\(/,'synthetic credential evidence');
 forbid(js,/\b(?:signMessage|signTransaction|signAllTransactions|signAndSendTransaction|sendTransaction)\b/,'wallet authority in credential controller');
 
-for(const cap of ['1000','20000','200000','30','120','600']){
+for(const cap of ['1000','20000','120']){
   const pattern=new RegExp(`\\b${cap}\\b`);
   if(pattern.test(html)||pattern.test(js))throw new Error(`credential UI must not hardcode server cap: ${cap}`);
 }
@@ -85,4 +87,4 @@ for(const cap of ['1000','20000','200000','30','120','600']){
 requireText(css,'.api-key-secret','one-time raw-key styles');
 requireText(css,'.api-key-status.bad','revoked/failed credential styles');
 requireText(css,'@media(max-width:520px)','mobile credential layout');
-console.log('Enterprise SaaS credential lifecycle contract: ok');
+console.log('Professional SaaS credential lifecycle contract: ok');

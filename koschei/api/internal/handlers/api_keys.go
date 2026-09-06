@@ -55,8 +55,8 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "plan_access_unavailable"})
 		return
 	}
-	if !evaluation.Active || plan == "none" || !planTierAuthorizes(plan, "enterprise") {
-		writeJSON(w, http.StatusForbidden, map[string]any{"error": "plan_tier_required", "required_plan": "enterprise", "current_plan": plan})
+	if !evaluation.Active || plan == "none" || !planTierAuthorizes(plan, "professional") {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "plan_tier_required", "required_plan": "professional", "current_plan": plan})
 		return
 	}
 	caps := apiKeyCapsForTier(plan)
