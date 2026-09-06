@@ -117,9 +117,9 @@ type IntelligenceInvestigation struct {
 	Evidence        []IntelligenceEvidence        `json:"evidence,omitempty"`
 	Relationships   []IntelligenceRelationship    `json:"relationships,omitempty"`
 	Behaviors       []IntelligenceBehaviorFinding `json:"behaviors,omitempty"`
-	AttackPaths     []IntelligenceAttackPath       `json:"attack_paths,omitempty"`
-	Decision        IntelligenceDecision           `json:"decision"`
-	GeneratedAt     time.Time                      `json:"generated_at"`
+	AttackPaths     []IntelligenceAttackPath      `json:"attack_paths,omitempty"`
+	Decision        IntelligenceDecision          `json:"decision"`
+	GeneratedAt     time.Time                     `json:"generated_at"`
 }
 
 func ClassifyIntelligenceSubject(target, network string) IntelligenceSubject {
