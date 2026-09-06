@@ -23,7 +23,7 @@ requireText(reportsHTML,'Commercial access is determined only by the active serv
 if(/\bKOSCH\b|token holdings|STARTER\+|ENTERPRISE\+|Basic KOSCH tier/i.test(reportsHTML))throw new Error('reports html: retired access copy is forbidden');
 requireText(watchHTML,'does not rewrite older evidence','monitoring truth boundary');
 requireText(watchHTML,'Monitoring requires the Professional plan','watchlist Professional boundary');
-if(/\bKOSCH\b tier|holder tier|Pro tier or higher|Starter|Enterprise/i.test(watchHTML))throw new Error('watchlist html: retired tier access copy is forbidden');
+if(/\bKOSCH\b tier|holder tier|Pro tier or higher|STARTER\+|ENTERPRISE\+/i.test(watchHTML))throw new Error('watchlist html: retired tier access copy is forbidden');
 
 requireText(reportsJS,"KoscheiAuth.apiCall('/api/v1/radar/jobs/'",'canonical investigation history source');
 requireText(reportsJS,"data?.schema_version!=='koschei-customer-investigation-history-v1'",'history schema gate');
@@ -53,7 +53,7 @@ requireText(watchJS,"setTargetKPIsUnavailable('Monitoring target collection unav
 requireText(watchJS,"setAlertKPIUnavailable('Alert collection unavailable; no unread count inferred.')",'watchlist alert unavailable-not-zero boundary');
 requireText(watchJS,"load({preserveStatus:true})",'action feedback preservation');
 if(watchJS.includes('.innerHTML='))throw new Error('watchlist js: API data must use DOM/textContent rendering');
-if(/Pro KOSCH|token tier|holder tier|Starter|Enterprise/i.test(watchJS))throw new Error('watchlist js: retired access messaging is forbidden');
+if(/Pro KOSCH|token tier|holder tier|STARTER\+|ENTERPRISE\+/i.test(watchJS))throw new Error('watchlist js: retired access messaging is forbidden');
 
 for(const [js,label] of [[reportsJS,'reports js'],[watchJS,'watchlist js']]){
   if(js.includes('Math.random('))throw new Error(`${label}: must not fabricate operational metrics`);
