@@ -38,16 +38,11 @@ func LoadPolarConfigFromEnv() PolarConfig {
 		SuccessURL:    trustedPolarRedirectURL(os.Getenv("POLAR_SUCCESS_URL")),
 		ReturnURL:     trustedPolarRedirectURL(os.Getenv("POLAR_RETURN_URL")),
 		Products: map[string]string{
-			"professional":      strings.TrimSpace(os.Getenv("POLAR_PRODUCT_PROFESSIONAL_ID")),
-			"legacy_starter":    strings.TrimSpace(os.Getenv("POLAR_PRODUCT_STARTER_ID")),
-			"legacy_enterprise": strings.TrimSpace(os.Getenv("POLAR_PRODUCT_ENTERPRISE_ID")),
+			"professional": strings.TrimSpace(os.Getenv("POLAR_PRODUCT_PROFESSIONAL_ID")),
 		},
 	}
 }
 
-// ProductID returns only the currently sellable Professional product. Legacy
-// product IDs are retained solely so existing subscription webhooks can still
-// be recognized and normalized into Professional access.
 func (c PolarConfig) ProductID(plan string) string {
 	if c.Products == nil || strings.ToLower(strings.TrimSpace(plan)) != "professional" {
 		return ""
@@ -60,10 +55,8 @@ func (c PolarConfig) PlanForProduct(productID string) string {
 	if productID == "" || c.Products == nil {
 		return ""
 	}
-	for _, key := range []string{"professional", "legacy_starter", "legacy_enterprise"} {
-		if configured := strings.TrimSpace(c.Products[key]); configured != "" && configured == productID {
-			return "professional"
-		}
+	if configured := strings.TrimSpace(c.Products["professional"]); configured != "" && configured == productID {
+		return "professional"
 	}
 	return ""
 }
