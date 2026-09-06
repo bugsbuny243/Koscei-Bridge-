@@ -24,6 +24,79 @@ jobs:
           ref: main
           path: baseline
 
+      - name: Prototype exact per-page cascade inside one CSS file
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import re
+          from pathlib import Path
+
+          baseline = Path('baseline/koschei/api/public')
+          candidate = Path('candidate/koschei/api/public')
+          link_re = re.compile(r'<link\b(?=[^>]*\brel=["\x27]stylesheet["\x27])[^>]*\bhref=["\x27](/css/([A-Za-z0-9_.-]+\.css)(?:\?[^"\x27]*)?)["\x27][^>]*>', re.I)
+          style_re = re.compile(r'<style\b[^>]*>(.*?)</style>', re.I | re.S)
+          combined_re = re.compile(r'(<link\b(?=[^>]*\brel=["\x27]stylesheet["\x27])[^>]*\bhref=["\x27]/css/([A-Za-z0-9_.-]+\.css)(?:\?[^"\x27]*)?["\x27][^>]*>)|(<style\b[^>]*>(.*?)</style>)', re.I | re.S)
+          body_re = re.compile(r'<body\b', re.I)
+          all_style_re = re.compile(r'<style\b[^>]*>.*?</style>\s*', re.I | re.S)
+          all_link_re = re.compile(r'<link\b(?=[^>]*\brel=["\x27]stylesheet["\x27])[^>]*\bhref=["\x27]/css/[A-Za-z0-9_.-]+\.css(?:\?[^"\x27]*)?["\x27][^>]*>\s*', re.I)
+
+          bundle = ['/* KOSCHEI WEB3 — page-scoped canonical public stylesheet prototype. */\n']
+          page_count = 0
+          for base_html in sorted(baseline.rglob('*.html')):
+              rel = base_html.relative_to(baseline)
+              cand_html = candidate / rel
+              if not cand_html.exists():
+                  continue
+              source = base_html.read_text(encoding='utf-8')
+              sequence: list[str] = []
+              for match in combined_re.finditer(source):
+                  css_name = match.group(2)
+                  if css_name:
+                      css_path = baseline / 'css' / css_name
+                      if not css_path.exists():
+                          raise SystemExit(f'missing baseline stylesheet {css_path} for {rel}')
+                      sequence.append(f'/* source: {css_name} */\n' + css_path.read_text(encoding='utf-8'))
+                  else:
+                      inline_css = match.group(4) or ''
+                      sequence.append('/* source: inline-style */\n' + inline_css)
+              if not sequence:
+                  continue
+
+              token = 'p-' + hashlib.sha256(str(rel).encode()).hexdigest()[:16]
+              current = cand_html.read_text(encoding='utf-8')
+              current = all_style_re.sub('', current)
+              links = list(all_link_re.finditer(current))
+              if links:
+                  parts = []
+                  cursor = 0
+                  inserted = False
+                  for lm in links:
+                      parts.append(current[cursor:lm.start()])
+                      if not inserted:
+                          parts.append('<link rel="stylesheet" href="/css/koschei.css?v=1">\n')
+                          inserted = True
+                      cursor = lm.end()
+                  parts.append(current[cursor:])
+                  current = ''.join(parts)
+              else:
+                  current = current.replace('</head>', '<link rel="stylesheet" href="/css/koschei.css?v=1">\n</head>', 1)
+              current = body_re.sub(f'<body data-kcss-page="{token}"', current, count=1)
+              cand_html.write_text(current, encoding='utf-8')
+
+              bundle.append(f'\n/* ===== page: {rel} ===== */\n')
+              bundle.append(f'@scope (html:has(body[data-kcss-page="{token}"])) {{\n')
+              bundle.extend(css + '\n' for css in sequence)
+              bundle.append('}\n')
+              page_count += 1
+
+          (candidate / 'css' / 'koschei.css').write_text(''.join(bundle), encoding='utf-8')
+          print(f'prototype pages scoped: {page_count}')
+          print(f'prototype bundle bytes: {(candidate / "css" / "koschei.css").stat().st_size}')
+          PY
+
       - name: Compare flagship rendering with main
         shell: bash
         run: |
