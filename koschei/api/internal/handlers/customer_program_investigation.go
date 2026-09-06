@@ -94,6 +94,7 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 	if len(historical) > 0 {
 		history = historical[0]
 	}
+	evidencePolicy := customerProgramEvidencePolicy()
 	return map[string]any{
 		"ok":                         true,
 		"status":                     status,
@@ -115,16 +116,20 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 			"verdict":        "Program authority/deployment evidence is available, but arbitrary-program code semantics are not yet complete enough for a maliciousness verdict.",
 			"recommendation": "review_program_authority_and_semantic_gaps",
 		},
-		"evidence_policy": map[string]any{
-			"no_evidence_no_claim":                           true,
-			"upgrade_authority_is_not_intent":                true,
-			"unknown_is_not_safe":                            true,
-			"numeric_final_score_disabled":                   true,
-			"historical_memory_cannot_override_live_evidence": true,
-			"durable_memory_backend":                         "google_drive",
-			"neon_intelligence_persistence":                  false,
-		},
+		"evidence_policy": evidencePolicy,
 	}
+}
+
+func customerProgramEvidencePolicy() map[string]any {
+	policy := map[string]any{}
+	policy["no_evidence_no_claim"] = true
+	policy["upgrade_authority_is_not_intent"] = true
+	policy["unknown_is_not_safe"] = true
+	policy["numeric_final_score_disabled"] = true
+	policy["historical_memory_cannot_override_live_evidence"] = true
+	policy["durable_memory_backend"] = "google_drive"
+	policy["neon_intelligence_persistence"] = false
+	return policy
 }
 
 func (h *Handler) securityRadarProgramCheck(w http.ResponseWriter, r *http.Request, authSubject, claimEmail, target, network string, classification radarTargetClassification) {
