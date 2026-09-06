@@ -5,7 +5,6 @@ window.__koscheiOwnerSocialVoiceInstalled=true;
 
 const state={audioBlob:null,audioURL:'',sourceText:'',busy:false,patched:false};
 const $=id=>document.getElementById(id);
-const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
 function clearAudio(){
   if(state.audioURL)URL.revokeObjectURL(state.audioURL);
@@ -56,66 +55,17 @@ function renderControls(){
   $('socialVoiceDownload')?.addEventListener('click',()=>download(state.audioBlob,'koschei-arvis-voiceover.mp3'));
 }
 
-function preferredVideoType(){
-  const candidates=[
-    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm'
-  ];
-  return candidates.find(type=>typeof MediaRecorder!=='undefined'&&MediaRecorder.isTypeSupported?.(type))||'';
-}
-function waitAudio(audio){
-  return new Promise((resolve,reject)=>{
-    if(Number.isFinite(audio.duration)&&audio.duration>0)return resolve();
-    const done=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(new Error('Ses dosyası açılamadı.'));};
-    const cleanup=()=>{audio.removeEventListener('loadedmetadata',done);audio.removeEventListener('error',bad);};
-    audio.addEventListener('loadedmetadata',done,{once:true});audio.addEventListener('error',bad,{once:true});audio.load();
-  });
-}
-async function recordWithAudio(input,options,audioBlob,api){
-  if(typeof MediaRecorder==='undefined')throw new Error('Video recording is not supported in this browser.');
-  const audioURL=URL.createObjectURL(audioBlob),audio=new Audio(audioURL);audio.preload='auto';
-  let audioContext=null;
-  try{
-    await waitAudio(audio);
-    const audioDuration=Number.isFinite(audio.duration)&&audio.duration>0?Math.ceil(audio.duration*1000+400):0;
-    const duration=clamp(audioDuration||Number(options.duration)||15000,6000,60000),fps=30;
-    const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;
-    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas unavailable');
-    const stream=canvas.captureStream(fps);
-    const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('Audio mixing is not supported in this browser.');
-    audioContext=new AudioCtx();
-    const source=audioContext.createMediaElementSource(audio),destination=audioContext.createMediaStreamDestination();
-    source.connect(destination);
-    destination.stream.getAudioTracks().forEach(track=>stream.addTrack(track));
-    const type=preferredVideoType();
-    const recorder=new MediaRecorder(stream,type?{mimeType:type,videoBitsPerSecond:9000000,audioBitsPerSecond:192000}:{videoBitsPerSecond:9000000,audioBitsPerSecond:192000});
-    const chunks=[];recorder.ondataavailable=event=>{if(event.data?.size)chunks.push(event.data);};
-    const stopped=new Promise((resolve,reject)=>{recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||type||'video/webm'}));recorder.onerror=event=>reject(event.error||new Error('Video recorder failed'));});
-    recorder.start(250);await audioContext.resume();audio.currentTime=0;await audio.play();
-    const start=performance.now();
-    await new Promise(resolve=>{
-      const frame=now=>{
-        const elapsed=now-start,progress=Math.min(1,elapsed/duration),scene=Math.min(4,Math.floor(progress*5));
-        const sourceCanvas=api.drawCardCanvas(input,'tiktok',scene,progress);
-        ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(sourceCanvas,0,0);
-        options.onProgress?.(progress);
-        if(progress<1)requestAnimationFrame(frame);else resolve();
-      };
-      requestAnimationFrame(frame);
-    });
-    audio.pause();recorder.stop();
-    return await stopped;
-  }finally{
-    audio.pause();URL.revokeObjectURL(audioURL);if(audioContext)await audioContext.close().catch(()=>{});
-  }
+async function recordWithAudio(input,options,audioBlob){
+  const renderer=window.KoscheiOwnerStudioRenderer;
+  if(!renderer?.recordARVIS)throw new Error('Mobil güvenli video renderer henüz hazır değil. Sayfayı yenileyip tekrar deneyin.');
+  return renderer.recordARVIS(input,{...options,audioBlob});
 }
 
 function patchRecorder(){
   const api=window.KoscheiARVISPremium;if(!api||state.patched||typeof api.recordVerticalVideo!=='function')return false;
   const original=api.recordVerticalVideo.bind(api);
-  api.recordVerticalVideo=async(input,options={})=>state.audioBlob?recordWithAudio(input,options,state.audioBlob,api):original(input,options);
+  api.recordVerticalVideo=async(input,options={})=>state.audioBlob?recordWithAudio(input,options,state.audioBlob):original(input,options);
+  api.recordVerticalVideo.__koscheiOwnerVoiceWrapper=true;
   state.patched=true;return true;
 }
 function sync(){patchRecorder();renderControls();}
