@@ -23,13 +23,16 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 	}
 
 	topOwner := ""
+	topRole := ""
 	for _, row := range holder.Rows {
 		if row.OwnerResolved && row.RiskBearing && !row.ExcludedFromHolderRisk && strings.TrimSpace(row.OwnerWallet) != "" {
 			topOwner = strings.TrimSpace(row.OwnerWallet)
+			topRole = strings.TrimSpace(row.Role)
 			break
 		}
 	}
 	resolvedScope := holder.Available && holder.OwnerAggregationApplied && holder.CirculatingSupply > 0 && topOwner != ""
+	roleIdentified := holderRoleCarriesConcentrationRisk(topRole)
 
 	signal := UnifiedRadarSignal{
 		RuleID:         UnifiedRuleOwnerConcentration,
@@ -43,6 +46,8 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 			"owner_aggregation_applied":    holder.OwnerAggregationApplied,
 			"risk_bearing_owner_resolved":  topOwner != "",
 			"top_owner_wallet":             topOwner,
+			"top_owner_role":               topRole,
+			"top_owner_role_identified":    roleIdentified,
 		},
 		Thresholds: map[string]any{
 			"d_cap_pct": UnifiedOwnerConcentrationDCap,
@@ -57,6 +62,21 @@ func ApplyOwnerConcentrationRuleV110(report UnifiedRadarBehaviorReport, holder H
 	if !resolvedScope {
 		signal.Summary = "Owner-resolved, infrastructure-excluded concentration was unavailable; raw account concentration cannot trigger URD-C005."
 		signal.Limitations = append(signal.Limitations, "C005 requires an owner-resolved risk-bearing row, circulating supply and owner aggregation.")
+	} else if !roleIdentified {
+		// The dominant balance sits on an account whose economic role was never
+		// positively identified. It may be a whale, or it may be protocol
+		// inventory on a program this build does not recognise. Grading it as
+		// concentration would report a failure to identify as a finding, so the
+		// signal stays INFERRED: loud in the watch list, unable to set a cap.
+		signal.EvidenceStatus = "inferred"
+		signal.Triggered = true
+		signal.EvidenceKeys = []string{"owner:" + topOwner}
+		signal.Summary = fmt.Sprintf(
+			"Top risk-bearing owner holds %.4f%%, but its economic role was not positively identified (role=%s). Concentration cannot be separated from protocol inventory, so no hard cap is issued.",
+			holder.TopOwnerPercentage, unifiedRoleLabel(topRole))
+		signal.Limitations = append(signal.Limitations,
+			"A C005 hard cap requires the dominant owner to be positively identified as an externally owned wallet.",
+			"An unidentified dominant owner is an open question, not evidence of concentration risk.")
 	} else {
 		signal.EvidenceStatus = "verified"
 		signal.EvidenceKeys = []string{"owner:" + topOwner}
@@ -207,4 +227,28 @@ func worseUnifiedGradeV111(current, cap string) string {
 		return current
 	}
 	return cap
+}
+
+// holderRoleCarriesConcentrationRisk reports whether a holder role is
+// positively identified as a party that can actually hold concentration risk.
+//
+// The allowlist is deliberate and closed. Every other role — including
+// program_controlled_unresolved, owner_unresolved and wallet_account_unavailable
+// — means the classifier could not say what the account is. Treating those as
+// concentrated ownership converts a failed identification into an F grade.
+func holderRoleCarriesConcentrationRisk(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "externally_owned_wallet":
+		return true
+	default:
+		return false
+	}
+}
+
+// unifiedRoleLabel keeps an empty role readable in the signal summary.
+func unifiedRoleLabel(role string) string {
+	if trimmed := strings.TrimSpace(role); trimmed != "" {
+		return trimmed
+	}
+	return "unresolved"
 }
