@@ -17,25 +17,26 @@ type actorProviderDiscovery struct {
 }
 
 type actorExternalDiscoveryRun struct {
-	Status                string                            `json:"status"`
-	Discovery             actorProviderDiscovery            `json:"discovery"`
-	AddressHistory        services.AddressHistoryReport     `json:"address_history"`
-	AddressFlow           addressFlowReport                 `json:"address_flow"`
-	AddressAttribution    addressAttributionReport          `json:"address_attribution"`
-	AddressInteractions   addressInteractionsReport         `json:"address_interactions"`
-	FundingPaths          addressFundingPathsReport         `json:"funding_paths"`
-	MultiHopFundingPaths  addressMultiHopFundingPathsReport `json:"multi_hop_funding_paths"`
-	AddressRelationships  addressRelationshipsReport        `json:"address_relationships"`
-	BehaviorTimeline      addressBehaviorTimelineReport     `json:"behavior_timeline"`
-	BehaviorPatterns      addressBehaviorPatternsReport     `json:"behavior_patterns"`
-	BehaviorSummary       addressBehaviorSummaryReport      `json:"behavior_summary"`
-	CreatedMintPortfolio  actorCreatedMintIntegrationRun    `json:"created_mint_portfolio"`
-	CreatorOutcomeHistory creatorOutcomeHistoryReport       `json:"creator_outcome_history"`
-	EvidenceProduced      int                               `json:"evidence_produced"`
-	EvidencePersisted     int                               `json:"evidence_persisted"`
-	PersistenceFailures   int                               `json:"persistence_failures"`
-	IntelligenceMemory    intelligenceMemoryReceipt         `json:"intelligence_memory"`
-	Limitations           []string                          `json:"limitations"`
+	Status                    string                            `json:"status"`
+	Discovery                 actorProviderDiscovery            `json:"discovery"`
+	AddressHistory            services.AddressHistoryReport     `json:"address_history"`
+	AddressFlow               addressFlowReport                 `json:"address_flow"`
+	AddressAttribution        addressAttributionReport          `json:"address_attribution"`
+	AddressInteractions       addressInteractionsReport         `json:"address_interactions"`
+	FundingPaths              addressFundingPathsReport         `json:"funding_paths"`
+	MultiHopFundingPaths      addressMultiHopFundingPathsReport `json:"multi_hop_funding_paths"`
+	AddressRelationships      addressRelationshipsReport        `json:"address_relationships"`
+	BehaviorTimeline          addressBehaviorTimelineReport     `json:"behavior_timeline"`
+	BehaviorPatterns          addressBehaviorPatternsReport     `json:"behavior_patterns"`
+	BehaviorSummary           addressBehaviorSummaryReport      `json:"behavior_summary"`
+	CreatedMintPortfolio      actorCreatedMintIntegrationRun    `json:"created_mint_portfolio"`
+	CreatorOutcomeHistory     creatorOutcomeHistoryReport       `json:"creator_outcome_history"`
+	CreatorTokenObservedPaths creatorTokenObservedPathsReport   `json:"creator_token_observed_paths"`
+	EvidenceProduced          int                               `json:"evidence_produced"`
+	EvidencePersisted         int                               `json:"evidence_persisted"`
+	PersistenceFailures       int                               `json:"persistence_failures"`
+	IntelligenceMemory        intelligenceMemoryReceipt         `json:"intelligence_memory"`
+	Limitations               []string                          `json:"limitations"`
 }
 
 func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
@@ -51,19 +52,20 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 			Address: wallet, Entries: []services.AddressHistoryEntry{}, Limitations: []string{},
 			EvidenceSource: "solana_getSignaturesForAddress", IdentityScope: "onchain_address_only",
 		},
-		AddressFlow:           newAddressFlowReport(wallet, "solana-mainnet"),
-		AddressAttribution:    newAddressAttributionReport(wallet),
-		AddressInteractions:   newAddressInteractionsReport(wallet),
-		FundingPaths:          newAddressFundingPathsReport(wallet),
-		MultiHopFundingPaths:  newAddressMultiHopFundingPathsReport(wallet),
-		AddressRelationships:  buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
-		BehaviorTimeline:      newAddressBehaviorTimelineReport(wallet),
-		BehaviorPatterns:      newAddressBehaviorPatternsReport(wallet),
-		BehaviorSummary:       newAddressBehaviorSummaryReport(wallet),
-		CreatedMintPortfolio:  newActorCreatedMintIntegrationRun(wallet),
-		CreatorOutcomeHistory: newCreatorOutcomeHistoryReport(wallet),
-		IntelligenceMemory:    intelligenceMemoryReceipt{Status: "not_requested"},
-		Limitations:           []string{},
+		AddressFlow:               newAddressFlowReport(wallet, "solana-mainnet"),
+		AddressAttribution:        newAddressAttributionReport(wallet),
+		AddressInteractions:       newAddressInteractionsReport(wallet),
+		FundingPaths:              newAddressFundingPathsReport(wallet),
+		MultiHopFundingPaths:      newAddressMultiHopFundingPathsReport(wallet),
+		AddressRelationships:      buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
+		BehaviorTimeline:          newAddressBehaviorTimelineReport(wallet),
+		BehaviorPatterns:          newAddressBehaviorPatternsReport(wallet),
+		BehaviorSummary:           newAddressBehaviorSummaryReport(wallet),
+		CreatedMintPortfolio:      newActorCreatedMintIntegrationRun(wallet),
+		CreatorOutcomeHistory:     newCreatorOutcomeHistoryReport(wallet),
+		CreatorTokenObservedPaths: newCreatorTokenObservedPathsReport(wallet),
+		IntelligenceMemory:        intelligenceMemoryReceipt{Status: "not_requested"},
+		Limitations:               []string{},
 	}
 }
 
@@ -104,6 +106,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.CreatedMintPortfolio.Limitations...)
 	out.CreatorOutcomeHistory = buildCreatorOutcomeHistory(wallet, out.CreatedMintPortfolio)
 	out.Limitations = append(out.Limitations, out.CreatorOutcomeHistory.Limitations...)
+	out.CreatorTokenObservedPaths = buildCreatorTokenObservedPaths(wallet, out.CreatedMintPortfolio, out.AddressFlow, out.AddressInteractions, out.CreatorOutcomeHistory)
+	out.Limitations = append(out.Limitations, out.CreatorTokenObservedPaths.Limitations...)
 	out.BehaviorTimeline = buildAddressBehaviorTimeline(wallet, out.AddressFlow, out.CreatedMintPortfolio)
 	out.Limitations = append(out.Limitations, out.BehaviorTimeline.Limitations...)
 	out.BehaviorPatterns = buildAddressBehaviorPatterns(wallet, out.AddressFlow, out.AddressRelationships, out.BehaviorTimeline)
