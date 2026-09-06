@@ -42,8 +42,10 @@ func attachFinalProductIntegrationDiagnostics(report map[string]any) {
 
 	markDisabledDefenseRuntimeOptional(report, &coverage)
 	recountFinalProductCoverage(&coverage)
+	transparency := buildInvestigationTransparency(coverage)
 	report["capability_integration"] = coverage
-	report["investigation_transparency"] = buildInvestigationTransparency(coverage)
+	report["investigation_transparency"] = transparency
+	report["investor_protection_decision"] = buildInvestorProtectionDecision(report, coverage, transparency)
 }
 
 func attachFinalWalletIntegrationDiagnostics(report map[string]any) {
@@ -58,8 +60,10 @@ func attachFinalWalletIntegrationDiagnostics(report map[string]any) {
 		delete(coverage.Capabilities, "solscan_actor_discovery")
 	}
 	recountFinalProductCoverage(&coverage)
+	transparency := buildInvestigationTransparency(coverage)
 	report["capability_integration"] = coverage
-	report["investigation_transparency"] = buildInvestigationTransparency(coverage)
+	report["investigation_transparency"] = transparency
+	report["investor_protection_decision"] = buildInvestorProtectionDecision(report, coverage, transparency)
 }
 
 func markDisabledDefenseRuntimeOptional(report map[string]any, coverage *canonicalIntegrationCoverage) {
