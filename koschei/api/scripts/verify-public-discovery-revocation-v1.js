@@ -34,27 +34,27 @@ requireText(loader, 'verifyPublicationLedgerReadback(', 'current publication led
 requireText(loader, 'verifyStoredDossierBundle(canonical, caseRef, storedHash.String)', 'current immutable dossier verification');
 
 requireText(portable, 'func (h *Handler) PublicDossierCasesPortable', 'portable public registry handler');
-requireText(portable, 'h.loadPublicDossierCasesV2(r, limit)', 'primary database remains first registry source');
-requireText(portable, 'loadPublicDossierRegistrySnapshotFromDrive(r, limit)', 'Drive fallback loader');
+requireText(portable, 'KOSCHEI_PUBLIC_REGISTRY_BACKEND', 'explicit registry backend selection');
+requireText(portable, 'case "database":', 'database registry mode');
+requireText(portable, 'case "drive":', 'Drive registry mode');
+requireText(portable, 'h.loadPublicDossierCasesV2(r, limit)', 'primary database verified registry loader');
+requireText(portable, 'loadPublicDossierRegistrySnapshotFromDrive(r, limit)', 'Drive snapshot loader');
 requireText(portable, 'drive.GetLatestJSONByName(r.Context(), publicCaseRegistryDriveObjectName)', 'Drive snapshot lookup');
 requireText(portable, 'parsePublicDossierRegistrySnapshot(payload, limit)', 'Drive snapshot semantic validation');
 requireText(portable, 'item.BundleHash', 'immutable bundle hash gate');
 requireText(portable, 'registry_object_sha256', 'Drive object checksum provenance');
 requireText(portable, 'Cache-Control", "no-store', 'portable no-store policy');
+forbid(portable, /if\s+h\s*!=\s*nil\s*&&\s*h\.DB\s*!=\s*nil[\s\S]*loadPublicDossierRegistrySnapshotFromDrive/, 'automatic DB failure to Drive fallback');
 forbid(portable, /stale-while-revalidate|max-age\s*=\s*[1-9]/i, 'stale Drive publication discovery cache');
 
 requireText(routes, 'mux.HandleFunc("/api/public/cases", method(http.MethodGet, h.PublicDossierCasesPortable))', 'portable production registry route');
-requireText(routes, 'mux.HandleFunc("/api/owner/dossier/public-registry/sync", requiresDB(h, ownerOnly(h, method(http.MethodPost, h.OwnerPublicDossierRegistrySync))))', 'owner-only registry snapshot sync route');
 requireText(routes, 'mux.HandleFunc("/api/public/soc/feed", requiresDB(h, method(http.MethodGet, h.PublicRadarLiveFeed)))', 'independent live radar route');
+forbid(routes, /public-registry\/sync/, 'unreviewed manual registry sync route');
 forbid(routes, /PublicSOCFeed|PublicDossierCases\)\)/, 'legacy publication discovery handler on production route');
 
-// Live radar remains independent from owner-publication discovery.
 requireText(live, 'this endpoint does not require an owner publication', 'live radar publication boundary');
 requireText(live, 'buildPublicRadarLiveEvents(items, now)', 'live radar signed verdict projection');
 requireText(legacy, 'func (h *Handler) PublicSOCFeed', 'legacy SOC code remains identifiable but unrouted');
-
-// Browser requests bypass HTTP cache; server-side no-store closes the same stale
-// visibility window for DB and Drive-backed registry reads.
 requireText(browser, "fetch(endpoint, { cache: 'no-store'", 'browser no-store discovery fetch');
 
 console.log('public discovery revocation v1 contract: ok');
