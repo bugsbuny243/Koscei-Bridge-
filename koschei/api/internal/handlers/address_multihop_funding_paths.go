@@ -25,19 +25,19 @@ type addressMultiHopFundingExtension struct {
 }
 
 type addressMultiHopFundingPathsReport struct {
-	SchemaVersion       string                            `json:"schema_version"`
-	Status              string                            `json:"status"`
-	Address             string                            `json:"address"`
-	ExpansionLimit      int                               `json:"expansion_limit"`
-	HistoryLimit        int                               `json:"history_limit"`
-	CandidatesSelected  int                               `json:"candidates_selected"`
-	CandidatesExpanded  int                               `json:"candidates_expanded"`
-	ExtensionsObserved  int                               `json:"extensions_observed"`
-	UpstreamExtensions  int                               `json:"upstream_extensions"`
-	DownstreamExtensions int                              `json:"downstream_extensions"`
-	Extensions          []addressMultiHopFundingExtension `json:"extensions"`
-	Limitations         []string                          `json:"limitations"`
-	Policy              map[string]any                    `json:"policy"`
+	SchemaVersion        string                            `json:"schema_version"`
+	Status               string                            `json:"status"`
+	Address              string                            `json:"address"`
+	ExpansionLimit       int                               `json:"expansion_limit"`
+	HistoryLimit         int                               `json:"history_limit"`
+	CandidatesSelected   int                               `json:"candidates_selected"`
+	CandidatesExpanded   int                               `json:"candidates_expanded"`
+	ExtensionsObserved   int                               `json:"extensions_observed"`
+	UpstreamExtensions   int                               `json:"upstream_extensions"`
+	DownstreamExtensions int                               `json:"downstream_extensions"`
+	Extensions           []addressMultiHopFundingExtension `json:"extensions"`
+	Limitations          []string                          `json:"limitations"`
+	Policy               map[string]any                    `json:"policy"`
 }
 
 func newAddressMultiHopFundingPathsReport(wallet string) addressMultiHopFundingPathsReport {
@@ -50,11 +50,11 @@ func newAddressMultiHopFundingPathsReport(wallet string) addressMultiHopFundingP
 		Policy: map[string]any{
 			"bounded_second_hop_only":             true,
 			"same_asset_and_time_order_required":  true,
-			"fund_trace_claimed":                   false,
+			"fund_trace_claimed":                  false,
 			"temporal_sequence_is_not_provenance": true,
-			"same_actor_claimed":                   false,
-			"real_world_identity_claim":            false,
-			"wrongdoing_claim":                     false,
+			"same_actor_claimed":                  false,
+			"real_world_identity_claim":           false,
+			"wrongdoing_claim":                    false,
 		},
 	}
 }
