@@ -100,7 +100,7 @@ async function recordSequence({duration=12000,onProgress=()=>{},sceneCount=5,dra
       if(source!==canvas){try{source.width=1;source.height=1;}catch{}}
     };
 
-    paint(0,0);
+    paint(0,0);lastScene=0;
     recorder.start(500);
     if(audioBlob){await audioContext.resume();audio.currentTime=0;await audio.play();}
     const started=performance.now();
