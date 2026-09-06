@@ -83,6 +83,18 @@ type IntelligenceBehaviorFinding struct {
 	EvidenceRefs []string `json:"evidence_refs,omitempty"`
 }
 
+type IntelligenceThreatHypothesis struct {
+	ID               string   `json:"id"`
+	Title            string   `json:"title"`
+	Classification   string   `json:"classification"`
+	Status           string   `json:"status"`
+	Basis            string   `json:"basis"`
+	NextSignals      []string `json:"next_signals,omitempty"`
+	EvidenceRefs     []string `json:"evidence_refs,omitempty"`
+	RequiredEvidence []string `json:"required_evidence,omitempty"`
+	Confidence       float64  `json:"confidence"`
+}
+
 type IntelligenceAttackPathStep struct {
 	Order        int      `json:"order"`
 	Action       string   `json:"action"`
@@ -111,15 +123,16 @@ type IntelligenceDecision struct {
 }
 
 type IntelligenceInvestigation struct {
-	ContractVersion string                        `json:"contract_version"`
-	Subjects        []IntelligenceSubject         `json:"subjects"`
-	Entities        []IntelligenceEntity          `json:"entities,omitempty"`
-	Evidence        []IntelligenceEvidence        `json:"evidence,omitempty"`
-	Relationships   []IntelligenceRelationship    `json:"relationships,omitempty"`
-	Behaviors       []IntelligenceBehaviorFinding `json:"behaviors,omitempty"`
-	AttackPaths     []IntelligenceAttackPath      `json:"attack_paths,omitempty"`
-	Decision        IntelligenceDecision          `json:"decision"`
-	GeneratedAt     time.Time                     `json:"generated_at"`
+	ContractVersion string                         `json:"contract_version"`
+	Subjects        []IntelligenceSubject          `json:"subjects"`
+	Entities        []IntelligenceEntity           `json:"entities,omitempty"`
+	Evidence        []IntelligenceEvidence         `json:"evidence,omitempty"`
+	Relationships   []IntelligenceRelationship     `json:"relationships,omitempty"`
+	Behaviors       []IntelligenceBehaviorFinding  `json:"behaviors,omitempty"`
+	Hypotheses      []IntelligenceThreatHypothesis `json:"hypotheses,omitempty"`
+	AttackPaths     []IntelligenceAttackPath       `json:"attack_paths,omitempty"`
+	Decision        IntelligenceDecision           `json:"decision"`
+	GeneratedAt     time.Time                      `json:"generated_at"`
 }
 
 func ClassifyIntelligenceSubject(target, network string) IntelligenceSubject {
