@@ -10,7 +10,7 @@
     const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.dataset.koscheiStyle=key;document.head.appendChild(link);
   }
 
-  function installSurfaceStyles(){loadStyle('/css/customer-surface-v3.css?v=1','customer-surface-v3');}
+  function installSurfaceStyles(){loadStyle('/css/koschei.css?v=1','customer-surface-v3');}
   function loadEnhancement(src,key){if(document.querySelector(`script[data-koschei-enhancement="${key}"]`))return;const script=document.createElement('script');script.src=src;script.defer=true;script.dataset.koscheiEnhancement=key;document.body.appendChild(script);}
   function cleanPath(value){return (value||'/').replace(/\.html$/,'').replace(/\/$/,'')||'/';}
   function navActive(href,current){const url=new URL(href,location.origin),path=cleanPath(url.pathname);if(href==='/scan')return current==='/scan'||current.startsWith('/scan/');if(href==='/reports')return current==='/reports'||current==='/cases';if(href==='/account')return current==='/account'||current==='/login';if(href==='/pricing')return current==='/pricing';return path===current;}
@@ -41,8 +41,8 @@
 
   function loadPageEnhancements(){
     const current=cleanPath(location.pathname);
-    if(current==='/scan'||current.startsWith('/scan/')){loadStyle('/css/customer-result-guidance-v3.css?v=1','customer-result-guidance-v3');loadEnhancement('/js/customer-scan-flow-v3.js?v=1','scan-v3');loadEnhancement('/js/customer-result-guidance-v3.js?v=1','result-guidance-v3');}
-    if(current==='/dashboard'){loadStyle('/css/customer-workspace-plans-v3.css?v=1','workspace-plans-v3');loadEnhancement('/js/customer-workspace-plans-v3.js?v=1','workspace-plans-v3');}
+    if(current==='/scan'||current.startsWith('/scan/')){loadStyle('/css/koschei.css?v=1','customer-result-guidance-v3');loadEnhancement('/js/customer-scan-flow-v3.js?v=1','scan-v3');loadEnhancement('/js/customer-result-guidance-v3.js?v=1','result-guidance-v3');}
+    if(current==='/dashboard'){loadStyle('/css/koschei.css?v=1','workspace-plans-v3');loadEnhancement('/js/customer-workspace-plans-v3.js?v=1','workspace-plans-v3');}
   }
 
   installSurfaceStyles();

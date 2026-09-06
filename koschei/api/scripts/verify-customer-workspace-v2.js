@@ -8,10 +8,10 @@ const css=fs.readFileSync(path.join(root,'public','css','customer-workspace-v2.c
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
-requireText(html,'/css/customer-workspace-v2.css?v=1','dashboard html');
-requireText(html,'/css/koschei-enterprise-v3.css?v=1','enterprise dashboard style');
-requireText(html,'/css/customer-command-center-v1.css?v=3','customer command center style');
-requireText(html,'/css/customer-command-universe-v2.css?v=1','command universe style');
+requireText(html,'/css/koschei.css?v=1','dashboard html');
+requireText(html,'/css/koschei.css?v=1','enterprise dashboard style');
+requireText(html,'/css/koschei.css?v=1','customer command center style');
+requireText(html,'/css/koschei.css?v=1','command universe style');
 requireText(html,'/js/customer-command-center-v1.js?v=3','customer command center behavior');
 requireText(html,'/js/customer-command-universe-v2.js?v=1','command universe behavior');
 requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
@@ -77,7 +77,7 @@ requireText(shellJs,"event.key==='Escape'",'command palette escape close');
 requireText(commandUniverseJs,"document.getElementById('commandPipelineState')",'command universe binds service state');
 requireText(commandUniverseJs,"document.getElementById('commandAccountState')",'command universe binds account state');
 requireText(universe,'body.koschei-universe','universe style contract');
-for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/customer-command-center-v1.css?v=3',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=3',page+' shared shell behavior');}
+for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/koschei.css?v=1',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=3',page+' shared shell behavior');}
 if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
 if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
 if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');

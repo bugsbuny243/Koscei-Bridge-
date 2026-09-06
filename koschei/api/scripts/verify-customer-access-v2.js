@@ -21,7 +21,7 @@ requireText(account,'id="outputCapacity"','output capacity field');
 requireText(account,'API-key management requires an active Professional entitlement.','Professional API key boundary');
 requireText(account,'/js/customer-access-v2.js?v=3','account access controller');
 requireText(account,'/pricing','pricing route');
-requireText(account,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
+requireText(account,'/css/koschei.css?v=1','universe stylesheet');
 forbid(account,/KOSCH Access|TOKEN ACCESS EVIDENCE|Official mint snapshot|LIVE TOKEN POLICY|ARVIS EARLY ACCESS|STARTER\+|ENTERPRISE\+/i,'retired access UI');
 
 requireText(wallet,'Statement: Sign this message to link your wallet. This does not authorize a transaction.','wallet identity authority boundary');

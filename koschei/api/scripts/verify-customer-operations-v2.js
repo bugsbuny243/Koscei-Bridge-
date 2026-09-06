@@ -12,7 +12,7 @@ function requireText(source,needle,label){if(!source.includes(needle))throw new 
 
 for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist html']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/customer-operations-v2.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
 }
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','reports html');
 requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');

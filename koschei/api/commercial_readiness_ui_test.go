@@ -56,12 +56,12 @@ func TestCommercialReadinessCustomerSurfaces(t *testing.T) {
 		t.Error("scan navigation does not exclude the customer sidebar from scan-link collapse")
 	}
 
-	workspaceCSS := mustReadCommercialSurface(t, "public/css/customer-workspace-v2.css")
+	workspaceCSS := mustReadCommercialSurface(t, "public/css/koschei.css?v=1")
 	if !strings.Contains(workspaceCSS, ".koschei-safety-strip{display:none!important}") {
 		t.Error("dashboard self-promo strip is not suppressed from the customer workspace")
 	}
 
-	universeCSS := mustReadCommercialSurface(t, "public/css/koschei-universe-v1.css")
+	universeCSS := mustReadCommercialSurface(t, "public/css/koschei.css?v=1")
 	for _, required := range []string{"body.koschei-universe", ".universe-entry", ".professional-lock"} {
 		if !strings.Contains(universeCSS, required) {
 			t.Errorf("universe visual system missing %q", required)

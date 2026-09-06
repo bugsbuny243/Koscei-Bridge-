@@ -11,8 +11,8 @@ function requireOrder(source,first,second,label){const a=source.indexOf(first),b
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 requireText(html,'<html lang="en">','recipient html language');
-requireText(html,'/css/koschei-global-shell.css?v=4','global shell');
-requireText(html,'/css/public-safety-surfaces-v2.css?v=1','shared safety styles');
+requireText(html,'/css/koschei.css?v=1','global shell');
+requireText(html,'/css/koschei.css?v=1','shared safety styles');
 requireText(html,'id="recipientForm"','recipient form');
 requireText(html,'id="wallet"','wallet input');
 requireText(html,'id="candidate"','candidate input');

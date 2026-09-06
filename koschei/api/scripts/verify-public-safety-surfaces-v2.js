@@ -13,8 +13,8 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 
 for(const [html,label,script] of [[safeHTML,'safe check html','/js/public-safe-check-v2.js?v=1'],[txHTML,'transaction shield html','/js/public-transaction-shield-v2.js?v=1']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/koschei-global-shell.css?v=4',`${label} global shell`);
-  requireText(html,'/css/public-safety-surfaces-v2.css?v=1',`${label} shared safety css`);
+  requireText(html,'/css/koschei.css?v=1',`${label} global shell`);
+  requireText(html,'/css/koschei.css?v=1',`${label} shared safety css`);
   requireText(html,script,`${label} v2 controller`);
   requireText(html,'Missing',`${label} explicit missing-evidence copy`);
   forbid(html,/\son[a-z]+\s*=/i,`${label} inline event handler`);

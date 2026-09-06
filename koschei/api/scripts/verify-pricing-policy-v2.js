@@ -24,7 +24,7 @@ requireText(html,'The server decides access. The browser never invents it.','ser
 requireText(html,'PROFESSIONAL</strong>','Professional policy card');
 requireText(html,'SERVER-SIDE','server authority card');
 requireText(html,'FAIL-CLOSED','evidence boundary card');
-requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
+requireText(html,'/css/koschei.css?v=1','universe stylesheet');
 
 forbid(html,/<h2>Free Core<\/h2>/i,'free investigation tier');
 forbid(html,/Request early access/i,'retired early access form');

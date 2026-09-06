@@ -9,7 +9,7 @@ const css=fs.readFileSync(path.join(root,'public','css','customer-investigation-
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
-requireText(html,'/css/customer-investigation-ux-v2.css?v=1','scan html');
+requireText(html,'/css/koschei.css?v=1','scan html');
 requireText(html,'/js/customer-investigation-ux-v2.js?v=1','scan html');
 requireText(html,'/js/customer-arvis-premium-suite.js?v=2','scan html premium cache key');
 requireText(ux,'ALLOW is not a safety guarantee','allow boundary');

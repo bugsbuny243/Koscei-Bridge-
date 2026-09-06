@@ -25,7 +25,7 @@ func TestDossierHTMLIsStableAndContainsNoInlineExecutionSurface(t *testing.T) {
 			t.Fatalf("stable dossier template contains forbidden inline surface %q", forbidden)
 		}
 	}
-	if !strings.Contains(body, `href="/css/dossier-print.css?v=1"`) {
+	if !strings.Contains(body, `href="/css/koschei.css?v=1"`) {
 		t.Fatal("stable dossier stylesheet link is missing")
 	}
 	if !strings.Contains(body, strings.ToLower(data.Bundle.CaseRef)) || !strings.Contains(body, strings.ToLower(data.Bundle.BundleHash)) {

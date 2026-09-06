@@ -13,8 +13,8 @@ function visibleSource(html){return html.replace(/<span hidden data-public-smoke
 
 for(const [html,label] of [[cases,'cases html'],[live,'live html']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/koschei-global-shell.css?v=4',label);
-  requireText(html,'/css/public-evidence-center-v2.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
   if(/[İıŞşĞğÇçÖöÜü]/.test(visibleSource(html)))throw new Error(`${label}: visible public copy must remain English`);
 }
 requireText(cases,'data-public-smoke-transition="cases">Yayınlanmış Güvenlik Vakaları','cases transitional smoke marker');

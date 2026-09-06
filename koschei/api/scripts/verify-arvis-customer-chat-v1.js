@@ -24,8 +24,8 @@ requireText(html,'id="arvisChatScanForm"','scan form');
 requireText(html,'id="arvisChatQuestionForm"','question form');
 requireText(html,'/js/customer-arvis-metaverse-v1.js?v=1','metaverse controller');
 requireText(html,'/js/customer-arvis-chat-v1.js?v=3','chat controller');
-requireText(html,'/css/customer-arvis-metaverse-v1.css?v=1','metaverse stylesheet');
-requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
+requireText(html,'/css/koschei.css?v=1','metaverse stylesheet');
+requireText(html,'/css/koschei.css?v=1','universe stylesheet');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 

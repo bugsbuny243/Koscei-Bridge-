@@ -10,7 +10,7 @@ function requireText(source,needle,label){
   if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);
 }
 
-requireText(html,'/css/owner-investigation-ux.css?v=1','owner html');
+requireText(html,'/css/koschei.css?v=1','owner html');
 requireText(html,'/js/owner-investigation-ux.js?v=1','owner html');
 requireText(js,'No deterministic blocking rule fired','policy explanation');
 requireText(js,'ALLOW is not a safety guarantee','allow boundary');

@@ -9,7 +9,7 @@ function requireText(source,needle,label){
   if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);
 }
 
-requireText(handler,'/css/public-casefile.css?v=1','case handler stylesheet contract');
+requireText(handler,'/css/koschei.css?v=1','case handler stylesheet contract');
 requireText(handler,'func (h *Handler) PublicCasePage','public case handler');
 requireText(handler,'publicCaseHTML.Execute(w, data)','case HTML template renderer');
 requireText(handler,'buildPublicCasePageData','canonical case presentation mapper');
