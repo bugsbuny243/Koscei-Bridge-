@@ -39,28 +39,28 @@ type transactionInvestigationInstruction struct {
 }
 
 type transactionInvestigationReport struct {
-	SchemaVersion       string                                  `json:"schema_version"`
-	Status              string                                  `json:"status"`
-	Network             string                                  `json:"network"`
-	Signature           string                                  `json:"signature"`
-	Slot                int64                                   `json:"slot,omitempty"`
-	BlockTime           time.Time                               `json:"block_time,omitempty"`
-	Succeeded           bool                                    `json:"succeeded"`
-	ExecutionError      any                                     `json:"execution_error,omitempty"`
-	FeeLamports         int64                                   `json:"fee_lamports,omitempty"`
-	Signers             []string                                `json:"signers"`
-	AccountKeys         []string                                `json:"account_keys"`
-	InvokedPrograms     []string                                `json:"invoked_programs"`
-	Instructions        []transactionInvestigationInstruction   `json:"instructions"`
-	SOLBalanceDeltas    []transactionInvestigationBalanceDelta  `json:"sol_balance_deltas"`
-	TokenBalanceDeltas  []transactionInvestigationTokenDelta    `json:"token_balance_deltas"`
-	EvidenceRefs        []string                                `json:"evidence_refs"`
-	EvidenceLimits      []string                                `json:"evidence_limits"`
-	CollectionGaps      []string                                `json:"collection_gaps"`
-	IdentityScope       string                                  `json:"identity_scope"`
-	AttributionClaimed  bool                                    `json:"attribution_claimed"`
-	RawTransactionSaved bool                                    `json:"raw_transaction_saved"`
-	Memory              intelligenceMemoryReceipt               `json:"intelligence_memory"`
+	SchemaVersion       string                                 `json:"schema_version"`
+	Status              string                                 `json:"status"`
+	Network             string                                 `json:"network"`
+	Signature           string                                 `json:"signature"`
+	Slot                int64                                  `json:"slot,omitempty"`
+	BlockTime           time.Time                              `json:"block_time,omitempty"`
+	Succeeded           bool                                   `json:"succeeded"`
+	ExecutionError      any                                    `json:"execution_error,omitempty"`
+	FeeLamports         int64                                  `json:"fee_lamports,omitempty"`
+	Signers             []string                               `json:"signers"`
+	AccountKeys         []string                               `json:"account_keys"`
+	InvokedPrograms     []string                               `json:"invoked_programs"`
+	Instructions        []transactionInvestigationInstruction  `json:"instructions"`
+	SOLBalanceDeltas    []transactionInvestigationBalanceDelta `json:"sol_balance_deltas"`
+	TokenBalanceDeltas  []transactionInvestigationTokenDelta   `json:"token_balance_deltas"`
+	EvidenceRefs        []string                               `json:"evidence_refs"`
+	EvidenceLimits      []string                               `json:"evidence_limits"`
+	CollectionGaps      []string                               `json:"collection_gaps"`
+	IdentityScope       string                                 `json:"identity_scope"`
+	AttributionClaimed  bool                                   `json:"attribution_claimed"`
+	RawTransactionSaved bool                                   `json:"raw_transaction_saved"`
+	Memory              intelligenceMemoryReceipt              `json:"intelligence_memory"`
 }
 
 func (h *Handler) investigateTransactionSignature(ctx context.Context, signature, network string) transactionInvestigationReport {
