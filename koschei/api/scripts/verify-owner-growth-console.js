@@ -6,6 +6,7 @@ const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 const html=read('public/owner-production.html');
 const customers=read('public/js/owner-customer-directory.js');
 const social=read('public/js/owner-social-studio.js');
+const renderer=read('public/js/owner-social-mobile-renderer.js');
 const voice=read('public/js/owner-social-voice.js');
 const ownerChat=read('internal/handlers/owner_ai_chat.go');
 const ownerContext=read('internal/handlers/owner_ai_chat_context.go');
@@ -17,7 +18,8 @@ function forbidText(source,needle,label){if(source.includes(needle))throw new Er
 
 requireText(html,'/js/owner-customer-directory.js?v=1','owner html customer directory');
 requireText(html,'/js/owner-social-studio.js?v=2','owner html social studio');
-requireText(html,'/js/owner-social-voice.js?v=1','owner html Together voice');
+requireText(html,'/js/owner-social-mobile-renderer.js?v=1','owner html mobile-safe renderer');
+requireText(html,'/js/owner-social-voice.js?v=2','owner html Together voice');
 
 requireText(customers,"owner().api('/api/owner/users'+suffix)",'customer production directory');
 requireText(customers,"data-customer-action=\"ban\"",'customer management');
@@ -32,9 +34,24 @@ requireText(social,'hashtags and mentions must be arrays of strings','structured
 requireText(social,'Use ONLY the supplied ARVIS scan facts','evidence boundary');
 requireText(social,'Never invent a wallet, transaction, block/slot, price, score, crime, identity, partnership, endorsement or certainty','anti-hallucination boundary');
 
+new Function(renderer);
+requireText(renderer,'width:720,height:1280,fps:12,bitrate:2800000','mobile video profile');
+requireText(renderer,'width:540,height:960,fps:10,bitrate:1800000','low-memory video profile');
+requireText(renderer,'if(scene!==lastScene){paint(scene,progress);lastScene=scene;}','scene-change-only rendering');
+requireText(renderer,'source.width=1;source.height=1','temporary canvas release');
+requireText(renderer,"stream.getTracks().forEach(track=>{try{track.stop();}catch{}})",'media track cleanup');
+requireText(renderer,'recordVerticalVideo.__koscheiOwnerMobileSafe','ARVIS recorder patch');
+requireText(renderer,'lab.recordVideo=safe','Web3 Lab recorder patch');
+forbidText(renderer,'requestAnimationFrame','mobile-safe renderer must not allocate on every display frame');
+forbidText(renderer,'videoBitsPerSecond:9000000','mobile-safe renderer must not restore 9Mbps encoding');
+
+new Function(voice);
 requireText(voice,"/api/owner/chat?mode=tts&language=en",'Together TTS owner path');
 requireText(voice,'recordWithAudio','narrated video mux');
 requireText(voice,'state.audioBlob?recordWithAudio','deterministic renderer audio extension');
+requireText(voice,'renderer.recordARVIS(input,{...options,audioBlob})','narrated mobile-safe renderer');
+forbidText(voice,'requestAnimationFrame','voice mux must not render every display frame');
+forbidText(voice,'videoBitsPerSecond:9000000','voice mux must not restore 9Mbps encoding');
 
 requireText(ownerChat,'router.Chat(ctx','Together owner chat');
 requireText(ownerChat,'r.URL.Query().Get("mode")','owner TTS mode');
