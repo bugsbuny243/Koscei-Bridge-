@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"strings"
 	"time"
 
@@ -12,31 +13,60 @@ import (
 const intelligenceMemoryWriteTimeout = 20 * time.Second
 
 type intelligenceMemoryReceipt struct {
-	Status  string               `json:"status"`
-	Durable bool                 `json:"durable"`
-	Object  *archive.DriveObject `json:"object,omitempty"`
+	Status              string               `json:"status"`
+	Durable             bool                 `json:"durable"`
+	Backend             string               `json:"backend,omitempty"`
+	ConfigurationStatus string               `json:"configuration_status,omitempty"`
+	Object              *archive.DriveObject `json:"object,omitempty"`
+}
+
+func intelligenceMemoryConfigurationStatus() string {
+	folderConfigured := strings.TrimSpace(os.Getenv("GOOGLE_DRIVE_ARCHIVE_FOLDER_ID")) != ""
+	credentialConfigured := strings.TrimSpace(os.Getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")) != ""
+	switch {
+	case !folderConfigured && !credentialConfigured:
+		return "folder_and_credential_missing"
+	case !folderConfigured:
+		return "folder_missing"
+	case !credentialConfigured:
+		return "credential_missing"
+	default:
+		return "configured"
+	}
 }
 
 // archiveIntelligenceMemory is deliberately best-effort. A Drive outage must
 // never suppress or alter a completed ARVIS result. Neon/PostgreSQL is not part
 // of this path; durable intelligence memory belongs in Google Drive.
 func archiveIntelligenceMemory(ctx context.Context, kind, network, target string, payload any) intelligenceMemoryReceipt {
+	configurationStatus := intelligenceMemoryConfigurationStatus()
+	baseReceipt := intelligenceMemoryReceipt{
+		Backend:             "google_drive",
+		ConfigurationStatus: configurationStatus,
+	}
 	if strings.TrimSpace(target) == "" {
-		return intelligenceMemoryReceipt{Status: "invalid_target"}
+		baseReceipt.Status = "invalid_target"
+		return baseReceipt
 	}
 
 	drive, err := archive.NewGoogleDriveFromEnv()
 	if err != nil {
-		return intelligenceMemoryReceipt{Status: "drive_unavailable"}
+		baseReceipt.Status = "drive_unavailable"
+		if configurationStatus == "configured" {
+			baseReceipt.ConfigurationStatus = "credential_invalid_or_incomplete"
+		}
+		return baseReceipt
 	}
 
 	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return intelligenceMemoryReceipt{Status: "encode_failed"}
+		baseReceipt.Status = "encode_failed"
+		return baseReceipt
 	}
 	memory := map[string]any{}
 	if err := json.Unmarshal(encoded, &memory); err != nil {
-		return intelligenceMemoryReceipt{Status: "encode_failed"}
+		baseReceipt.Status = "encode_failed"
+		return baseReceipt
 	}
 
 	if ctx == nil {
@@ -51,10 +81,15 @@ func archiveIntelligenceMemory(ctx context.Context, kind, network, target string
 		if status == "" {
 			status = "drive_write_failed"
 		}
-		return intelligenceMemoryReceipt{Status: status}
+		baseReceipt.Status = status
+		return baseReceipt
 	}
 	object := result.Object
-	return intelligenceMemoryReceipt{Status: result.Status, Durable: result.Status == "drive_archived", Object: &object}
+	baseReceipt.Status = result.Status
+	baseReceipt.Durable = result.Status == "drive_archived"
+	baseReceipt.ConfigurationStatus = "ready"
+	baseReceipt.Object = &object
+	return baseReceipt
 }
 
 func (h *Handler) archiveIntelligenceMemory(ctx context.Context, kind, network, target string, payload any) intelligenceMemoryReceipt {
