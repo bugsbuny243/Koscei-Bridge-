@@ -3,7 +3,7 @@
  radial-gradient(circle at 50% 44%,rgba(30,120,188,.20),transparent 22%),
  linear-gradient(180deg,#03070d 0%,#06101a 48%,#02060b 100%)!important;
 }
-.universe-starfield{opacity:.10!important;filter:blur(.1px)}
+.universe-starfield{opacity:.025!important;filter:blur(.1px)}
 .home-universe:before{content:""!important;position:absolute!important;inset:0!important;z-index:-5!important;opacity:1!important;background:
  linear-gradient(90deg,rgba(14,38,58,.86) 0 7%,transparent 7% 93%,rgba(14,38,58,.86) 93% 100%),
  repeating-linear-gradient(90deg,transparent 0 78px,rgba(53,132,185,.055) 79px 80px),
@@ -42,11 +42,26 @@
  linear-gradient(0deg,transparent 49.5%,rgba(115,198,244,.08) 50%,transparent 50.5%),
  repeating-radial-gradient(circle at center,transparent 0 34px,rgba(89,174,226,.07) 35px 36px);opacity:.7;pointer-events:none}
 .core-sphere:after{content:"";position:absolute;inset:-18%;border-radius:50%;border:1px solid rgba(89,174,226,.12);box-shadow:0 0 0 28px rgba(89,174,226,.025),0 0 0 64px rgba(89,174,226,.018);pointer-events:none}
+
+/* Dense, non-claiming intelligence graph: labels are conceptual surfaces only; no fabricated counts. */
+.intelligence-graph{position:absolute;inset:7% 7%;z-index:3;pointer-events:none;border-radius:50%;filter:drop-shadow(0 0 12px rgba(48,169,235,.16))}
+.graph-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.graph-links path{fill:none;stroke:rgba(65,174,235,.22);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:2 7;animation:graphFlow 8s linear infinite}
+.graph-links path:nth-child(2n){stroke:rgba(255,135,55,.18);animation-duration:11s}.graph-links path:nth-child(3n){stroke:rgba(255,57,83,.17);animation-duration:13s}
+.graph-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#4bc7ff;box-shadow:0 0 0 5px rgba(75,199,255,.08),0 0 18px rgba(75,199,255,.72)}
+.graph-dot span{position:absolute;inset:-9px;border:1px solid rgba(75,199,255,.28);border-radius:50%;animation:graphPing 3.2s ease-out infinite}
+.graph-dot em{position:absolute;left:18px;top:-5px;padding:4px 7px;border:1px solid rgba(96,190,239,.18);background:rgba(3,13,22,.82);color:#9bcbe5;font:700 8px ui-monospace,monospace;letter-spacing:.12em;font-style:normal;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.gd-wallet{left:19%;top:27%}.gd-entity{right:18%;top:27%}.gd-market{left:11%;top:58%;background:#ff9a45;box-shadow:0 0 0 5px rgba(255,154,69,.07),0 0 18px rgba(255,154,69,.58)}.gd-bridge{right:11%;top:58%}.gd-behavior{left:23%;bottom:18%;background:#ff475d;box-shadow:0 0 0 5px rgba(255,71,93,.07),0 0 18px rgba(255,71,93,.58)}.gd-evidence{right:22%;bottom:18%}
+.gd-market span,.gd-behavior span{border-color:currentColor}.gd-market em{color:#ffc18e}.gd-behavior em{color:#ff9aa8}
+.graph-pulse{position:absolute;width:8px;height:8px;border-radius:50%;background:#d9f6ff;box-shadow:0 0 16px #7ad9ff;animation:routePulse 6s linear infinite;opacity:.9}.gp-1{left:50%;top:50%;animation-delay:0s}.gp-2{left:50%;top:50%;animation-delay:-2s}.gp-3{left:50%;top:50%;animation-delay:-4s}
+@keyframes graphFlow{to{stroke-dashoffset:-90}}@keyframes graphPing{0%{transform:scale(.55);opacity:.8}75%,100%{transform:scale(1.45);opacity:0}}@keyframes routePulse{0%{transform:translate(0,0);opacity:0}8%{opacity:1}42%{transform:translate(-210px,-130px)}49%{opacity:0}50%{transform:translate(0,0);opacity:0}58%{opacity:1}92%{transform:translate(205px,130px)}100%{opacity:0}}
+
 .chain-node{box-shadow:0 0 18px color-mix(in srgb,var(--chain) 32%,transparent),0 0 54px color-mix(in srgb,var(--chain) 20%,transparent),inset -15px -17px 26px rgba(0,0,0,.72),inset 9px 8px 18px color-mix(in srgb,var(--chain) 18%,transparent)!important}
 .chain-node:before{box-shadow:0 0 18px color-mix(in srgb,var(--chain) 20%,transparent)!important}
 .home-enter,.home-investigate form{backdrop-filter:blur(18px)!important;background:linear-gradient(180deg,rgba(4,14,23,.92),rgba(2,8,14,.94))!important;box-shadow:0 18px 60px rgba(0,0,0,.45),inset 0 1px rgba(180,224,249,.06)!important}
-@media(max-width:1180px){.home-shell:before,.home-shell:after{width:42px;opacity:.7}.home-universe:after{top:10%;height:420px}.home-stage:before{height:180px}.home-stage:after{top:26%;width:110vw;height:110vw}.universe-starfield{opacity:.06!important}}
+@media(max-width:1180px){.home-shell:before,.home-shell:after{width:42px;opacity:.7}.home-universe:after{top:10%;height:420px}.home-stage:before{height:180px}.home-stage:after{top:26%;width:110vw;height:110vw}.universe-starfield{opacity:.015!important}.graph-dot em{font-size:7px}.intelligence-graph{inset:8%}}
 @media(max-width:640px){.home-shell:before,.home-shell:after{display:none}.home-universe:before{background:
  repeating-linear-gradient(90deg,transparent 0 74px,rgba(53,132,185,.035) 75px 76px),
  radial-gradient(ellipse at 50% 42%,rgba(10,43,66,.58) 0 34%,transparent 66%),
- linear-gradient(180deg,#02060b,#06111b 60%,#02060b)!important}.home-universe:after{top:11%;width:104vw!important;height:330px!important;opacity:.8}.home-stage:after{top:28%;width:122vw;height:122vw}.home-stage:before{height:140px}.universe-starfield{opacity:.035!important}}
+ linear-gradient(180deg,#02060b,#06111b 60%,#02060b)!important}.home-universe:after{top:11%;width:104vw!important;height:330px!important;opacity:.8}.home-stage:after{top:28%;width:122vw;height:122vw}.home-stage:before{height:140px}.universe-starfield{opacity:.01!important}.intelligence-graph{inset:10%}.graph-dot{width:9px;height:9px}.graph-dot em{display:none}.graph-links path{stroke-width:1}.gp-1,.gp-2,.gp-3{display:none}}
+@media(prefers-reduced-motion:reduce){.graph-links path,.graph-dot span,.graph-pulse{animation:none!important}}
