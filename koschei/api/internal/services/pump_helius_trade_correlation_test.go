@@ -61,8 +61,8 @@ func TestPumpTradeCorrelationUnavailableRemainsObservedOnly(t *testing.T) {
 func pumpTradeCorrelationTestTransaction(mint, trader, program string, slot int64, pre, post float64) SolanaTransactionResult {
 	balance := func(value float64) map[string]any {
 		return map[string]any{
-			"mint": mint,
-			"owner": trader,
+			"mint":          mint,
+			"owner":         trader,
 			"uiTokenAmount": map[string]any{"uiAmount": value},
 		}
 	}
@@ -74,7 +74,7 @@ func pumpTradeCorrelationTestTransaction(mint, trader, program string, slot int6
 			},
 		},
 		"meta": map[string]any{
-			"preTokenBalances": []any{balance(pre)},
+			"preTokenBalances":  []any{balance(pre)},
 			"postTokenBalances": []any{balance(post)},
 		},
 	}
