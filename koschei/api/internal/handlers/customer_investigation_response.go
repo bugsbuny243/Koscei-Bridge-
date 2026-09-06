@@ -63,6 +63,11 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	// remains a capability/exposure projection and never predicts intent.
 	attachArvisIntelligenceAttackPaths(assembly)
 
+	// Threat hypotheses are an additive chain-neutral projection over those same
+	// typed, evidence-linked pathways. They do not introduce a second inference
+	// engine, probability, intent claim or verdict authority.
+	attachArvisIntelligenceThreatHypotheses(assembly)
+
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
