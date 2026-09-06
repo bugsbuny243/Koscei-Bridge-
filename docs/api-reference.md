@@ -12,11 +12,13 @@ Use:
 Authorization: Bearer CUSTOMER_SESSION_TOKEN
 ```
 
-Paid customer routes authorize through active SaaS entitlements. Starter covers entry investigation routes, Professional covers advanced radar/watchlist routes, and Enterprise covers developer and integration eligibility. Paid output-capacity enforcement remains server-owned.
+Operational customer routes authorize through one commercial entitlement: **Professional**. Paid output-capacity enforcement remains server-owned. Missing, expired or inconsistent entitlement state fails closed.
 
 KOSCH holdings, wallet balances, historical token tiers and `token_access_snapshots` do not grant, upgrade or discount commercial access.
 
-### Partner API routes
+Authentication: customer session + active Professional entitlement.
+
+### Developer API routes
 
 Use either:
 
@@ -30,7 +32,22 @@ or:
 Authorization: Bearer ARVIS_API_KEY
 ```
 
-Developer API keys are identity credentials. Registered developer routes require an active Enterprise SaaS entitlement and remain subject to per-minute rate limits, configured usage quotas and endpoint-specific readiness/evidence rules. Credential eligibility is not a promise that every integration surface has completed production validation.
+Developer API keys are identity credentials. Registered developer routes require an active Professional entitlement and remain subject to per-minute rate limits, configured usage quotas, runtime feature gates and endpoint-specific readiness/evidence rules. Credential eligibility is not a promise that every integration surface has completed production validation.
+
+Authentication: developer API key + active Professional entitlement.
+
+---
+
+## Professional compatibility routes
+
+The following historical paths remain registered for client compatibility, but they no longer imply anonymous/free operational analysis. The HTTP readiness boundary applies customer authentication, active Professional entitlement and the output ledger before the existing handlers execute.
+
+```text
+POST /api/arvis/preflight
+POST /api/token/scan
+```
+
+Public proof, health and documentation surfaces remain separate and do not execute a customer investigation.
 
 ---
 
@@ -38,7 +55,7 @@ Developer API keys are identity credentials. Registered developer routes require
 
 Runs an evidence-backed Radar check for a supported Solana target.
 
-Authentication: customer session + active Starter SaaS entitlement or higher.
+Authentication: customer session + active Professional entitlement.
 
 ```json
 {
@@ -56,17 +73,15 @@ The result may include the deterministic verdict, evidence arms, signature metad
 
 Creates a canonical asynchronous investigation job.
 
-Authentication: customer session + active Starter SaaS entitlement or higher.
+Authentication: customer session + active Professional entitlement.
 
-The canonical worker accepts supported token mint, wallet or token-account targets and continues independently of the originating HTTP request.
-
-Use `GET /api/v1/radar/jobs/` with the job identifier path suffix to retrieve the result.
+The canonical worker accepts supported token mint, wallet or token-account targets and continues independently of the originating HTTP request. Use `GET /api/v1/radar/jobs/` with the job identifier path suffix to retrieve the result.
 
 ---
 
 ## Registered Radar read surfaces
 
-Authentication: customer session + active SaaS entitlement at the route's required plan tier.
+Authentication: customer session + active Professional entitlement.
 
 ```text
 GET /api/v1/radar/detail
@@ -78,17 +93,15 @@ GET /api/v1/radar/exposure
 POST /api/v1/radar/court
 ```
 
-`detail` is Starter-gated; advanced feed/intelligence/graph/exposure/court routes are Professional-gated. These advanced surfaces remain subject to ARVIS production-readiness validation and must not be represented as complete solely because a route is registered.
-
-The court surface consumes existing evidence and deterministic results. Narrative or model output cannot create evidence or alter the authoritative verdict.
+These surfaces remain subject to ARVIS production-readiness validation and must not be represented as complete solely because a route is registered. The court consumes existing evidence and deterministic results; narrative/model output cannot create evidence or alter the authoritative verdict.
 
 ---
 
-## Registered developer preview: POST /api/v1/scan/token
+## Registered developer route: POST /api/v1/scan/token
 
 Queues an API-key-protected Solana token scan.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
 ```json
 {
@@ -102,11 +115,11 @@ A typical accepted response contains a request identifier, queued status and usa
 
 ---
 
-## Registered developer preview: POST /api/v1/shield/preflight
+## Registered developer route: POST /api/v1/shield/preflight
 
 Runs a security preflight check for a target, token mint, address or transaction context.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
 ```json
 {
@@ -123,11 +136,11 @@ The response may include action, grade, deterministic verdict metadata, recommen
 
 ---
 
-## Registered developer preview: POST /api/v1/shield/transaction
+## Registered developer route: POST /api/v1/shield/transaction
 
 Runs the evidence-first Transaction Guard before signing.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
 ```json
 {
@@ -144,62 +157,51 @@ Authentication: developer API key + active Enterprise SaaS entitlement.
 
 Current Guard processing can evaluate decoded transaction structure, address lookup tables, simulation evidence, inner-instruction/CPI flow, token-account ownership and balance deltas, authority surfaces, Token-2022 transfer-hook relationships, threat-history context and signed UI intent when supplied.
 
-Possible customer actions are:
-
-- `allow` — all required evidence completed without a blocking finding;
-- `warn` — reviewable execution or policy evidence exists;
-- `block` — a deterministic policy violation or dangerous execution signal exists;
-- `withhold` — required evidence could not be completed.
-
-Provider failure, incomplete required evidence or an unresolved required execution surface cannot silently become `allow`.
+Possible customer actions are `allow`, `warn`, `block`, or `withhold`. Provider failure, incomplete required evidence or an unresolved required execution surface cannot silently become `allow`.
 
 See `docs/transaction-firewall.md` for the detailed Guard contract.
 
 ---
 
-## Registered developer preview: POST /api/v1/shield/state-recheck
+## Registered developer route: POST /api/v1/shield/state-recheck
 
 Rechecks state-bound Transaction Guard evidence before a previously evaluated decision is relied on again.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
 The recheck route does not turn stale, missing or changed state into an `allow` decision.
 
 ---
 
-## Registered Enterprise: POST /api/v1/defense/validation
+## Registered defense validation route: POST /api/v1/defense/validation
 
 Evaluates whether a declared execution-integrity defense passed an isolated attack/benign validation scenario.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
-The request carries the complete scenario contract, control/collector trust configuration, isolated execution-containment receipt, execution proof, exact approved/candidate canonical Safe action bytes, and optionally the independent collector's signed observation for each case.
+The request carries the scenario contract, control/collector trust configuration, isolated execution-containment receipt, execution proof, exact approved/candidate canonical Safe action bytes and, when required, the independent collector's signed observation.
 
-The server recomputes the scenario hash, containment/proof bindings and Ed25519 observation authentication before any case can contribute VERIFIED evidence. Caller-asserted `verified` state is not accepted.
-
-The deterministic case outcomes are `caught_in_time`, `caught_late`, `missed`, `clean`, `false_positive`, or `incomplete`; the report verdict is `validated`, `failed`, or `incomplete`.
-
-The route does not execute arbitrary commands, submit mainnet transactions, mutate production controls or use AI as verdict authority. Missing observations remain incomplete instead of becoming a pass.
+The server recomputes scenario hash, containment/proof bindings and Ed25519 observation authentication before evidence can become VERIFIED. Caller-asserted `verified` state is not accepted. The route does not execute arbitrary commands, submit mainnet transactions, mutate production controls or use AI as verdict authority. Missing observations remain incomplete instead of becoming a pass.
 
 See `docs/defense-validation-api.md` for the complete request/evidence boundary.
 
 ---
 
-## Registered developer preview: POST /api/v1/shield/address-poisoning
+## Registered developer route: POST /api/v1/shield/address-poisoning
 
 Runs API-key-protected address-poisoning analysis.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
-A session-authenticated customer equivalent is also registered at `POST /api/v1/address-poisoning/check` and requires Starter SaaS entitlement or higher.
+A customer-session equivalent is registered at `POST /api/v1/address-poisoning/check` and uses the same Professional commercial boundary.
 
 ---
 
-## Registered developer preview: GET /api/v1/usage
+## Registered developer route: GET /api/v1/usage
 
 Returns recent developer API usage events.
 
-Authentication: developer API key + active Enterprise SaaS entitlement.
+Authentication: developer API key + active Professional entitlement.
 
 Usage records may include endpoint, status, reserved credits, charged credits, error code and completion timestamps.
 
@@ -211,28 +213,22 @@ Usage records may include endpoint, status, reserved credits, charged credits, e
 POST /api/v1/token/extensions
 ```
 
-Authentication: customer session + active Starter SaaS entitlement or higher.
+Authentication: customer session + active Professional entitlement.
 
-The current Token-2022 surface recognizes extension and authority behaviors including transfer hooks, permanent delegates, transfer-fee configuration, default account state, mint close authority, pausable behavior, non-transferability, confidential-transfer visibility limits and related compatibility evidence. Unsupported or unresolved extension state must remain explicit.
+The current surface recognizes extension and authority behaviors including transfer hooks, permanent delegates, transfer-fee configuration, default account state, mint close authority, pausable behavior, non-transferability, confidential-transfer visibility limits and related compatibility evidence. Unsupported or unresolved extension state must remain explicit.
 
 ---
 
 ## Registered watchlists and security webhooks
 
-These are customer-session routes, not developer-API-key routes. Their registration does not override ARVIS preview/readiness labeling.
-
-Professional watchlist surface:
+These are customer-session operations and use the Professional entitlement. Their registration does not override ARVIS feature-readiness labeling.
 
 ```text
 /api/watchlist
 POST /api/watchlist/refresh
 /api/watchlist/alerts
 /api/watchlist/
-```
 
-Enterprise webhook-management surface:
-
-```text
 /api/webhooks
 /api/webhooks/
 /api/webhooks/security-alerts
@@ -250,7 +246,7 @@ Signed medium-or-higher ARVIS verdicts and non-`allow` Transaction Guard decisio
 POST /api/v1/dossier/
 ```
 
-Owner credentials retain their explicit administrative path. Customer-session and developer-key export paths require an active Enterprise SaaS entitlement. KOSCH holdings and historical token-access snapshots never authorize export.
+Owner credentials retain their explicit administrative path. Customer-session and developer-key export paths use the Professional commercial boundary. KOSCH holdings and historical token-access snapshots never authorize export.
 
 Dossier export operates on existing evidence/snapshots and preserves provenance, limitations and publication boundaries. Public discovery surfaces include `GET /api/public/cases` and `GET /api/public/soc/feed`.
 
@@ -272,8 +268,7 @@ The following remain roadmap work until they are registered, tested and added to
 - dedicated sybil/campaign-cluster batch API;
 - provider-neutral third-party Defense Validation adapters;
 - multi-provider Evidence Court API for critical evidence quorum;
-- State Witness / state-bound pre-signing receipt API;
 - signed Evidence Receipt verification surface;
 - dedicated LP-control and exit-impact simulation API.
 
-Roadmap names must not be presented as live endpoints before boot-chain registration. Registered preview routes likewise must not be described as production-complete until their feature-readiness validation is complete.
+Roadmap names must not be presented as live endpoints before boot-chain registration. Registered routes likewise must not be described as production-complete until their feature-readiness validation is complete.
