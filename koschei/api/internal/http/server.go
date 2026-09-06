@@ -68,14 +68,14 @@ func NewServer(db *sql.DB, dbInitError string, adminPassword string, corsOrigin 
 	planTier := func(plan string, next http.HandlerFunc) http.HandlerFunc {
 		return handlers.RequireAuth(h.RequirePlanTier(plan, h.EnforcePlanOutput(next)))
 	}
-	planAccess := func(next http.HandlerFunc) http.HandlerFunc { return planTier("starter", next) }
-	apiKeyEnterprise := func(next http.HandlerFunc) http.HandlerFunc {
-		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", h.APIRateLimit(next)))
+	planAccess := func(next http.HandlerFunc) http.HandlerFunc { return planTier("professional", next) }
+	apiKeyProfessional := func(next http.HandlerFunc) http.HandlerFunc {
+		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("professional", h.APIRateLimit(next)))
 	}
 	// Developer APIs already have API-key monthly/RPM accounting. Do not charge
 	// the customer entitlement output ledger a second time for the same request.
-	apiKeyEnterpriseMetered := func(next http.HandlerFunc) http.HandlerFunc {
-		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("enterprise", h.APIRateLimit(next)))
+	apiKeyProfessionalMetered := func(next http.HandlerFunc) http.HandlerFunc {
+		return h.APIKeyAuth(h.RequireAPIKeyPlanTier("professional", h.APIRateLimit(next)))
 	}
 
 	registerCoreRoutes(mux, h, planAccess)
@@ -83,10 +83,10 @@ func NewServer(db *sql.DB, dbInitError string, adminPassword string, corsOrigin 
 	registerOwnerRoutes(mux, h, staticDir)
 	registerDefenseOSRoutes(mux, h)
 	registerProductRoutes(mux, h, planTier, planTierAccess)
-	registerDeveloperAPIRoutes(mux, h, apiKeyEnterprise, apiKeyEnterpriseMetered)
+	registerDeveloperAPIRoutes(mux, h, apiKeyProfessional, apiKeyProfessionalMetered)
 	registerDossierRoutes(mux, h)
 	registerBillingRoutes(mux, h)
-	registerWatchlistRoutes(mux, h, func(next http.HandlerFunc) http.HandlerFunc { return planTier("professional", next) }, func(next http.HandlerFunc) http.HandlerFunc { return planTierAccess("enterprise", next) })
+	registerWatchlistRoutes(mux, h, func(next http.HandlerFunc) http.HandlerFunc { return planTier("professional", next) }, func(next http.HandlerFunc) http.HandlerFunc { return planTierAccess("professional", next) })
 	registerStatic(mux, staticDir)
 	return securityHeaders(cors(apiReadiness(db, mux), corsOrigin))
 }
@@ -127,8 +127,8 @@ func registerCoreRoutes(mux *http.ServeMux, h *handlers.Handler, planAccess rout
 }
 
 func registerAccountRoutes(mux *http.ServeMux, h *handlers.Handler, planTierAccess tierRouteGate) {
-	mux.HandleFunc("/api/account/api-keys", requiresDB(h, planTierAccess("enterprise", h.APIKeysCollection)))
-	mux.HandleFunc("/api/account/api-keys/", requiresDB(h, planTierAccess("enterprise", method("POST", h.RevokeAPIKey))))
+	mux.HandleFunc("/api/account/api-keys", requiresDB(h, planTierAccess("professional", h.APIKeysCollection)))
+	mux.HandleFunc("/api/account/api-keys/", requiresDB(h, planTierAccess("professional", method("POST", h.RevokeAPIKey))))
 }
 
 func registerOwnerRoutes(mux *http.ServeMux, h *handlers.Handler, staticDir string) {
@@ -177,14 +177,14 @@ func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier, pl
 	badge := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featurePublicBadge, next) }
 	mux.HandleFunc("/api/token/scan", solana(risk(method("POST", h.TokenScan))))
 	mux.HandleFunc("/api/v1/risk/badge", solana(badge(method("GET", h.SecurityRiskBadge))))
-	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, planTier("starter", method("POST", h.TokenScan))))))
-	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, planTier("starter", method("POST", h.AddressPoisoningCheck)))))
-	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, planTier("starter", method("POST", h.SecurityRadarCheckWithAlerts)))))
-	mux.HandleFunc("/api/v1/radar/jobs", solana(requiresDB(h, planTier("starter", method("POST", h.CreateWeb3Job)))))
+	mux.HandleFunc("/api/v1/token/extensions", solana(risk(requiresDB(h, planTier("professional", method("POST", h.TokenScan))))))
+	mux.HandleFunc("/api/v1/address-poisoning/check", solana(requiresDB(h, planTier("professional", method("POST", h.AddressPoisoningCheck)))))
+	mux.HandleFunc("/api/v1/radar/check", solana(requiresDB(h, planTier("professional", method("POST", h.SecurityRadarCheckWithAlerts)))))
+	mux.HandleFunc("/api/v1/radar/jobs", solana(requiresDB(h, planTier("professional", method("POST", h.CreateWeb3Job)))))
 	mux.HandleFunc("/api/v1/radar/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
-	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, planTier("starter", method("POST", h.CreateWeb3Job))))))
+	mux.HandleFunc("/api/jobs/token-scan", solana(risk(requiresDB(h, planTier("professional", method("POST", h.CreateWeb3Job))))))
 	mux.HandleFunc("/api/jobs/", solana(requiresDB(h, handlers.RequireAuth(method("GET", h.GetWeb3Job)))))
-	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, planTier("starter", method("GET", h.SecurityRadarDetailV3)))))
+	mux.HandleFunc("/api/v1/radar/detail", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarDetailV3)))))
 	mux.HandleFunc("/api/customer/web3/transaction-preflight", solana(requiresDB(h, planTier("professional", method("POST", h.TransactionGuardV2Configured)))))
 	mux.HandleFunc("/api/customer/web3/transaction-state-recheck", solana(requiresDB(h, planTierAccess("professional", customerStateRecheckRateLimit(h.DB, method("POST", h.TransactionGuardStateRecheck))))))
 	mux.HandleFunc("/api/v1/radar/feed", solana(requiresDB(h, planTier("professional", method("GET", h.SecurityRadarFeed)))))
@@ -195,17 +195,17 @@ func registerProductRoutes(mux *http.ServeMux, h *handlers.Handler, planTier, pl
 	mux.HandleFunc("/api/v1/radar/court", solana(requiresDB(h, planTier("professional", method("POST", h.SecurityRadarCourt)))))
 }
 
-func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, enterprise routeGate, enterpriseMetered routeGate) {
+func registerDeveloperAPIRoutes(mux *http.ServeMux, h *handlers.Handler, professional routeGate, professionalMetered routeGate) {
 	solana := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureSolana, next) }
 	risk := func(next http.HandlerFunc) http.HandlerFunc { return requireRuntimeFeature(featureRiskScanner, next) }
-	mux.HandleFunc("/api/v1/scan/token", solana(risk(requiresDB(h, enterpriseMetered(method("POST", h.B2BTokenScan))))))
-	mux.HandleFunc("/api/v1/usage", requiresDB(h, enterprise(method("GET", h.APIUsage))))
-	mux.HandleFunc("/api/v1/shield/preflight", solana(requiresDB(h, enterpriseMetered(method("POST", h.ShieldPreflight)))))
-	mux.HandleFunc("/api/v1/shield/transaction", solana(requiresDB(h, enterpriseMetered(method("POST", h.TransactionGuardV2Configured)))))
-	mux.HandleFunc("/api/v1/shield/state-recheck", solana(requiresDB(h, enterprise(method("POST", h.TransactionGuardStateRecheck)))))
-	mux.HandleFunc("/api/v1/shield/address-poisoning", solana(requiresDB(h, enterpriseMetered(method("POST", h.AddressPoisoningCheck)))))
-	mux.HandleFunc("/api/v1/defense/validation", requiresDB(h, enterpriseMetered(method("POST", h.DefenseValidationV1))))
-	mux.HandleFunc("/api/v1/execution-assurance/safe/verify", requiresDB(h, enterpriseMetered(method("POST", h.SafeExecutionAssuranceV1))))
+	mux.HandleFunc("/api/v1/scan/token", solana(risk(requiresDB(h, professionalMetered(method("POST", h.B2BTokenScan))))))
+	mux.HandleFunc("/api/v1/usage", requiresDB(h, professional(method("GET", h.APIUsage))))
+	mux.HandleFunc("/api/v1/shield/preflight", solana(requiresDB(h, professionalMetered(method("POST", h.ShieldPreflight)))))
+	mux.HandleFunc("/api/v1/shield/transaction", solana(requiresDB(h, professionalMetered(method("POST", h.TransactionGuardV2Configured)))))
+	mux.HandleFunc("/api/v1/shield/state-recheck", solana(requiresDB(h, professional(method("POST", h.TransactionGuardStateRecheck)))))
+	mux.HandleFunc("/api/v1/shield/address-poisoning", solana(requiresDB(h, professionalMetered(method("POST", h.AddressPoisoningCheck)))))
+	mux.HandleFunc("/api/v1/defense/validation", requiresDB(h, professionalMetered(method("POST", h.DefenseValidationV1))))
+	mux.HandleFunc("/api/v1/execution-assurance/safe/verify", requiresDB(h, professionalMetered(method("POST", h.SafeExecutionAssuranceV1))))
 }
 
 func registerStatic(mux *http.ServeMux, staticDir string) {
