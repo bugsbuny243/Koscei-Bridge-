@@ -138,10 +138,10 @@ func CorrelatePumpPortalTradeEvents(ctx context.Context, db *sql.DB, rpcURL, ver
 
 func correlatePumpPortalTradeTransaction(trade LaunchTrade, tx SolanaTransactionResult, mint string) PumpTradeCorrelationEvidence {
 	evidence := PumpTradeCorrelationEvidence{
-		Signature: strings.TrimSpace(trade.Signature),
-		Trader:    strings.TrimSpace(trade.Trader),
-		Side:      strings.ToLower(strings.TrimSpace(trade.Side)),
-		ObservedSlot: trade.Slot,
+		Signature:          strings.TrimSpace(trade.Signature),
+		Trader:             strings.TrimSpace(trade.Trader),
+		Side:               strings.ToLower(strings.TrimSpace(trade.Side)),
+		ObservedSlot:       trade.Slot,
 		VerificationStatus: "observed_mismatch",
 	}
 	txMap := map[string]any(tx)
@@ -178,12 +178,12 @@ func correlatePumpPortalTradeTransaction(trade LaunchTrade, tx SolanaTransaction
 
 func pumpTradeCorrelationUnavailable(trade LaunchTrade) PumpTradeCorrelationEvidence {
 	return PumpTradeCorrelationEvidence{
-		Signature: strings.TrimSpace(trade.Signature),
-		Trader: strings.TrimSpace(trade.Trader),
-		Side: strings.ToLower(strings.TrimSpace(trade.Side)),
-		ObservedSlot: trade.Slot,
+		Signature:          strings.TrimSpace(trade.Signature),
+		Trader:             strings.TrimSpace(trade.Trader),
+		Side:               strings.ToLower(strings.TrimSpace(trade.Side)),
+		ObservedSlot:       trade.Slot,
 		VerificationStatus: "observed_unverified",
-		ReasonCode: "canonical_transaction_unavailable",
+		ReasonCode:         "canonical_transaction_unavailable",
 	}
 }
 
