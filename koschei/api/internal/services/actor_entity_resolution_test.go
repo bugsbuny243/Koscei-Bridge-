@@ -64,8 +64,11 @@ func TestBuildActorEntityResolutionPromotesEvidenceSubjectsWithoutIdentityInfere
 			continue
 		}
 		foundTransaction = true
-		if transaction.Slot != 90 || transaction.VerificationStatus != "verified" || transaction.ObservedAt != now {
+		if transaction.Slot != 90 || transaction.SlotConflict || transaction.VerificationStatus != "verified" || transaction.ObservedAt != now {
 			t.Fatalf("funding transaction provenance lost: %#v", transaction)
+		}
+		if len(transaction.Slots) != 1 || transaction.Slots[0] != 90 {
+			t.Fatalf("funding transaction slot set is wrong: %#v", transaction.Slots)
 		}
 		if len(transaction.EntityIDs) != 2 || transaction.EntityIDs[0] != "Actor111" || transaction.EntityIDs[1] != "Funder111" {
 			t.Fatalf("funding transaction entity projection is wrong: %#v", transaction.EntityIDs)
@@ -128,5 +131,43 @@ func TestBuildActorEntityResolutionDoesNotPromoteUnsignedEvidenceToTransaction(t
 	}
 	if resolution.Policy["unsigned_relationship_not_promoted_to_transaction"] != true {
 		t.Fatalf("unsigned-relationship transaction safeguard missing: %#v", resolution.Policy)
+	}
+}
+
+func TestBuildActorEntityResolutionSurfacesConflictingSlotsAndMixedStatuses(t *testing.T) {
+	now := time.Unix(1700000300, 0).UTC()
+	resolution := BuildActorEntityResolution(ActorDefenseDossier{
+		Wallet: "Actor111",
+		Evidence: []ActorDefenseEvidenceRecord{
+			{
+				ActorWallet: "Actor111", CounterpartKind: "wallet", CounterpartID: "Counterparty111",
+				Relation: "transfer_to", VerificationStatus: "observed", Signature: "SharedSig111", Slot: 120,
+				ObservedAt: now, Source: "provider_a", EvidenceKey: "tx:1",
+			},
+			{
+				ActorWallet: "Actor111", CounterpartKind: "program", CounterpartID: "Program111",
+				Relation: "invoked_program", VerificationStatus: "verified", Signature: "SharedSig111", Slot: 121,
+				ObservedAt: now.Add(time.Second), Source: "provider_b", EvidenceKey: "tx:2",
+			},
+		},
+	})
+	if resolution.TransactionCount != 1 {
+		t.Fatalf("expected one signature-grouped transaction: %#v", resolution.Transactions)
+	}
+	transaction := resolution.Transactions[0]
+	if transaction.Signature != "SharedSig111" || !transaction.SlotConflict || transaction.Slot != 0 {
+		t.Fatalf("slot conflict was hidden: %#v", transaction)
+	}
+	if len(transaction.Slots) != 2 || transaction.Slots[0] != 120 || transaction.Slots[1] != 121 {
+		t.Fatalf("conflicting slots were not preserved: %#v", transaction.Slots)
+	}
+	if transaction.VerificationStatus != "verified" || len(transaction.EvidenceStatuses) != 2 {
+		t.Fatalf("mixed evidence status was hidden: %#v", transaction)
+	}
+	if len(transaction.SourceProviders) != 2 || len(transaction.EvidenceKeys) != 2 {
+		t.Fatalf("provider/evidence provenance was lost: %#v", transaction)
+	}
+	if resolution.Policy["transaction_slot_conflicts_are_explicit"] != true || resolution.Policy["mixed_evidence_statuses_are_preserved"] != true {
+		t.Fatalf("conflict policy missing: %#v", resolution.Policy)
 	}
 }
