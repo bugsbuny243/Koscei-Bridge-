@@ -34,33 +34,50 @@ type publicDossierRegistrySnapshot struct {
 	Cases                      []publicDossierCaseV2 `json:"cases"`
 }
 
-// PublicDossierCasesPortable preserves the primary-database security contract when
-// the database is available, but can serve a checksum-verified immutable registry
-// snapshot from Google Drive when the runtime is intentionally stateless.
+// PublicDossierCasesPortable serves one explicitly selected publication registry
+// backend. It never treats a database failure as permission to expose a potentially
+// stale Drive snapshot. Deployments must opt in to Drive mode explicitly.
 func (h *Handler) PublicDossierCasesPortable(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	limit := publicDossierLimit(r.URL.Query().Get("limit"), 24, 100)
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("KOSCHEI_PUBLIC_REGISTRY_BACKEND")))
+	if backend == "" {
+		backend = "database"
+	}
 
-	if h != nil && h.DB != nil {
-		if loaded, err := h.loadPublicDossierCasesV2(r, limit); err == nil {
-			snapshot := publicDossierRegistrySnapshotFromLoad(loaded, time.Now().UTC())
-			writePublicDossierRegistrySnapshot(w, snapshot, "primary_database", "")
+	switch backend {
+	case "database":
+		if h == nil || h.DB == nil {
+			writePublicDossierRegistryUnavailable(w, "primary_database", "database_unavailable")
 			return
 		}
+		loaded, err := h.loadPublicDossierCasesV2(r, limit)
+		if err != nil {
+			writePublicDossierRegistryUnavailable(w, "primary_database", "database_read_failed")
+			return
+		}
+		snapshot := publicDossierRegistrySnapshotFromLoad(loaded, time.Now().UTC())
+		writePublicDossierRegistrySnapshot(w, snapshot, "primary_database", "")
+	case "drive":
+		snapshot, object, err := loadPublicDossierRegistrySnapshotFromDrive(r, limit)
+		if err != nil {
+			writePublicDossierRegistryUnavailable(w, "google_drive", publicDossierRegistryDriveConfigurationStatus())
+			return
+		}
+		writePublicDossierRegistrySnapshot(w, snapshot, "google_drive", object.Hash)
+	default:
+		writePublicDossierRegistryUnavailable(w, backend, "unsupported_registry_backend")
 	}
+}
 
-	snapshot, object, err := loadPublicDossierRegistrySnapshotFromDrive(r, limit)
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"ok":                   false,
-			"error":                "public_cases_unavailable",
-			"registry_backend":     "google_drive",
-			"configuration_status": publicDossierRegistryDriveConfigurationStatus(),
-			"cases":                []publicDossierCaseV2{},
-		})
-		return
-	}
-	writePublicDossierRegistrySnapshot(w, snapshot, "google_drive", object.Hash)
+func writePublicDossierRegistryUnavailable(w http.ResponseWriter, backend, status string) {
+	writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+		"ok":                   false,
+		"error":                "public_cases_unavailable",
+		"registry_backend":     backend,
+		"configuration_status": status,
+		"cases":                []publicDossierCaseV2{},
+	})
 }
 
 func publicDossierRegistrySnapshotFromLoad(loaded publicDossierCasesV2Load, generatedAt time.Time) publicDossierRegistrySnapshot {
@@ -161,9 +178,6 @@ func parsePublicDossierRegistrySnapshot(payload []byte, limit int) (publicDossie
 		}
 		seen[item.CaseRef] = struct{}{}
 	}
-	if limit < 0 {
-		limit = 0
-	}
 	if limit > 0 && len(snapshot.Cases) > limit {
 		snapshot.Cases = append([]publicDossierCaseV2(nil), snapshot.Cases[:limit]...)
 		snapshot.Count = len(snapshot.Cases)
@@ -212,45 +226,4 @@ func publicDossierRegistryDriveConfigurationStatus() string {
 	default:
 		return "not_configured"
 	}
-}
-
-// OwnerPublicDossierRegistrySync writes a checksum-addressed Drive snapshot of
-// the current verified publication registry. It never accepts registry bytes
-// from the client and never mutates dossier evidence.
-func (h *Handler) OwnerPublicDossierRegistrySync(w http.ResponseWriter, r *http.Request) {
-	if h == nil || h.DB == nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Dossier publication database is unavailable")
-		return
-	}
-	loaded, err := h.loadPublicDossierCasesV2(r, 100)
-	if err != nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Public dossier registry could not be loaded")
-		return
-	}
-	snapshot := publicDossierRegistrySnapshotFromLoad(loaded, time.Now().UTC())
-	payload, err := json.Marshal(snapshot)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APICodeInternalError, "Public dossier registry snapshot could not be encoded")
-		return
-	}
-	drive, err := archive.NewGoogleDriveFromEnv()
-	if err != nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Google Drive public registry archive is unavailable")
-		return
-	}
-	object, err := drive.PutJSON(r.Context(), publicCaseRegistryDriveObjectName, payload)
-	if err != nil {
-		writeAPIError(w, http.StatusServiceUnavailable, APICodeServiceUnavailable, "Public dossier registry snapshot could not be archived")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                         true,
-		"schema_version":             publicCaseRegistrySchemaVersion,
-		"registry_backend":           "google_drive",
-		"registry_object_id":         object.ID,
-		"registry_object_sha256":     object.Hash,
-		"count":                      snapshot.Count,
-		"generated_at":               snapshot.GeneratedAt,
-		"immutable_evidence_unchanged": true,
-	})
 }
