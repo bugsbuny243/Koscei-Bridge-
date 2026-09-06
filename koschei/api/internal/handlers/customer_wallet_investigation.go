@@ -131,12 +131,12 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 	out.RulePersistence = "drive_first_request_scoped"
 	out.HasPersistentEvidence = false
 	out.Dossier = services.ActorDefenseDossier{
-		Wallet: wallet,
-		Network: network,
-		Tokens: []services.ActorDefenseTokenObservation{},
+		Wallet:        wallet,
+		Network:       network,
+		Tokens:        []services.ActorDefenseTokenObservation{},
 		RelatedActors: []services.ActorDefenseRelatedActor{},
-		Evidence: []services.ActorDefenseEvidenceRecord{},
-		Coverage: map[string]any{},
+		Evidence:      []services.ActorDefenseEvidenceRecord{},
+		Coverage:      map[string]any{},
 		Policy: map[string]any{
 			"no_evidence_no_claim":                                           true,
 			"wallet_addresses_are_case_sensitive":                            true,
@@ -148,10 +148,10 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 		GeneratedAt: now,
 	}
 	out.Dossier.Track = services.ActorDefenseTrack{
-		Network: network,
+		Network:    network,
 		TargetKind: "wallet",
-		TargetID: wallet,
-		State: "detected",
+		TargetID:   wallet,
+		State:      "detected",
 		Dossier: map[string]any{
 			"state_basis":                 []string{"live_rpc_evidence", "bounded_created_mint_discovery"},
 			"persistence":                 "drive_first_request_scoped",
@@ -165,11 +165,11 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 			continue
 		}
 		out.Dossier.Tokens = append(out.Dossier.Tokens, services.ActorDefenseTokenObservation{
-			Mint: candidate.Mint,
-			Roles: []string{"creator"},
+			Mint:             candidate.Mint,
+			Roles:            []string{"creator"},
 			CreatorSignature: candidate.Signature,
-			FirstObservedAt: candidate.ObservedAt,
-			LastObservedAt: candidate.ObservedAt,
+			FirstObservedAt:  candidate.ObservedAt,
+			LastObservedAt:   candidate.ObservedAt,
 		})
 	}
 	out.Dossier.Track.CreatedTokenCount = len(out.Dossier.Tokens)
@@ -207,16 +207,16 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 	out.PublishedResult = out.HasLiveEvidence || out.FundingOrigin.ResultState == services.ActorFundingResultBounded
 
 	memoryPayload := map[string]any{
-		"schema_version":      "koschei-wallet-intelligence-v1",
-		"target":              out.Target,
-		"wallet":              wallet,
-		"network":             network,
+		"schema_version":        "koschei-wallet-intelligence-v1",
+		"target":                out.Target,
+		"wallet":                wallet,
+		"network":               network,
 		"target_classification": out.Classification,
-		"dossier":             out.Dossier,
-		"external_discovery":  out.ExternalDiscovery,
-		"funding_origin":      out.FundingOrigin,
-		"actor_live_evidence": out.LiveCoverage,
-		"rule_verdict":        out.RuleVerdict,
+		"dossier":               out.Dossier,
+		"external_discovery":    out.ExternalDiscovery,
+		"funding_origin":        out.FundingOrigin,
+		"actor_live_evidence":   out.LiveCoverage,
+		"rule_verdict":          out.RuleVerdict,
 	}
 	out.Memory = h.archiveIntelligenceMemory(ctx, "wallet_investigation", network, wallet, memoryPayload)
 	return out
@@ -262,10 +262,10 @@ func customerWalletInvestigationEnvelope(result customerWalletInvestigationResul
 		"rule_verdict":            result.RuleVerdict,
 		"intelligence_memory":     result.Memory,
 		"evidence_policy": map[string]any{
-			"numeric_final_score_disabled": true,
-			"missing_evidence_is_not_safe": true,
-			"bounded_is_not_verified":      true,
-			"identity_scope":               "onchain_wallet_only",
+			"numeric_final_score_disabled":  true,
+			"missing_evidence_is_not_safe":  true,
+			"bounded_is_not_verified":       true,
+			"identity_scope":                "onchain_wallet_only",
 			"neon_intelligence_persistence": false,
 			"durable_memory_backend":        "google_drive",
 		},
