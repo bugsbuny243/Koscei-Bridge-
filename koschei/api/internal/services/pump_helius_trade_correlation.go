@@ -107,47 +107,17 @@ func CorrelatePumpPortalTradeEvents(ctx context.Context, db *sql.DB, rpcURL, ver
 		out.Limitations = append(out.Limitations, "Canonical transaction batch was partially unavailable: "+compactClusterError(batchErr))
 	}
 	for _, trade := range observed {
-		evidence := PumpTradeCorrelationEvidence{
-			Signature: strings.TrimSpace(trade.Signature), Trader: strings.TrimSpace(trade.Trader),
-			Side: strings.ToLower(strings.TrimSpace(trade.Side)), ObservedSlot: trade.Slot,
-			VerificationStatus: "observed_unverified", ReasonCode: "canonical_transaction_unavailable",
-		}
-		tx, ok := transactions[evidence.Signature]
+		tx, ok := transactions[strings.TrimSpace(trade.Signature)]
 		if !ok || tx == nil {
 			out.UnavailableCount++
-			out.Evidence = append(out.Evidence, evidence)
+			out.Evidence = append(out.Evidence, pumpTradeCorrelationUnavailable(trade))
 			continue
 		}
-		txMap := map[string]any(tx)
-		evidence.CanonicalSlot = holderClusterInt64(txMap["slot"])
-		evidence.Program = launchCounterpartyProgram(txMap)
-		delta := holderClusterOwnerTokenDelta(txMap, mint, evidence.Trader)
-		canonicalSide := ""
-		if math.Abs(delta) > holderClusterFlowEpsilon {
-			canonicalSide = "buy"
-			if delta < 0 {
-				canonicalSide = "sell"
-			}
-		}
-		slotMatches := evidence.ObservedSlot <= 0 || evidence.CanonicalSlot <= 0 || evidence.ObservedSlot == evidence.CanonicalSlot
-		programMatches := evidence.Program == "pump.fun" || evidence.Program == "pumpswap"
-		sideMatches := canonicalSide != "" && canonicalSide == evidence.Side
-		if slotMatches && programMatches && sideMatches {
-			evidence.VerificationStatus = "verified_correlated"
-			evidence.ReasonCode = "canonical_transaction_match"
+		evidence := correlatePumpPortalTradeTransaction(trade, tx, mint)
+		switch evidence.VerificationStatus {
+		case "verified_correlated":
 			out.VerifiedCount++
-		} else {
-			evidence.VerificationStatus = "observed_mismatch"
-			switch {
-			case !slotMatches:
-				evidence.ReasonCode = "slot_mismatch"
-			case !programMatches:
-				evidence.ReasonCode = "pump_program_not_observed"
-			case canonicalSide == "":
-				evidence.ReasonCode = "trader_token_delta_not_observed"
-			default:
-				evidence.ReasonCode = "trade_direction_mismatch"
-			}
+		default:
 			out.MismatchCount++
 		}
 		out.Evidence = append(out.Evidence, evidence)
@@ -164,6 +134,57 @@ func CorrelatePumpPortalTradeEvents(ctx context.Context, db *sql.DB, rpcURL, ver
 		out.Status = "verification_source_unavailable"
 	}
 	return out
+}
+
+func correlatePumpPortalTradeTransaction(trade LaunchTrade, tx SolanaTransactionResult, mint string) PumpTradeCorrelationEvidence {
+	evidence := PumpTradeCorrelationEvidence{
+		Signature: strings.TrimSpace(trade.Signature),
+		Trader:    strings.TrimSpace(trade.Trader),
+		Side:      strings.ToLower(strings.TrimSpace(trade.Side)),
+		ObservedSlot: trade.Slot,
+		VerificationStatus: "observed_mismatch",
+	}
+	txMap := map[string]any(tx)
+	evidence.CanonicalSlot = holderClusterInt64(txMap["slot"])
+	evidence.Program = launchCounterpartyProgram(txMap)
+	delta := holderClusterOwnerTokenDelta(txMap, strings.TrimSpace(mint), evidence.Trader)
+	canonicalSide := ""
+	if math.Abs(delta) > holderClusterFlowEpsilon {
+		canonicalSide = "buy"
+		if delta < 0 {
+			canonicalSide = "sell"
+		}
+	}
+	slotMatches := evidence.ObservedSlot <= 0 || evidence.CanonicalSlot <= 0 || evidence.ObservedSlot == evidence.CanonicalSlot
+	programMatches := evidence.Program == "pump.fun" || evidence.Program == "pumpswap"
+	sideMatches := canonicalSide != "" && canonicalSide == evidence.Side
+	if slotMatches && programMatches && sideMatches {
+		evidence.VerificationStatus = "verified_correlated"
+		evidence.ReasonCode = "canonical_transaction_match"
+		return evidence
+	}
+	switch {
+	case !slotMatches:
+		evidence.ReasonCode = "slot_mismatch"
+	case !programMatches:
+		evidence.ReasonCode = "pump_program_not_observed"
+	case canonicalSide == "":
+		evidence.ReasonCode = "trader_token_delta_not_observed"
+	default:
+		evidence.ReasonCode = "trade_direction_mismatch"
+	}
+	return evidence
+}
+
+func pumpTradeCorrelationUnavailable(trade LaunchTrade) PumpTradeCorrelationEvidence {
+	return PumpTradeCorrelationEvidence{
+		Signature: strings.TrimSpace(trade.Signature),
+		Trader: strings.TrimSpace(trade.Trader),
+		Side: strings.ToLower(strings.TrimSpace(trade.Side)),
+		ObservedSlot: trade.Slot,
+		VerificationStatus: "observed_unverified",
+		ReasonCode: "canonical_transaction_unavailable",
+	}
 }
 
 func minInt(left, right int) int {
