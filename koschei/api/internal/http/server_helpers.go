@@ -15,6 +15,7 @@ var databaseOptionalAPIPaths = func() map[string]struct{} {
 	paths := []string{
 		"/api/me",
 		"/api/v1/risk/badge",
+		"/api/v1/radar/check",
 		"/api/version",
 		"/api/config",
 		"/api/auth/register",
