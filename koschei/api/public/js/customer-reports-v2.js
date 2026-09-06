@@ -36,7 +36,7 @@ function signatureState(item){
 }
 function decisionLabel(item,key){const decision=decisionOf(item);return decision&&hasValue(decision[key])?String(decision[key]).trim():'UNAVAILABLE';}
 function toneForState(state){if(state==='completed')return'low';if(state==='failed')return'critical';if(state==='running')return'medium';if(state==='queued')return'info';return'unknown';}
-function scanURL(target){return`/scan?mode=deep&target=${encodeURIComponent(target)}`;}
+function scanURL(target){return`/arvis-chat?target=${encodeURIComponent(target)}`;}
 function metric(label,value){const wrap=node('div');wrap.append(node('label','',label),node('strong','',value));return wrap;}
 function actionLink(label,href,primary=false){const link=node('a',`ops-btn${primary?' primary':''}`,label);link.href=href;return link;}
 
@@ -77,7 +77,7 @@ function render(){
     if(state==='failed'){const error=text(item?.error_message)||text(item?.error_code)||'Failure details unavailable.';card.append(node('p','ops-record-copy',error));}
     if(state==='completed'&&item?.result_available!==true)card.append(node('p','ops-record-copy','Job is marked completed but result payload is unavailable. No verdict or signature state is inferred.'));
     const actions=node('div','ops-record-actions');
-    if(target){actions.append(actionLink('Re-investigate',scanURL(target),true));const copy=node('button','ops-btn','Copy target');copy.type='button';copy.dataset.copyTarget=target;actions.append(copy);}
+    if(target){actions.append(actionLink('Open in ARVIS',scanURL(target),true));const copy=node('button','ops-btn','Copy target');copy.type='button';copy.dataset.copyTarget=target;actions.append(copy);}
     if(actions.childNodes.length)card.append(actions);
     host.append(card);
   }
@@ -85,7 +85,7 @@ function render(){
 
 function historyAccessError(statusCode){
   if(statusCode===401)return'Sign in to view your investigation history.';
-  if(statusCode===402||statusCode===403)return'Investigation history requires an active Starter plan or higher.';
+  if(statusCode===402||statusCode===403)return'Investigation history requires an active Professional entitlement.';
   if(statusCode===429)return'Investigation history is temporarily rate limited. Try again shortly.';
   return'Investigation history is unavailable right now. No history state was inferred.';
 }
