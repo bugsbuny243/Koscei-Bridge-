@@ -30,7 +30,7 @@ type customerWalletInvestigationResult struct {
 }
 
 func radarTargetWalletInvestigationAllowed(classification radarTargetClassification) bool {
-	if classification.Type == radarTargetWallet || classification.Type == radarTargetProgram {
+	if classification.Type == radarTargetWallet || classification.Type == radarTargetProgram || classification.Type == radarTargetTransactionSignature {
 		return true
 	}
 	return classification.Type == radarTargetTokenAccount && strings.TrimSpace(classification.TokenOwnerWallet) != ""
@@ -273,6 +273,10 @@ func customerWalletInvestigationEnvelope(result customerWalletInvestigationResul
 }
 
 func (h *Handler) securityRadarWalletCheck(w http.ResponseWriter, r *http.Request, authSubject, claimEmail, target, network string, classification radarTargetClassification) {
+	if classification.Type == radarTargetTransactionSignature {
+		h.securityRadarTransactionCheck(w, r, authSubject, claimEmail, target, network, classification)
+		return
+	}
 	if classification.Type == radarTargetProgram {
 		h.securityRadarProgramCheck(w, r, authSubject, claimEmail, target, network, classification)
 		return
