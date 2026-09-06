@@ -11,28 +11,28 @@ import (
 const addressInteractionsSchemaVersion = "koschei-address-interactions-v1"
 
 type addressInteraction struct {
-	Address              string   `json:"address"`
-	InteractionKind      string   `json:"interaction_kind"`
-	RiskFlag             string   `json:"risk_flag,omitempty"`
-	Entity               string   `json:"entity,omitempty"`
-	Name                 string   `json:"name,omitempty"`
-	Category             string   `json:"category,omitempty"`
-	Labels               []string `json:"labels,omitempty"`
-	Tags                 []string `json:"tags,omitempty"`
-	AttributionSource    string   `json:"attribution_source,omitempty"`
-	ClassificationSource string   `json:"classification_source,omitempty"`
-	MatchedTaxonomy      []string `json:"matched_taxonomy,omitempty"`
-	Verification         string   `json:"verification"`
-	InboundTransfers     int      `json:"inbound_transfers"`
-	OutboundTransfers    int      `json:"outbound_transfers"`
-	SOLIn                float64  `json:"sol_in,omitempty"`
-	SOLOut               float64  `json:"sol_out,omitempty"`
-	TokenTransfersIn     int      `json:"token_transfers_in"`
-	TokenTransfersOut    int      `json:"token_transfers_out"`
-	TokenMints           []string `json:"token_mints"`
+	Address              string    `json:"address"`
+	InteractionKind      string    `json:"interaction_kind"`
+	RiskFlag             string    `json:"risk_flag,omitempty"`
+	Entity               string    `json:"entity,omitempty"`
+	Name                 string    `json:"name,omitempty"`
+	Category             string    `json:"category,omitempty"`
+	Labels               []string  `json:"labels,omitempty"`
+	Tags                 []string  `json:"tags,omitempty"`
+	AttributionSource    string    `json:"attribution_source,omitempty"`
+	ClassificationSource string    `json:"classification_source,omitempty"`
+	MatchedTaxonomy      []string  `json:"matched_taxonomy,omitempty"`
+	Verification         string    `json:"verification"`
+	InboundTransfers     int       `json:"inbound_transfers"`
+	OutboundTransfers    int       `json:"outbound_transfers"`
+	SOLIn                float64   `json:"sol_in,omitempty"`
+	SOLOut               float64   `json:"sol_out,omitempty"`
+	TokenTransfersIn     int       `json:"token_transfers_in"`
+	TokenTransfersOut    int       `json:"token_transfers_out"`
+	TokenMints           []string  `json:"token_mints"`
 	FirstObservedAt      time.Time `json:"first_observed_at,omitempty"`
 	LastObservedAt       time.Time `json:"last_observed_at,omitempty"`
-	EvidenceSignatures   []string `json:"evidence_signatures"`
+	EvidenceSignatures   []string  `json:"evidence_signatures"`
 }
 
 type addressInteractionsReport struct {
@@ -59,8 +59,8 @@ func newAddressInteractionsReport(wallet string) addressInteractionsReport {
 		Interactions:  []addressInteraction{},
 		Limitations:   []string{},
 		Policy: map[string]any{
-			"verified_provider_taxonomy_only": true,
-			"unknown_remains_unknown":          true,
+			"verified_provider_taxonomy_only":   true,
+			"unknown_remains_unknown":           true,
 			"transfer_behavior_is_not_identity": true,
 			"risk_label_is_provider_metadata":   true,
 			"same_actor_claimed":                false,
@@ -112,13 +112,13 @@ func buildAddressInteractions(wallet string, flow addressFlowReport, attribution
 		}
 		if entity, ok := entityByAddress[address]; ok && entity.Verification == "provider_verified" {
 			label := &services.WalletLabel{
-				Address: entity.Address,
-				Name: entity.Name,
-				Entity: entity.Entity,
+				Address:  entity.Address,
+				Name:     entity.Name,
+				Entity:   entity.Entity,
 				Category: entity.Category,
-				Labels: append([]string{}, entity.Labels...),
-				Tags: append([]string{}, entity.Tags...),
-				Source: entity.Source,
+				Labels:   append([]string{}, entity.Labels...),
+				Tags:     append([]string{}, entity.Tags...),
+				Source:   entity.Source,
 			}
 			classification := services.ClassifyWalletLabel(label)
 			row.InteractionKind = classification.Kind
