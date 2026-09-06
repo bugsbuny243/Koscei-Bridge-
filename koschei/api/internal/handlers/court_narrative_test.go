@@ -91,10 +91,10 @@ func TestCourtProfessionalDGradeInvokesSenior(t *testing.T) {
 		t.Fatalf("report=%#v calls=%+v", r, c)
 	}
 }
-func TestCourtCanonicalizesHistoricalPaidAliasesToProfessional(t *testing.T) {
-	for _, alias := range []string{"pro", "basic", "starter", "enterprise", "studio"} {
-		if got := (&Handler{}).courtTier(courtCtx(alias)); got != "professional" {
-			t.Fatalf("%s alias=%q", alias, got)
+func TestCourtRemovedPlanLabelsDoNotReceiveCourtAccess(t *testing.T) {
+	for _, removed := range []string{"pro", "basic", "starter", "enterprise", "studio", "builder"} {
+		if got := (&Handler{}).courtTier(courtCtx(removed)); got != "none" {
+			t.Fatalf("removed plan %s unexpectedly mapped to %q", removed, got)
 		}
 	}
 }
