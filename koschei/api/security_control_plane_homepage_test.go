@@ -24,7 +24,7 @@ func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
 		"id=\"execution-proof\"",
 		"The proof still matters.",
 		"Production signing enforcement remains a separate validation milestone",
-		"Professional is the single paid Koschei plan",
+		"Koschei Professional is the single paid access plan.",
 		"koschei-enterprise-v3.css",
 	} {
 		if !strings.Contains(text, required) {
