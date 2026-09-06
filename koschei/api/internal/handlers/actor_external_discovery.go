@@ -22,6 +22,7 @@ type actorExternalDiscoveryRun struct {
 	AddressHistory       services.AddressHistoryReport  `json:"address_history"`
 	AddressFlow          addressFlowReport              `json:"address_flow"`
 	AddressAttribution   addressAttributionReport       `json:"address_attribution"`
+	FundingPaths         addressFundingPathsReport      `json:"funding_paths"`
 	AddressRelationships addressRelationshipsReport     `json:"address_relationships"`
 	BehaviorTimeline     addressBehaviorTimelineReport  `json:"behavior_timeline"`
 	BehaviorPatterns     addressBehaviorPatternsReport  `json:"behavior_patterns"`
@@ -49,6 +50,7 @@ func newActorExternalDiscoveryRun(wallet string) actorExternalDiscoveryRun {
 		},
 		AddressFlow:          newAddressFlowReport(wallet, "solana-mainnet"),
 		AddressAttribution:   newAddressAttributionReport(wallet),
+		FundingPaths:         newAddressFundingPathsReport(wallet),
 		AddressRelationships: buildAddressRelationships(wallet, newAddressFlowReport(wallet, "solana-mainnet"), newAddressAttributionReport(wallet)),
 		BehaviorTimeline:     newAddressBehaviorTimelineReport(wallet),
 		BehaviorPatterns:     newAddressBehaviorPatternsReport(wallet),
@@ -83,6 +85,8 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 	out.Limitations = append(out.Limitations, out.AddressFlow.Limitations...)
 	out.AddressAttribution = collectAddressAttribution(ctx, wallet, creatorIntelRPCURL(), out.AddressFlow)
 	out.Limitations = append(out.Limitations, out.AddressAttribution.Limitations...)
+	out.FundingPaths = buildAddressFundingPaths(wallet, out.AddressFlow, out.AddressAttribution)
+	out.Limitations = append(out.Limitations, out.FundingPaths.Limitations...)
 	out.AddressRelationships = buildAddressRelationships(wallet, out.AddressFlow, out.AddressAttribution)
 	out.Limitations = append(out.Limitations, out.AddressRelationships.Limitations...)
 
@@ -105,6 +109,10 @@ func (h *Handler) collectActorExternalDiscovery(ctx context.Context, store *serv
 		out.Status = "address_intelligence_summary_complete_for_observed_evidence"
 	case out.BehaviorSummary.Status == "observed_behavior_summary_available":
 		out.Status = "address_behavior_summary_available_with_gaps"
+	case out.FundingPaths.PathCandidateCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
+		out.Status = "address_history_flow_funding_paths_relationships_and_verified_attribution_available"
+	case out.FundingPaths.PathCandidateCount > 0 && history.SignaturesSeen > 0:
+		out.Status = "address_history_flow_and_funding_paths_available"
 	case out.BehaviorPatterns.TriggeredCount > 0 && out.BehaviorTimeline.EventCount > 0 && out.AddressRelationships.RelationshipCount > 0 && out.AddressAttribution.ResolvedCount > 0 && history.HistoryComplete && out.AddressFlow.FlowComplete:
 		out.Status = "address_history_flow_relationships_attribution_timeline_and_patterns_available"
 	case out.BehaviorPatterns.TriggeredCount > 0 && out.BehaviorTimeline.EventCount > 0:
