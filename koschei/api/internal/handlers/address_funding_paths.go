@@ -119,8 +119,10 @@ func buildAddressFundingPaths(wallet string, flow addressFlowReport, attribution
 	out.DownstreamCount = len(outbound)
 
 	pathLimit := actorDefenseEnvInt("ARVIS_ADDRESS_FUNDING_PATH_LIMIT", 80, 10, 250)
-	for _, downstream := range outbound {
+	truncated := false
+	for index, downstream := range outbound {
 		if len(out.PathCandidates) >= pathLimit {
+			truncated = index < len(outbound)
 			break
 		}
 		source, ok := mostRecentCompatibleFundingSource(inbound, downstream)
@@ -156,8 +158,8 @@ func buildAddressFundingPaths(wallet string, flow addressFlowReport, attribution
 	if !flow.FlowComplete {
 		out.Limitations = append(out.Limitations, "Direct fund-flow coverage is bounded; unseen transactions may contain earlier funding sources or additional downstream destinations.")
 	}
-	if len(out.PathCandidates) >= pathLimit && pathLimit > 0 {
-		out.Limitations = append(out.Limitations, "Funding-path output reached its bounded candidate limit; additional compatible temporal sequences may exist in the decoded evidence.")
+	if truncated {
+		out.Limitations = append(out.Limitations, "Funding-path output reached its bounded candidate limit; remaining downstream evidence was not evaluated for additional temporal sequences.")
 	}
 	out.Limitations = append(out.Limitations,
 		"A source-to-target transfer followed by a target-to-destination transfer is a verified temporal sequence, not proof that the same fungible SOL or token units were forwarded.",
