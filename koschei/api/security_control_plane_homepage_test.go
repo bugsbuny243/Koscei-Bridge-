@@ -23,8 +23,8 @@ func TestHomepageKeepsKoscheiWeb3AsEvidenceFirstUniverseGateway(t *testing.T) {
 		"without inventing certainty",
 		"Every material conclusion should descend to evidence",
 		"Professional operation · no private keys · no custody · unknown stays unknown",
-		"koschei-enterprise-v3.css",
 		"koschei-universe-v1.css",
+		"koschei-home-universe-v2.css",
 		"koschei-global-shell.js?v=4",
 	} {
 		if !strings.Contains(text, required) {
