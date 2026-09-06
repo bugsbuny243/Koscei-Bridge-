@@ -23,7 +23,7 @@ func (h *Handler) runCustomerProgramInvestigation(ctx context.Context, target, n
 	out := customerProgramInvestigationResult{
 		Target:          target,
 		Network:         network,
-		Classification: classification,
+		Classification:  classification,
 		ProgramSecurity: newProgramSecuritySurface("not_requested"),
 	}
 	if classification.Type != radarTargetProgram {
