@@ -116,13 +116,13 @@ func customerProgramInvestigationEnvelope(result customerProgramInvestigationRes
 			"recommendation": "review_program_authority_and_semantic_gaps",
 		},
 		"evidence_policy": map[string]any{
-			"no_evidence_no_claim":                       true,
-			"upgrade_authority_is_not_intent":            true,
-			"unknown_is_not_safe":                        true,
-			"numeric_final_score_disabled":               true,
+			"no_evidence_no_claim":                           true,
+			"upgrade_authority_is_not_intent":                true,
+			"unknown_is_not_safe":                            true,
+			"numeric_final_score_disabled":                   true,
 			"historical_memory_cannot_override_live_evidence": true,
-			"durable_memory_backend":                     "google_drive",
-			"neon_intelligence_persistence":              false,
+			"durable_memory_backend":                         "google_drive",
+			"neon_intelligence_persistence":                  false,
 		},
 	}
 }
