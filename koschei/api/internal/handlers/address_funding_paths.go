@@ -19,17 +19,17 @@ type addressFundingPathEndpoint struct {
 }
 
 type addressFundingPathSegment struct {
-	Direction          string                     `json:"direction"`
-	Counterparty       string                     `json:"counterparty"`
-	Signature          string                     `json:"signature"`
-	Slot               int64                      `json:"slot"`
-	ObservedAt         time.Time                  `json:"observed_at"`
-	AssetType          string                     `json:"asset_type"`
-	TokenMint          string                     `json:"token_mint,omitempty"`
-	AmountNative       float64                    `json:"amount_native,omitempty"`
-	TokenAmount        float64                    `json:"token_amount,omitempty"`
-	VerificationStatus string                     `json:"verification_status"`
-	Source             string                     `json:"source"`
+	Direction          string                      `json:"direction"`
+	Counterparty       string                      `json:"counterparty"`
+	Signature          string                      `json:"signature"`
+	Slot               int64                       `json:"slot"`
+	ObservedAt         time.Time                   `json:"observed_at"`
+	AssetType          string                      `json:"asset_type"`
+	TokenMint          string                      `json:"token_mint,omitempty"`
+	AmountNative       float64                     `json:"amount_native,omitempty"`
+	TokenAmount        float64                     `json:"token_amount,omitempty"`
+	VerificationStatus string                      `json:"verification_status"`
+	Source             string                      `json:"source"`
 	Endpoint           *addressFundingPathEndpoint `json:"endpoint,omitempty"`
 }
 
@@ -67,11 +67,11 @@ func newAddressFundingPathsReport(wallet string) addressFundingPathsReport {
 		PathCandidates: []addressFundingPathCandidate{},
 		Limitations:    []string{},
 		Policy: map[string]any{
-			"direct_transfer_evidence_only": true,
-			"fund_trace_claimed":            false,
-			"same_actor_claimed":            false,
-			"real_world_identity_claim":     false,
-			"wrongdoing_claim":              false,
+			"direct_transfer_evidence_only":       true,
+			"fund_trace_claimed":                  false,
+			"same_actor_claimed":                  false,
+			"real_world_identity_claim":           false,
+			"wrongdoing_claim":                    false,
 			"temporal_sequence_is_not_provenance": true,
 		},
 	}
