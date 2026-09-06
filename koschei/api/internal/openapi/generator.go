@@ -193,22 +193,22 @@ func authTier(path, filename string) string {
 	switch {
 	case strings.HasPrefix(path, "/api/owner/"):
 		return "owner_session"
-	case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/"):
-		return "api_key_plus_enterprise_entitlement"
+	case strings.HasPrefix(path, "/api/v1/scan/") || path == "/api/v1/usage" || strings.HasPrefix(path, "/api/v1/shield/") || strings.HasPrefix(path, "/api/v1/defense/") || strings.HasPrefix(path, "/api/v1/execution-assurance/"):
+		return "api_key_plus_professional_entitlement"
 	case strings.HasPrefix(path, "/api/webhooks"):
-		return "customer_session_plus_enterprise_entitlement"
+		return "customer_session_plus_professional_entitlement"
 	case strings.HasPrefix(path, "/api/watchlist"):
 		return "customer_session_plus_professional_entitlement"
 	case path == "/api/customer/web3/transaction-preflight" || path == "/api/customer/web3/transaction-state-recheck":
 		return "customer_session_plus_professional_entitlement"
 	case strings.HasPrefix(path, "/api/account/"):
-		return "customer_session_plus_enterprise_entitlement"
+		return "customer_session_plus_professional_entitlement"
 	case strings.HasPrefix(path, "/api/auth/wallet/") || path == "/api/auth/premium-access" || path == "/api/me" || path == "/api/web3/health/logs" || path == "/api/v1/radar/jobs/{id}" || path == "/api/jobs/{id}":
 		return "customer_session"
 	case path == "/api/v1/radar/feed" || path == "/api/v1/radar/creator-intelligence" || path == "/api/v1/radar/actor-intelligence" || path == "/api/v1/radar/graph" || path == "/api/v1/radar/exposure" || path == "/api/v1/radar/court":
 		return "customer_session_plus_professional_entitlement"
-	case path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":
-		return "customer_session_plus_starter_entitlement"
+	case path == "/api/arvis/preflight" || path == "/api/token/scan" || path == "/api/v1/radar/check" || path == "/api/v1/radar/jobs" || path == "/api/v1/radar/detail" || path == "/api/jobs/token-scan" || path == "/api/v1/token/extensions" || path == "/api/v1/address-poisoning/check" || strings.HasPrefix(path, "/api/agent/") && path != "/api/agent/health":
+		return "customer_session_plus_professional_entitlement"
 	case strings.Contains(filename, "dossier") && strings.HasPrefix(path, "/api/v1/dossier/"):
 		return "dossier_access_contract"
 	default:
@@ -343,9 +343,9 @@ func security(auth string) []any {
 	switch auth {
 	case "owner_session":
 		return []any{map[string]any{"ownerSession": []string{}}}
-	case "api_key_plus_enterprise_entitlement":
+	case "api_key_plus_professional_entitlement", "api_key_plus_enterprise_entitlement":
 		return []any{map[string]any{"developerAPIKey": []string{}}}
-	case "customer_session", "customer_session_plus_starter_entitlement", "customer_session_plus_professional_entitlement", "customer_session_plus_enterprise_entitlement", "dossier_access_contract":
+	case "customer_session", "customer_session_plus_professional_entitlement", "dossier_access_contract":
 		return []any{map[string]any{"sessionBearer": []string{}}}
 	default:
 		return []any{}

@@ -314,7 +314,7 @@
         "tags": [
           "account_and_professional_access"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       },
@@ -413,7 +413,7 @@
         "tags": [
           "account_and_professional_access"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -524,7 +524,7 @@
         "tags": [
           "account_and_professional_access"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_for_api_keys",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -625,7 +625,7 @@
         "tags": [
           "public_and_system"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -793,7 +793,7 @@
         "tags": [
           "public_and_system"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -894,7 +894,7 @@
         "tags": [
           "public_and_system"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -995,7 +995,7 @@
         "tags": [
           "public_and_system"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "public_or_mixed",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -3908,6 +3908,26 @@
             },
             "description": "Invalid request."
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identity credential missing or invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated identity lacks the required access tier."
+          },
           "405": {
             "content": {
               "application/json": {
@@ -3939,12 +3959,16 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [],
+        "security": [
+          {
+            "sessionBearer": []
+          }
+        ],
         "summary": "POST /api/arvis/preflight",
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "public",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -5251,7 +5275,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -5352,7 +5376,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -12433,6 +12457,26 @@
             },
             "description": "Invalid request."
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identity credential missing or invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated identity lacks the required access tier."
+          },
           "405": {
             "content": {
               "application/json": {
@@ -12464,12 +12508,16 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [],
+        "security": [
+          {
+            "sessionBearer": []
+          }
+        ],
         "summary": "POST /api/token/scan",
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "public",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -12570,7 +12618,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -12611,6 +12659,26 @@
             },
             "description": "Invalid request."
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identity credential missing or invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated identity lacks the required access tier."
+          },
           "405": {
             "content": {
               "application/json": {
@@ -12642,12 +12710,16 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [],
+        "security": [
+          {
+            "developerAPIKey": []
+          }
+        ],
         "summary": "POST /api/v1/defense/validation",
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "public",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -12799,6 +12871,26 @@
             },
             "description": "Invalid request."
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identity credential missing or invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated identity lacks the required access tier."
+          },
           "405": {
             "content": {
               "application/json": {
@@ -12830,12 +12922,16 @@
             "description": "Internal failure; no unsupported verdict is emitted."
           }
         },
-        "security": [],
+        "security": [
+          {
+            "developerAPIKey": []
+          }
+        ],
         "summary": "POST /api/v1/execution-assurance/safe/verify",
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "public",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -13027,7 +13123,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -13310,7 +13406,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -13684,7 +13780,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -13785,7 +13881,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -13953,7 +14049,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14054,7 +14150,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14155,7 +14251,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14256,7 +14352,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14357,7 +14453,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14458,7 +14554,7 @@
         "tags": [
           "professional_customer_operations"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_starter_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "customer_session_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -14549,7 +14645,7 @@
         "tags": [
           "developer_api"
         ],
-        "x-koschei-auth-tier": "api_key_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "api_key_plus_professional_entitlement",
         "x-koschei-inventory-auth": "api_key_plus_professional_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -15348,7 +15444,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
@@ -15447,7 +15543,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -15538,7 +15634,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -15639,7 +15735,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
@@ -15748,7 +15844,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -15839,7 +15935,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
@@ -15938,7 +16034,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
@@ -16039,7 +16135,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       },
@@ -16148,7 +16244,7 @@
         "tags": [
           "watchlist_and_webhooks"
         ],
-        "x-koschei-auth-tier": "customer_session_plus_enterprise_entitlement",
+        "x-koschei-auth-tier": "customer_session_plus_professional_entitlement",
         "x-koschei-inventory-auth": "professional_saas_entitlement",
         "x-koschei-route-source": "route_inventory.go"
       }
