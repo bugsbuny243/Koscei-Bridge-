@@ -1,0 +1,65 @@
+name: Production Drive Memory Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "koschei/api/scripts/verify-production-drive-memory.js"
+      - ".github/workflows/production-drive-memory-acceptance.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "47 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-drive-memory-acceptance-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify production token scan Drive memory receipt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_URL: https://tradepigloball.co
+      KOSCHEI_FULL_SCAN_MINT: HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump
+      DRIVE_MEMORY_SCAN_TIMEOUT_MS: "300000"
+      OUTPUT_DIR: diagnostics
+    steps:
+      - name: Checkout acceptance probe
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Run production Drive memory probe
+        run: node koschei/api/scripts/verify-production-drive-memory.js
+
+      - name: Print Drive memory receipt
+        if: always()
+        shell: bash
+        run: |
+          if [ -f diagnostics/drive-memory-result.json ]; then
+            node - <<'NODE'
+          const fs = require('fs');
+          const result = JSON.parse(fs.readFileSync('diagnostics/drive-memory-result.json', 'utf8'));
+          const r = result.receipt || {};
+          console.log('=== KOSCHEI PRODUCTION DRIVE MEMORY ===');
+          console.log(`Target: ${result.target || 'unknown'}`);
+          console.log(`HTTP: ${result.http_status || 0}`);
+          console.log(`Backend: ${r.backend || 'unknown'}`);
+          console.log(`Status: ${r.status || 'unknown'}`);
+          console.log(`Configuration: ${r.configuration_status || 'unknown'}`);
+          console.log(`Durable: ${Boolean(r.durable)}`);
+          console.log(`Object: ${r.object?.name || '-'}`);
+          NODE
+          elif [ -f diagnostics/drive-memory-probe-error.txt ]; then
+            cat diagnostics/drive-memory-probe-error.txt
+          fi
+
+      - name: Upload Drive memory diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: production-drive-memory-diagnostics
+          path: diagnostics
+          if-no-files-found: error
+          retention-days: 30
