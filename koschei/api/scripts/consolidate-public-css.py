@@ -53,14 +53,17 @@ def ordered_css_files() -> list[Path]:
     seen: set[str] = set()
     for name in BASE_ORDER:
         if name in files and name not in seen:
-            ordered.append(files[name]); seen.add(name)
+            ordered.append(files[name])
+            seen.add(name)
     late = {name for name in LATE_ORDER if name in files}
     for name in sorted(files):
         if name not in seen and name not in late:
-            ordered.append(files[name]); seen.add(name)
+            ordered.append(files[name])
+            seen.add(name)
     for name in LATE_ORDER:
         if name in files and name not in seen:
-            ordered.append(files[name]); seen.add(name)
+            ordered.append(files[name])
+            seen.add(name)
     return ordered
 
 
@@ -83,7 +86,6 @@ def rewrite_html_stylesheets(path: Path) -> bool:
     matches = list(STYLESHEET_LINK_RE.finditer(text))
     if not matches:
         return False
-    first = matches[0]
     replacement = f'<link rel="stylesheet" href="{SINGLE_REF}">\n'
     pieces: list[str] = []
     cursor = 0
@@ -121,6 +123,12 @@ def main() -> None:
     files = ordered_css_files()
     if not files or TARGET.name not in {p.name for p in files}:
         raise SystemExit("canonical koschei.css is missing")
+
+    # After the one-time migration, reruns are intentionally a no-op. This
+    # prevents the already-generated bundle from being wrapped into itself.
+    if len(files) == 1 and files[0].name == TARGET.name:
+        print(f"already consolidated: {TARGET.relative_to(API_ROOT)}")
+        return
 
     retired = {p.name for p in files if p.name != TARGET.name}
     TARGET.write_text(build_bundle(files), encoding="utf-8")
