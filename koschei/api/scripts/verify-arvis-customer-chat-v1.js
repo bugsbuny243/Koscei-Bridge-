@@ -14,9 +14,11 @@ function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`$
 requireText(html,'One address. Open the whole case.','customer universe chat headline');
 requireText(html,'Follow-up answers are limited to the investigation evidence','evidence-grounded copy');
 requireText(html,'PROFESSIONAL · UNIVERSAL INVESTIGATION ENTRY POINT','Professional chat boundary');
+requireText(html,'Threat Hypothesis','threat hypothesis universe stage');
+requireText(html,'Threat hypotheses describe evidence-backed technical possibilities, not intent or numeric probability.','hypothesis epistemic boundary');
 requireText(html,'id="arvisChatScanForm"','scan form');
 requireText(html,'id="arvisChatQuestionForm"','question form');
-requireText(html,'/js/customer-arvis-chat-v1.js?v=1','chat controller');
+requireText(html,'/js/customer-arvis-chat-v1.js?v=2','chat controller');
 requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
@@ -29,6 +31,12 @@ requireText(js,"KoscheiAuth.requireAuth('/login.html')",'verified customer sessi
 requireText(js,'Chat does not create a second verdict.','deterministic verdict boundary');
 requireText(js,'I still do not infer safety from missing evidence.','missing evidence boundary');
 requireText(js,'No evidence-backed attack-path projection was returned','no invented attack path');
+requireText(js,'No evidence-backed threat hypothesis was returned','no invented hypothesis');
+requireText(js,'capability/exposure hypothesis','capability-not-intent hypothesis copy');
+requireText(js,'not intent or a numeric probability','no probability or intent claim');
+requireText(js,'investigation_report?.intelligence_contract?.hypotheses','canonical hypothesis source');
+requireText(js,'Evidence refs:','hypothesis evidence references');
+requireText(js,'Still required:','hypothesis missing evidence projection');
 requireText(js,'Follow-up questions use this returned evidence only.','follow-up evidence boundary');
 forbid(js,/\bfetch\s*\(/,'raw fetch bypass');
 forbid(js,/\blocalStorage\b|\bsessionStorage\b/,'browser persistence');
@@ -40,4 +48,4 @@ forbid(js,/signMessage|signTransaction|signAllTransactions|signAndSendTransactio
 requireText(css,'.arvis-chat-shell','chat layout');
 requireText(css,'@media(max-width:800px)','mobile layout');
 requireText(universe,'.universe-entry','universe entry visual contract');
-console.log('ARVIS customer chat universe acceptance: ok');
+console.log('ARVIS customer chat universe + threat hypothesis acceptance: ok');
