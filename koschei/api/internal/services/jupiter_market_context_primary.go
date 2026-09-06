@@ -3,10 +3,10 @@ package services
 import "encoding/json"
 
 const (
-	JupiterPrimaryPriceProvider    = "jupiter"
-	DexScreenerFallbackProvider   = "dexscreener_fallback"
-	DexScreenerDiscoveryProvider  = "dexscreener"
-	MarketProviderPolicyV1        = "jupiter_price_execution_primary_dexscreener_pair_discovery_fallback"
+	JupiterPrimaryPriceProvider  = "jupiter"
+	DexScreenerFallbackProvider  = "dexscreener_fallback"
+	DexScreenerDiscoveryProvider = "dexscreener"
+	MarketProviderPolicyV1       = "jupiter_price_execution_primary_dexscreener_pair_discovery_fallback"
 )
 
 type PrimaryMarketPrice struct {
