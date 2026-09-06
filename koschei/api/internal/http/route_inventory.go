@@ -18,22 +18,23 @@ func ownerRouteMap(w http.ResponseWriter, r *http.Request) {
 		"ok":           true,
 		"generated_at": time.Now().UTC().Format(time.RFC3339),
 		"source":       "server_boot_chain",
-		"access_model": "public_free_core_plus_saas_entitlements",
+		"access_model": "public_proof_plus_professional_entitlement",
 		"groups":       productionRouteInventory(),
 		"rules": []string{
 			"A handler is live only when registered in the server boot chain.",
 			"The production route inventory is contract-tested against literal API registrations.",
-			"Public Safe Check and basic token fundamentals are available without a paid plan.",
+			"Operational customer analysis requires an active Professional entitlement; public proof, health and documentation surfaces do not execute customer investigations.",
+			"Legacy /api/arvis/preflight and /api/token/scan paths are compatibility routes and are wrapped by the Professional entitlement and output ledger at the HTTP readiness boundary.",
 			"Public SOC discovery exposes only explicitly published immutable dossiers; a stored dossier is private by default.",
-			"A customer session identifies the account; paid product authorization is derived only from an active SaaS entitlement.",
-			"Starter unlocks paid investigation routes; Professional unlocks advanced radar and watchlists; Enterprise unlocks API keys and webhook management.",
+			"A customer session identifies the account; paid product authorization is derived only from an active Professional entitlement.",
+			"Professional is the single operational customer plan for investigation, monitoring, retained history and registered developer access.",
 			"Evidence-backed verdicts must not be signed without verified evidence.",
 			"Recipient fate investigation is mint-specific ATA-only and never queries recipient-wide signature history.",
 			"Canonical investigation jobs accept token mint, wallet or token-account targets and continue after the HTTP request ends.",
 			"Owner, customer and automatic Pump discovery routes feed the same canonical investigation worker.",
 			"Signed medium-or-higher ARVIS verdicts and non-allow transaction guard decisions enter the durable alert pipeline.",
-			"Enterprise defense validation recomputes isolated execution evidence and authenticates independent collector observations; it never submits mainnet transactions or mutates production controls.",
-			"Enterprise Safe execution assurance independently recomputes the complete Safe EIP-712 transaction hash and Execution Proof and requires a fresh Ed25519 attestation from the server-configured trusted producer before ALLOW; caller-selected trust material cannot authorize the request.",
+			"Defense validation recomputes isolated execution evidence and authenticates independent collector observations; it never submits mainnet transactions or mutates production controls.",
+			"Safe execution assurance independently recomputes the complete Safe EIP-712 transaction hash and Execution Proof and requires a fresh Ed25519 attestation from the server-configured trusted producer before ALLOW; caller-selected trust material cannot authorize the request.",
 			"Defense OS routes are registered only when KOSCHEI_DEFENSE_OS_ENABLED=true.",
 		},
 	})
@@ -43,7 +44,7 @@ func productionRouteInventory() []routeInventoryGroup {
 	return []routeInventoryGroup{
 		{Name: "public_and_system", Auth: "public_or_mixed", Routes: []string{
 			"GET /health", "GET /api/config", "GET /api/version", "GET /api/web3/health", "GET /api/web3/health/logs",
-			"POST /api/analytics/event", "POST /api/arvis/preflight", "POST /api/token/scan", "GET /api/v1/risk/badge",
+			"POST /api/analytics/event", "GET /api/v1/risk/badge",
 			"GET /api/public/impact", "GET /api/public/metrics", "GET /api/public/cases", "GET /api/public/soc/feed",
 			"GET /api/public/token/status", "GET /api/public/token/readiness", "GET /api/public/scan-history", "POST /api/public/transaction-simulate",
 			"GET /api/agent/health", "POST /api/agent/wallet-score", "POST /api/agent/risk-summary", "POST /api/agent/metadata-template", "POST /api/agent/chain-health",
@@ -51,7 +52,7 @@ func productionRouteInventory() []routeInventoryGroup {
 		{Name: "identity", Auth: "mixed", Routes: []string{
 			"POST /api/auth/provision", "POST /api/auth/register", "POST /api/auth/login", "GET /api/auth/neon-login", "GET /api/auth/neon-register", "GET /api/auth/neon-callback", "GET /api/me",
 		}},
-		{Name: "account_and_saas_access", Auth: "customer_session_plus_enterprise_for_api_keys", Routes: []string{
+		{Name: "account_and_professional_access", Auth: "customer_session_plus_professional_for_api_keys", Routes: []string{
 			"/api/account/api-keys", "/api/account/api-keys/",
 			"POST /api/auth/wallet/challenge", "POST /api/auth/wallet/verify", "GET /api/auth/wallet/status",
 			"POST /api/auth/wallet/unlink", "GET /api/auth/premium-access",
@@ -70,13 +71,14 @@ func productionRouteInventory() []routeInventoryGroup {
 			"GET /api/owner/users", "POST /api/owner/users/ban", "POST /api/owner/users/remove", "POST /api/owner/command", "POST /api/owner/brain", "/api/owner/chat", "GET /api/owner/health", "GET /api/owner/status",
 			"POST /api/owner/dossier/publications", "POST /api/owner/arvis/acceptance",
 		}},
-		{Name: "premium_radar_and_reports", Auth: "customer_session_plus_saas_entitlement", Routes: []string{
+		{Name: "professional_customer_operations", Auth: "customer_session_plus_professional_entitlement", Routes: []string{
+			"POST /api/arvis/preflight", "POST /api/token/scan",
 			"POST /api/v1/token/extensions", "POST /api/v1/address-poisoning/check", "POST /api/customer/web3/transaction-preflight", "POST /api/customer/web3/transaction-state-recheck",
 			"POST /api/v1/radar/check", "POST /api/v1/radar/jobs", "GET /api/v1/radar/jobs/", "GET /api/v1/radar/detail", "GET /api/v1/radar/feed",
 			"GET /api/v1/radar/creator-intelligence", "GET /api/v1/radar/actor-intelligence", "GET /api/v1/radar/graph", "GET /api/v1/radar/exposure", "POST /api/v1/radar/court",
 			"POST /api/jobs/token-scan", "GET /api/jobs/",
 		}},
-		{Name: "developer_api", Auth: "api_key_plus_enterprise_entitlement", Routes: []string{
+		{Name: "developer_api", Auth: "api_key_plus_professional_entitlement", Routes: []string{
 			"POST /api/v1/scan/token", "GET /api/v1/usage", "POST /api/v1/shield/preflight",
 			"POST /api/v1/shield/transaction", "POST /api/v1/shield/state-recheck", "POST /api/v1/shield/address-poisoning",
 			"POST /api/v1/defense/validation", "POST /api/v1/execution-assurance/safe/verify",
@@ -84,7 +86,7 @@ func productionRouteInventory() []routeInventoryGroup {
 		{Name: "dossier", Auth: "mixed", Routes: []string{
 			"POST /api/v1/dossier/",
 		}},
-		{Name: "watchlist_and_webhooks", Auth: "professional_or_enterprise_saas_entitlement", Routes: []string{
+		{Name: "watchlist_and_webhooks", Auth: "professional_saas_entitlement", Routes: []string{
 			"/api/watchlist", "POST /api/watchlist/refresh", "/api/watchlist/alerts", "/api/watchlist/",
 			"/api/webhooks", "/api/webhooks/", "/api/webhooks/security-alerts", "/api/webhooks/deliveries", "/api/webhooks/deliveries/",
 		}},
