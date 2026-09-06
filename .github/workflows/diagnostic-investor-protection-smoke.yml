@@ -1,0 +1,70 @@
+name: Diagnostic Investor Protection Smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/diagnostic-investor-protection-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  production-investor-protection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_URL: https://tradepigloball.co
+      TEST_MINT: HHPpU9u56Bwxov12nf7DXUCuv6h1q5j1xgGS3yukpump
+    steps:
+      - name: Probe production investor protection contract
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const base = process.env.BASE_URL;
+          const mint = process.env.TEST_MINT;
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 300000);
+          (async()=>{
+            const response = await fetch(`${base}/api/token/scan`, {
+              method:'POST',
+              headers:{accept:'application/json','content-type':'application/json','user-agent':'koschei-investor-protection-production-smoke/1.0'},
+              body:JSON.stringify({mint,network:'solana-mainnet'}),
+              signal:controller.signal,
+            });
+            const raw = await response.text();
+            if(!response.ok) throw new Error(`scan_http_${response.status}:${raw.slice(0,500)}`);
+            const payload = JSON.parse(raw);
+            const report = payload.investigation_report || payload.report || payload;
+            const finalVerdict = report.final_verdict || payload.final_verdict || {};
+            const protection = report.investor_protection_decision || {};
+            const triggered = Array.isArray(finalVerdict.triggered_rules) ? finalVerdict.triggered_rules : [];
+            const refs = triggered.flatMap(hit => [
+              ...(Array.isArray(hit.evidence_keys)?hit.evidence_keys:[]).map(reference=>({rule_id:hit.rule_id,status:hit.evidence_status,kind:'evidence_key',reference})),
+              ...(Array.isArray(hit.signatures)?hit.signatures:[]).map(reference=>({rule_id:hit.rule_id,status:hit.evidence_status,kind:'signature',reference})),
+            ]).filter(item=>String(item.reference||'').trim());
+            const summary = {
+              target: mint,
+              grade: finalVerdict.grade,
+              verdict: finalVerdict.verdict,
+              signed: finalVerdict.signed,
+              decision: protection.decision,
+              investor_action: protection.investor_action,
+              execution_action: protection.execution_action,
+              cleared: protection.cleared,
+              basis: protection.basis,
+              collection_gap_count: Array.isArray(protection.critical_gaps)?protection.critical_gaps.length:0,
+              verdict_evidence_refs: refs,
+            };
+            console.log('INVESTOR_PROTECTION_PRODUCTION_RESULT='+JSON.stringify(summary));
+            if(String(finalVerdict.grade).toUpperCase()==='F'){
+              if(protection.decision!=='AVOID') throw new Error(`F_grade_not_avoid:${protection.decision}`);
+              if(protection.execution_action!=='BLOCK') throw new Error(`F_grade_not_block:${protection.execution_action}`);
+              if(protection.cleared!==false) throw new Error('F_grade_was_cleared');
+              const verifiedBasis = Array.isArray(protection.basis) && protection.basis.some(item=>String(item.evidence_status).toLowerCase()==='verified' && ((Array.isArray(item.evidence_keys)&&item.evidence_keys.length)||(Array.isArray(item.signatures)&&item.signatures.length)));
+              if(!verifiedBasis) throw new Error('F_grade_missing_verified_evidence_bound_basis');
+            } else {
+              if(protection.cleared===true && protection.decision!=='CLEARED_WITH_LIMITS') throw new Error('unexpected_clearance_contract');
+              console.log(`NOTICE: target currently graded ${finalVerdict.grade}; severe F assertions were not applicable to this live state.`);
+            }
+          })().finally(()=>clearTimeout(timer)).catch(error=>{console.error(error);process.exit(1);});
+          NODE
