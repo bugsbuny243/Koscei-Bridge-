@@ -61,6 +61,37 @@ func (h *Handler) analyzeLaunchForensics(parent context.Context, target string, 
 			)
 		}
 	}
+
+	// Discovery events already arrive through the existing PumpPortal durable
+	// inbox. Independently reread their exact signature when source context points
+	// at a PumpPortal new-token or migration observation. This confirms only the
+	// transaction/mint/program reference; create/migration semantics remain
+	// source-reported until a dedicated instruction decoder proves them.
+	if source != nil && strings.EqualFold(strings.TrimSpace(creatorIntelCleanString(source["source"])), "pumpportal") {
+		eventType := strings.ToLower(strings.TrimSpace(creatorIntelCleanString(source["event_type"])))
+		if strings.Contains(eventType, "new_token") || strings.Contains(eventType, "migrat") {
+			discovery := services.CorrelatePumpPortalDiscoveryEvent(
+				ctx,
+				correlationRPCURL,
+				correlationSource,
+				target,
+				strings.TrimSpace(creatorIntelCleanString(source["signature"])),
+				eventType,
+				creatorIntelInt64(source["slot"]),
+			)
+			source["pump_discovery_correlation"] = discovery
+			if discovery.Status == "signature_correlated" {
+				result.Findings = append(result.Findings, fmt.Sprintf(
+					"PumpPortal discovery signature independently reread on-chain for the target mint (%s); event semantics remain source-reported.",
+					discovery.VerificationSource,
+				))
+			} else if discovery.Signature != "" {
+				result.Limitations = append(result.Limitations,
+					"PumpPortal discovery signature could not be independently correlated; the source-reported new-token/migration observation remains unverified.",
+				)
+			}
+		}
+	}
 	return result
 }
 
