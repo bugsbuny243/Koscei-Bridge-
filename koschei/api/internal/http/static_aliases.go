@@ -27,10 +27,12 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	registerStaticFileAlias(mux, "/agents/install/", filepath.Join(staticDir, "agents-install.html"))
 
 	// There is one customer-facing investigation surface. Legacy scanner URLs
-	// preserve their intent through a mode query, but no longer render separate
-	// products with overlapping forms and verdict language.
+	// preserve their intent through a supported Professional mode query, but no
+	// longer render separate products with overlapping forms and verdict language.
+	// The retired Quick Check mode is deliberately not revived by /safe-check;
+	// that compatibility URL now enters the Professional token investigation.
 	for _, route := range []string{"/safe-check", "/safe-check/", "/safe-check.html"} {
-		registerScanModeRedirect(mux, route, "quick")
+		registerScanModeRedirect(mux, route, "token")
 	}
 	for _, route := range []string{"/transaction-shield", "/transaction-shield/", "/transaction-shield.html"} {
 		registerScanModeRedirect(mux, route, "transaction")
