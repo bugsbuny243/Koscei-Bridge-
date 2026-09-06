@@ -53,6 +53,11 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	// already-collected concrete evidence references.
 	attachCustomerAttackPath(assembly)
 
+	// Preserve ARVIS as the evidence engine. The chain-neutral contract is a
+	// projection of evidence ARVIS already collected; it does not replace or
+	// re-grade the existing investigation.
+	attachArvisIntelligenceBridge(assembly)
+
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
