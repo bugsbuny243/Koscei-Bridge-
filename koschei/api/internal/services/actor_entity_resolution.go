@@ -3,6 +3,7 @@ package services
 import (
 	"sort"
 	"strings"
+	"time"
 )
 
 type ActorResolvedEntity struct {
@@ -21,9 +22,24 @@ type ActorResolvedRelationship struct {
 	VerificationStatus string         `json:"verification_status"`
 	Signature          string         `json:"signature,omitempty"`
 	Slot               int64          `json:"slot,omitempty"`
+	ObservedAt         time.Time      `json:"observed_at"`
+	TokenMint          string         `json:"token_mint,omitempty"`
+	TokenAmount        float64        `json:"token_amount,omitempty"`
+	NativeAmount       float64        `json:"native_amount,omitempty"`
 	SourceProvider     string         `json:"source_provider"`
 	EvidenceKey        string         `json:"evidence_key,omitempty"`
 	Metadata           map[string]any `json:"metadata"`
+}
+
+type ActorResolvedTransaction struct {
+	Signature          string    `json:"signature"`
+	Slot               int64     `json:"slot,omitempty"`
+	ObservedAt         time.Time `json:"observed_at"`
+	VerificationStatus string    `json:"verification_status"`
+	EntityIDs          []string  `json:"entity_ids"`
+	Relations          []string  `json:"relations"`
+	SourceProviders    []string  `json:"source_providers"`
+	EvidenceKeys       []string  `json:"evidence_keys"`
 }
 
 type ActorEntityResolution struct {
@@ -31,12 +47,14 @@ type ActorEntityResolution struct {
 	RootEntity          string                      `json:"root_entity"`
 	EntityCount         int                         `json:"entity_count"`
 	RelationshipCount   int                         `json:"relationship_count"`
+	TransactionCount    int                         `json:"transaction_count"`
 	VerifiedRelations   int                         `json:"verified_relations"`
 	ObservedRelations   int                         `json:"observed_relations"`
 	InferredRelations   int                         `json:"inferred_relations"`
 	UnverifiedRelations int                         `json:"unverified_relations"`
 	Entities            []ActorResolvedEntity       `json:"entities"`
 	Relationships       []ActorResolvedRelationship `json:"relationships"`
+	Transactions        []ActorResolvedTransaction  `json:"transactions"`
 	Policy              map[string]any              `json:"policy"`
 }
 
@@ -49,6 +67,17 @@ type actorResolvedEntityBuilder struct {
 	count    int
 }
 
+type actorResolvedTransactionBuilder struct {
+	signature string
+	slot      int64
+	observed  time.Time
+	status    string
+	entities  map[string]struct{}
+	relations map[string]struct{}
+	providers map[string]struct{}
+	evidence  map[string]struct{}
+}
+
 // BuildActorEntityResolution promotes the persistent evidence graph from raw
 // addresses into an entity-oriented projection without clustering identities.
 // A resolved entity is only a normalized evidence subject keyed by its literal
@@ -59,12 +88,16 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		RootEntity:    strings.TrimSpace(dossier.Wallet),
 		Entities:      []ActorResolvedEntity{},
 		Relationships: []ActorResolvedRelationship{},
+		Transactions:  []ActorResolvedTransaction{},
 		Policy: map[string]any{
-			"entity_is_evidence_subject_not_identity": true,
-			"no_common_ownership_inference":           true,
-			"no_evidence_no_relationship":             true,
-			"same_identifier_can_have_multiple_kinds": true,
-			"identity_or_wrongdoing_claim":            false,
+			"entity_is_evidence_subject_not_identity":           true,
+			"no_common_ownership_inference":                     true,
+			"no_evidence_no_relationship":                       true,
+			"same_identifier_can_have_multiple_kinds":           true,
+			"identifiers_are_case_sensitive":                    true,
+			"transaction_projection_requires_signature":         true,
+			"unsigned_relationship_not_promoted_to_transaction": true,
+			"identity_or_wrongdoing_claim":                      false,
 		},
 	}
 	if out.RootEntity == "" {
@@ -77,8 +110,7 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		if id == "" {
 			return nil
 		}
-		key := strings.ToLower(id)
-		if current := builders[key]; current != nil {
+		if current := builders[id]; current != nil {
 			return current
 		}
 		current := &actorResolvedEntityBuilder{
@@ -88,7 +120,7 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			status:   "unverified",
 			metadata: map[string]any{},
 		}
-		builders[key] = current
+		builders[id] = current
 		return current
 	}
 
@@ -113,6 +145,7 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		}
 	}
 
+	transactionBuilders := map[string]*actorResolvedTransactionBuilder{}
 	for _, edge := range graph.Edges {
 		source := ensure(edge.Source)
 		target := ensure(edge.Target)
@@ -129,6 +162,10 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			VerificationStatus: edge.VerificationStatus,
 			Signature:          edge.Signature,
 			Slot:               edge.Slot,
+			ObservedAt:         edge.ObservedAt,
+			TokenMint:          edge.TokenMint,
+			TokenAmount:        edge.TokenAmount,
+			NativeAmount:       edge.NativeAmount,
 			SourceProvider:     edge.SourceProvider,
 			EvidenceKey:        evidenceKey,
 			Metadata:           cloneActorGraphMetadata(edge.Metadata),
@@ -143,6 +180,43 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		default:
 			out.UnverifiedRelations++
 		}
+
+		signature := strings.TrimSpace(edge.Signature)
+		if signature == "" {
+			continue
+		}
+		transaction := transactionBuilders[signature]
+		if transaction == nil {
+			transaction = &actorResolvedTransactionBuilder{
+				signature: signature,
+				status:    "unverified",
+				entities:  map[string]struct{}{},
+				relations: map[string]struct{}{},
+				providers: map[string]struct{}{},
+				evidence:  map[string]struct{}{},
+			}
+			transactionBuilders[signature] = transaction
+		}
+		if transaction.slot == 0 && edge.Slot != 0 {
+			transaction.slot = edge.Slot
+		}
+		if transaction.observed.IsZero() || (!edge.ObservedAt.IsZero() && edge.ObservedAt.Before(transaction.observed)) {
+			transaction.observed = edge.ObservedAt
+		}
+		if actorGraphStatusRank(edge.VerificationStatus) > actorGraphStatusRank(transaction.status) {
+			transaction.status = normalizeActorGraphStatus(edge.VerificationStatus)
+		}
+		transaction.entities[edge.Source] = struct{}{}
+		transaction.entities[edge.Target] = struct{}{}
+		if relation := strings.TrimSpace(edge.Relation); relation != "" {
+			transaction.relations[relation] = struct{}{}
+		}
+		if provider := strings.TrimSpace(edge.SourceProvider); provider != "" {
+			transaction.providers[provider] = struct{}{}
+		}
+		if evidenceKey != "" {
+			transaction.evidence[evidenceKey] = struct{}{}
+		}
 	}
 
 	for _, builder := range builders {
@@ -155,6 +229,18 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 			Metadata:           nonNilMap(builder.metadata),
 		}
 		out.Entities = append(out.Entities, entity)
+	}
+	for _, builder := range transactionBuilders {
+		out.Transactions = append(out.Transactions, ActorResolvedTransaction{
+			Signature:          builder.signature,
+			Slot:               builder.slot,
+			ObservedAt:         builder.observed,
+			VerificationStatus: normalizeActorGraphStatus(builder.status),
+			EntityIDs:          actorEntitySortedKeys(builder.entities),
+			Relations:          actorEntitySortedKeys(builder.relations),
+			SourceProviders:    actorEntitySortedKeys(builder.providers),
+			EvidenceKeys:       actorEntitySortedKeys(builder.evidence),
+		})
 	}
 	sort.SliceStable(out.Entities, func(i, j int) bool {
 		return out.Entities[i].ID < out.Entities[j].ID
@@ -172,8 +258,22 @@ func BuildActorEntityResolution(dossier ActorDefenseDossier) ActorEntityResoluti
 		}
 		return left.EvidenceKey < right.EvidenceKey
 	})
+	sort.SliceStable(out.Transactions, func(i, j int) bool {
+		left, right := out.Transactions[i], out.Transactions[j]
+		if left.ObservedAt.Equal(right.ObservedAt) {
+			return left.Signature < right.Signature
+		}
+		if left.ObservedAt.IsZero() {
+			return false
+		}
+		if right.ObservedAt.IsZero() {
+			return true
+		}
+		return left.ObservedAt.Before(right.ObservedAt)
+	})
 	out.EntityCount = len(out.Entities)
 	out.RelationshipCount = len(out.Relationships)
+	out.TransactionCount = len(out.Transactions)
 	out.Available = out.RelationshipCount > 0
 	return out
 }
