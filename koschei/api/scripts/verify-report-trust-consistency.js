@@ -45,11 +45,25 @@ reject('public/index.html', '/js/koschei-security-world.js');
 reject('public/index.html', 'Ethereum</b><small>LIVE');
 reject('public/index.html', 'TRON</b><small>LIVE');
 
-// Exposure and feedback are no longer standalone product surfaces.
-need('public/dashboard.html', 'id="exposureForm"');
+// Feedback remains a live panel function. Exposure is intentionally not an
+// interactive control in the current production process because its
+// Professional/persistence contract cannot be satisfied by the stateless runtime.
 need('public/dashboard.html', 'id="feedbackForm"');
-need('public/js/koschei-dashboard.js', '/api/v1/radar/exposure?target=');
+need('public/dashboard.html', 'PERSISTENCE OFF');
+need('public/dashboard.html', 'Durable history');
+reject('public/dashboard.html', 'id="exposureForm"');
 need('public/js/koschei-dashboard.js', '/api/analytics/event');
+reject('public/js/koschei-dashboard.js', '/api/v1/radar/exposure');
+need('public/js/customer-workspace-v2.js', "read('/api/me')");
+for (const forbiddenRoute of [
+  '/api/auth/premium-access',
+  '/api/v1/radar/jobs/',
+  '/api/watchlist',
+  '/api/watchlist/alerts',
+  '/api/v1/radar/exposure',
+]) {
+  reject('public/js/customer-workspace-v2.js', forbiddenRoute);
+}
 for (const retired of ['public/exposure-report.html','public/feedback.html','public/security-ecosystem.html','public/token-vesting.html']) {
   if (fs.existsSync(retired)) throw new Error(`retired standalone surface returned: ${retired}`);
 }
@@ -63,4 +77,4 @@ if ((dashboard.match(/<link rel="stylesheet"/g) || []).length !== 1) {
   throw new Error('public/dashboard.html must load exactly one stylesheet');
 }
 
-console.log('Professional investigation/report trust and hardened two-surface contract verified');
+console.log('Professional investigation/report trust and stateless customer-panel contract verified');
