@@ -48,11 +48,11 @@ func TestConfiguredNeonAuthIssuerFallsBackToBaseURL(t *testing.T) {
 	}
 }
 
-func TestConfiguredNeonAuthIssuerPreservesExplicitHostOnlyIssuer(t *testing.T) {
+func TestConfiguredNeonAuthIssuerNormalizesLegacyHostOnlyValue(t *testing.T) {
 	t.Setenv("NEON_AUTH_BASE_URL", "https://auth.example/neondb/auth")
 	t.Setenv("NEON_AUTH_ISSUER", "https://auth.example/")
 
-	if got, want := configuredNeonAuthIssuer(), "https://auth.example"; got != want {
+	if got, want := configuredNeonAuthIssuer(), "https://auth.example/neondb/auth"; got != want {
 		t.Fatalf("configuredNeonAuthIssuer() = %q, want %q", got, want)
 	}
 }
