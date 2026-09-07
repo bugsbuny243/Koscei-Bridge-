@@ -269,7 +269,7 @@ var publicCaseSummaryHTML = template.Must(template.New("public-case-summary").Pa
 <meta name="description" content="Koschei ARVIS tarafından yayınlanan sade Türkçe Solana güvenlik vaka özeti.">
 <meta name="theme-color" content="#02050a">
 <title>{{.Case.Title}} · Koschei ARVIS</title>
-<link rel="stylesheet" href="/css/public-case-summary.css?v=1">
+<link rel="stylesheet" href="/css/koschei.css?v=1">
 </head>
 <body>
 <main class="summary-shell">

@@ -2,14 +2,14 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
-const css=fs.readFileSync(path.join(root,'public','css','public-casefile.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const handler=fs.readFileSync(path.join(root,'internal','handlers','public_case_page.go'),'utf8');
 
 function requireText(source,needle,label){
   if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);
 }
 
-requireText(handler,'/css/public-casefile.css?v=1','case handler stylesheet contract');
+requireText(handler,'/css/koschei.css?v=1','case handler stylesheet contract');
 requireText(handler,'func (h *Handler) PublicCasePage','public case handler');
 requireText(handler,'publicCaseHTML.Execute(w, data)','case HTML template renderer');
 requireText(handler,'buildPublicCasePageData','canonical case presentation mapper');

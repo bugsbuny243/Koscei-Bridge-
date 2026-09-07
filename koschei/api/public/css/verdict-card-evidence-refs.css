@@ -1,6 +1,0 @@
-.public-signal .evidence-refs{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
-.evidence-ref{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:5px 8px;border:1px solid #ffffff1f;border-radius:9px;background:#ffffff08;color:inherit;font:700 10px var(--k-mono);cursor:pointer;max-width:100%}
-.evidence-ref span{color:#7ea0b4;text-transform:uppercase;font-size:8px}
-.evidence-ref b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.evidence-ref:active{transform:translateY(1px)}
-@media(max-width:560px){.evidence-ref{max-width:100%}}

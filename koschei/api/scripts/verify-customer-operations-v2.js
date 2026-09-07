@@ -6,13 +6,13 @@ const reportsHTML=fs.readFileSync(path.join(root,'public','reports.html'),'utf8'
 const watchHTML=fs.readFileSync(path.join(root,'public','watchlist.html'),'utf8');
 const reportsJS=fs.readFileSync(path.join(root,'public','js','customer-reports-v2.js'),'utf8');
 const watchJS=fs.readFileSync(path.join(root,'public','js','customer-watchlist-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-operations-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
 for(const [html,label] of [[reportsHTML,'reports html'],[watchHTML,'watchlist html']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/customer-operations-v2.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
 }
 requireText(reportsHTML,'/js/customer-reports-v2.js?v=2','reports html');
 requireText(watchHTML,'/js/customer-watchlist-v2.js?v=2','watchlist html');

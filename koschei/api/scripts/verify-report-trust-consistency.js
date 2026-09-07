@@ -25,8 +25,8 @@ need('public/scan.html', 'PROFESSIONAL · CLASSIC INVESTIGATION CONSOLE');
 need('public/scan.html', 'Missing evidence is shown as a limitation, not converted into a safety claim.');
 need('public/scan.html', 'Transaction simulation never signs or broadcasts.');
 need('public/scan.html', 'Free Quick Check execution has been removed');
-need('public/scan.html', '/css/koschei-enterprise-v3.css?v=1');
-need('public/scan.html', '/css/koschei-universe-v1.css?v=1');
+need('public/scan.html', '/css/koschei.css?v=1');
+need('public/scan.html', '/css/koschei.css?v=1');
 reject('public/scan.html', 'data-scan-mode="quick"');
 reject('public/scan.html', 'Professional+');
 
