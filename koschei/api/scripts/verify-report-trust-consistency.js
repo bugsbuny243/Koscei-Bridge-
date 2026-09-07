@@ -26,26 +26,26 @@ need('public/scan.html', 'Missing evidence is shown as a limitation, not convert
 need('public/scan.html', 'Transaction simulation never signs or broadcasts.');
 need('public/scan.html', 'Free Quick Check execution has been removed');
 need('public/scan.html', '/css/koschei.css?v=1');
-need('public/scan.html', '/css/koschei.css?v=1');
 reject('public/scan.html', 'data-scan-mode="quick"');
 reject('public/scan.html', 'Professional+');
 
-// Homepage keeps the same evidence and authority boundaries while becoming
-// the cinematic Universe Gateway. Solana is the only production-live chain.
-need('public/index.html', 'One address. Full threat context.');
-need('public/index.html', 'Solana is the live production core today.');
-need('public/index.html', 'without inventing certainty');
-need('public/index.html', 'Professional operation · no private keys · no custody · unknown stays unknown');
-need('public/index.html', 'Enter the universe');
-need('public/index.html', '/css/koschei-universe-v1.css?v=1');
-need('public/index.html', '/css/koschei-home-universe-v2.css?v=1');
-need('public/index.html', '/js/koschei-global-shell.js?v=4');
-need('public/index.html', '/js/feedback-button.js?v=1');
-reject('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
-reject('public/index.html', '/js/homepage-preflight-v2.js?v=1');
-reject('public/index.html', '/js/koschei-security-world.js?v=1');
-reject('public/index.html', 'STATIC HTML + VANILLA JS');
+// Homepage trust contract. The current two-surface product keeps one public
+// evidence-first landing page and one authenticated customer panel. Pin this
+// verifier to security/product invariants rather than retired cinematic assets.
+need('public/index.html', 'See the blind spot.');
+need('public/index.html', 'missing evidence stays unknown');
+need('public/index.html', 'Solana live production core');
+need('public/index.html', 'Evidence first');
+need('public/index.html', 'No custody · no private keys');
+need('public/index.html', 'ARVIS is not a generic risk-score machine.');
+need('public/index.html', 'never invented certainty');
+need('public/index.html', 'Solana is the live core; additional chain adapters remain expansion work until their evidence paths are production-ready.');
+need('public/index.html', 'STRUCTURE ONLY · NOT LIVE TELEMETRY');
+need('public/index.html', 'NO FABRICATION');
+need('public/index.html', 'Unknown stays unknown');
+need('public/index.html', '/css/koschei-home.css?v=1');
 reject('public/index.html', 'Ethereum</b><small>LIVE');
 reject('public/index.html', 'TRON</b><small>LIVE');
+reject('public/index.html', '100% secure');
 
-console.log('Professional investigation, report and Universe Gateway trust consistency contract verified');
+console.log('Professional investigation, report and homepage trust consistency contract verified');
