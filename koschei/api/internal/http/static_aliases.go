@@ -66,11 +66,28 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 		registerStaticFileAlias(mux, route, filepath.Join(staticDir, "dashboard.html"))
 	}
 
+	// Former standalone customer functions now live inside the customer panel.
+	// Keep old bookmarks stable while preventing FileServer from reviving the
+	// deleted HTML implementations.
+	for _, route := range []string{"/feedback", "/feedback/", "/feedback.html"} {
+		registerCanonicalRedirect(mux, route, "/dashboard#feedback")
+	}
+	for _, route := range []string{"/exposure-report", "/exposure-report/", "/exposure-report.html"} {
+		registerCanonicalRedirect(mux, route, "/dashboard#exposure")
+	}
+
+	// These pages describe retired product/payment models rather than current
+	// Koschei Web3 capabilities. Do not leave stale public copy addressable.
+	for _, route := range []string{"/security-ecosystem", "/security-ecosystem/", "/security-ecosystem.html"} {
+		registerCanonicalRedirect(mux, route, "/dashboard#capabilities")
+	}
+	for _, route := range []string{"/token-vesting", "/token-vesting/", "/token-vesting.html"} {
+		registerCanonicalRedirect(mux, route, "/")
+	}
+
 	// These legacy .html assets currently contain only client-side redirects to
 	// /dashboard. Own the compatibility URLs in the Go router first so a future
 	// tombstone-file cleanup cannot silently turn them into 404s or stale pages.
-	// The files intentionally remain in public/ until reference/audit cleanup is
-	// complete; explicit routes take precedence over FileServer fallback.
 	for _, route := range []string{
 		"/airdrop-checker.html",
 		"/cross-chain-risk.html",
