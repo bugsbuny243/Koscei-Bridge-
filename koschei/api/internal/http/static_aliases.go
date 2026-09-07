@@ -26,19 +26,16 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	registerStaticFileAlias(mux, "/agents/install", filepath.Join(staticDir, "agents-install.html"))
 	registerStaticFileAlias(mux, "/agents/install/", filepath.Join(staticDir, "agents-install.html"))
 
-	// There is one customer-facing investigation surface. Legacy scanner URLs
-	// preserve their intent through a supported Professional mode query, but no
-	// longer render separate products with overlapping forms and verdict language.
-	// The retired Quick Check mode is deliberately not revived by /safe-check;
-	// that compatibility URL now enters the Professional token investigation.
-	for _, route := range []string{"/safe-check", "/safe-check/", "/safe-check.html"} {
-		registerScanModeRedirect(mux, route, "token")
+	// The Customer Panel is the single customer-facing operational surface.
+	// The only live capability preserved from the former classic scan console is
+	// read-only Solana transaction simulation, now mounted in the panel. Token
+	// and deep-scan compatibility URLs land on capability truth rather than
+	// reviving controls whose persistence/entitlement contract is not live.
+	for _, route := range []string{"/scan", "/scan/", "/scan.html", "/transaction-shield", "/transaction-shield/", "/transaction-shield.html"} {
+		registerCanonicalRedirect(mux, route, "/dashboard#transaction-preflight")
 	}
-	for _, route := range []string{"/transaction-shield", "/transaction-shield/", "/transaction-shield.html"} {
-		registerScanModeRedirect(mux, route, "transaction")
-	}
-	for _, route := range []string{"/security-radar", "/security-radar/", "/security-radar.html"} {
-		registerScanModeRedirect(mux, route, "deep")
+	for _, route := range []string{"/safe-check", "/safe-check/", "/safe-check.html", "/security-radar", "/security-radar/", "/security-radar.html"} {
+		registerCanonicalRedirect(mux, route, "/dashboard#capabilities")
 	}
 
 	dashboardRoutes := []string{
@@ -107,33 +104,6 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 
 	registerStaticFileAlias(mux, "/docs/api", filepath.Join(staticDir, "docs-api.html"))
 	registerStaticFileAlias(mux, "/docs/sdk", filepath.Join(staticDir, "docs-sdk.html"))
-	mux.HandleFunc("/scan/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		http.ServeFile(w, r, filepath.Join(staticDir, "scan.html"))
-	})
-}
-
-func registerScanModeRedirect(mux *http.ServeMux, route, mode string) {
-	mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != route {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		query := r.URL.Query()
-		query.Set("mode", mode)
-		target := "/scan"
-		if encoded := query.Encode(); encoded != "" {
-			target += "?" + encoded
-		}
-		http.Redirect(w, r, target, http.StatusPermanentRedirect)
-	})
 }
 
 func registerCanonicalRedirect(mux *http.ServeMux, route, target string) {
