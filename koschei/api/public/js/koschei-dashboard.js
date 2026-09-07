@@ -80,10 +80,139 @@ function installSectionTracking(){
   byId.forEach((_,id)=>{const section=$(id);if(section)observer.observe(section);});
 }
 
+function setNotice(node,message,tone='info'){
+  if(!node)return;
+  node.textContent=text(message);
+  node.dataset.tone=tone;
+  node.hidden=!text(message);
+}
+
+function clearNode(node){
+  if(!node)return;
+  while(node.firstChild)node.removeChild(node.firstChild);
+}
+
+function renderEvidenceList(values){
+  const list=$('exposureEvidence');
+  if(!list)return;
+  clearNode(list);
+  const evidence=Array.isArray(values)?values.filter(item=>text(item)).slice(0,8):[];
+  if(evidence.length===0){
+    const item=document.createElement('li');
+    item.textContent='No verified evidence reference was returned for this report.';
+    list.appendChild(item);
+    return;
+  }
+  evidence.forEach(value=>{
+    const item=document.createElement('li');
+    item.textContent=text(value);
+    list.appendChild(item);
+  });
+}
+
+async function ensureCustomerAuth(){
+  if(!window.KoscheiAuth)return false;
+  try{await KoscheiAuth.init();}catch{return false;}
+  return KoscheiAuth.isLoggedIn();
+}
+
+function installExposureReport(){
+  const form=$('exposureForm');
+  if(!form)return;
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const target=text($('exposureTarget')?.value);
+    const notice=$('exposureNotice');
+    const result=$('exposureResult');
+    const button=form.querySelector('button[type="submit"]');
+    if(!target){setNotice(notice,'Enter a Solana mint, wallet or pool address.','warn');return;}
+    if(!(await ensureCustomerAuth())){
+      setNotice(notice,'Sign in to generate a Professional exposure report.','warn');
+      result.hidden=true;
+      return;
+    }
+    button.disabled=true;
+    result.hidden=true;
+    setNotice(notice,'Collecting canonical exposure evidence…','info');
+    try{
+      const response=await KoscheiAuth.apiCall('/api/v1/radar/exposure?target='+encodeURIComponent(target));
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok){
+        const fallback=response.status===402||response.status===403?'Professional entitlement is required for Exposure Report.':response.status===503?'Required live evidence is unavailable; no safety decision was produced.':`Exposure Report failed (HTTP ${response.status}).`;
+        throw new Error(text(data.message||data.error)||fallback);
+      }
+      const report=data.report||{};
+      const summary=report.summary||{};
+      const decision=data.decision||report.decision||{};
+      const finalVerdict=data.final_verdict||report.verdict||{};
+      const action=text(decision.action||summary.action||'unknown').toUpperCase();
+      const grade=text(summary.grade||finalVerdict.grade||'—');
+      const verified=Number(summary.verified_arm_count);
+      const unavailable=Number(summary.unavailable_arm_count);
+      $('exposureAction').textContent=action||'UNKNOWN';
+      $('exposureGrade').textContent=grade||'—';
+      $('exposureVerified').textContent=Number.isFinite(verified)?String(verified):'—';
+      $('exposureUnavailable').textContent=Number.isFinite(unavailable)?String(unavailable):'—';
+      const reason=text(decision.withhold_reason||summary.withhold_reason);
+      const signed=summary.signed===true||finalVerdict.signed===true;
+      $('exposureDecision').textContent=reason?`${action}: ${reason}`:signed?`${action} · signed evidence decision`:`${action} · unsigned result is not approval`;
+      renderEvidenceList(report.evidence);
+      result.hidden=false;
+      setNotice(notice,'Exposure Report loaded from the canonical ARVIS evidence path.','ok');
+    }catch(error){
+      setNotice(notice,text(error?.message||error)||'Exposure Report is unavailable.','bad');
+      result.hidden=true;
+    }finally{button.disabled=false;}
+  });
+}
+
+function feedbackContainsSecretLanguage(value){
+  return /\b(seed phrase|private key|mnemonic phrase|recovery phrase)\b/i.test(value);
+}
+
+function installFeedback(){
+  const form=$('feedbackForm');
+  const message=$('feedbackMessage');
+  const counter=$('feedbackCounter');
+  if(!form||!message)return;
+  const updateCounter=()=>{if(counter)counter.textContent=`${message.value.length} / 5000`;};
+  message.addEventListener('input',updateCounter);
+  updateCounter();
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const notice=$('feedbackNotice');
+    const category=text($('feedbackCategory')?.value);
+    const subject=text($('feedbackSubject')?.value);
+    const body=text(message.value);
+    const button=form.querySelector('button[type="submit"]');
+    if(!category){setNotice(notice,'Choose a feedback category.','warn');return;}
+    if(subject.length<3||body.length<10){setNotice(notice,'Add a short title and enough detail to investigate the issue.','warn');return;}
+    if(feedbackContainsSecretLanguage(body)){
+      setNotice(notice,'Remove any seed phrase, recovery phrase or private key before sending feedback.','bad');
+      return;
+    }
+    button.disabled=true;
+    setNotice(notice,'Sending feedback…','info');
+    try{
+      let email='';
+      if(window.KoscheiAuth){try{await KoscheiAuth.init();email=text(KoscheiAuth.getEmail?.());}catch{}}
+      const response=await fetch('/api/analytics/event',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:'customer_feedback',email,path:location.pathname,metadata:{category,subject,message:body,source:'customer_panel'}})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||data.ok===false)throw new Error(text(data.message||data.error)||`Feedback failed (HTTP ${response.status}).`);
+      form.reset();
+      updateCounter();
+      setNotice(notice,'Feedback received.','ok');
+    }catch(error){setNotice(notice,text(error?.message||error)||'Feedback could not be sent.','bad');}
+    finally{button.disabled=false;}
+  });
+}
+
 function mount(){
   installNavigation();
   installSectionTracking();
   watchAccountState();
+  installExposureReport();
+  installFeedback();
   hydrateHealth();
 }
 
