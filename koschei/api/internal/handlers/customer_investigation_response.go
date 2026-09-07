@@ -68,6 +68,12 @@ func attachCustomerAnalysisSummary(assembly *unifiedInvestigationAssembly) map[s
 	// engine, probability, intent claim or verdict authority.
 	attachArvisIntelligenceThreatHypotheses(assembly)
 
+	// Close the chain-neutral contract only when every grade-determining rule in
+	// the existing signed verdict resolves back to canonical evidence. Missing
+	// links fail closed as investigate; a signed no-grade result is never turned
+	// into a safety approval.
+	attachArvisIntelligenceDecision(assembly)
+
 	hasLiveEvidence := services.SecurityRadarHasLiveEvidence(assembly.Core.Bundle)
 	analysisSummary := buildCustomerAnalysisSummaryV3(*assembly, hasLiveEvidence)
 	assembly.Report["analysis_summary"] = analysisSummary
