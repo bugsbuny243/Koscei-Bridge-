@@ -67,11 +67,12 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 	}
 
 	// Former standalone customer functions no longer get a second product page.
-	// Feedback is integrated in the panel. Exposure remains a capability boundary
-	// until a real persistence plane is restored, so its legacy URL lands on the
-	// truthful capabilities section rather than a non-working control.
+	// Feedback and Exposure both require persistence-backed state in the current
+	// implementation, while production is intentionally stateless. Their legacy
+	// URLs therefore land on the truthful capability boundary rather than a
+	// non-working control.
 	for _, route := range []string{"/feedback", "/feedback/", "/feedback.html"} {
-		registerCanonicalRedirect(mux, route, "/dashboard#feedback")
+		registerCanonicalRedirect(mux, route, "/dashboard#capabilities")
 	}
 	for _, route := range []string{"/exposure-report", "/exposure-report/", "/exposure-report.html"} {
 		registerCanonicalRedirect(mux, route, "/dashboard#capabilities")
