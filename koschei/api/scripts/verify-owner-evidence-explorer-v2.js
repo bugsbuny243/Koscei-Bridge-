@@ -4,11 +4,11 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','owner-production.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','owner-evidence-explorer-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','owner-evidence-explorer-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
-requireText(html,'/css/owner-evidence-explorer-v2.css?v=1','owner html');
+requireText(html,'/css/koschei.css?v=1','owner html');
 requireText(html,'/js/owner-evidence-explorer-v2.js?v=1','owner html');
 requireText(js,'funding_trajectory_graph','trajectory source');
 requireText(js,'Trajectory graph','graph tab');

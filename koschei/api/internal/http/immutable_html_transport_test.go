@@ -9,7 +9,7 @@ import (
 
 func TestSecurityHeadersPreserveExplicitImmutableHeadersForStablePassthroughHTML(t *testing.T) {
 	const (
-		body = `<!doctype html><html><head><link rel="stylesheet" href="/css/dossier-print.css?v=1"></head><body>stable dossier</body></html>`
+		body = `<!doctype html><html><head><link rel="stylesheet" href="/css/koschei.css?v=1"></head><body>stable dossier</body></html>`
 		etag = `"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"`
 	)
 	handler := securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

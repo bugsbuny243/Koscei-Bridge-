@@ -65,3 +65,28 @@ func TestBuildActorEvidenceGraphDoesNotCreateEdgesWithoutEvidence(t *testing.T) 
 		t.Fatalf("expected actor and known token nodes only, got %#v", graph.Nodes)
 	}
 }
+
+func TestBuildActorEvidenceGraphPreservesCaseSensitiveIdentifiers(t *testing.T) {
+	now := time.Unix(1700000100, 0).UTC()
+	graph := BuildActorEvidenceGraph(ActorDefenseDossier{
+		Wallet: "Actor111",
+		Evidence: []ActorDefenseEvidenceRecord{
+			{
+				ActorWallet: "Actor111", CounterpartKind: "wallet", CounterpartID: "CaseAa",
+				Relation: "observed_counterparty", VerificationStatus: "observed", Signature: "Sig111", Slot: 101,
+				ObservedAt: now, Source: "solana_jsonparsed_instruction", EvidenceKey: "case:1",
+			},
+			{
+				ActorWallet: "Actor111", CounterpartKind: "wallet", CounterpartID: "CaseaA",
+				Relation: "observed_counterparty", VerificationStatus: "observed", Signature: "Sig111", Slot: 101,
+				ObservedAt: now, Source: "solana_jsonparsed_instruction", EvidenceKey: "case:2",
+			},
+		},
+	})
+	if graph.NodeCount != 3 || graph.EdgeCount != 2 {
+		t.Fatalf("case-sensitive identifiers were collapsed: %#v", graph)
+	}
+	if graph.Policy["identifiers_are_case_sensitive"] != true {
+		t.Fatalf("case-sensitive identifier policy missing: %#v", graph.Policy)
+	}
+}

@@ -374,8 +374,8 @@ var publicCaseOperationalHTML = template.Must(template.New("public-case-operatio
 <meta name="description" content="Koschei ARVIS otomatik Solana güvenlik soruşturması ve açık worker durumları.">
 <meta name="theme-color" content="#02050a">
 <title>{{.Case.Title}} · Koschei ARVIS</title>
-<link rel="stylesheet" href="/css/public-case-summary.css?v=1">
-<link rel="stylesheet" href="/css/public-case-operational.css?v=2">
+<link rel="stylesheet" href="/css/koschei.css?v=1">
+<link rel="stylesheet" href="/css/koschei.css?v=1">
 </head>
 <body>
 <main class="summary-shell">

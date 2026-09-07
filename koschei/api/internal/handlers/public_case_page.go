@@ -652,7 +652,7 @@ var publicCaseHTML = template.Must(template.New("public-case").Parse(`<!doctype 
 <meta name="twitter:title" content="{{.Title}}">
 <meta name="twitter:description" content="{{.Summary}}">
 <title>{{.Title}} · Koschei ARVIS</title>
-<link rel="stylesheet" href="/css/public-casefile.css?v=1">
+<link rel="stylesheet" href="/css/koschei.css?v=1">
 </head>
 <body>
 <main class="case-shell">

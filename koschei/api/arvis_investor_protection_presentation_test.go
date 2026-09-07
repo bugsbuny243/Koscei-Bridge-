@@ -11,7 +11,7 @@ func TestInvestorProtectionAssetsInjectedIntoPremiumPages(t *testing.T) {
 	text := string(body)
 	for _, marker := range []string{
 		"arvis-investor-protection-v1.js?v=1",
-		"arvis-investor-protection-v1.css?v=1",
+		"koschei.css?v=1",
 		"arvis-complete-evidence-v4.js?v=4",
 	} {
 		if !strings.Contains(text, marker) {

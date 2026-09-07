@@ -107,7 +107,7 @@ func buildCreatorTokenRecurrence(wallet string, observed creatorTokenObservedPat
 			byCounterparty[counterparty] = append(byCounterparty[counterparty], path)
 		}
 		kind := strings.TrimSpace(path.CounterpartyKind)
-		if kind != "" && kind != "unknown" {
+		if kind != "" && !strings.EqualFold(kind, "unknown") {
 			byKind[kind] = append(byKind[kind], path)
 		}
 	}

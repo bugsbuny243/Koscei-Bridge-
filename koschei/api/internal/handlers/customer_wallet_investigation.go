@@ -16,6 +16,7 @@ type customerWalletInvestigationResult struct {
 	Network               string
 	Classification        radarTargetClassification
 	Dossier               services.ActorDefenseDossier
+	EntityResolution      services.ActorEntityResolution
 	ExternalDiscovery     actorExternalDiscoveryRun
 	FundingOrigin         services.ActorFundingOrigin
 	FundingPersistence    string
@@ -101,6 +102,7 @@ func (h *Handler) runCustomerWalletInvestigation(ctx context.Context, target, ne
 		return out, fmt.Errorf("refresh actor defense dossier: %w", err)
 	}
 	out.RuleVerdict = services.EvaluateActorDefenseRules(out.Dossier.Track, out.Dossier.Evidence)
+	out.EntityResolution = services.BuildActorEntityResolution(out.Dossier)
 	out.RulePersistence = "persisted"
 	if err := store.PersistRuleVerdict(ctx, out.Dossier.Track, out.RuleVerdict); err != nil {
 		out.RulePersistence = "failed"
@@ -208,6 +210,7 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 	out.Dossier.Coverage["numeric_score_disabled"] = true
 
 	out.RuleVerdict = services.EvaluateActorDefenseRules(out.Dossier.Track, out.Dossier.Evidence)
+	out.EntityResolution = services.BuildActorEntityResolution(out.Dossier)
 	out.HasLiveEvidence = len(out.Dossier.Evidence) > 0 || out.ExternalDiscovery.AddressHistory.SignaturesSeen > 0 || out.FundingOrigin.ResultState == services.ActorFundingResultVerified
 	out.PublishedResult = out.HasLiveEvidence || out.FundingOrigin.ResultState == services.ActorFundingResultBounded
 
@@ -218,6 +221,7 @@ func (h *Handler) runCustomerWalletInvestigationStateless(ctx context.Context, o
 		"network":               network,
 		"target_classification": out.Classification,
 		"dossier":               out.Dossier,
+		"entity_resolution":     out.EntityResolution,
 		"external_discovery":    out.ExternalDiscovery,
 		"funding_origin":        out.FundingOrigin,
 		"actor_live_evidence":   out.LiveCoverage,
@@ -250,6 +254,7 @@ func customerWalletEvidencePolicy() map[string]any {
 	policy["missing_evidence_is_not_safe"] = true
 	policy["bounded_is_not_verified"] = true
 	policy["identity_scope"] = "onchain_wallet_only"
+	policy["entity_resolution_is_not_identity_claim"] = true
 	policy["historical_memory_cannot_override_live_evidence"] = true
 	policy["historical_snapshot_is_not_current_chain_state"] = true
 	policy["neon_intelligence_persistence"] = false
@@ -274,6 +279,7 @@ func customerWalletInvestigationEnvelope(result customerWalletInvestigationResul
 		"published_result":        result.PublishedResult,
 		"charged":                 charged,
 		"dossier":                 result.Dossier,
+		"entity_resolution":       result.EntityResolution,
 		"external_discovery":      result.ExternalDiscovery,
 		"funding_origin":          result.FundingOrigin,
 		"actor_live_evidence":     result.LiveCoverage,

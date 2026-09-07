@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','account.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','customer-api-keys-v1.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-api-keys-v1.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
 const handler=fs.readFileSync(path.join(root,'internal','handlers','api_keys.go'),'utf8');
 const caps=fs.readFileSync(path.join(root,'internal','handlers','api_key_tier_caps.go'),'utf8');
@@ -18,7 +18,7 @@ requireText(html,'Requested limits are only requests; the server applies current
 requireText(html,'Raw keys are returned only at creation','one-time raw-key copy');
 requireText(html,'id="apiKeySecretPanel" hidden','hidden one-time key panel');
 requireText(html,'id="apiKeyCount">UNAVAILABLE','unknown initial key count');
-requireText(html,'/css/customer-api-keys-v1.css?v=1','credential stylesheet');
+requireText(html,'/css/koschei.css?v=1','credential stylesheet');
 requireText(html,'/js/customer-api-keys-v1.js?v=1','credential controller');
 requireText(html,'Never ship it in browser JavaScript','server-side secret guidance');
 forbid(html,/Starter|Enterprise SaaS entitlement|KOSCH eligibility|holder access/i,'removed paid-plan or token-backed credential copy');

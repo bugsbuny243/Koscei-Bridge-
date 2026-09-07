@@ -19,7 +19,7 @@ function ensureUniverse(){
   document.body.classList.add('koschei-universe');
   if(!document.querySelector('link[data-koschei-universe]')){
     const link=document.createElement('link');
-    link.rel='stylesheet';link.href='/css/koschei-universe-v1.css?v=1';link.dataset.koscheiUniverse='true';document.head.appendChild(link);
+    link.rel='stylesheet';link.href='/css/koschei.css?v=1';link.dataset.koscheiUniverse='true';document.head.appendChild(link);
   }
 }
 

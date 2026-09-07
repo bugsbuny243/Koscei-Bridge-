@@ -25,8 +25,8 @@ need('public/scan.html', 'PROFESSIONAL · CLASSIC INVESTIGATION CONSOLE');
 need('public/scan.html', 'Missing evidence is shown as a limitation, not converted into a safety claim.');
 need('public/scan.html', 'Transaction simulation never signs or broadcasts.');
 need('public/scan.html', 'Free Quick Check execution has been removed');
-need('public/scan.html', '/css/koschei-enterprise-v3.css?v=1');
-need('public/scan.html', '/css/koschei-universe-v1.css?v=1');
+need('public/scan.html', '/css/koschei.css?v=1');
+need('public/scan.html', '/css/koschei.css?v=1');
 reject('public/scan.html', 'data-scan-mode="quick"');
 reject('public/scan.html', 'Professional+');
 
@@ -39,7 +39,9 @@ need('public/index.html', 'Professional operation · no private keys · no custo
 need('public/index.html', 'Enter the universe');
 need('public/index.html', '/css/koschei-universe-v1.css?v=1');
 need('public/index.html', '/css/koschei-home-universe-v2.css?v=1');
-need('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
+need('public/index.html', '/js/koschei-global-shell.js?v=4');
+need('public/index.html', '/js/feedback-button.js?v=1');
+reject('public/index.html', '/js/koschei-home-universe-v2.js?v=1');
 reject('public/index.html', '/js/homepage-preflight-v2.js?v=1');
 reject('public/index.html', '/js/koschei-security-world.js?v=1');
 reject('public/index.html', 'STATIC HTML + VANILLA JS');
