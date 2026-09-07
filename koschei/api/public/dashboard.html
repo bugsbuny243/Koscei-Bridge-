@@ -3,37 +3,113 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Koschei Web3 Professional workspace for ARVIS investigations, evidence history, monitoring and account-scoped security operations.">
-<meta name="theme-color" content="#020806">
-<title>Koschei Web3 | Professional Command Center</title>
-<link rel="stylesheet" href="/css/koschei.css?v=1">
-<style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}.wrap{margin:auto;padding:18px 0 70px}.surface,.card{border:1px solid var(--k-line);border-radius:25px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.brand{display:flex;gap:11px;align-items:center;font-weight:1000}.mark{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;color:#02110d;background:linear-gradient(135deg,var(--k-green),var(--k-cyan))}.nav,.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 15px;border:1px solid var(--k-line);border-radius:999px;background:#ffffff09;color:var(--k-text);font-weight:900;cursor:pointer}.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:15px;margin-bottom:15px}.hero>article,.hero>aside{padding:clamp(24px,4vw,40px)}.big{margin:14px 0;font-size:clamp(46px,7vw,78px);line-height:.92}.truth{display:grid;gap:10px}.truth div{padding:14px;border:1px solid #ffffff14;border-radius:18px;background:#ffffff07}.truth label{display:block;color:#8ffcf0;font:900 10px var(--k-mono);text-transform:uppercase}.truth b{display:block;margin-top:6px}.workspace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.workspace-card{display:flex;flex-direction:column;min-height:260px;padding:22px}.workspace-card h2{margin:12px 0 9px;font-size:27px}.workspace-card p{color:var(--k-muted);line-height:1.65}.workspace-card .actions{margin-top:auto;padding-top:18px}@media(max-width:900px){.hero{grid-template-columns:1fr}.workspace-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.workspace-grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
-</style>
-<style>.koschei-enterprise .truth{background:transparent!important;border:0!important}</style>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Koschei Web3 customer panel for real account state, ARVIS investigation history, monitoring evidence and operational security context.">
+<meta name="theme-color" content="#02050a">
+<title>Koschei Web3 | Customer Panel</title>
+<link rel="stylesheet" href="/css/koschei-dashboard.css?v=1">
 </head>
-<body class="koschei-v2 koschei-enterprise koschei-command-universe">
-<main class="wrap">
-<header class="top"><a class="brand" href="/"><span class="mark">K</span><span><strong>Koschei Web3</strong><br><small>Professional Security Command Center</small></span></a><nav class="nav"><a class="btn primary" href="/arvis-chat">Open ARVIS</a><a class="btn" href="/reports">Evidence History</a><a class="btn" href="/scan?mode=transaction">Preflight</a><a class="btn" id="sessionLink" href="/login">Sign in</a></nav></header>
+<body>
+<div class="dashboard">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/">
+      <span class="brand-mark">K</span>
+      <span><strong>Koschei Web3</strong><small>Customer Security Panel</small></span>
+    </a>
+    <div class="side-label">Operational surface</div>
+    <nav class="side-nav" aria-label="Customer panel sections">
+      <a href="#overview" aria-current="page"><i>01</i><span>Overview</span></a>
+      <a href="#intelligence"><i>02</i><span>ARVIS Intelligence</span></a>
+      <a href="#evidence"><i>03</i><span>Evidence & Alerts</span></a>
+      <a href="#capabilities"><i>04</i><span>Security Capabilities</span></a>
+    </nav>
+    <div class="sidebar-foot"><span class="dot"></span>Production truth only.<br>Missing evidence remains unknown.<br>Solana is the live chain core.</div>
+  </aside>
 
-<section class="command-grid" aria-label="Koschei Professional command center">
-<aside class="command-sidebar"><span class="command-kicker">Security universe</span><h1>Command Center</h1><p>One operational surface for the real ARVIS investigation pipeline and account-scoped evidence services.</p><nav class="command-menu"><a class="active" href="/dashboard"><i>01</i>Command Center<small>LIVE</small></a><a href="/arvis-chat"><i>02</i>ARVIS Investigation<small>LIVE</small></a><a href="/scan?mode=transaction"><i>03</i>Transaction Preflight<small>LIVE</small></a><a href="/reports"><i>04</i>Evidence History<small>LIVE</small></a><a href="/watchlist"><i>05</i>Monitoring<small>ACCOUNT</small></a><span class="building"><i>06</i>Protocol Defense<small>BUILDING</small></span><span class="building"><i>07</i>Cross-chain Expansion<small>COMING</small></span></nav><div class="command-boundary">Production truth: Solana is the live chain core. Expansion nodes describe architecture direction, not active multi-chain coverage.</div></aside>
-<section class="command-main"><span class="command-kicker">ARVIS intelligence map</span><div class="matrix-map" aria-label="ARVIS evidence flow"><div class="matrix-route"></div><div class="matrix-core"><div><b>ARVIS</b><span>CANONICAL INVESTIGATION</span></div></div><div class="matrix-node mn-address"><b>Address</b><small>target / chain context</small></div><div class="matrix-node mn-entity"><b>Entity</b><small>supported relations</small></div><div class="matrix-node mn-funding"><b>Funding</b><small>origin evidence</small></div><div class="matrix-node mn-behavior"><b>Behavior</b><small>observed activity</small></div><div class="matrix-node mn-hypothesis"><b>Threat Hypothesis</b><small>evidence-backed possibility</small></div><div class="matrix-node mn-attack"><b>Attack Path</b><small>supported path only</small></div><div class="matrix-node mn-evidence"><b>Evidence</b><small>tx · slot · source · limits</small></div></div></section>
-<aside class="command-intel"><span class="command-kicker">Live operational truth</span><h2>No fake telemetry.</h2><p>This panel mirrors existing service and account state. Missing sources remain missing.</p><div class="command-status-list"><div class="command-status-row" data-tone="unknown"><span>Evidence pipeline <em>source</em></span><b id="commandPipelineState">Checking…</b></div><div class="command-status-row" data-tone="unknown"><span>Account state <em>source</em></span><b id="commandAccountState">Checking…</b></div><div class="command-status-row"><span>Investigation jobs <em>account</em></span><b id="commandInvestigationState">—</b></div><div class="command-status-row" data-tone="ready"><span>Solana <em>chain</em></span><b>LIVE CORE</b></div><div class="command-status-row" data-tone="unknown"><span>Other chains <em>architecture</em></span><b>EXPANSION / COMING</b></div></div></aside>
-</section>
+  <main class="main">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
+      <a class="brand" href="/" aria-label="Koschei Web3 home"><span class="brand-mark">K</span><span><strong>Koschei Web3</strong><small>Security Operations</small></span></a>
+      <div class="top-status" id="topStatus" data-state="checking"><i></i><span>Checking production pipeline</span></div>
+      <a class="session" id="sessionLink" href="/login?next=/dashboard">Sign in</a>
+    </header>
 
-<section class="hero universe-gateway"><article class="surface"><span class="eyebrow">PROFESSIONAL · ARVIS COMMAND UNIVERSE</span><div class="big">Investigate. Correlate. Prove.</div><p class="muted">Start with one target and move through the same ARVIS evidence universe: investigation, retained history, monitoring and account-scoped developer access. The interface never replaces the deterministic evidence contract underneath it.</p></article><aside class="truth"><div><label>Service health</label><b class="live-indicator" data-koschei-live>Checking services</b></div></aside></section>
+    <div class="content">
+      <section id="overview" aria-labelledby="overview-title">
+        <div class="page-head">
+          <div><span>Customer security workspace</span><h1 id="overview-title">Security Overview</h1></div>
+          <p>Account-scoped state is loaded from existing Koschei services. If a dependency is unavailable, the panel leaves it unavailable instead of inventing telemetry.</p>
+        </div>
 
-<section class="workspace-live" id="workspaceMissionControl"><div class="workspace-live-head"><div><span class="eyebrow">Account overview</span><h2>Live account state</h2><p>These values come from existing account services. If a source is unavailable, the workspace leaves it unavailable instead of inventing a status.</p></div><span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT DATA</span></div><div class="workspace-kpis"><article class="workspace-kpi" id="workspaceAccessKpi"><span>Professional access</span><strong>—</strong><small>Checking paid entitlement.</small></article><article class="workspace-kpi" id="workspaceReportsKpi"><span>Investigation jobs</span><strong>—</strong><small>Checking investigation history.</small></article><article class="workspace-kpi" id="workspaceWatchKpi"><span>Monitored targets</span><strong>—</strong><small>Checking watchlist source.</small></article><article class="workspace-kpi" id="workspaceAlertsKpi"><span>Unread alerts</span><strong>—</strong><small>Checking alert source.</small></article></div><div class="workspace-command-grid"><section class="workspace-command"><div class="workspace-command-head"><span>RECENT INVESTIGATION</span><a href="/reports">ALL HISTORY →</a></div><div id="workspaceLatestReport"><div class="workspace-command-empty">Loading investigation history…</div></div></section><section class="workspace-command"><div class="workspace-command-head"><span>ALERT SOURCE</span><a href="/watchlist">WATCHLIST →</a></div><div id="workspaceAlerts"><div class="workspace-command-empty">Checking monitored-target alerts…</div></div></section></div><nav class="workspace-quick-actions" aria-label="Workspace actions"><a class="workspace-quick-action" href="/arvis-chat"><div><span>Investigate</span><b>ARVIS Investigation</b></div><i>→</i></a><a class="workspace-quick-action" href="/reports"><div><span>Evidence</span><b>Investigation History</b></div><i>→</i></a><a class="workspace-quick-action" href="/watchlist"><div><span>Monitor</span><b>Watchlist & Alerts</b></div><i>→</i></a><a class="workspace-quick-action" href="/account"><div><span>Access</span><b>Professional Account</b></div><i>→</i></a></nav><div class="workspace-signin" id="workspaceSignIn" hidden><div><h3>Sign in to load your private workspace.</h3><p>Investigation history, Professional entitlement state and account-scoped sources are not exposed anonymously.</p></div><a href="/login">Sign in</a></div></section>
+        <div class="kpis" aria-label="Live customer account state">
+          <article class="workspace-kpi" id="workspaceAccessKpi"><span>Professional access</span><strong>—</strong><small>Checking paid entitlement.</small></article>
+          <article class="workspace-kpi" id="workspaceReportsKpi"><span>Investigation jobs</span><strong>—</strong><small>Checking canonical investigation history.</small></article>
+          <article class="workspace-kpi" id="workspaceWatchKpi"><span>Monitored targets</span><strong>—</strong><small>Checking watchlist source.</small></article>
+          <article class="workspace-kpi" id="workspaceAlertsKpi"><span>Unread alerts</span><strong>—</strong><small>Checking alert source.</small></article>
+        </div>
+      </section>
 
-<section class="workspace-grid"><article class="surface workspace-card"><span class="eyebrow">Investigation</span><h2>ARVIS case workspace</h2><p>Paste one address and keep asking evidence-grounded questions about the same canonical investigation result instead of jumping between unrelated scanners.</p><div class="actions"><a class="btn primary" href="/arvis-chat">Open ARVIS</a></div></article><article class="surface workspace-card"><span class="eyebrow">Evidence memory</span><h2>Durable investigation history</h2><p>Review queued, running, completed and failed durable jobs. Signed status is shown only when strict signature evidence is present.</p><div class="actions"><a class="btn primary" href="/reports">Open History</a><a class="btn" href="/cases">Public Proof Cases</a></div></article><article class="surface workspace-card"><span class="eyebrow">Professional operations</span><h2>Monitoring & developer access</h2><p>Watchlist, alerts and registered developer routes use the same Professional entitlement. Availability and evidence gaps remain explicit.</p><div class="actions"><a class="btn" href="/watchlist">Open Monitoring</a><a class="btn" href="/docs/api">API Reference</a></div></article></section>
-<footer class="product-footer"><span>Koschei Web3 · Professional Security Command Center</span><nav><a href="/">Universe</a><a href="/arvis-chat">ARVIS</a><a href="/reports">History</a><a href="/pricing">Professional</a></nav></footer>
-</main>
+      <section class="grid-main" id="intelligence" aria-label="ARVIS intelligence and operational truth">
+        <article class="panel">
+          <div class="panel-head"><span>ARVIS intelligence map</span><b>Evidence relationship model</b></div>
+          <div class="intel-map" aria-label="Conceptual ARVIS reasoning map, not live graph telemetry">
+            <div class="map-ring r1"></div><div class="map-ring r2"></div>
+            <div class="map-line l1"></div><div class="map-line l2"></div><div class="map-line l3"></div><div class="map-line l4"></div><div class="map-line l5"></div>
+            <div class="map-core"><div><b>ARVIS</b><small>CANONICAL EVIDENCE</small></div></div>
+            <div class="map-node n1"><b>Address</b><small>target context</small></div>
+            <div class="map-node n2"><b>Entity</b><small>supported relations</small></div>
+            <div class="map-node n3 threat"><b>Threat Path</b><small>evidence-backed only</small></div>
+            <div class="map-node n4"><b>Behavior</b><small>observed activity</small></div>
+            <div class="map-node n5"><b>Evidence</b><small>source · time · provenance</small></div>
+          </div>
+        </article>
+
+        <aside class="panel">
+          <div class="panel-head"><span>Live operational truth</span><b>No fake telemetry</b></div>
+          <div class="ops-list">
+            <div class="status-row" data-tone="unknown"><span>Evidence pipeline <em>/health</em></span><b id="commandPipelineState">CHECKING…</b></div>
+            <div class="status-row" data-tone="unknown"><span>Account state <em>authenticated source</em></span><b id="commandAccountState">CHECKING…</b></div>
+            <div class="status-row"><span>Investigation jobs <em>account source</em></span><b id="commandInvestigationState">—</b></div>
+            <div class="status-row" data-tone="ready"><span>Solana <em>chain evidence arm</em></span><b>LIVE CORE</b></div>
+            <div class="status-row"><span>Other chains <em>architecture direction</em></span><b>NOT LIVE</b></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="workspace-live" id="evidence" aria-labelledby="evidence-title">
+        <div class="workspace-live-head">
+          <div><span class="side-label">Account evidence</span><h2 id="evidence-title">Live account state</h2><p>Investigation history and monitoring state below come from account services when available.</p></div>
+          <span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT DATA</span>
+        </div>
+        <div class="workspace-command-grid">
+          <section class="workspace-command">
+            <div class="workspace-command-head"><span>RECENT CANONICAL INVESTIGATION</span><span>ACCOUNT SOURCE</span></div>
+            <div id="workspaceLatestReport"><div class="workspace-command-empty">Loading investigation history…</div></div>
+          </section>
+          <section class="workspace-command">
+            <div class="workspace-command-head"><span>RECENT MONITORING ALERTS</span><span>ACCOUNT SOURCE</span></div>
+            <div id="workspaceAlerts"><div class="workspace-command-empty">Checking monitored-target alerts…</div></div>
+          </section>
+        </div>
+        <div class="workspace-signin" id="workspaceSignIn" hidden>
+          <div><h3>Sign in to load your private workspace.</h3><p>Investigation history, entitlement state and monitoring sources are account-scoped.</p></div>
+          <a href="/login?next=/dashboard">Sign in</a>
+        </div>
+      </section>
+
+      <section class="tool-grid" id="capabilities" aria-label="Koschei Web3 operational capability boundaries">
+        <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana is the live evidence core. Missing provider evidence is never silently converted into a safe result.</div></article>
+        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">This panel does not claim unsupported simulation coverage. Production capability must remain tied to the existing backend evidence contract.</div></article>
+        <article class="tool-card"><span class="kicker">Protocol defense validation</span><h2>Test the defense itself.</h2><p>Invariant, payload, governance, privilege and deployment validation belong here as those production capabilities become real.</p><div class="boundary">Status: building. No live capability is fabricated in the customer interface.</div></article>
+        <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage.</div></article>
+      </section>
+
+      <footer class="footer"><span>Koschei Web3 · Customer Security Panel</span><nav><a href="/">Home</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav><span>Evidence first · Unknown stays unknown</span></footer>
+    </div>
+  </main>
+</div>
 <script src="/js/koschei-auth.js?v=33"></script>
 <script src="/js/customer-workspace-v2.js?v=2"></script>
-<script src="/js/customer-command-center-v1.js?v=3"></script>
-<script src="/js/customer-command-universe-v2.js?v=1"></script>
-<script src="/js/koschei-global-shell.js?v=4"></script>
-<script src="/js/koschei-product-v2.js?v=2"></script>
+<script src="/js/koschei-dashboard.js?v=1"></script>
 </body>
 </html>
