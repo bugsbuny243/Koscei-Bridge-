@@ -5,8 +5,10 @@ on:
     paths:
       - 'koschei/api/public/dashboard.html'
       - 'koschei/api/public/js/customer-workspace-v2.js'
-      - 'koschei/api/public/css/customer-workspace-v2.css'
+      - 'koschei/api/public/js/koschei-dashboard.js'
+      - 'koschei/api/public/css/koschei-dashboard.css'
       - 'koschei/api/scripts/verify-customer-workspace-v2.js'
+      - 'koschei/api/serious_surface_hardening_test.go'
       - '.github/workflows/customer-workspace-v2.yml'
   workflow_dispatch:
 
@@ -20,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check workspace JavaScript syntax
-        run: node --check koschei/api/public/js/customer-workspace-v2.js
+        run: |
+          node --check koschei/api/public/js/customer-workspace-v2.js
+          node --check koschei/api/public/js/koschei-dashboard.js
       - name: Verify live workspace contract
-        run: node koschei/api/scripts/verify-customer-workspace-v2.js
+        working-directory: koschei/api
+        run: node scripts/verify-customer-workspace-v2.js
