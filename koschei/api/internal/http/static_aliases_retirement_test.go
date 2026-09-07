@@ -13,8 +13,8 @@ func TestRetiredStandaloneSurfacesRedirectToCanonicalProduct(t *testing.T) {
 	cases := map[string]string{
 		"/feedback":                "/dashboard#feedback",
 		"/feedback.html":           "/dashboard#feedback",
-		"/exposure-report":         "/dashboard#exposure",
-		"/exposure-report.html":    "/dashboard#exposure",
+		"/exposure-report":         "/dashboard#capabilities",
+		"/exposure-report.html":    "/dashboard#capabilities",
 		"/security-ecosystem":      "/dashboard#capabilities",
 		"/security-ecosystem.html": "/dashboard#capabilities",
 		"/token-vesting":           "/",
