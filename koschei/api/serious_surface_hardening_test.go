@@ -59,17 +59,16 @@ func TestCustomerPanelExposesOnlyLiveRuntimeControls(t *testing.T) {
 
 	htmlText := string(html)
 	for _, required := range []string{
-		`id="feedback"`,
-		`id="feedbackForm"`,
 		"intentionally stateless",
 		"PERSISTENCE OFF",
+		"Feedback storage",
 		"Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.",
 	} {
 		if !strings.Contains(htmlText, required) {
 			t.Errorf("dashboard missing runtime-truth contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{`id="exposureForm"`, "KOSCH holder", "Free Safe Check", "KOSCH Premium"} {
+	for _, forbidden := range []string{`id="exposureForm"`, `id="feedbackForm"`, "KOSCH holder", "Free Safe Check", "KOSCH Premium"} {
 		if strings.Contains(htmlText, forbidden) {
 			t.Errorf("dashboard contains retired/non-live product control %q", forbidden)
 		}
@@ -92,15 +91,10 @@ func TestCustomerPanelExposesOnlyLiveRuntimeControls(t *testing.T) {
 	}
 
 	jsText := string(js)
-	for _, required := range []string{
-		"/api/analytics/event",
-		"feedbackContainsSecretLanguage",
-	} {
-		if !strings.Contains(jsText, required) {
-			t.Errorf("dashboard runtime missing live backend contract %q", required)
-		}
+	if !strings.Contains(jsText, "fetch('/health'") {
+		t.Error("dashboard runtime missing live health contract")
 	}
-	for _, forbidden := range []string{"/api/v1/radar/exposure", "sendBundle", "JITO_BUNDLE_URL", "Math.random("} {
+	for _, forbidden := range []string{"/api/v1/radar/exposure", "/api/analytics/event", "feedbackContainsSecretLanguage", "sendBundle", "JITO_BUNDLE_URL", "Math.random("} {
 		if strings.Contains(jsText, forbidden) {
 			t.Errorf("dashboard runtime contains forbidden/non-live behavior %q", forbidden)
 		}
