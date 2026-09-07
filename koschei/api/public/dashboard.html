@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="description" content="Koschei Web3 customer panel for authenticated runtime state, ARVIS security boundaries, live Solana investigation entry points and evidence-first product status.">
+<meta name="description" content="Koschei Web3 customer panel for authenticated runtime state, ARVIS security boundaries, live Solana transaction preflight and evidence-first product status.">
 <meta name="theme-color" content="#02050a">
 <title>Koschei Web3 | Customer Panel</title>
-<link rel="stylesheet" href="/css/koschei-dashboard.css?v=2">
+<link rel="stylesheet" href="/css/koschei-dashboard.css?v=3">
 </head>
 <body>
 <div class="dashboard">
@@ -21,7 +21,8 @@
       <a href="#overview" aria-current="page"><i>01</i><span>Overview</span></a>
       <a href="#intelligence"><i>02</i><span>ARVIS Intelligence</span></a>
       <a href="#evidence"><i>03</i><span>Runtime Truth</span></a>
-      <a href="#capabilities"><i>04</i><span>Security Capabilities</span></a>
+      <a href="#transaction-preflight"><i>04</i><span>Transaction Preflight</span></a>
+      <a href="#capabilities"><i>05</i><span>Security Capabilities</span></a>
     </nav>
     <div class="sidebar-foot"><span class="dot"></span>Production truth only.<br>Missing evidence remains unknown.<br>Solana is the live chain core.</div>
   </aside>
@@ -38,7 +39,7 @@
       <section id="overview" aria-labelledby="overview-title">
         <div class="page-head">
           <div><span>Customer security workspace</span><h1 id="overview-title">Security Overview</h1></div>
-          <p>The current production process is intentionally stateless for Koschei application persistence. This panel shows authenticated identity and live runtime boundaries without pretending durable jobs, watchlists, stored alerts or feedback storage are active.</p>
+          <p>The current production process is intentionally stateless for Koschei application persistence. This panel shows authenticated identity, live Solana transaction simulation and runtime boundaries without pretending durable jobs, watchlists, stored alerts or feedback storage are active.</p>
         </div>
 
         <div class="kpis" aria-label="Current customer runtime state">
@@ -69,6 +70,7 @@
           <div class="ops-list">
             <div class="status-row" data-tone="unknown"><span>Evidence pipeline <em>/health</em></span><b id="commandPipelineState">CHECKING…</b></div>
             <div class="status-row" data-tone="unknown"><span>Account identity <em>/api/me</em></span><b id="commandAccountState">CHECKING…</b></div>
+            <div class="status-row" data-tone="ready"><span>Transaction preflight <em>/api/public/transaction-simulate</em></span><b>LIVE · READ ONLY</b></div>
             <div class="status-row"><span>Durable investigations <em>application persistence</em></span><b id="commandInvestigationState">NOT LIVE</b></div>
             <div class="status-row"><span>Feedback storage <em>application persistence</em></span><b>NOT LIVE</b></div>
             <div class="status-row" data-tone="ready"><span>Solana <em>chain evidence arm</em></span><b>LIVE CORE</b></div>
@@ -79,7 +81,7 @@
 
       <section class="workspace-live" id="evidence" aria-labelledby="evidence-title">
         <div class="workspace-live-head">
-          <div><span class="side-label">Runtime truth</span><h2 id="evidence-title">Account & persistence state</h2><p>Authenticated identity is live. Durable investigation history, continuous monitoring and stored customer feedback remain disabled until a real persistence plane is restored.</p></div>
+          <div><span class="side-label">Runtime truth</span><h2 id="evidence-title">Account & persistence state</h2><p>Authenticated identity and read-only transaction simulation are live. Durable investigation history, continuous monitoring and stored customer feedback remain disabled until a real persistence plane is restored.</p></div>
           <span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT IDENTITY</span>
         </div>
         <div class="workspace-command-grid">
@@ -98,9 +100,28 @@
         </div>
       </section>
 
+      <section class="preflight-panel" id="transaction-preflight" aria-labelledby="transaction-preflight-title">
+        <div class="preflight-head">
+          <div><span class="kicker">LIVE · SOLANA MAINNET · READ ONLY</span><h2 id="transaction-preflight-title">Transaction Preflight</h2><p>Simulate a base64 serialized Solana transaction before execution. Koschei surfaces simulation outcome, invoked programs, findings, compute use and provider evidence without signing or broadcasting anything.</p></div>
+          <span class="preflight-boundary">NO SIGNING · NO BROADCAST</span>
+        </div>
+        <div class="preflight-grid">
+          <form class="preflight-form" id="transactionPreflightForm">
+            <label>Serialized transaction<textarea id="transactionPreflightTransaction" spellcheck="false" autocomplete="off" required placeholder="Base64 serialized Solana transaction"></textarea></label>
+            <label>Wallet context <span>optional</span><input id="transactionPreflightWallet" autocomplete="off" placeholder="Public wallet address only"></label>
+            <div class="preflight-network"><span>Network</span><strong>solana-mainnet</strong></div>
+            <button id="transactionPreflightSubmit" type="submit">Simulate transaction</button>
+            <p>Paste only serialized transaction data and optional public wallet context. Never paste a seed phrase, recovery phrase, mnemonic or private key. Missing simulation evidence never becomes a safety claim.</p>
+          </form>
+          <div class="preflight-result" id="transactionPreflightResult" data-state="empty" aria-live="polite">
+            <div class="preflight-empty"><strong>No simulation yet.</strong><span>The result will preserve unknown, withheld, warning and blocked outcomes instead of converting missing evidence into approval.</span></div>
+          </div>
+        </div>
+      </section>
+
       <section class="tool-grid" id="capabilities" aria-label="Koschei Web3 operational capability boundaries">
         <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana synchronous evidence collection is the live core. Durable customer history and stored actor dossiers are not active.</div></article>
-        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.</div></article>
+        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Simulate before execution.</h2><p>The live scope is base64 serialized Solana mainnet transaction simulation with evidence-backed findings, invoked program IDs, simulation logs and compute usage.</p><div class="boundary">Status: LIVE · READ ONLY. Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.</div></article>
         <article class="tool-card"><span class="kicker">Protocol defense validation</span><h2>Test the defense itself.</h2><p>Invariant, payload, governance, privilege and deployment validation belong here as those production capabilities become real.</p><div class="boundary">Status: building. No live capability is fabricated in the customer interface.</div></article>
         <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage.</div></article>
       </section>
@@ -122,6 +143,6 @@
 </div>
 <script src="/js/koschei-auth.js?v=33"></script>
 <script src="/js/customer-workspace-v2.js?v=3"></script>
-<script src="/js/koschei-dashboard.js?v=4"></script>
+<script src="/js/koschei-dashboard.js?v=5"></script>
 </body>
 </html>
