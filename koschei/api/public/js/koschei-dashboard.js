@@ -6,6 +6,13 @@ window.__koscheiDashboard=true;
 const $=id=>document.getElementById(id);
 const text=value=>String(value??'').trim();
 
+function node(tag,className,value){
+  const element=document.createElement(tag);
+  if(className)element.className=className;
+  if(value!==undefined)element.textContent=text(value);
+  return element;
+}
+
 function setNav(open){
   document.body.classList.toggle('nav-open',open);
   const trigger=$('mobileMenu');
@@ -62,8 +69,8 @@ function watchAccountState(){
   syncAccountState();
   const observer=new MutationObserver(syncAccountState);
   for(const id of ['workspaceLiveState','workspaceReportsKpi']){
-    const node=$(id);
-    if(node)observer.observe(node,{subtree:true,childList:true,characterData:true,attributes:true});
+    const item=$(id);
+    if(item)observer.observe(item,{subtree:true,childList:true,characterData:true,attributes:true});
   }
 }
 
@@ -80,10 +87,161 @@ function installSectionTracking(){
   byId.forEach((_,id)=>{const section=$(id);if(section)observer.observe(section);});
 }
 
+function appendMetric(grid,label,value){
+  const item=node('div','preflight-metric');
+  item.append(node('span','',label),node('strong','',value));
+  grid.append(item);
+}
+
+function appendEvidenceList(parent,title,items,renderItem){
+  if(!Array.isArray(items)||items.length===0)return;
+  const section=node('section','preflight-evidence');
+  section.append(node('h3','',title));
+  const list=node('div','preflight-evidence-list');
+  items.forEach(item=>list.append(renderItem(item)));
+  section.append(list);
+  parent.append(section);
+}
+
+function resultTone(data){
+  const action=text(data?.action).toLowerCase();
+  const risk=text(data?.risk_level).toLowerCase();
+  if(action==='block'||risk==='critical'||risk==='high')return 'danger';
+  if(action==='warn'||action==='withhold'||risk==='medium'||risk==='unknown')return 'warn';
+  return 'good';
+}
+
+function renderPreflightError(message){
+  const root=$('transactionPreflightResult');
+  if(!root)return;
+  root.dataset.state='error';
+  root.replaceChildren();
+  const box=node('div','preflight-empty');
+  box.append(node('strong','','Simulation unavailable.'),node('span','',message||'No safety decision was produced.'));
+  root.append(box);
+}
+
+function renderPreflightResult(data,httpStatus){
+  const root=$('transactionPreflightResult');
+  if(!root)return;
+  const tone=resultTone(data);
+  root.dataset.state=tone;
+  root.replaceChildren();
+
+  const card=node('article','preflight-assessment');
+  const heading=node('div','preflight-assessment-head');
+  const title=node('div');
+  title.append(node('span','',text(data.product)||'Koschei Transaction Firewall'),node('strong','',text(data.summary)||'Simulation completed.'));
+  const decision=node('div','preflight-decision');
+  decision.dataset.tone=tone;
+  decision.append(node('span','',text(data.risk_level)||'unknown'),node('strong','',text(data.action)||'withhold'));
+  heading.append(title,decision);
+  card.append(heading);
+
+  const metrics=node('div','preflight-metrics');
+  appendMetric(metrics,'Policy outcome',text(data.policy_outcome)||'unknown');
+  appendMetric(metrics,'Risk level',text(data.risk_level)||'unknown');
+  const riskKnown=text(data.risk_level).toLowerCase()!=='unknown';
+  appendMetric(metrics,'Risk index',riskKnown&&Number.isFinite(Number(data.risk_index))?String(Number(data.risk_index)):'WITHHELD');
+  appendMetric(metrics,'Compute units',Number.isFinite(Number(data?.simulation?.units_consumed))?String(Number(data.simulation.units_consumed)):'—');
+  appendMetric(metrics,'HTTP outcome',String(httpStatus));
+  appendMetric(metrics,'Mode',text(data.mode)||'unknown');
+  card.append(metrics);
+
+  const provenance=node('div','preflight-provenance');
+  provenance.append(node('span','','Request ID'),node('code','',text(data.request_id)||'—'),node('span','','Transaction fingerprint'),node('code','',text(data.transaction_fingerprint)||'—'));
+  card.append(provenance);
+
+  appendEvidenceList(card,'Findings',data.findings,item=>{
+    const finding=node('div','preflight-finding');
+    finding.dataset.severity=text(item?.severity).toLowerCase()||'unknown';
+    const head=node('div');
+    head.append(node('strong','',text(item?.title)||text(item?.code)||'Finding'),node('span','',text(item?.severity)||'unknown'));
+    finding.append(head,node('p','',text(item?.evidence)||'Evidence detail unavailable.'));
+    return finding;
+  });
+
+  appendEvidenceList(card,'Invoked programs',data.program_ids,item=>{
+    const row=node('code','preflight-program',item);
+    return row;
+  });
+
+  const logs=Array.isArray(data?.simulation?.logs)?data.simulation.logs:[];
+  if(logs.length){
+    const details=node('details','preflight-logs');
+    details.append(node('summary','',`Simulation logs · ${logs.length}`));
+    const pre=node('pre');
+    pre.textContent=logs.map(text).join('\n');
+    details.append(pre);
+    card.append(details);
+  }
+
+  if(data?.simulation?.error){
+    const simulationError=node('div','preflight-warning');
+    simulationError.dataset.tone='danger';
+    const value=typeof data.simulation.error==='string'?data.simulation.error:JSON.stringify(data.simulation.error);
+    simulationError.textContent=`Simulation error: ${value}`;
+    card.append(simulationError);
+  }
+  if(text(data.warning))card.append(node('div','preflight-warning',data.warning));
+  root.append(card);
+}
+
+function containsSecretLanguage(value){
+  return /\b(seed phrase|recovery phrase|mnemonic|private key)\b/i.test(value);
+}
+
+function installTransactionPreflight(){
+  const form=$('transactionPreflightForm');
+  const transaction=$('transactionPreflightTransaction');
+  const wallet=$('transactionPreflightWallet');
+  const button=$('transactionPreflightSubmit');
+  if(!form||!transaction||!button)return;
+
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const serialized=text(transaction.value);
+    const walletValue=text(wallet?.value);
+    if(!serialized){renderPreflightError('A base64 serialized Solana transaction is required.');return;}
+    if(containsSecretLanguage(serialized)||containsSecretLanguage(walletValue)){
+      renderPreflightError('Remove any seed phrase, recovery phrase, mnemonic or private key. Koschei never needs those secrets.');
+      return;
+    }
+
+    const root=$('transactionPreflightResult');
+    if(root){root.dataset.state='loading';root.replaceChildren(node('div','preflight-empty','Simulating against Solana mainnet…'));}
+    button.disabled=true;
+    const controller=new AbortController();
+    const timer=window.setTimeout(()=>controller.abort('preflight_timeout'),30000);
+    try{
+      const response=await fetch('/api/public/transaction-simulate',{
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        signal:controller.signal,
+        body:JSON.stringify({network:'solana-mainnet',encoding:'base64',transaction:serialized,wallet:walletValue})
+      });
+      const data=await response.json().catch(()=>({}));
+      if(data&&data.request_id&&data.product){
+        renderPreflightResult(data,response.status);
+        return;
+      }
+      renderPreflightError(text(data.message||data.error||data.code)||`Simulation failed (HTTP ${response.status}).`);
+    }catch(error){
+      const timedOut=controller.signal.aborted;
+      renderPreflightError(timedOut?'Simulation timed out. No safety decision was produced.':text(error?.message||error)||'Simulation request failed.');
+    }finally{
+      window.clearTimeout(timer);
+      button.disabled=false;
+    }
+  });
+}
+
 function mount(){
   installNavigation();
   installSectionTracking();
   watchAccountState();
+  installTransactionPreflight();
   hydrateHealth();
 }
 
