@@ -79,26 +79,20 @@ forbid(reportsJS,/\blocalStorage\b|\bsessionStorage\b/,'history browser auth per
 forbid(reportsJS,/Math\.random\s*\(/,'history synthetic evidence');
 forbid(reportsJS,/\b(?:signMessage|signTransaction|signAllTransactions|signAndSendTransaction|sendTransaction)\b/,'history wallet authority');
 
-requireText(dashboard,'Investigation jobs','Workspace history KPI');
-requireText(dashboard,'RECENT CANONICAL INVESTIGATION','Workspace latest-history copy');
-requireText(dashboard,'id="workspaceLatestReport"','Workspace latest-history mount');
-requireText(dashboard,'/js/customer-workspace-v2.js?v=2','Workspace history controller');
+// The durable backend contract remains preserved for a future persistence plane,
+// but the current production process is intentionally stateless. The customer
+// panel must therefore disclose the capability as unavailable instead of calling
+// the DB-backed collection and interpreting a 503 as account history.
+requireText(dashboard,'Durable history','Workspace durable-history capability label');
+requireText(dashboard,'PERSISTENCE OFF','Workspace persistence boundary');
+requireText(dashboard,'id="workspaceLatestReport"','Workspace persistence-truth mount');
+requireText(dashboard,'/js/customer-workspace-v2.js?v=3','Workspace stateless controller');
 if(dashboard.includes('Signed Report Vault'))throw new Error('Workspace must not advertise every durable job as a signed report');
-requireText(workspaceJS,"read('/api/v1/radar/jobs/')",'Workspace history source');
-requireText(workspaceJS,"data.schema_version!=='koschei-customer-investigation-history-v1'",'Workspace history schema gate');
-requireText(workspaceJS,"data.source!=='web3_jobs'",'Workspace history source gate');
-requireText(workspaceJS,"data.job_type!=='canonical_investigation'",'Workspace canonical job-type gate');
-requireText(workspaceJS,"if(signed===true&&signature&&ruleset)return'SIGNED'",'Workspace strict signed gate');
-requireText(workspaceJS,"if(signed===true)return'SIGNATURE INCOMPLETE'",'Workspace incomplete signature state');
-requireText(workspaceJS,'renderLatestInvestigation(investigationHistory)','Workspace latest canonical render');
-requireText(workspaceJS,'historyAvailable=Array.isArray(investigationHistory)','Workspace availability truth');
-requireText(workspaceJS,'availableSources=[accessResult.ok,historyAvailable,watchResult.ok,alertsResult.ok]','Workspace source availability truth');
-if(workspaceJS.includes('/api/v1/unified/reports'))throw new Error('Workspace must not call dead unified-reports frontend contract');
-if(workspaceJS.includes('/api/v1/investigations/history'))throw new Error('Workspace must use the canonical radar jobs collection');
-const latestStart=workspaceJS.indexOf('function renderLatestInvestigation');
-const alertsStart=workspaceJS.indexOf('function renderAlerts');
-if(latestStart<0||alertsStart<=latestStart)throw new Error('Workspace latest-investigation render boundary missing');
-const latestSlice=workspaceJS.slice(latestStart,alertsStart);
-forbid(latestSlice,/\.innerHTML\s*=/,'Workspace latest investigation API-derived innerHTML');
+requireText(workspaceJS,"read('/api/me')",'Workspace stateless identity source');
+requireText(workspaceJS,'renderPersistenceBoundary','Workspace explicit persistence boundary');
+requireText(workspaceJS,"setKPI('workspaceReportsKpi','NOT LIVE'",'Workspace history non-live state');
+for(const forbiddenRoute of ['/api/v1/radar/jobs/','/api/v1/investigations/history','/api/v1/unified/reports']){
+  if(workspaceJS.includes(forbiddenRoute))throw new Error(`Workspace must not call persistence-backed history route while stateless: ${forbiddenRoute}`);
+}
 forbid(workspaceJS,/Math\.random\s*\(/,'Workspace synthetic history evidence');
-console.log('canonical investigation history Professional contract: ok');
+console.log('canonical investigation history backend + stateless workspace contract: ok');
