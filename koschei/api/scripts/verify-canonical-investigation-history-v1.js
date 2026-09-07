@@ -80,8 +80,8 @@ forbid(reportsJS,/Math\.random\s*\(/,'history synthetic evidence');
 forbid(reportsJS,/\b(?:signMessage|signTransaction|signAllTransactions|signAndSendTransaction|sendTransaction)\b/,'history wallet authority');
 
 requireText(dashboard,'Investigation jobs','Workspace history KPI');
-requireText(dashboard,'RECENT INVESTIGATION','Workspace latest-history copy');
-requireText(dashboard,'Investigation History','Workspace history navigation');
+requireText(dashboard,'RECENT CANONICAL INVESTIGATION','Workspace latest-history copy');
+requireText(dashboard,'id="workspaceLatestReport"','Workspace latest-history mount');
 requireText(dashboard,'/js/customer-workspace-v2.js?v=2','Workspace history controller');
 if(dashboard.includes('Signed Report Vault'))throw new Error('Workspace must not advertise every durable job as a signed report');
 requireText(workspaceJS,"read('/api/v1/radar/jobs/')",'Workspace history source');
