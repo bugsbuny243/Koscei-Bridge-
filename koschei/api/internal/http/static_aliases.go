@@ -66,14 +66,15 @@ func registerStaticAliases(mux *http.ServeMux, staticDir string) {
 		registerStaticFileAlias(mux, route, filepath.Join(staticDir, "dashboard.html"))
 	}
 
-	// Former standalone customer functions now live inside the customer panel.
-	// Keep old bookmarks stable while preventing FileServer from reviving the
-	// deleted HTML implementations.
+	// Former standalone customer functions no longer get a second product page.
+	// Feedback is integrated in the panel. Exposure remains a capability boundary
+	// until a real persistence plane is restored, so its legacy URL lands on the
+	// truthful capabilities section rather than a non-working control.
 	for _, route := range []string{"/feedback", "/feedback/", "/feedback.html"} {
 		registerCanonicalRedirect(mux, route, "/dashboard#feedback")
 	}
 	for _, route := range []string{"/exposure-report", "/exposure-report/", "/exposure-report.html"} {
-		registerCanonicalRedirect(mux, route, "/dashboard#exposure")
+		registerCanonicalRedirect(mux, route, "/dashboard#capabilities")
 	}
 
 	// These pages describe retired product/payment models rather than current
