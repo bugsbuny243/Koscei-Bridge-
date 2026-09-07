@@ -6,32 +6,29 @@ import (
 	"testing"
 )
 
-func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
+func TestHomepageKeepsKoscheiWeb3AsEvidenceFirstUniverseGateway(t *testing.T) {
 	body, err := os.ReadFile("public/index.html")
 	if err != nil {
 		t.Fatalf("read homepage: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Koschei Web3 | Check before you trust",
-		"Check it before you trust it.",
+		"Koschei Web3 | The Universe",
+		"Web3 defenses?<br>Who tests them?",
 		"data-koschei-home-scan",
-		"Token mint, wallet address, or supported transaction context",
-		"Enter the threat universe.",
-		"One scan. Four questions answered.",
-		"Should I proceed?",
-		"What changed the decision?",
-		"Can I verify it?",
-		"id=\"execution-proof\"",
-		"The proof still matters.",
-		"Production signing enforcement remains a separate validation milestone",
-		"Koschei Professional is the single paid access plan.",
-		"There is no free investigation tier",
-		"koschei.css",
-		"koschei.css",
+		"Solana wallet or token mint",
+		"Enter the universe",
+		"One address. Full threat context.",
+		"Solana is the live production core today.",
+		"without inventing certainty",
+		"Every material conclusion should descend to evidence",
+		"Professional operation · no private keys · no custody · unknown stays unknown",
+		"koschei-universe-v1.css",
+		"koschei-home-universe-v2.css",
+		"koschei-global-shell.js?v=4",
 	} {
 		if !strings.Contains(text, required) {
-			t.Fatalf("homepage missing customer-first Koschei Web3 contract %q", required)
+			t.Fatalf("homepage missing evidence-first Universe contract %q", required)
 		}
 	}
 	for _, forbidden := range []string{
@@ -48,9 +45,12 @@ func TestHomepageKeepsKoscheiWeb3AsSingleCustomerFirstProduct(t *testing.T) {
 		"Core available",
 		"Adapter planned",
 		"Expansion path",
+		"ETHEREUM</b><small>LIVE",
+		"TRON</b><small>LIVE",
+		"100% secure",
 	} {
 		if strings.Contains(text, forbidden) {
-			t.Fatalf("homepage regressed into architecture/demo-first presentation: found %q", forbidden)
+			t.Fatalf("homepage regressed into architecture/demo-first or unsupported presentation: found %q", forbidden)
 		}
 	}
 }
