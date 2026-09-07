@@ -45,14 +45,15 @@ reject('public/index.html', '/js/koschei-security-world.js');
 reject('public/index.html', 'Ethereum</b><small>LIVE');
 reject('public/index.html', 'TRON</b><small>LIVE');
 
-// Feedback remains a live panel function. Exposure is intentionally not an
-// interactive control in the current production process because its
-// Professional/persistence contract cannot be satisfied by the stateless runtime.
-need('public/dashboard.html', 'id="feedbackForm"');
+// Persistence-backed dashboard controls must stay absent while production is
+// intentionally stateless. The panel exposes the capability boundary rather
+// than issuing guaranteed-503 requests or pretending data was stored.
 need('public/dashboard.html', 'PERSISTENCE OFF');
 need('public/dashboard.html', 'Durable history');
+need('public/dashboard.html', 'Feedback storage');
+reject('public/dashboard.html', 'id="feedbackForm"');
 reject('public/dashboard.html', 'id="exposureForm"');
-need('public/js/koschei-dashboard.js', '/api/analytics/event');
+reject('public/js/koschei-dashboard.js', '/api/analytics/event');
 reject('public/js/koschei-dashboard.js', '/api/v1/radar/exposure');
 need('public/js/customer-workspace-v2.js', "read('/api/me')");
 for (const forbiddenRoute of [
