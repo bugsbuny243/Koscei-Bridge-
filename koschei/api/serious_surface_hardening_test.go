@@ -43,10 +43,14 @@ func TestStandaloneCustomerAndStaleProductPagesStayRetired(t *testing.T) {
 	}
 }
 
-func TestCustomerPanelOwnsExposureAndFeedback(t *testing.T) {
+func TestCustomerPanelExposesOnlyLiveRuntimeControls(t *testing.T) {
 	html, err := os.ReadFile("public/dashboard.html")
 	if err != nil {
 		t.Fatalf("read dashboard: %v", err)
+	}
+	workspace, err := os.ReadFile("public/js/customer-workspace-v2.js")
+	if err != nil {
+		t.Fatalf("read customer workspace: %v", err)
 	}
 	js, err := os.ReadFile("public/js/koschei-dashboard.js")
 	if err != nil {
@@ -55,36 +59,50 @@ func TestCustomerPanelOwnsExposureAndFeedback(t *testing.T) {
 
 	htmlText := string(html)
 	for _, required := range []string{
-		`id="exposure"`,
-		`id="exposureForm"`,
 		`id="feedback"`,
 		`id="feedbackForm"`,
+		"intentionally stateless",
+		"PERSISTENCE OFF",
 		"Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.",
 	} {
 		if !strings.Contains(htmlText, required) {
-			t.Errorf("dashboard missing integrated surface contract %q", required)
+			t.Errorf("dashboard missing runtime-truth contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{"KOSCH holder", "Free Safe Check", "KOSCH Premium"} {
+	for _, forbidden := range []string{`id="exposureForm"`, "KOSCH holder", "Free Safe Check", "KOSCH Premium"} {
 		if strings.Contains(htmlText, forbidden) {
-			t.Errorf("dashboard contains retired product model copy %q", forbidden)
+			t.Errorf("dashboard contains retired/non-live product control %q", forbidden)
+		}
+	}
+
+	workspaceText := string(workspace)
+	if !strings.Contains(workspaceText, "read('/api/me')") {
+		t.Error("workspace missing stateless authenticated identity source")
+	}
+	for _, forbidden := range []string{
+		"/api/auth/premium-access",
+		"/api/v1/radar/jobs/",
+		"/api/watchlist",
+		"/api/watchlist/alerts",
+		"/api/v1/radar/exposure",
+	} {
+		if strings.Contains(workspaceText, forbidden) {
+			t.Errorf("workspace calls persistence-backed route in stateless production %q", forbidden)
 		}
 	}
 
 	jsText := string(js)
 	for _, required := range []string{
-		"/api/v1/radar/exposure?target=",
 		"/api/analytics/event",
-		"KoscheiAuth.apiCall",
 		"feedbackContainsSecretLanguage",
 	} {
 		if !strings.Contains(jsText, required) {
-			t.Errorf("dashboard runtime missing integrated backend contract %q", required)
+			t.Errorf("dashboard runtime missing live backend contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{"sendBundle", "JITO_BUNDLE_URL", "Math.random("} {
+	for _, forbidden := range []string{"/api/v1/radar/exposure", "sendBundle", "JITO_BUNDLE_URL", "Math.random("} {
 		if strings.Contains(jsText, forbidden) {
-			t.Errorf("dashboard runtime contains forbidden behavior %q", forbidden)
+			t.Errorf("dashboard runtime contains forbidden/non-live behavior %q", forbidden)
 		}
 	}
 }
