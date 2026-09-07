@@ -5,11 +5,11 @@ const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','scan.html'),'utf8');
 const ux=fs.readFileSync(path.join(root,'public','js','customer-investigation-ux-v2.js'),'utf8');
 const premium=fs.readFileSync(path.join(root,'public','js','customer-arvis-premium-suite.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-investigation-ux-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 
-requireText(html,'/css/customer-investigation-ux-v2.css?v=1','scan html');
+requireText(html,'/css/koschei.css?v=1','scan html');
 requireText(html,'/js/customer-investigation-ux-v2.js?v=1','scan html');
 requireText(html,'/js/customer-arvis-premium-suite.js?v=2','scan html premium cache key');
 requireText(ux,'ALLOW is not a safety guarantee','allow boundary');

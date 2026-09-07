@@ -6,15 +6,15 @@ const safeHTML=fs.readFileSync(path.join(root,'public','safe-check.html'),'utf8'
 const txHTML=fs.readFileSync(path.join(root,'public','transaction-shield.html'),'utf8');
 const safeJS=fs.readFileSync(path.join(root,'public','js','public-safe-check-v2.js'),'utf8');
 const txJS=fs.readFileSync(path.join(root,'public','js','public-transaction-shield-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','public-safety-surfaces-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function forbid(source,pattern,label){if(pattern.test(source))throw new Error(`${label}: forbidden pattern ${pattern}`);}
 
 for(const [html,label,script] of [[safeHTML,'safe check html','/js/public-safe-check-v2.js?v=1'],[txHTML,'transaction shield html','/js/public-transaction-shield-v2.js?v=1']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/koschei-global-shell.css?v=4',`${label} global shell`);
-  requireText(html,'/css/public-safety-surfaces-v2.css?v=1',`${label} shared safety css`);
+  requireText(html,'/css/koschei.css?v=1',`${label} global shell`);
+  requireText(html,'/css/koschei.css?v=1',`${label} shared safety css`);
   requireText(html,script,`${label} v2 controller`);
   requireText(html,'Missing',`${label} explicit missing-evidence copy`);
   forbid(html,/\son[a-z]+\s*=/i,`${label} inline event handler`);

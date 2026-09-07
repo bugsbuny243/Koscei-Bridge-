@@ -3,8 +3,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','pricing.html'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','pricing-policy-v2.css'),'utf8');
-const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const planAccess=fs.readFileSync(path.join(root,'internal','handlers','plan_access.go'),'utf8');
 const premiumAccess=fs.readFileSync(path.join(root,'internal','handlers','premium_access_status.go'),'utf8');
 const checkoutGate=fs.readFileSync(path.join(root,'internal','handlers','polar_checkout_gate.go'),'utf8');
@@ -24,7 +24,7 @@ requireText(html,'The server decides access. The browser never invents it.','ser
 requireText(html,'PROFESSIONAL</strong>','Professional policy card');
 requireText(html,'SERVER-SIDE','server authority card');
 requireText(html,'FAIL-CLOSED','evidence boundary card');
-requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
+requireText(html,'/css/koschei.css?v=1','universe stylesheet');
 
 forbid(html,/<h2>Free Core<\/h2>/i,'free investigation tier');
 forbid(html,/Request early access/i,'retired early access form');

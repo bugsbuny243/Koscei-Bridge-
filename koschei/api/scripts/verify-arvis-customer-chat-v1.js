@@ -4,9 +4,9 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','arvis-chat.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','customer-arvis-chat-v1.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','customer-arvis-chat-v1.css'),'utf8');
-const universe=fs.readFileSync(path.join(root,'public','css','koschei-universe-v1.css'),'utf8');
-const metaverse=fs.readFileSync(path.join(root,'public','css','customer-arvis-metaverse-v1.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const universe=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const metaverse=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const metaverseJS=fs.readFileSync(path.join(root,'public','js','customer-arvis-metaverse-v1.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'internal','http','server.go'),'utf8');
 
@@ -24,8 +24,8 @@ requireText(html,'id="arvisChatScanForm"','scan form');
 requireText(html,'id="arvisChatQuestionForm"','question form');
 requireText(html,'/js/customer-arvis-metaverse-v1.js?v=1','metaverse controller');
 requireText(html,'/js/customer-arvis-chat-v1.js?v=3','chat controller');
-requireText(html,'/css/customer-arvis-metaverse-v1.css?v=1','metaverse stylesheet');
-requireText(html,'/css/koschei-universe-v1.css?v=1','universe stylesheet');
+requireText(html,'/css/koschei.css?v=1','metaverse stylesheet');
+requireText(html,'/css/koschei.css?v=1','universe stylesheet');
 forbid(html,/<script(?![^>]*\bsrc=)[^>]*>/i,'inline runtime script');
 forbid(html,/\son[a-z]+\s*=/i,'inline event handler');
 

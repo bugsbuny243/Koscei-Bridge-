@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','transaction-firewall.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','transaction-firewall-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','transaction-firewall-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const docs=fs.readFileSync(path.resolve(root,'..','..','docs','transaction-firewall.md'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}

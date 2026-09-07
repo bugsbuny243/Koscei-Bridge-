@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','pilot.html'),'utf8');
 const js=fs.readFileSync(path.join(root,'public','js','integration-pilot-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','integration-pilot-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 const analytics=fs.readFileSync(path.join(root,'internal','handlers','analytics.go'),'utf8');
 const feedback=fs.readFileSync(path.join(root,'internal','handlers','feedback.go'),'utf8');
 

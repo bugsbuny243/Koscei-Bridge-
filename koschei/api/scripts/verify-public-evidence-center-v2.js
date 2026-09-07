@@ -6,15 +6,15 @@ const cases=fs.readFileSync(path.join(root,'public','cases.html'),'utf8');
 const live=fs.readFileSync(path.join(root,'public','live.html'),'utf8');
 const casesJS=fs.readFileSync(path.join(root,'public','js','public-soc.js'),'utf8');
 const liveJS=fs.readFileSync(path.join(root,'public','js','public-live-radar.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','public-evidence-center-v2.css'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
 function visibleSource(html){return html.replace(/<span hidden data-public-smoke-transition="(?:cases|live)">.*?<\/span>/g,'');}
 
 for(const [html,label] of [[cases,'cases html'],[live,'live html']]){
   requireText(html,'<html lang="en">',label);
-  requireText(html,'/css/koschei-global-shell.css?v=4',label);
-  requireText(html,'/css/public-evidence-center-v2.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
+  requireText(html,'/css/koschei.css?v=1',label);
   if(/[İıŞşĞğÇçÖöÜü]/.test(visibleSource(html)))throw new Error(`${label}: visible public copy must remain English`);
 }
 requireText(cases,'data-public-smoke-transition="cases">Yayınlanmış Güvenlik Vakaları','cases transitional smoke marker');
