@@ -117,7 +117,7 @@ jobs:
           checked_page account_page /account "Your identity opens the door. The entitlement opens the system."
           checked_page reports_page /reports "Investigation History"
           checked_page arvis_scan /scan "arvis-premium-contract.js"
-          checked_page arvis_dashboard /dashboard "Investigate. Correlate. Prove."
+          checked_page arvis_dashboard /dashboard "Security Overview"
           checked_page safe_check /safe-check "arvis-premium-contract.js"
           checked_page transaction_shield /transaction-shield "arvis-premium-contract.js"
           checked_page security_radar /security-radar "arvis-premium-contract.js"
@@ -153,13 +153,13 @@ jobs:
             if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
               wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             fi
-            wait_expect_200 landing_page / "Check it before you trust it."
+            wait_expect_200 landing_page / "See the blind spot."
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
             wait_expect_200 account_page /account "Your identity opens the door. The entitlement opens the system."
             wait_expect_200 reports_page /reports "Investigation History"
             wait_expect_200 arvis_scan /scan "Descend into the evidence."
-            wait_expect_200 arvis_dashboard /dashboard "Investigate. Correlate. Prove."
+            wait_expect_200 arvis_dashboard /dashboard "Security Overview"
             wait_expect_200 safe_check /safe-check "Descend into the evidence."
             wait_expect_200 transaction_shield /transaction-shield "Descend into the evidence."
             wait_expect_200 security_radar /security-radar "Descend into the evidence."
