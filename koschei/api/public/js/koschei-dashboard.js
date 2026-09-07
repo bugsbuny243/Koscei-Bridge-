@@ -80,59 +80,10 @@ function installSectionTracking(){
   byId.forEach((_,id)=>{const section=$(id);if(section)observer.observe(section);});
 }
 
-function setNotice(node,message,tone='info'){
-  if(!node)return;
-  node.textContent=text(message);
-  node.dataset.tone=tone;
-  node.hidden=!text(message);
-}
-
-function feedbackContainsSecretLanguage(value){
-  return /\b(seed phrase|private key|mnemonic phrase|recovery phrase)\b/i.test(value);
-}
-
-function installFeedback(){
-  const form=$('feedbackForm');
-  const message=$('feedbackMessage');
-  const counter=$('feedbackCounter');
-  if(!form||!message)return;
-  const updateCounter=()=>{if(counter)counter.textContent=`${message.value.length} / 5000`;};
-  message.addEventListener('input',updateCounter);
-  updateCounter();
-  form.addEventListener('submit',async event=>{
-    event.preventDefault();
-    const notice=$('feedbackNotice');
-    const category=text($('feedbackCategory')?.value);
-    const subject=text($('feedbackSubject')?.value);
-    const body=text(message.value);
-    const button=form.querySelector('button[type="submit"]');
-    if(!category){setNotice(notice,'Choose a feedback category.','warn');return;}
-    if(subject.length<3||body.length<10){setNotice(notice,'Add a short title and enough detail to investigate the issue.','warn');return;}
-    if(feedbackContainsSecretLanguage(body)){
-      setNotice(notice,'Remove any seed phrase, recovery phrase or private key before sending feedback.','bad');
-      return;
-    }
-    button.disabled=true;
-    setNotice(notice,'Sending feedback…','info');
-    try{
-      let email='';
-      if(window.KoscheiAuth){try{await KoscheiAuth.init();email=text(KoscheiAuth.getEmail?.());}catch{}}
-      const response=await fetch('/api/analytics/event',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:'customer_feedback',email,path:location.pathname,metadata:{category,subject,message:body,source:'customer_panel'}})});
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok||data.ok===false)throw new Error(text(data.message||data.error)||`Feedback failed (HTTP ${response.status}).`);
-      form.reset();
-      updateCounter();
-      setNotice(notice,'Feedback received.','ok');
-    }catch(error){setNotice(notice,text(error?.message||error)||'Feedback could not be sent.','bad');}
-    finally{button.disabled=false;}
-  });
-}
-
 function mount(){
   installNavigation();
   installSectionTracking();
   watchAccountState();
-  installFeedback();
   hydrateHealth();
 }
 
