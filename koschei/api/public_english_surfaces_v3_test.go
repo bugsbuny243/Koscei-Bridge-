@@ -69,27 +69,47 @@ func TestCanonicalInvestigationSurfaceMountsProfessionalModesAndEvidenceControll
 	}
 }
 
-func TestDashboardIsARVISProfessionalSecurityWorkspace(t *testing.T) {
+func TestDashboardIsSingleKoscheiCustomerSecurityPanel(t *testing.T) {
 	body, err := os.ReadFile("public/dashboard.html")
 	if err != nil {
 		t.Fatalf("read dashboard: %v", err)
 	}
 	text := string(body)
 	for _, required := range []string{
-		"Professional Security Command Center",
-		"PROFESSIONAL · ARVIS COMMAND UNIVERSE",
-		"Investigate. Correlate. Prove.",
-		"ARVIS Investigation",
-		"Investigation History",
-		"Monitoring & developer access",
+		"Koschei Web3 | Customer Panel",
+		"Customer Security Panel",
+		"Security Overview",
+		"ARVIS intelligence map",
+		"Live operational truth",
+		"No fake telemetry",
+		"RECENT CANONICAL INVESTIGATION",
+		"RECENT MONITORING ALERTS",
+		"Production truth only.",
+		"Solana is the live chain core.",
+		"NOT LIVE",
+		"/css/koschei-dashboard.css?v=1",
 	} {
 		if !strings.Contains(text, required) {
-			t.Errorf("dashboard missing workspace contract %q", required)
+			t.Errorf("dashboard missing customer panel contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{`id="mint"`, `id="scan"`, "/api/token/scan", "data-customer-arvis-result", "Signed report vault"} {
+	if got := strings.Count(text, `<link rel="stylesheet"`); got != 1 {
+		t.Errorf("dashboard must load exactly one stylesheet, got %d", got)
+	}
+	for _, forbidden := range []string{
+		`id="mint"`,
+		`id="scan"`,
+		"/api/token/scan",
+		"data-customer-arvis-result",
+		"Signed report vault",
+		"koschei.css",
+		"customer-command-center-v1.css",
+		"customer-command-universe-v2.css",
+		"koschei-global-shell.js",
+		"koschei-product-v2.js",
+	} {
 		if strings.Contains(text, forbidden) {
-			t.Errorf("dashboard contains duplicate or overstated scan/report behavior %q", forbidden)
+			t.Errorf("dashboard contains duplicate, legacy or overstated surface %q", forbidden)
 		}
 	}
 }
