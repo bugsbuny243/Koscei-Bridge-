@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="description" content="Koschei Web3 customer panel for real account state, ARVIS investigation history, monitoring evidence and operational security context.">
+<meta name="description" content="Koschei Web3 customer panel for authenticated runtime state, ARVIS security boundaries, live Solana investigation entry points and evidence-first product status.">
 <meta name="theme-color" content="#02050a">
 <title>Koschei Web3 | Customer Panel</title>
-<link rel="stylesheet" href="/css/koschei-dashboard.css?v=1">
+<link rel="stylesheet" href="/css/koschei-dashboard.css?v=2">
 </head>
 <body>
 <div class="dashboard">
@@ -20,7 +20,7 @@
     <nav class="side-nav" aria-label="Customer panel sections">
       <a href="#overview" aria-current="page"><i>01</i><span>Overview</span></a>
       <a href="#intelligence"><i>02</i><span>ARVIS Intelligence</span></a>
-      <a href="#evidence"><i>03</i><span>Evidence & Alerts</span></a>
+      <a href="#evidence"><i>03</i><span>Runtime Truth</span></a>
       <a href="#capabilities"><i>04</i><span>Security Capabilities</span></a>
     </nav>
     <div class="sidebar-foot"><span class="dot"></span>Production truth only.<br>Missing evidence remains unknown.<br>Solana is the live chain core.</div>
@@ -38,14 +38,14 @@
       <section id="overview" aria-labelledby="overview-title">
         <div class="page-head">
           <div><span>Customer security workspace</span><h1 id="overview-title">Security Overview</h1></div>
-          <p>Account-scoped state is loaded from existing Koschei services. If a dependency is unavailable, the panel leaves it unavailable instead of inventing telemetry.</p>
+          <p>The current production process is intentionally stateless for Koschei application persistence. This panel shows authenticated identity and live runtime boundaries without pretending durable jobs, watchlists, stored alerts or feedback storage are active.</p>
         </div>
 
-        <div class="kpis" aria-label="Live customer account state">
-          <article class="workspace-kpi" id="workspaceAccessKpi"><span>Professional access</span><strong>—</strong><small>Checking paid entitlement.</small></article>
-          <article class="workspace-kpi" id="workspaceReportsKpi"><span>Investigation jobs</span><strong>—</strong><small>Checking canonical investigation history.</small></article>
-          <article class="workspace-kpi" id="workspaceWatchKpi"><span>Monitored targets</span><strong>—</strong><small>Checking watchlist source.</small></article>
-          <article class="workspace-kpi" id="workspaceAlertsKpi"><span>Unread alerts</span><strong>—</strong><small>Checking alert source.</small></article>
+        <div class="kpis" aria-label="Current customer runtime state">
+          <article class="workspace-kpi" id="workspaceAccessKpi"><span>Authenticated session</span><strong>—</strong><small>Checking Neon-authenticated account identity.</small></article>
+          <article class="workspace-kpi" id="workspaceReportsKpi"><span>Durable history</span><strong>NOT LIVE</strong><small>Application persistence is disabled in the current production runtime.</small></article>
+          <article class="workspace-kpi" id="workspaceWatchKpi"><span>Continuous monitoring</span><strong>NOT LIVE</strong><small>Watchlist persistence is not active in the current production runtime.</small></article>
+          <article class="workspace-kpi" id="workspaceAlertsKpi"><span>Persisted alerts</span><strong>NOT LIVE</strong><small>Stored alert history is not active in the current production runtime.</small></article>
         </div>
       </section>
 
@@ -68,8 +68,9 @@
           <div class="panel-head"><span>Live operational truth</span><b>No fake telemetry</b></div>
           <div class="ops-list">
             <div class="status-row" data-tone="unknown"><span>Evidence pipeline <em>/health</em></span><b id="commandPipelineState">CHECKING…</b></div>
-            <div class="status-row" data-tone="unknown"><span>Account state <em>authenticated source</em></span><b id="commandAccountState">CHECKING…</b></div>
-            <div class="status-row"><span>Investigation jobs <em>account source</em></span><b id="commandInvestigationState">—</b></div>
+            <div class="status-row" data-tone="unknown"><span>Account identity <em>/api/me</em></span><b id="commandAccountState">CHECKING…</b></div>
+            <div class="status-row"><span>Durable investigations <em>application persistence</em></span><b id="commandInvestigationState">NOT LIVE</b></div>
+            <div class="status-row"><span>Feedback storage <em>application persistence</em></span><b>NOT LIVE</b></div>
             <div class="status-row" data-tone="ready"><span>Solana <em>chain evidence arm</em></span><b>LIVE CORE</b></div>
             <div class="status-row"><span>Other chains <em>architecture direction</em></span><b>NOT LIVE</b></div>
           </div>
@@ -78,30 +79,41 @@
 
       <section class="workspace-live" id="evidence" aria-labelledby="evidence-title">
         <div class="workspace-live-head">
-          <div><span class="side-label">Account evidence</span><h2 id="evidence-title">Live account state</h2><p>Investigation history and monitoring state below come from account services when available.</p></div>
-          <span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT DATA</span>
+          <div><span class="side-label">Runtime truth</span><h2 id="evidence-title">Account & persistence state</h2><p>Authenticated identity is live. Durable investigation history, continuous monitoring and stored customer feedback remain disabled until a real persistence plane is restored.</p></div>
+          <span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT IDENTITY</span>
         </div>
         <div class="workspace-command-grid">
           <section class="workspace-command">
-            <div class="workspace-command-head"><span>RECENT CANONICAL INVESTIGATION</span><span>ACCOUNT SOURCE</span></div>
-            <div id="workspaceLatestReport"><div class="workspace-command-empty">Loading investigation history…</div></div>
+            <div class="workspace-command-head"><span>DURABLE INVESTIGATION HISTORY</span><span>PERSISTENCE OFF</span></div>
+            <div id="workspaceLatestReport"><div class="workspace-command-empty">Current production does not retain canonical investigation jobs in application PostgreSQL.</div></div>
           </section>
           <section class="workspace-command">
-            <div class="workspace-command-head"><span>RECENT MONITORING ALERTS</span><span>ACCOUNT SOURCE</span></div>
-            <div id="workspaceAlerts"><div class="workspace-command-empty">Checking monitored-target alerts…</div></div>
+            <div class="workspace-command-head"><span>CONTINUOUS MONITORING ALERTS</span><span>PERSISTENCE OFF</span></div>
+            <div id="workspaceAlerts"><div class="workspace-command-empty">Current production does not retain watchlist or alert state in application PostgreSQL.</div></div>
           </section>
         </div>
         <div class="workspace-signin" id="workspaceSignIn" hidden>
-          <div><h3>Sign in to load your private workspace.</h3><p>Investigation history, entitlement state and monitoring sources are account-scoped.</p></div>
+          <div><h3>Sign in to verify your private account identity.</h3><p>The stateless runtime can verify the Neon-authenticated session without creating fake application persistence.</p></div>
           <a href="/login?next=/dashboard">Sign in</a>
         </div>
       </section>
 
       <section class="tool-grid" id="capabilities" aria-label="Koschei Web3 operational capability boundaries">
-        <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana is the live evidence core. Missing provider evidence is never silently converted into a safe result.</div></article>
-        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">This panel does not claim unsupported simulation coverage. Production capability must remain tied to the existing backend evidence contract.</div></article>
+        <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana synchronous evidence collection is the live core. Durable customer history and stored actor dossiers are not active.</div></article>
+        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.</div></article>
         <article class="tool-card"><span class="kicker">Protocol defense validation</span><h2>Test the defense itself.</h2><p>Invariant, payload, governance, privilege and deployment validation belong here as those production capabilities become real.</p><div class="boundary">Status: building. No live capability is fabricated in the customer interface.</div></article>
         <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage.</div></article>
+      </section>
+
+      <section class="workspace-command-grid" aria-label="Retired persistence-backed customer controls">
+        <article class="workspace-command" id="exposure">
+          <div class="workspace-command-head"><span>Exposure Report</span><span>PERSISTENCE OFF</span></div>
+          <div class="workspace-command-empty">The legacy Exposure control is not live in the stateless production runtime. Its Professional entitlement and evidence aggregation path require a real persistence plane before this becomes an interactive control again.</div>
+        </article>
+        <article class="workspace-command" id="feedback">
+          <div class="workspace-command-head"><span>Report a gap</span><span>PERSISTENCE OFF</span></div>
+          <div class="workspace-command-empty">Customer feedback storage is not live in the stateless production runtime. No form is shown because the current backend requires application PostgreSQL to persist feedback.</div>
+        </article>
       </section>
 
       <footer class="footer"><span>Koschei Web3 · Customer Security Panel</span><nav><a href="/">Home</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav><span>Evidence first · Unknown stays unknown</span></footer>
@@ -109,7 +121,7 @@
   </main>
 </div>
 <script src="/js/koschei-auth.js?v=33"></script>
-<script src="/js/customer-workspace-v2.js?v=2"></script>
-<script src="/js/koschei-dashboard.js?v=1"></script>
+<script src="/js/customer-workspace-v2.js?v=3"></script>
+<script src="/js/koschei-dashboard.js?v=4"></script>
 </body>
 </html>

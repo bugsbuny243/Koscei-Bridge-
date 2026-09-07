@@ -3,90 +3,75 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'public','dashboard.html'),'utf8');
-const js=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'),'utf8');
-const css=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
+const workspaceJs=fs.readFileSync(path.join(root,'public','js','customer-workspace-v2.js'),'utf8');
+const dashboardJs=fs.readFileSync(path.join(root,'public','js','koschei-dashboard.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'public','css','koschei-dashboard.css'),'utf8');
 
 function requireText(source,needle,label){if(!source.includes(needle))throw new Error(`${label}: missing ${needle}`);}
+function rejectText(source,needle,label){if(source.includes(needle))throw new Error(`${label}: contains retired ${needle}`);}
 
-requireText(html,'/css/koschei.css?v=1','dashboard html');
-requireText(html,'/css/koschei.css?v=1','enterprise dashboard style');
-requireText(html,'/css/koschei.css?v=1','customer command center style');
-requireText(html,'/css/koschei.css?v=1','command universe style');
-requireText(html,'/js/customer-command-center-v1.js?v=3','customer command center behavior');
-requireText(html,'/js/customer-command-universe-v2.js?v=1','command universe behavior');
-requireText(html,'/js/customer-workspace-v2.js?v=2','dashboard html');
-requireText(html,'id="workspaceMissionControl"','operations mount');
-requireText(html,'id="workspaceLatestReport"','latest investigation mount');
-requireText(html,'id="workspaceAlerts"','alerts mount');
-requireText(html,'RECENT INVESTIGATION','recent investigation copy');
-requireText(html,'Investigation jobs','history KPI copy');
-requireText(html,'Professional access','Professional access KPI');
-requireText(html,'PROFESSIONAL · ARVIS COMMAND UNIVERSE','ARVIS universe boundary');
-requireText(html,'Investigate. Correlate. Prove.','workspace universe headline');
-requireText(html,'ARVIS case workspace','primary investigation surface');
-requireText(html,'Professional Security Command Center','Professional command center copy');
-requireText(html,'No fake telemetry.','no synthetic telemetry boundary');
-requireText(html,'Solana is the live chain core.','live-chain boundary');
-requireText(html,'EXPANSION / COMING','future-chain boundary');
-if(/ARVIS early access|Preview monitored targets|STARTER\+|ENTERPRISE\+/i.test(html))throw new Error('workspace contains retired commercial or preview copy');
-if(/holder access|Checking holder access/i.test(html))throw new Error('workspace contains legacy holder access copy');
+requireText(html,'/css/koschei-dashboard.css?v=2','single dashboard stylesheet');
+requireText(html,'/js/koschei-auth.js?v=33','authenticated session runtime');
+requireText(html,'/js/customer-workspace-v2.js?v=3','stateless account workspace runtime');
+requireText(html,'/js/koschei-dashboard.js?v=4','dashboard runtime');
+requireText(html,'id="workspaceLiveState"','account state mount');
+requireText(html,'id="workspaceLatestReport"','persistence truth mount');
+requireText(html,'id="workspaceAlerts"','monitoring truth mount');
+requireText(html,'id="workspaceAccessKpi"','identity KPI');
+requireText(html,'id="workspaceReportsKpi"','history capability KPI');
+requireText(html,'id="workspaceWatchKpi"','watchlist capability KPI');
+requireText(html,'id="workspaceAlertsKpi"','alerts capability KPI');
+requireText(html,'The current production process is intentionally stateless','stateless runtime disclosure');
+requireText(html,'PERSISTENCE OFF','disabled persistence boundary');
+requireText(html,'Feedback storage','feedback persistence boundary');
+requireText(html,'No fake telemetry','no synthetic telemetry boundary');
+requireText(html,'Solana is the live chain core','live-chain boundary');
+requireText(html,'NOT LIVE','non-live capability truth label');
+requireText(html,'does not sign, submit, relay or broadcast customer transactions','no transaction authority boundary');
+for(const forbiddenControl of ['id="exposureForm"','id="feedbackForm"'])rejectText(html,forbiddenControl,'non-live persistence-backed control');
 
-requireText(js,"read('/api/auth/premium-access')",'Professional access source');
-requireText(js,"read('/api/v1/radar/jobs/')",'canonical history source');
-requireText(js,"read('/api/watchlist')",'watchlist source');
-requireText(js,"read('/api/watchlist/alerts')",'alerts source');
-requireText(js,'if(!KoscheiAuth.isLoggedIn())','signed-out privacy boundary');
-requireText(js,"state.dataset.state='signed_out'",'signed-out UI state');
-requireText(js,"data.schema_version!=='koschei-customer-investigation-history-v1'",'history schema boundary');
-requireText(js,"data.source!=='web3_jobs'",'history source boundary');
-requireText(js,"data.job_type!=='canonical_investigation'",'history job-type boundary');
-requireText(js,"if(signed===true&&signature&&ruleset)return'SIGNED'",'strict signed evidence state');
-requireText(js,"if(signed===true)return'SIGNATURE INCOMPLETE'",'incomplete signed evidence state');
-requireText(js,'historyAvailable=Array.isArray(investigationHistory)','history unavailable-not-empty boundary');
-requireText(js,"const plan=text(access.plan||'none').toUpperCase()",'plan projection');
-requireText(js,'access.outputs_remaining','remaining capacity');
-requireText(js,'access.outputs_total','total capacity');
-requireText(js,'No active paid SaaS entitlement.','inactive server entitlement boundary');
-requireText(js,'Professional plan required.','Professional watchlist boundary');
-requireText(js,"encodeURIComponent(target)",'safe target navigation');
-requireText(js,"!text(item.read_at)",'existing alert unread handling');
-requireText(css,'.workspace-live','operations styles');
-requireText(css,'.workspace-alert','alert styles');
-requireText(css,'.workspace-report-card','investigation card styles');
-const shellCss=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
-const shellJs=fs.readFileSync(path.join(root,'public','js','customer-command-center-v1.js'),'utf8');
-const universe=fs.readFileSync(path.join(root,'public','css','koschei.css'),'utf8');
-const commandUniverseJs=fs.readFileSync(path.join(root,'public','js','customer-command-universe-v2.js'),'utf8');
-requireText(shellCss,'.customer-app-shell','app shell');
-requireText(shellCss,'.customer-sidebar','sidebar');
-requireText(shellCss,'.customer-command-palette','navigation command palette style');
-requireText(shellCss,'.customer-capability-access','capability access label style');
-requireText(shellJs,"{label:'Command Center',href:'/dashboard',access:'PROFESSIONAL'}",'Professional command center capability');
-requireText(shellJs,"{label:'ARVIS Investigation',href:'/arvis-chat',mode:'primary',access:'PROFESSIONAL'}",'ARVIS capability');
-requireText(shellJs,"{label:'Evidence History',href:'/reports',access:'PROFESSIONAL'}",'history capability');
-requireText(shellJs,"{label:'Watchlist & Alerts',href:'/watchlist',access:'PROFESSIONAL'}",'monitoring capability');
-requireText(shellJs,"{label:'API Reference',href:'/docs/api',access:'PROFESSIONAL API'}",'Professional API capability');
-requireText(shellJs,"{label:'Evidence Cases',href:'/cases',access:'PUBLIC PROOF'}",'public proof capability');
-requireText(shellJs,"{label:'Account & Access',href:'/account',access:'ACCOUNT'}",'account capability');
-requireText(shellJs,'Professional is the single operational customer entitlement.','single-entitlement boundary');
-requireText(shellJs,"main.wrap, main.page, main.ops-page",'shared customer surface mount');
-requireText(shellJs,".top, .ops-nav",'shared customer header mount');
-requireText(shellJs,'customer-command-palette','navigation command palette');
-requireText(shellJs,"event.key.toLowerCase()==='k'",'keyboard command palette shortcut');
-requireText(shellJs,"event.key==='Escape'",'command palette escape close');
-requireText(commandUniverseJs,"document.getElementById('commandPipelineState')",'command universe binds service state');
-requireText(commandUniverseJs,"document.getElementById('commandAccountState')",'command universe binds account state');
-requireText(universe,'body.koschei-universe','universe style contract');
-for(const page of ['scan.html','reports.html','watchlist.html','account.html']){const pageHtml=fs.readFileSync(path.join(root,'public',page),'utf8');requireText(pageHtml,'/css/koschei.css?v=1',page+' shared shell style');requireText(pageHtml,'/js/customer-command-center-v1.js?v=3',page+' shared shell behavior');}
-if(/fetch\s*\(/.test(shellJs))throw new Error('command center shell must not create parallel unauthenticated data calls');
-if(shellJs.includes('Math.random('))throw new Error('command center shell must not fabricate product state');
-if(/premium-access|sessionStorage|localStorage/.test(shellJs))throw new Error('navigation shell must not derive or cache entitlement authority');
-if(/data-plan-gated|disabled\s*=/.test(shellJs))throw new Error('capability labels must not become client-side authorization gates');
-if(commandUniverseJs.includes('Math.random('))throw new Error('command universe must not fabricate telemetry');
-if(js.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
-if(js.includes('/api/v1/investigations/history'))throw new Error('workspace must use the canonical radar jobs collection');
-if(/token_tier|token_amount|holder access/i.test(js))throw new Error('workspace must not derive access from token holdings');
-if(js.includes('Math.random('))throw new Error('workspace must not fabricate live metrics');
-if(/fetch\s*\(/.test(js))throw new Error('workspace account data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
-if(!html.includes('If a source is unavailable, the workspace leaves it unavailable instead of inventing a status.'))throw new Error('dashboard must expose the no-fake-data boundary');
-console.log('customer workspace Professional command universe contract: ok');
+if((html.match(/<link rel="stylesheet"/g)||[]).length!==1)throw new Error('dashboard must load exactly one stylesheet');
+if(/<style[\s>]/i.test(html))throw new Error('dashboard must not contain inline style patches');
+for(const retired of [
+  'koschei.css',
+  'customer-command-center-v1.css',
+  'customer-command-universe-v2.css',
+  'customer-command-center-v1.js',
+  'customer-command-universe-v2.js',
+  'koschei-global-shell.js',
+  'koschei-product-v2.js'
+])rejectText(html,retired,'dashboard layered-shell contract');
+for(const retiredCopy of ['KOSCH holder','KOSCH Premium','Free Safe Check'])rejectText(html,retiredCopy,'retired commercial copy');
+
+requireText(workspaceJs,"read('/api/me')",'stateless authenticated identity source');
+requireText(workspaceJs,'renderPersistenceBoundary','explicit disabled persistence projection');
+requireText(workspaceJs,"setKPI('workspaceReportsKpi','NOT LIVE'",'durable-history disabled state');
+requireText(workspaceJs,"setKPI('workspaceWatchKpi','NOT LIVE'",'watchlist disabled state');
+requireText(workspaceJs,"setKPI('workspaceAlertsKpi','NOT LIVE'",'alerts disabled state');
+requireText(workspaceJs,"if(!KoscheiAuth.isLoggedIn())",'signed-out privacy boundary');
+requireText(workspaceJs,"state.dataset.state='signed_out'",'signed-out UI state');
+requireText(workspaceJs,'LIVE STATELESS ACCOUNT IDENTITY','stateless account truth');
+for(const forbiddenRoute of [
+  "/api/auth/premium-access",
+  "/api/v1/radar/jobs/",
+  "/api/watchlist",
+  "/api/watchlist/alerts",
+  "/api/v1/radar/exposure"
+])rejectText(workspaceJs,forbiddenRoute,'stateless workspace must not call persistence-backed route');
+
+requireText(css,'.workspace-live','runtime-truth styles');
+requireText(css,'.workspace-command-empty','disabled capability styles');
+requireText(dashboardJs,"fetch('/health'",'production health source');
+requireText(dashboardJs,"document.body.classList.toggle('nav-open'",'mobile navigation');
+for(const forbiddenRoute of ['/api/v1/radar/exposure','/api/analytics/event'])rejectText(dashboardJs,forbiddenRoute,'stateless dashboard must not call persistence-backed route');
+rejectText(dashboardJs,'feedbackContainsSecretLanguage','retired feedback form runtime');
+
+if(workspaceJs.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
+if(workspaceJs.includes('/api/v1/investigations/history'))throw new Error('workspace must not call retired investigation-history contract');
+if(/token_tier|token_amount|holder access/i.test(workspaceJs))throw new Error('workspace must not derive access from token holdings');
+if(workspaceJs.includes('Math.random(')||dashboardJs.includes('Math.random('))throw new Error('customer panel must not fabricate live metrics');
+if(/fetch\s*\(/.test(workspaceJs))throw new Error('account workspace data must use KoscheiAuth.apiCall instead of unauthenticated fetch');
+if(/sendBundle|JITO_BUNDLE_URL|signAndSendTransaction|sendTransaction/.test(dashboardJs))throw new Error('dashboard must not gain transaction submission authority');
+if(/loadStyle|createElement\(['\"]link['\"]\)|stylesheet.*append/i.test(dashboardJs))throw new Error('dashboard runtime must not inject stylesheet layers');
+
+console.log('customer panel stateless evidence contract: ok');

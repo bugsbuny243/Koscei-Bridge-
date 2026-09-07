@@ -117,7 +117,7 @@ jobs:
           checked_page account_page /account "Your identity opens the door. The entitlement opens the system."
           checked_page reports_page /reports "Investigation History"
           checked_page arvis_scan /scan "arvis-premium-contract.js"
-          checked_page arvis_dashboard /dashboard "Investigate. Correlate. Prove."
+          checked_page arvis_dashboard /dashboard "Security Overview"
           checked_page safe_check /safe-check "arvis-premium-contract.js"
           checked_page transaction_shield /transaction-shield "arvis-premium-contract.js"
           checked_page security_radar /security-radar "arvis-premium-contract.js"
@@ -153,13 +153,13 @@ jobs:
             if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
               wait_expect_200 full_scan_contract /full-scan-contract-v1.json "koschei-production-full-scan-contract-v1" 36
             fi
-            wait_expect_200 landing_page / "Check it before you trust it."
+            wait_expect_200 landing_page / "See the blind spot."
             wait_expect_200 login_page /login "english-auth-presentation.js"
             wait_expect_200 register_page /register "english-auth-presentation.js"
             wait_expect_200 account_page /account "Your identity opens the door. The entitlement opens the system."
             wait_expect_200 reports_page /reports "Investigation History"
             wait_expect_200 arvis_scan /scan "Descend into the evidence."
-            wait_expect_200 arvis_dashboard /dashboard "Investigate. Correlate. Prove."
+            wait_expect_200 arvis_dashboard /dashboard "Security Overview"
             wait_expect_200 safe_check /safe-check "Descend into the evidence."
             wait_expect_200 transaction_shield /transaction-shield "Descend into the evidence."
             wait_expect_200 security_radar /security-radar "Descend into the evidence."
@@ -167,6 +167,15 @@ jobs:
             grep -Fqi 'location: /scan?mode=token' diagnostics/safe_check.headers || { echo 'SAFE_CHECK_REDIRECT_FAILURE' >&2; exit 40; }
             grep -Fqi 'location: /scan?mode=transaction' diagnostics/transaction_shield.headers || { echo 'TRANSACTION_REDIRECT_FAILURE' >&2; exit 41; }
             grep -Fqi 'location: /scan?mode=deep' diagnostics/security_radar.headers || { echo 'RADAR_REDIRECT_FAILURE' >&2; exit 42; }
+
+            wait_expect_200 retired_feedback /feedback "Report a gap"
+            wait_expect_200 retired_exposure /exposure-report "Exposure Report"
+            wait_expect_200 retired_security_ecosystem /security-ecosystem "Security Capabilities"
+            wait_expect_200 retired_token_vesting /token-vesting "See the blind spot."
+            grep -Fqi 'location: /dashboard#feedback' diagnostics/retired_feedback.headers || { echo 'FEEDBACK_REDIRECT_FAILURE' >&2; exit 45; }
+            grep -Fqi 'location: /dashboard#exposure' diagnostics/retired_exposure.headers || { echo 'EXPOSURE_REDIRECT_FAILURE' >&2; exit 46; }
+            grep -Fqi 'location: /dashboard#capabilities' diagnostics/retired_security_ecosystem.headers || { echo 'SECURITY_ECOSYSTEM_REDIRECT_FAILURE' >&2; exit 47; }
+            grep -Fqi 'location: /' diagnostics/retired_token_vesting.headers || { echo 'TOKEN_VESTING_REDIRECT_FAILURE' >&2; exit 48; }
 
             for page in landing_page login_page register_page account_page reports_page arvis_scan arvis_dashboard safe_check transaction_shield security_radar; do
               grep -Fq '<html lang="en">' "diagnostics/${page}.body" || { echo "CORE_LANGUAGE_FAILURE: ${page}" >&2; exit 37; }

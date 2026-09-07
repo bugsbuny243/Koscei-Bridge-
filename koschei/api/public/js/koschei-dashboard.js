@@ -55,7 +55,7 @@ function syncAccountState(){
   }
   const jobs=$('workspaceReportsKpi')?.querySelector('strong');
   const jobsTarget=$('commandInvestigationState');
-  if(jobsTarget)jobsTarget.textContent=text(jobs?.textContent)||'—';
+  if(jobsTarget)jobsTarget.textContent=text(jobs?.textContent)||'NOT LIVE';
 }
 
 function watchAccountState(){
