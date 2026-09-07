@@ -22,7 +22,6 @@
       <a href="#intelligence"><i>02</i><span>ARVIS Intelligence</span></a>
       <a href="#evidence"><i>03</i><span>Runtime Truth</span></a>
       <a href="#capabilities"><i>04</i><span>Security Capabilities</span></a>
-      <a href="#feedback"><i>05</i><span>Feedback</span></a>
     </nav>
     <div class="sidebar-foot"><span class="dot"></span>Production truth only.<br>Missing evidence remains unknown.<br>Solana is the live chain core.</div>
   </aside>
@@ -39,7 +38,7 @@
       <section id="overview" aria-labelledby="overview-title">
         <div class="page-head">
           <div><span>Customer security workspace</span><h1 id="overview-title">Security Overview</h1></div>
-          <p>The current production process is intentionally stateless for Koschei application persistence. This panel shows authenticated identity and live runtime boundaries without pretending durable jobs, watchlists or stored alerts are active.</p>
+          <p>The current production process is intentionally stateless for Koschei application persistence. This panel shows authenticated identity and live runtime boundaries without pretending durable jobs, watchlists, stored alerts or feedback storage are active.</p>
         </div>
 
         <div class="kpis" aria-label="Current customer runtime state">
@@ -71,6 +70,7 @@
             <div class="status-row" data-tone="unknown"><span>Evidence pipeline <em>/health</em></span><b id="commandPipelineState">CHECKING…</b></div>
             <div class="status-row" data-tone="unknown"><span>Account identity <em>/api/me</em></span><b id="commandAccountState">CHECKING…</b></div>
             <div class="status-row"><span>Durable investigations <em>application persistence</em></span><b id="commandInvestigationState">NOT LIVE</b></div>
+            <div class="status-row"><span>Feedback storage <em>application persistence</em></span><b>NOT LIVE</b></div>
             <div class="status-row" data-tone="ready"><span>Solana <em>chain evidence arm</em></span><b>LIVE CORE</b></div>
             <div class="status-row"><span>Other chains <em>architecture direction</em></span><b>NOT LIVE</b></div>
           </div>
@@ -79,7 +79,7 @@
 
       <section class="workspace-live" id="evidence" aria-labelledby="evidence-title">
         <div class="workspace-live-head">
-          <div><span class="side-label">Runtime truth</span><h2 id="evidence-title">Account & persistence state</h2><p>Authenticated identity is live. Durable investigation history and continuous monitoring remain disabled until a real persistence plane is restored.</p></div>
+          <div><span class="side-label">Runtime truth</span><h2 id="evidence-title">Account & persistence state</h2><p>Authenticated identity is live. Durable investigation history, continuous monitoring and stored customer feedback remain disabled until a real persistence plane is restored.</p></div>
           <span class="workspace-live-state" id="workspaceLiveState" data-state="partial">CHECKING ACCOUNT IDENTITY</span>
         </div>
         <div class="workspace-command-grid">
@@ -102,23 +102,7 @@
         <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana synchronous evidence collection is the live core. Durable customer history and stored actor dossiers are not active.</div></article>
         <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.</div></article>
         <article class="tool-card"><span class="kicker">Protocol defense validation</span><h2>Test the defense itself.</h2><p>Invariant, payload, governance, privilege and deployment validation belong here as those production capabilities become real.</p><div class="boundary">Status: building. No live capability is fabricated in the customer interface.</div></article>
-        <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage.</div></article>
-      </section>
-
-      <section class="operations-panel" id="feedback" aria-labelledby="feedback-title">
-        <div class="operations-head">
-          <div><span class="kicker">Product & evidence feedback</span><h2 id="feedback-title">Report a gap</h2><p>Send false-positive, missing-evidence, account-access or interface feedback from the same operational surface. Never include a seed phrase or private key.</p></div>
-          <span class="operations-boundary">NO SECRETS</span>
-        </div>
-        <form class="feedback-form" id="feedbackForm">
-          <div class="feedback-grid">
-            <label>Category<select id="feedbackCategory" required><option value="">Choose</option><option value="system_gap">System gap</option><option value="bug">Bug</option><option value="evidence">Evidence inconsistency</option><option value="account_access">Account access</option><option value="security">Security report</option><option value="suggestion">Suggestion</option></select></label>
-            <label>Short title<input id="feedbackSubject" maxlength="160" required></label>
-            <label class="full">Details<textarea id="feedbackMessage" maxlength="5000" required placeholder="Include target, transaction hash, expected result and observed result when relevant. Do not include secrets."></textarea></label>
-          </div>
-          <div class="feedback-actions"><span id="feedbackCounter">0 / 5000</span><button type="submit">Send feedback</button></div>
-        </form>
-        <div class="operations-notice" id="feedbackNotice" role="status" aria-live="polite"></div>
+        <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage. Stored feedback is also not represented as live while persistence is off.</div></article>
       </section>
 
       <footer class="footer"><span>Koschei Web3 · Customer Security Panel</span><nav><a href="/">Home</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav><span>Evidence first · Unknown stays unknown</span></footer>
@@ -127,6 +111,6 @@
 </div>
 <script src="/js/koschei-auth.js?v=33"></script>
 <script src="/js/customer-workspace-v2.js?v=3"></script>
-<script src="/js/koschei-dashboard.js?v=3"></script>
+<script src="/js/koschei-dashboard.js?v=4"></script>
 </body>
 </html>
