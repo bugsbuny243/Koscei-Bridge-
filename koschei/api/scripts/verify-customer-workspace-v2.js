@@ -13,7 +13,7 @@ function rejectText(source,needle,label){if(source.includes(needle))throw new Er
 requireText(html,'/css/koschei-dashboard.css?v=2','single dashboard stylesheet');
 requireText(html,'/js/koschei-auth.js?v=33','authenticated session runtime');
 requireText(html,'/js/customer-workspace-v2.js?v=3','stateless account workspace runtime');
-requireText(html,'/js/koschei-dashboard.js?v=3','dashboard runtime');
+requireText(html,'/js/koschei-dashboard.js?v=4','dashboard runtime');
 requireText(html,'id="workspaceLiveState"','account state mount');
 requireText(html,'id="workspaceLatestReport"','persistence truth mount');
 requireText(html,'id="workspaceAlerts"','monitoring truth mount');
@@ -23,12 +23,12 @@ requireText(html,'id="workspaceWatchKpi"','watchlist capability KPI');
 requireText(html,'id="workspaceAlertsKpi"','alerts capability KPI');
 requireText(html,'The current production process is intentionally stateless','stateless runtime disclosure');
 requireText(html,'PERSISTENCE OFF','disabled persistence boundary');
+requireText(html,'Feedback storage','feedback persistence boundary');
 requireText(html,'No fake telemetry','no synthetic telemetry boundary');
 requireText(html,'Solana is the live chain core','live-chain boundary');
 requireText(html,'NOT LIVE','non-live capability truth label');
-requireText(html,'id="feedbackForm"','integrated feedback form');
 requireText(html,'does not sign, submit, relay or broadcast customer transactions','no transaction authority boundary');
-rejectText(html,'id="exposureForm"','non-live exposure control');
+for(const forbiddenControl of ['id="exposureForm"','id="feedbackForm"'])rejectText(html,forbiddenControl,'non-live persistence-backed control');
 
 if((html.match(/<link rel="stylesheet"/g)||[]).length!==1)throw new Error('dashboard must load exactly one stylesheet');
 if(/<style[\s>]/i.test(html))throw new Error('dashboard must not contain inline style patches');
@@ -61,13 +61,10 @@ for(const forbiddenRoute of [
 
 requireText(css,'.workspace-live','runtime-truth styles');
 requireText(css,'.workspace-command-empty','disabled capability styles');
-requireText(css,'.operations-panel','integrated feedback container styles');
-requireText(css,'.feedback-form','feedback styles');
 requireText(dashboardJs,"fetch('/health'",'production health source');
-requireText(dashboardJs,"fetch('/api/analytics/event'",'feedback source');
-requireText(dashboardJs,'feedbackContainsSecretLanguage','feedback secret guard');
 requireText(dashboardJs,"document.body.classList.toggle('nav-open'",'mobile navigation');
-rejectText(dashboardJs,"/api/v1/radar/exposure",'non-live exposure runtime');
+for(const forbiddenRoute of ['/api/v1/radar/exposure','/api/analytics/event'])rejectText(dashboardJs,forbiddenRoute,'stateless dashboard must not call persistence-backed route');
+rejectText(dashboardJs,'feedbackContainsSecretLanguage','retired feedback form runtime');
 
 if(workspaceJs.includes('/api/v1/unified/reports'))throw new Error('workspace must not call removed unified-reports frontend contract');
 if(workspaceJs.includes('/api/v1/investigations/history'))throw new Error('workspace must not call retired investigation-history contract');
