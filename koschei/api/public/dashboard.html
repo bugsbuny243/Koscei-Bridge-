@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="description" content="Koschei Web3 customer panel for real account state, ARVIS investigation history, monitoring evidence and operational security context.">
+<meta name="description" content="Koschei Web3 customer panel for real account state, ARVIS investigation history, monitoring evidence, exposure reports and operational security context.">
 <meta name="theme-color" content="#02050a">
 <title>Koschei Web3 | Customer Panel</title>
-<link rel="stylesheet" href="/css/koschei-dashboard.css?v=1">
+<link rel="stylesheet" href="/css/koschei-dashboard.css?v=2">
 </head>
 <body>
 <div class="dashboard">
@@ -22,6 +22,8 @@
       <a href="#intelligence"><i>02</i><span>ARVIS Intelligence</span></a>
       <a href="#evidence"><i>03</i><span>Evidence & Alerts</span></a>
       <a href="#capabilities"><i>04</i><span>Security Capabilities</span></a>
+      <a href="#exposure"><i>05</i><span>Exposure Report</span></a>
+      <a href="#feedback"><i>06</i><span>Feedback</span></a>
     </nav>
     <div class="sidebar-foot"><span class="dot"></span>Production truth only.<br>Missing evidence remains unknown.<br>Solana is the live chain core.</div>
   </aside>
@@ -99,9 +101,48 @@
 
       <section class="tool-grid" id="capabilities" aria-label="Koschei Web3 operational capability boundaries">
         <article class="tool-card"><span class="kicker">Wallet & entity intelligence</span><h2>Correlate before you conclude.</h2><p>ARVIS is designed to connect target context, supported relationships, funding evidence, observed behavior and unresolved gaps into one explainable investigation path.</p><div class="boundary">Current production boundary: Solana is the live evidence core. Missing provider evidence is never silently converted into a safe result.</div></article>
-        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">This panel does not claim unsupported simulation coverage. Production capability must remain tied to the existing backend evidence contract.</div></article>
+        <article class="tool-card"><span class="kicker">Transaction preflight</span><h2>Understand what can change before execution.</h2><p>The product direction is pre-signing evidence and simulation: decoded transaction context, supported state effects, approvals and suspicious execution paths where the underlying evidence sources support them.</p><div class="boundary">Koschei analyzes and simulates. It does not sign, submit, relay or broadcast customer transactions.</div></article>
         <article class="tool-card"><span class="kicker">Protocol defense validation</span><h2>Test the defense itself.</h2><p>Invariant, payload, governance, privilege and deployment validation belong here as those production capabilities become real.</p><div class="boundary">Status: building. No live capability is fabricated in the customer interface.</div></article>
         <article class="tool-card"><span class="kicker">Cross-chain intelligence</span><h2>One intelligence model, chain-specific evidence adapters.</h2><p>Core reasoning stays chain-independent while evidence collectors remain behind adapters.</p><div class="boundary">Status: expansion architecture. Networks beyond the current live core are not presented as active coverage.</div></article>
+      </section>
+
+      <section class="operations-panel" id="exposure" aria-labelledby="exposure-title">
+        <div class="operations-head">
+          <div><span class="kicker">Professional · canonical ARVIS evidence</span><h2 id="exposure-title">Exposure Report</h2><p>Generate the existing evidence-backed exposure view without leaving the customer panel. No numeric final risk score is invented here.</p></div>
+          <span class="operations-boundary">STORED-ONLY EVIDENCE PATH</span>
+        </div>
+        <form class="operations-form" id="exposureForm">
+          <label for="exposureTarget">Solana target</label>
+          <div class="operations-input-row"><input id="exposureTarget" name="target" autocomplete="off" placeholder="Mint, wallet or pool address" required><button type="submit">Generate report</button></div>
+          <p class="operations-help">Uses <code>/api/v1/radar/exposure</code>. Professional entitlement and authenticated evidence rules remain enforced by the backend.</p>
+        </form>
+        <div class="operations-notice" id="exposureNotice" role="status" aria-live="polite"></div>
+        <div class="exposure-result" id="exposureResult" hidden>
+          <div class="exposure-facts">
+            <div><span>Action</span><strong id="exposureAction">—</strong></div>
+            <div><span>Grade</span><strong id="exposureGrade">—</strong></div>
+            <div><span>Verified arms</span><strong id="exposureVerified">—</strong></div>
+            <div><span>Unavailable arms</span><strong id="exposureUnavailable">—</strong></div>
+          </div>
+          <div class="exposure-detail"><span>Evidence decision</span><p id="exposureDecision">—</p></div>
+          <div class="exposure-detail"><span>Evidence references</span><ul id="exposureEvidence"></ul></div>
+        </div>
+      </section>
+
+      <section class="operations-panel" id="feedback" aria-labelledby="feedback-title">
+        <div class="operations-head">
+          <div><span class="kicker">Product & evidence feedback</span><h2 id="feedback-title">Report a gap</h2><p>Send false-positive, missing-evidence, account-access or interface feedback from the same operational surface. Never include a seed phrase or private key.</p></div>
+          <span class="operations-boundary">NO SECRETS</span>
+        </div>
+        <form class="feedback-form" id="feedbackForm">
+          <div class="feedback-grid">
+            <label>Category<select id="feedbackCategory" required><option value="">Choose</option><option value="system_gap">System gap</option><option value="bug">Bug</option><option value="evidence">Evidence inconsistency</option><option value="account_access">Account access</option><option value="security">Security report</option><option value="suggestion">Suggestion</option></select></label>
+            <label>Short title<input id="feedbackSubject" maxlength="160" required></label>
+            <label class="full">Details<textarea id="feedbackMessage" maxlength="5000" required placeholder="Include target, transaction hash, expected result and observed result when relevant. Do not include secrets."></textarea></label>
+          </div>
+          <div class="feedback-actions"><span id="feedbackCounter">0 / 5000</span><button type="submit">Send feedback</button></div>
+        </form>
+        <div class="operations-notice" id="feedbackNotice" role="status" aria-live="polite"></div>
       </section>
 
       <footer class="footer"><span>Koschei Web3 · Customer Security Panel</span><nav><a href="/">Home</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav><span>Evidence first · Unknown stays unknown</span></footer>
@@ -110,6 +151,6 @@
 </div>
 <script src="/js/koschei-auth.js?v=33"></script>
 <script src="/js/customer-workspace-v2.js?v=2"></script>
-<script src="/js/koschei-dashboard.js?v=1"></script>
+<script src="/js/koschei-dashboard.js?v=2"></script>
 </body>
 </html>
