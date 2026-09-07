@@ -11,10 +11,10 @@ func TestRetiredStandaloneSurfacesRedirectToCanonicalProduct(t *testing.T) {
 	registerStaticAliases(mux, t.TempDir())
 
 	cases := map[string]string{
-		"/feedback":                "/dashboard#capabilities",
-		"/feedback.html":           "/dashboard#capabilities",
-		"/exposure-report":         "/dashboard#capabilities",
-		"/exposure-report.html":    "/dashboard#capabilities",
+		"/feedback":                "/dashboard#feedback",
+		"/feedback.html":           "/dashboard#feedback",
+		"/exposure-report":         "/dashboard#exposure",
+		"/exposure-report.html":    "/dashboard#exposure",
 		"/security-ecosystem":      "/dashboard#capabilities",
 		"/security-ecosystem.html": "/dashboard#capabilities",
 		"/token-vesting":           "/",
